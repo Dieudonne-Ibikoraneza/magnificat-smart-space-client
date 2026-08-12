@@ -93,7 +93,7 @@ function OtpFields() {
             refs.current[index] = element;
           }}
           aria-label={`Verification digit ${index + 1}`}
-          className="size-14 rounded-xl border-x border-y bg-background text-center text-xl text-ink focus-visible:ring-2 focus-visible:ring-primary"
+          className="size-14 rounded-xl border-x border-y bg-transparent text-center text-xl text-ink focus-visible:ring-2 focus-visible:ring-primary"
           inputMode="numeric"
           maxLength={1}
           onChange={(event) => updateCode(index, event.target.value)}
@@ -108,14 +108,15 @@ function OtpFields() {
 
 export default function AuthPage() {
   const [view, setView] = useState<ViewState>("login");
+  const [discoverySource, setDiscoverySource] = useState("");
 
   const handleSubmit = () => {
     if (view !== "otp") setView("otp");
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#fafafa] p-4 font-sans text-ink sm:p-8">
-      <section className="flex h-[calc(100vh-2rem)] min-h-150 w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_0_40px_rgba(15,39,71,0.05)] md:h-200 md:max-h-[90vh] md:flex-row">
+    <main className="flex min-h-screen items-center justify-center bg-muted-background p-4 font-sans text-ink sm:p-8">
+      <section className="flex h-[calc(100vh-2rem)] min-h-150 w-full max-w-5xl flex-col overflow-hidden rounded-2xl  bg-white shadow-[0_0_40px_rgba(15,39,71,0.05)] md:h-200 md:max-h-[90vh] md:flex-row">
         <div className="scrollbar-hide flex w-full flex-col overflow-y-auto md:w-1/2">
           <div className="flex min-h-full flex-col p-8 md:p-12 lg:p-16">
             <div className="mb-4 flex w-full justify-center">
@@ -174,8 +175,12 @@ export default function AuthPage() {
                       <FieldLabel className="text-sm font-medium text-ink">Where did you hear about us?</FieldLabel>
                       <div className="relative">
                         <Globe2 className="absolute left-3.5 top-1/2 z-10 size-4 -translate-y-1/2 text-muted" strokeWidth={1.5} />
-                        <Select>
-                        <SelectTrigger className="h-11 pl-11 pr-10 text-sm"><SelectValue placeholder="Select..." /></SelectTrigger>
+                        <Select value={discoverySource} onValueChange={(value) => setDiscoverySource(value ?? "")}>
+                          <SelectTrigger className="relative h-11 pl-11 pr-10 text-sm [&>svg]:absolute [&>svg]:right-3.5">
+                            <SelectValue>
+                              {(value) => discoverySources.find((source) => source.value === value)?.label ?? "Select..."}
+                            </SelectValue>
+                          </SelectTrigger>
                           <SelectContent>{discoverySources.map((source) => <SelectItem key={source.value} value={source.value}>{source.label}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
