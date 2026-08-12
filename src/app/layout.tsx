@@ -10,10 +10,12 @@ export const metadata: Metadata = {
   description: "Your smarter, simpler living space.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+const RootLayout = ({ children }: LayoutProps<"/">) => {
   return (
     <html lang="en" className={cn("h-full antialiased", "font-sans", geist.variable)}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }
+
+export default RootLayout;

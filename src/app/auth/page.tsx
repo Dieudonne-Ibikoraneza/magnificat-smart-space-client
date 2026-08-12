@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useRef, useState, type KeyboardEvent, type ClipboardEvent } from "react";
 import {
   ArrowRight,
@@ -33,7 +34,7 @@ const discoverySources = [
 
 const fieldClassName = "h-11 pl-11 text-sm";
 
-function IconField({
+const IconField = ({
   icon: Icon,
   label,
   placeholder,
@@ -43,7 +44,7 @@ function IconField({
   label: string;
   placeholder: string;
   type?: string;
-}) {
+}) => {
   return (
     <Field className="gap-1.5">
       <FieldLabel className="text-sm font-medium text-ink">{label}</FieldLabel>
@@ -59,7 +60,7 @@ function IconField({
   );
 }
 
-function OtpFields() {
+const OtpFields = () => {
   const [code, setCode] = useState(["", "", "", ""]);
   const refs = useRef<Array<HTMLInputElement | null>>([]);
 
@@ -106,12 +107,17 @@ function OtpFields() {
   );
 }
 
-export default function AuthPage() {
+const AuthPage = () => {
   const [view, setView] = useState<ViewState>("login");
   const [discoverySource, setDiscoverySource] = useState("");
+  const router = useRouter();
 
   const handleSubmit = () => {
-    if (view !== "otp") setView("otp");
+    if (view !== "otp") {
+      setView("otp");
+    } else {
+      router.push("/");
+    }
   };
 
   return (
@@ -222,3 +228,5 @@ export default function AuthPage() {
     </main>
   );
 }
+
+export default AuthPage;

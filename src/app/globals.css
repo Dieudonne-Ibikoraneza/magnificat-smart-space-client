@@ -7,6 +7,7 @@
 :root {
   --ink: #0f2747;
   --primary: #cde519;
+  --amber: #f4b400;
   --muted: #6b7280;
   --muted-background: #f3f4f6;
   --background: #faf8f2;
@@ -46,6 +47,7 @@
   --color-foreground: var(--foreground);
   --color-ink: var(--ink);
   --color-primary: var(--primary);
+  --color-amber: var(--amber);
   --color-muted: var(--muted);
   --color-muted-background: var(--muted-background);
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
