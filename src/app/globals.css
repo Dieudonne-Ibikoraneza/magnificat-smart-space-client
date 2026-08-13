@@ -105,6 +105,44 @@ body {
   display: none;
 }
 
+@keyframes like-pop {
+  0% { transform: scale(0.65); }
+  45% { transform: scale(1.28); }
+  75% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+
+@keyframes like-spark {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--spark-angle)) translateY(0) scale(0.4); }
+  18% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--spark-angle)) translateY(var(--spark-distance)) scale(0.2); }
+}
+
+.animate-like-pop {
+  animation: like-pop 420ms cubic-bezier(0.22, 1.3, 0.36, 1);
+}
+
+.like-spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 11px;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 4px rgb(239 68 68 / 0.45);
+  animation: like-spark 560ms cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+
+.like-spark-1 { --spark-angle: 0deg; --spark-distance: -22px; }
+.like-spark-2 { --spark-angle: 45deg; --spark-distance: -20px; animation-delay: 20ms; }
+.like-spark-3 { --spark-angle: 90deg; --spark-distance: -22px; animation-delay: 35ms; }
+.like-spark-4 { --spark-angle: 135deg; --spark-distance: -20px; animation-delay: 15ms; }
+.like-spark-5 { --spark-angle: 180deg; --spark-distance: -22px; animation-delay: 30ms; }
+.like-spark-6 { --spark-angle: 225deg; --spark-distance: -20px; animation-delay: 10ms; }
+.like-spark-7 { --spark-angle: 270deg; --spark-distance: -22px; animation-delay: 25ms; }
+.like-spark-8 { --spark-angle: 315deg; --spark-distance: -20px; animation-delay: 40ms; }
+
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);

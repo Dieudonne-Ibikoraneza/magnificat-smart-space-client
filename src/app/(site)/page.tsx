@@ -41,16 +41,17 @@ const FilterGroup = ({
   const [open, setOpen] = useState(true);
   return (
     <div className="border-b border-slate-100 py-4 last:border-0">
-      <button
+      <Button
         type="button"
         onClick={() => setOpen(!open)}
+        variant="ghost"
         className="flex w-full items-center justify-between text-left text-sm font-semibold text-ink"
       >
         {title}
         <ChevronDown
           className={`size-4 transition-transform ${open ? "" : "-rotate-90"}`}
         />
-      </button>
+      </Button>
       <div
         className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
       >
@@ -114,8 +115,12 @@ const FilterPanel = ({ onClose }: { onClose?: () => void }) => (
   </>
 );
 
+const firstPages = [1, 2, 3, 4];
+const lastPages = [100, 101, 102, 103];
+
 const ProductsPage = () => {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [currentPage, setCurrentPage] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filtersClosing, setFiltersClosing] = useState(false);
 
@@ -257,12 +262,16 @@ const ProductsPage = () => {
             ))}
           </div>
           <Pagination className="py-10">
-            <PaginationContent>
+            <PaginationContent className="gap-1 sm:gap-2">
               <PaginationItem>
                 <PaginationLink
                   href="#"
                   size="sm"
                   className="gap-1 text-ink hover:text-amber"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setCurrentPage(1);
+                  }}
                 >
                   <ChevronsLeft className="size-4" />
                   <span className="hidden sm:inline">First</span>
@@ -272,24 +281,23 @@ const ProductsPage = () => {
                 <PaginationPrevious
                   href="#"
                   className="text-ink hover:text-amber"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setCurrentPage((page) => Math.max(1, page - 1));
+                  }}
                 />
               </PaginationItem>
-              <PaginationItem>
-                <PaginationLink
-                  href="#"
-                  isActive
-                  size="icon-sm"
-                  className="border-ink bg-ink text-white hover:bg-ink hover:text-white"
-                >
-                  1
-                </PaginationLink>
-              </PaginationItem>
-              {[2, 3, 4].map((page) => (
+              {firstPages.map((page) => (
                 <PaginationItem key={page}>
                   <PaginationLink
                     href="#"
+                    isActive={currentPage === page}
                     size="icon-sm"
-                    className="hidden text-ink hover:text-amber sm:inline-flex"
+                    className={currentPage === page ? "border-ink bg-ink text-white hover:bg-ink hover:text-white" : "text-ink hover:text-amber"}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setCurrentPage(page);
+                    }}
                   >
                     {page}
                   </PaginationLink>
@@ -298,10 +306,30 @@ const ProductsPage = () => {
               <PaginationItem>
                 <PaginationEllipsis />
               </PaginationItem>
+              {lastPages.map((page) => (
+                <PaginationItem key={page}>
+                  <PaginationLink
+                    href="#"
+                    isActive={currentPage === page}
+                    size="icon-sm"
+                    className={`${currentPage === page ? "border-ink bg-ink text-white hover:bg-ink hover:text-white" : "text-ink hover:text-amber"} hidden sm:inline-flex`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setCurrentPage(page);
+                    }}
+                  >
+                    {page}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
               <PaginationItem>
                 <PaginationNext
                   href="#"
                   className="text-ink hover:text-amber"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setCurrentPage((page) => Math.min(103, page + 1));
+                  }}
                 />
               </PaginationItem>
               <PaginationItem>
@@ -309,6 +337,10 @@ const ProductsPage = () => {
                   href="#"
                   size="sm"
                   className="gap-1 text-ink hover:text-amber"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setCurrentPage(103);
+                  }}
                 >
                   <span className="hidden sm:inline">Last</span>
                   <ChevronsRight className="size-4" />

@@ -95,20 +95,23 @@ export const SiteHeader = () => {
         </div>
       </div>
 
+      <div className="mx-auto px-4 pb-4 md:hidden">
+        <div className="relative">
+          <Search aria-hidden="true" className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
+          <Input className="h-10 w-full rounded-full bg-muted-background pl-11 pr-4 text-sm" placeholder="Search for tiles, categories, or sizes..." />
+        </div>
+      </div>
+
       {mounted && menuOpen && createPortal(
         <>
           <button
             type="button"
-            className={`fixed inset-x-0 bottom-0 top-20 z-[60] bg-ink/35 backdrop-blur-[2px] lg:hidden ${menuClosing ? "animate-out fade-out duration-300" : "animate-in fade-in duration-200"}`}
+            className={`fixed inset-x-0 bottom-0 top-[8.5rem] z-[60] bg-ink/35 backdrop-blur-[2px] md:top-20 lg:hidden ${menuClosing ? "animate-out fade-out duration-300" : "animate-in fade-in duration-200"}`}
             onClick={closeMenu}
             aria-label="Close navigation menu"
           />
-          <div className="pointer-events-none fixed inset-x-0 bottom-0 top-20 z-[61] overflow-hidden lg:hidden">
+          <div className="pointer-events-none fixed inset-x-0 bottom-0 top-[8.5rem] z-[61] overflow-hidden md:top-20 lg:hidden">
             <div id="mobile-navigation" className={`pointer-events-auto bg-white/95 px-4 pb-5 pt-4 shadow-lg backdrop-blur-xl duration-300 ${menuClosing ? "animate-out slide-out-to-top-full" : "animate-in slide-in-from-top-full"}`}>
-              <div className="relative mb-4">
-                <Search aria-hidden="true" className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
-                <Input className="h-11 rounded-full bg-muted-background pl-11 pr-4 text-sm" placeholder="Search for tiles, categories, or sizes..." />
-              </div>
               <nav className="flex flex-col" aria-label="Mobile navigation">
                 {navigationLinks.map((link, index) => (
                   <Link

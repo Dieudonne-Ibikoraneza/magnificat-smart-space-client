@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import { useState } from "react";
 import { ArrowRight, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -32,6 +35,8 @@ export const ProductCard = ({
   product: Product;
   list?: boolean;
 }) => {
+  const [liked, setLiked] = useState(false);
+
   return (
     <article
       className={`group relative flex overflow-hidden rounded-3xl bg-white shadow-sm transition-shadow hover:shadow-[0_8px_30px_rgba(15,39,71,0.10)] ${list ? "flex-col sm:flex-row" : "flex-col"}`}
@@ -55,12 +60,35 @@ export const ProductCard = ({
           {stockLabels[product.stockStatus]}
         </span>
         <Button
+          type="button"
           variant="ghost"
           size="icon"
-          className="absolute right-3 top-3 size-9 rounded-full bg-white/90 text-ink shadow-sm hover:bg-white hover:text-ink"
-          aria-label={`Save ${product.name}`}
+          className="group/like absolute right-3 top-3 z-20 size-9 rounded-full bg-white/90 shadow-sm hover:bg-white"
+          aria-label={liked ? `Remove ${product.name} from favorites` : `Save ${product.name}`}
+          aria-pressed={liked}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setLiked((value) => !value);
+          }}
         >
-          <Heart className="size-5" />
+          <span className="pointer-events-none absolute inset-0" aria-hidden="true">
+            {liked && (
+              <>
+                <span className="like-spark like-spark-1" />
+                <span className="like-spark like-spark-2" />
+                <span className="like-spark like-spark-3" />
+                <span className="like-spark like-spark-4" />
+                <span className="like-spark like-spark-5" />
+                <span className="like-spark like-spark-6" />
+                <span className="like-spark like-spark-7" />
+                <span className="like-spark like-spark-8" />
+              </>
+            )}
+          </span>
+          <Heart
+            className={`relative z-10 size-5 transition-colors duration-200 ${liked ? "fill-red-500 text-red-500 animate-like-pop" : "text-ink"}`}
+          />
         </Button>
       </div>
       <div

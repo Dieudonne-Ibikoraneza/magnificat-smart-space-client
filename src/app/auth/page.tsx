@@ -198,10 +198,10 @@ const AuthPage = () => {
                   <div className="mt-4 space-y-8">
                     <div className="space-y-3">
                       <p className="text-sm font-normal text-ink">Enter the 4-digit code sent to</p>
-                      <div className="flex items-center gap-2"><span className="font-semibold text-ink">john.doe@example.com</span><button type="button" onClick={() => setView("login")} className="ml-1 text-muted hover:text-ink" aria-label="Edit email"><Pencil className="size-4 text-muted" /></button></div>
+                      <div className="flex items-center gap-2"><span className="font-semibold text-ink">john.doe@example.com</span><Button type="button" variant="ghost" size="icon-xs" onClick={() => setView("login")} className="ml-1 text-muted hover:text-ink" aria-label="Edit email"><Pencil className="size-4 text-muted" /></Button></div>
                     </div>
                     <OtpFields />
-                    <p className="mt-2 text-sm text-muted">Didn&apos;t receive code? <button type="button" className="font-medium text-ink hover:underline">Resend OTP</button></p>
+                    <p className="mt-2 text-sm text-muted">Didn&apos;t receive code? <Button type="button" variant="link" className="h-auto p-0 text-sm font-medium text-ink hover:underline">Resend OTP</Button></p>
                   </div>
                 )}
               </div>
