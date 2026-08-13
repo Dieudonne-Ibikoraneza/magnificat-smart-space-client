@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 import {
   Globe2,
@@ -16,13 +17,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const navigationLinks = [
-  { href: "/", label: "Products" },
-  { href: "/collections", label: "Collections" },
-  { href: "/visualizer", label: "3D Visualizer" },
-  { href: "/chatbot", label: "AI Chatbot" },
+  { href: "/", label: "Products", match: (pathname: string) => pathname === "/" || pathname.startsWith("/products") },
+  { href: "/collections", label: "Collections", match: (pathname: string) => pathname.startsWith("/collections") },
+  { href: "/visualizer", label: "3D Visualizer", match: (pathname: string) => pathname.startsWith("/visualizer") },
+  { href: "/chatbot", label: "AI Chatbot", match: (pathname: string) => pathname.startsWith("/chatbot") },
 ];
 
 export const SiteHeader = () => {
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuClosing, setMenuClosing] = useState(false);
   const mounted = useSyncExternalStore(
@@ -52,11 +54,11 @@ export const SiteHeader = () => {
         </Link>
 
         <nav className="hidden items-center gap-8 lg:flex" aria-label="Primary navigation">
-          {navigationLinks.map((link, index) => (
+          {navigationLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={index === 0 ? "border-b-2 border-amber pb-1 text-sm font-semibold text-ink" : "text-sm font-medium text-muted transition-colors hover:text-ink"}
+              className={link.match(pathname) ? "border-b-2 border-amber pb-1 text-sm font-semibold text-ink" : "text-sm font-medium text-muted transition-colors hover:text-ink"}
             >
               {link.label}
             </Link>
@@ -66,7 +68,7 @@ export const SiteHeader = () => {
         <div className="ml-auto hidden max-w-md flex-1 md:block">
           <div className="relative">
             <Search aria-hidden="true" className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
-            <Input className="h-10 rounded-full bg-muted-background pl-11 pr-4 text-sm" placeholder="Search for tiles, categories, or sizes..." />
+            <Input className="h-10 rounded-full bg-transparent pl-11 pr-4 text-sm" placeholder="Search for tiles, categories, or sizes..." />
           </div>
         </div>
 
@@ -98,7 +100,7 @@ export const SiteHeader = () => {
       <div className="mx-auto px-4 pb-4 md:hidden">
         <div className="relative">
           <Search aria-hidden="true" className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
-          <Input className="h-10 w-full rounded-full bg-muted-background pl-11 pr-4 text-sm" placeholder="Search for tiles, categories, or sizes..." />
+          <Input className="h-10 w-full rounded-full bg-transparent pl-11 pr-4 text-sm" placeholder="Search for tiles, categories, or sizes..." />
         </div>
       </div>
 
@@ -113,12 +115,12 @@ export const SiteHeader = () => {
           <div className="pointer-events-none fixed inset-x-0 bottom-0 top-[8.5rem] z-[61] overflow-hidden md:top-20 lg:hidden">
             <div id="mobile-navigation" className={`pointer-events-auto bg-white/95 px-4 pb-5 pt-4 shadow-lg backdrop-blur-xl duration-300 ${menuClosing ? "animate-out slide-out-to-top-full" : "animate-in slide-in-from-top-full"}`}>
               <nav className="flex flex-col" aria-label="Mobile navigation">
-                {navigationLinks.map((link, index) => (
+                {navigationLinks.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
                     onClick={closeMenu}
-                    className={`border-b border-slate-100 py-3.5 text-sm font-semibold ${index === 0 ? "text-ink" : "text-muted hover:text-ink"}`}
+                    className={`border-b border-slate-100 py-3.5 text-sm font-semibold ${link.match(pathname) ? "text-ink" : "text-muted hover:text-ink"}`}
                   >
                     {link.label}
                   </Link>

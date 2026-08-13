@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 import { ArrowRight, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,12 +9,15 @@ import { Button } from "@/components/ui/button";
 export type Product = {
   id: string;
   name: string;
+  collectionId: string;
   collection: string;
   size: string;
   price: number;
   image: string;
   description: string;
   stockStatus: "in_stock" | "low_stock" | "out_of_stock";
+  roomTypes: string[];
+  suitableFor: "floor" | "wall" | "both";
 };
 
 const stockStyles = {
@@ -101,7 +105,7 @@ export const ProductCard = ({
         <p className="line-clamp-2 text-sm leading-5 text-muted">
           {product.description}
         </p>
-        <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-5 sm:pt-6">
+        <div className="mt-auto flex items-center justify-between pt-4 sm:pt-5">
           <p className="text-lg font-bold text-ink">
             RWF {product.price.toLocaleString()}{" "}
             <span className="ml-1 text-xs font-normal text-muted">/ sqm</span>
@@ -111,6 +115,8 @@ export const ProductCard = ({
             variant="ghost"
             className="size-11 rounded-full border border-slate-100 bg-muted-background text-ink hover:bg-primary hover:text-ink"
             aria-label={`View ${product.name}`}
+            nativeButton={false}
+            render={<Link href={`/products/${product.id}`} aria-label={`View ${product.name}`} />}
           >
             <ArrowRight className="size-5" />
           </Button>
