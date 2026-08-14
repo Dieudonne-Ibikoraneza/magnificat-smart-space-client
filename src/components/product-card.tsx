@@ -12,6 +12,9 @@ export type Product = {
   collectionId: string;
   collection: string;
   size: string;
+  tileArea: number;
+  boxCoverage: number;
+  piecesPerBox: number;
   price: number;
   image: string;
   description: string;

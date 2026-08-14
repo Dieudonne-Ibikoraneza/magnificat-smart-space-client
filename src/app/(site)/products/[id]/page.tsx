@@ -2,22 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { use, useMemo, useState } from "react";
+import { use, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
   Bookmark,
-  Calculator,
   Check,
   Layers3,
   Maximize2,
-  Ruler,
   Sparkles,
-  SquareStack,
 } from "lucide-react";
 import { products } from "@/data/catalog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { QuantityCalculator } from "@/components/quantity-calculator";
 import type { Product } from "@/components/product-card";
 
 const formatPrice = (value: number) => `RWF ${value.toLocaleString()}`;
@@ -49,26 +46,14 @@ const getSuitableForBadges = (suitableFor: Product["suitableFor"]) => {
 };
 
 const detailSpecs = [
-  { label: "Size", value: "60×60 cm", icon: Ruler },
   { label: "Finish", value: "Polished", icon: Sparkles },
   { label: "Material", value: "Porcelain", icon: Layers3 },
-  { label: "Per box", value: "1.44 m² (4 pcs)", icon: SquareStack },
 ];
 
 const ProductDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = use(params);
   const product = products.find((item) => item.id === id) ?? products[0];
-  const [length, setLength] = useState("12");
-  const [width, setWidth] = useState("12");
-  const [waste, setWaste] = useState(true);
   const [saved, setSaved] = useState(false);
-
-  const calculation = useMemo(() => {
-    const area = Number(length) * Number(width) || 0;
-    const adjustedArea = area * (waste ? 1.1 : 1);
-    const boxes = Math.ceil(adjustedArea / 1.44);
-    return { area: adjustedArea, boxes, total: boxes * product.price * 1.44 };
-  }, [length, width, waste, product.price]);
 
   return (
     <div className="pb-6">
@@ -105,7 +90,11 @@ const ProductDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => 
                 <p className="text-xs font-medium uppercase tracking-wide text-muted">Size</p>
                 <p className="mt-1 text-sm font-bold text-ink">{product.size}</p>
               </div>
-              {detailSpecs.slice(1).map(({ label, value }) => (
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">Per box</p>
+                <p className="mt-1 text-sm font-bold text-ink">{product.boxCoverage} m² ({product.piecesPerBox} pcs)</p>
+              </div>
+              {detailSpecs.map(({ label, value }) => (
                 <div key={label}>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted">{label}</p>
                   <p className="mt-1 text-sm font-bold text-ink">{value}</p>
@@ -131,34 +120,7 @@ const ProductDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => 
             <Button className="group mt-6 h-14 min-h-14 px-7 py-3 font-bold bg-primary text-ink hover:bg-primary/90">Start Visualizing <ArrowRight className="transition-transform duration-300 group-hover:translate-x-1" /></Button>
           </section>
 
-          <section className="rounded-2xl bg-white p-6 shadow-sm sm:p-7">
-            <div className="mb-6 flex items-center gap-2"><Calculator className="size-5 text-ink" /><h2 className="text-lg font-bold text-ink">Quantity Calculator</h2></div>
-            <div className="grid gap-5 sm:grid-cols-2"><label className="text-xs font-medium uppercase tracking-wide text-muted">Length (m)<Input value={length} onChange={(event) => setLength(event.target.value)} inputMode="decimal" className="mt-2 h-12 text-base font-semibold" /></label><label className="text-xs font-medium uppercase tracking-wide text-muted">Width (m)<Input value={width} onChange={(event) => setWidth(event.target.value)} inputMode="decimal" className="mt-2 h-12 text-base font-semibold" /></label></div>
-            <div className="mt-6 flex items-center justify-between border-b border-slate-100 pb-6">
-              <div>
-                <p className="text-sm font-medium text-muted">Wastage allowance</p>
-                <p className="text-sm text-ink">10% Recommended</p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={waste}
-                aria-label="Toggle wastage allowance"
-                onClick={() => setWaste((value) => !value)}
-                className={`relative h-7 w-16 shrink-0 rounded-full p-0 transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2f63e8] focus-visible:ring-offset-2 ${waste ? "bg-primary" : "bg-slate-200"}`}
-              >
-                <span
-                  className={`absolute left-0 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-xl bg-[#2f63e8] text-white shadow-md transition-transform duration-300 ease-out ${waste ? "translate-x-7" : "translate-x-0"}`}
-                >
-                  <Check
-                    className={`size-[18px] transition-opacity duration-200 ${waste ? "opacity-100" : "opacity-0"}`}
-                    strokeWidth={3}
-                  />
-                </span>
-              </button>
-            </div>
-            <dl className="space-y-4 pt-6 text-sm"><div className="flex justify-between"><dt className="text-muted">Total area</dt><dd className="font-bold text-ink">{calculation.area.toFixed(2)} m²</dd></div><div className="flex justify-between"><dt className="text-muted">Boxes needed</dt><dd className="font-bold text-ink">{calculation.boxes}</dd></div><div className="flex items-center justify-between pt-2"><dt className="text-base font-bold text-ink">Total price</dt><dd className="text-xl font-bold text-ink">{formatPrice(calculation.total)}</dd></div></dl>
-          </section>
+          <QuantityCalculator product={product} />
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Button type="button" className="h-14 min-h-14 w-full gap-3 py-3 font-bold bg-primary text-ink hover:bg-primary/90" onClick={() => setSaved((value) => !value)} aria-pressed={saved}>
