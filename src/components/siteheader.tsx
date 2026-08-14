@@ -76,11 +76,11 @@ export const SiteHeader = () => {
           <button type="button" className="hidden items-center gap-1 text-sm font-medium transition-colors hover:text-ink sm:flex" aria-label="Change language">
             <Globe2 className="size-4" /> EN
           </button>
-          <button type="button" className="transition-colors hover:text-ink" aria-label="Account"><UserRound className="size-5 sm:size-4" /></button>
-          <button type="button" className="relative transition-colors hover:text-ink" aria-label="Shopping cart">
+          <Link href="/account/settings" className="transition-colors hover:text-ink" aria-label="Account"><UserRound className="size-5 sm:size-4" /></Link>
+          <Link href="/account/cart" className="relative transition-colors hover:text-ink" aria-label="Shopping cart">
             <ShoppingCart className="size-5 sm:size-4" />
             <span className="absolute -right-2 -top-2 flex size-4 items-center justify-center rounded-full bg-amber text-[10px] font-bold text-white">2</span>
-          </button>
+          </Link>
           <Button
             type="button"
             variant="ghost"
@@ -97,7 +97,7 @@ export const SiteHeader = () => {
         </div>
       </div>
 
-      <div className="mx-auto px-4 pb-4 md:hidden">
+      <div className="mx-auto px-4 pb-2 md:hidden">
         <div className="relative">
           <Search aria-hidden="true" className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
           <Input className="h-10 w-full rounded-full bg-transparent pl-11 pr-4 text-sm" placeholder="Search for tiles, categories, or sizes..." />

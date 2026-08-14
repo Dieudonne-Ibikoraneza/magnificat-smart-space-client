@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Bookmark,
   Check,
@@ -138,30 +138,30 @@ const ConfigureSpacePanel = ({
   onSelectTile: (productId: string) => void;
   showActions?: boolean;
 }) => (
-  <div className="flex min-h-0 flex-1 flex-col">
-    <div className="mb-3 flex items-center gap-2">
-      <Layers3 className="size-5 text-ink" strokeWidth={2} />
-      <h2 className="text-lg font-bold text-ink">Configure Space</h2>
-    </div>
+  <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="relative z-10 shrink-0 space-y-3 bg-background pb-3">
+      <div className="flex items-center gap-2">
+        <Layers3 className="size-5 text-ink" strokeWidth={2} />
+        <h2 className="text-lg font-bold text-ink">Configure Space</h2>
+      </div>
 
-    <div className="mb-3">
       <SurfaceToggle activeSurface={activeSurface} onChange={onSurfaceChange} />
+
+      <div className="relative">
+        <Search
+          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
+          aria-hidden="true"
+        />
+        <Input
+          value={searchQuery}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder="Search by name or size..."
+          className="h-10 rounded-xl bg-white py-0 pl-10 leading-10"
+        />
+      </div>
     </div>
 
-    <div className="relative mb-3">
-      <Search
-        className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
-        aria-hidden="true"
-      />
-      <Input
-        value={searchQuery}
-        onChange={(event) => onSearchChange(event.target.value)}
-        placeholder="Search by name or size..."
-        className="h-10 rounded-xl bg-white pl-10"
-      />
-    </div>
-
-    <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+    <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-y-contain border-t border-slate-100 pt-2">
       {filteredCollections.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted">
           No tiles match your search.
@@ -313,17 +313,18 @@ const VisualizerPage = () => {
     filteredCollections.length > 0 ? [filteredCollections[0].collection.id] : [],
   );
 
-  useEffect(() => {
-    setOpenAccordionItems((current) => {
-      const validIds = new Set(filteredCollections.map(({ collection }) => collection.id));
-      const next = current.filter((id) => validIds.has(id));
-
-      if (next.length > 0) return next;
-      return filteredCollections.length > 0
+  const validAccordionIds = new Set(
+    filteredCollections.map(({ collection }) => collection.id),
+  );
+  const visibleAccordionItems = openAccordionItems.filter((id) =>
+    validAccordionIds.has(id),
+  );
+  const effectiveAccordionItems =
+    visibleAccordionItems.length > 0
+      ? visibleAccordionItems
+      : filteredCollections.length > 0
         ? [filteredCollections[0].collection.id]
         : [];
-    });
-  }, [filteredCollections]);
 
   const selectedProductId = selections[activeSurface];
   const selectedProduct = products.find((product) => product.id === selectedProductId);
@@ -355,7 +356,7 @@ const VisualizerPage = () => {
     onSurfaceChange: setActiveSurface,
     searchQuery,
     onSearchChange: setSearchQuery,
-    openAccordionItems,
+    openAccordionItems: effectiveAccordionItems,
     onOpenAccordionChange: setOpenAccordionItems,
     filteredCollections,
     selectedProductId,

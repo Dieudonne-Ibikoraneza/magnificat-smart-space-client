@@ -96,6 +96,29 @@ body {
   font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
+@keyframes chat-message-enter-user {
+  from { opacity: 0; transform: translate3d(24px, 10px, 0) scale(0.98); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes chat-message-enter-bot {
+  from { opacity: 0; transform: translate3d(-24px, 10px, 0) scale(0.98); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+.chat-message-enter-user {
+  animation: chat-message-enter-user 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.chat-message-enter-bot {
+  animation: chat-message-enter-bot 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-message-enter-user,
+  .chat-message-enter-bot { animation: none; }
+}
+
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
