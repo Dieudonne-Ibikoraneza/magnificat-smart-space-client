@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 
 type CartItem = {
   id: string;
+  name: string;
   image: string;
   quantity: number;
   unitPrice: number;
@@ -16,6 +17,7 @@ type CartItem = {
 const initialCart: CartItem[] = [
   {
     id: "9",
+    name: "Calacatta Gold Polished",
     image:
       "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=700&q=85",
     quantity: 45,
@@ -23,6 +25,7 @@ const initialCart: CartItem[] = [
   },
   {
     id: "2",
+    name: "Calacatta Gold Polished",
     image:
       "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=700&q=85&sat=-20",
     quantity: 45,
@@ -52,6 +55,14 @@ const CartPage = () => {
 
   const removeItem = (id: string) =>
     setItems((current) => current.filter((item) => item.id !== id));
+
+  const quotationDate = new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
+
+  const printQuotation = () => window.print();
 
   return (
     <div className="max-w-360 mx-auto">
@@ -127,9 +138,7 @@ const CartPage = () => {
                     <p className="text-xs font-semibold uppercase tracking-wide text-[#d4c09e]">
                       Floor Tile · 60×60cm
                     </p>
-                    <h2 className="mt-1 text-base font-bold text-ink">
-                      Calacatta Gold Polished
-                    </h2>
+                    <h2 className="mt-1 text-base font-bold text-ink">{item.name}</h2>
                     <div className="mt-2 flex flex-wrap gap-2 text-xs">
                       <span className="rounded-lg bg-muted-background px-3 py-2">
                         <strong>Size:</strong> 60×120cm
@@ -204,12 +213,65 @@ const CartPage = () => {
             type="button"
             variant="secondary"
             disabled={items.length === 0}
+            onClick={printQuotation}
             className="h-14 w-full text-base text-muted disabled:pointer-events-auto disabled:cursor-not-allowed"
           >
             Generate Quotation
           </Button>
         </aside>
       </div>
+
+      <section id="quotation-print" aria-hidden="true" className="quotation-printable mx-auto max-w-4xl bg-white p-5 text-ink sm:p-10">
+        <header className="flex items-start justify-between gap-8 border-b border-slate-200 pb-6">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#9f8355]">Quotation</p>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Magnificat Smart Space</h2>
+            <p className="mt-2 text-sm text-muted">Design smart, live beautifully.</p>
+          </div>
+          <div className="text-right text-sm">
+            <p className="font-semibold text-ink">Quotation date</p>
+            <p className="mt-1 text-muted">{quotationDate}</p>
+          </div>
+        </header>
+
+        <section className="mt-7 border-b border-slate-200 pb-7">
+          <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-muted">Customer details</h3>
+          <div className="mt-3 grid gap-1 text-sm">
+            <p className="font-semibold">John Doe</p>
+            <p className="text-muted">john.doe@example.com · +250 780 000 000</p>
+          </div>
+        </section>
+
+        <div className="mt-7">
+          <table className="w-full border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-300 text-[11px] uppercase tracking-[0.12em] text-muted">
+                <th className="pb-3 pr-4 font-bold">Item</th>
+                <th className="pb-3 px-4 text-right font-bold">Quantity</th>
+                <th className="pb-3 px-4 text-right font-bold">Unit price</th>
+                <th className="pb-3 pl-4 text-right font-bold">Total price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.id} className="border-b border-slate-100">
+                  <td className="py-4 pr-4"><span className="font-semibold">{item.name}</span><span className="block text-xs text-muted">Floor Tile · 60×60cm</span></td>
+                  <td className="px-4 py-4 text-right">{item.quantity} sqm</td>
+                  <td className="px-4 py-4 text-right">{formatPrice(item.unitPrice)}</td>
+                  <td className="py-4 pl-4 text-right font-semibold">{formatPrice(item.quantity * item.unitPrice)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <footer className="mt-7 flex justify-end border-t border-slate-300 pt-5">
+          <div className="flex w-full max-w-xs items-center justify-between gap-8 text-lg font-bold">
+            <span>Total quotation</span>
+            <span>{formatPrice(subtotal)}</span>
+          </div>
+        </footer>
+      </section>
     </div>
   );
 };
