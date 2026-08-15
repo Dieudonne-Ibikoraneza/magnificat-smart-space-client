@@ -275,6 +275,5 @@ body {
   button:focus-visible {
     outline: none !important;
     box-shadow: none !important;
-    border-color: transparent !important;
   }
 }
