@@ -111,7 +111,7 @@ const CustomerDetailPage = async ({ params }: CustomerDetailPageProps) => {
       </header>
 
       <div className="mt-6 space-y-5 sm:space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 xl:max-w-3xl">
+        <div className="grid gap-4 sm:grid-cols-2 xl:max-w-3xl">
           {[
             {
               icon: Wallet,

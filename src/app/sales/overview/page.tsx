@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Bar,
   BarChart,
@@ -80,12 +81,17 @@ const getInitials = (name: string) =>
     .slice(0, 2)
     .toUpperCase();
 
-const customers = salesCustomers.slice(0, 4).map((customer) => [
-  getInitials(customer.name),
-  customer.name,
-  `${customer.orders.length} Orders (${customer.orders[0]?.date} - ${customer.lastOrder})`,
-  customer.totalSpend,
-] as const);
+const uniqueCustomers = Array.from(
+  new Map(salesCustomers.map((customer) => [customer.slug, customer])).values(),
+);
+
+const customers = uniqueCustomers.slice(0, 5).map((customer) => ({
+  slug: customer.slug,
+  initials: getInitials(customer.name),
+  name: customer.name,
+  meta: `${customer.orders.length} Orders • Last ${customer.lastOrder}`,
+  amount: customer.lifetimeSpend,
+}));
 
 const orders = [
   [
@@ -324,34 +330,35 @@ const SalesOverviewPage = () => {
           <section className="flex min-w-0 flex-col overflow-hidden rounded-2xl bg-card p-5 sm:p-6">
             <h2 className="text-lg font-bold text-ink">Top Customers</h2>
           <ul className="mt-4 flex-1">
-              {customers.map(([initials, name, meta, amount]) => (
+              {customers.map((customer) => (
                 <li
-                  key={initials}
-                  className="group flex min-w-0 items-start gap-3 border-b border-[#E5E7EB] px-2 py-4 transition-colors hover:bg-secondary/60"
+                  key={customer.slug}
+                  className="border-b border-[#E5E7EB]"
                 >
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-semibold text-card">
-                    {initials}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-ink">
-                      {name}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {meta}
-                    </p>
-                  </div>
-                  <span className="max-w-[38%] shrink-0 wrap-break-word text-right font-data text-sm font-semibold text-ink">
-                    {amount}
-                  </span>
+                  <Link
+                    href={`/sales/customers/${customer.slug}`}
+                    className="group flex min-w-0 items-start gap-3 px-2 py-4 transition-colors hover:bg-secondary/60"
+                  >
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-semibold text-card transition-transform duration-200 group-hover:scale-110">
+                      {customer.initials}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-ink">{customer.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{customer.meta}</p>
+                    </div>
+                    <span className="max-w-[38%] shrink-0 wrap-break-word text-right font-data text-sm font-semibold text-ink">
+                      {customer.amount}
+                    </span>
+                  </Link>
                 </li>
               ))}
             </ul>
-            <button
-              type="button"
-              className="mt-2 w-full rounded-lg py-3 text-sm font-medium text-ink hover:bg-secondary"
+            <Link
+              href="/sales/customers"
+              className="mt-2 block w-full rounded-lg py-3 text-center text-sm font-medium text-ink transition-all duration-200 hover:bg-secondary active:scale-[0.98]"
             >
               View All
-            </button>
+            </Link>
           </section>
         </div>
         <section className="animate-fade-in overflow-hidden rounded-2xl bg-card">
