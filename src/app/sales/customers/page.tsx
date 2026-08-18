@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { Eye, ListFilter, Search, ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SalesPageHeader } from "@/components/sales-page-header";

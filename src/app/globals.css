@@ -6,7 +6,7 @@
 
 :root {
   --ink: #0f2747;
-  --primary: #cde519;
+  --primary: #CCEF22;
   --amber: #f4b400;
   --muted: #6b7280;
   --muted-background: #f3f4f6;
@@ -25,7 +25,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: #dbe3ec;
   --input: #dbe3ec;
-  --ring: #cde519;
+  --ring: #CCEF22;
   --chart-blue: #3b82f6;
   --chart-blue-soft: #dbeafe;
   --data-ink: #4c4546;
@@ -37,7 +37,7 @@
   --radius: 0.625rem;
   --sidebar: #f8fafc;
   --sidebar-foreground: #0f2747;
-  --sidebar-primary: #cde519;
+  --sidebar-primary: #CCEF22;
   --sidebar-primary-foreground: #0f2747;
   --sidebar-accent: #f5f7f9;
   --sidebar-accent-foreground: #0f2747;

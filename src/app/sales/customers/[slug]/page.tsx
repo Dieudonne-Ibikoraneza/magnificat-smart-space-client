@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getSalesCustomer } from "@/data/sales-customers";
+import { getSalesOrdersForCustomer } from "@/data/sales-orders";
 
 type CustomerDetailPageProps = {
   params: Promise<{ slug: string }>;
@@ -59,6 +60,8 @@ const CustomerDetailPage = async ({ params }: CustomerDetailPageProps) => {
   const customer = getSalesCustomer(slug);
 
   if (!customer) notFound();
+
+  const recentOrders = getSalesOrdersForCustomer(customer.slug);
 
   return (
     <>
@@ -204,7 +207,7 @@ const CustomerDetailPage = async ({ params }: CustomerDetailPageProps) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {customer.orders.map((order) => (
+                  {recentOrders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell className="font-semibold text-ink">
                         <Link
@@ -239,7 +242,7 @@ const CustomerDetailPage = async ({ params }: CustomerDetailPageProps) => {
               </Table>
             </div>
             <ul className="divide-y divide-[#E5E7EB] md:hidden">
-              {customer.orders.map((order) => (
+              {recentOrders.map((order) => (
                 <li key={order.id}>
                   <Link
                     href={"/sales/orders/" + order.id}

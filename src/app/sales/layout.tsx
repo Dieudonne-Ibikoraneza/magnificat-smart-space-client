@@ -5,7 +5,6 @@ import {
   BarChart3,
   BriefcaseBusiness,
   LayoutGrid,
-  Menu,
   ShoppingCart,
   Users,
 } from "lucide-react";
