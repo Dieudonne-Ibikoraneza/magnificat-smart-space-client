@@ -1,0 +1,113 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { LogOut, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+export type DashboardSidebarLink = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  active?: (pathname: string) => boolean;
+};
+
+export type DashboardSidebarUser = {
+  initials: string;
+  name: string;
+  email: string;
+};
+
+type DashboardSidebarProps = {
+  links: readonly DashboardSidebarLink[];
+  close?: () => void;
+  ariaLabel?: string;
+  user?: DashboardSidebarUser;
+  className?: string;
+};
+
+const defaultUser: DashboardSidebarUser = {
+  initials: "JD",
+  name: "John Doe",
+  email: "john.doe@example.com",
+};
+
+export const DashboardSidebar = ({
+  links,
+  close,
+  ariaLabel = "Dashboard navigation",
+  user = defaultUser,
+  className = "fixed inset-y-0 left-0 z-30 hidden w-70 bg-card lg:block xl:w-80",
+}: DashboardSidebarProps) => {
+  const pathname = usePathname();
+
+  return (
+    <aside className={className}>
+      {close && (
+        <button
+          type="button"
+          aria-label="Close menu"
+          onClick={close}
+          className="absolute right-3 top-3 z-10 rounded-md p-2 text-ink hover:bg-secondary"
+        >
+          <X className="size-5" />
+        </button>
+      )}
+      <div className="flex h-full flex-col justify-between overflow-y-auto px-5 py-6">
+        <div>
+          <div className="px-2 pb-8">
+            <Image
+              src="/images/logo.png"
+              alt="Magnificat Smart Space"
+              width={240}
+              height={180}
+              className="mx-auto w-40 object-contain"
+            />
+          </div>
+          <nav className="space-y-1" aria-label={ariaLabel}>
+            {links.map(({ label, href, icon: Icon, active }) => {
+              const isActive = active?.(pathname) ?? pathname.startsWith(href);
+
+              return (
+                <Link
+                  href={href}
+                  key={href}
+                  aria-current={isActive ? "page" : undefined}
+                  onClick={close}
+                  className={`group relative flex w-full items-center gap-4 rounded-lg px-4 py-3 text-left text-[15px] transition-all duration-200 ${isActive ? "bg-[#f8fce7] font-semibold text-ink" : "font-medium text-ink/75 hover:translate-x-1 hover:bg-[#fbfdec] hover:text-ink"}`}
+                >
+                  <span
+                    className={`absolute right-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-full bg-primary ${isActive ? "scale-y-100" : "scale-y-0"}`}
+                  />
+                  <Icon className="size-5 shrink-0" strokeWidth={1.8} />
+                  <span className="truncate">{label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+        <div className="mt-8 flex shrink-0 items-center gap-3 rounded-xl bg-[#F9F9F9] px-4 py-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-sm font-semibold text-card">
+            {user.initials}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-ink">
+              {user.name}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
+              {user.email}
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="Sign out"
+            className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"
+          >
+            <LogOut className="size-5" strokeWidth={1.8} />
+          </button>
+        </div>
+      </div>
+    </aside>
+  );
+};
