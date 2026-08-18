@@ -77,8 +77,10 @@ const SalesLayout = ({ children }: { children: React.ReactNode }) => {
           />
         </>
       )}
-        <main className="min-h-dvh min-w-0 max-w-full overflow-x-hidden px-4 py-6 sm:px-6 lg:ml-70 lg:px-10 lg:py-8 xl:ml-80">
-          {children}
+        <main className="min-h-dvh min-w-0 overflow-x-hidden px-4 py-6 sm:px-6 lg:ml-70 lg:px-10 lg:py-8 xl:ml-80">
+          <div className="mx-auto w-full max-w-360">
+            {children}
+          </div>
         </main>
       </div>
     </SalesMenuContext.Provider>

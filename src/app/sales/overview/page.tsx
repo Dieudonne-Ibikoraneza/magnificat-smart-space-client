@@ -31,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { salesCustomers } from "@/data/sales-customers";
 
 const datasets = {
   W: [
@@ -71,17 +72,20 @@ const datasets = {
   ],
 };
 
-const customers = [
-  [
-    "KC",
-    "Kigali Heights Corp.",
-    "3 Orders (Jun 20, 2026 - Aug 2, 2026)",
-    "RWF 18.29 M",
-  ],
-  ["SK", "Simba Kicukiro", "1 Order (Aug 1, 2026)", "RWF 15.69 M"],
-  ["PS", "Park Suites", "2 Orders (Jul 1, 2026 - Jul 29, 2026)", "RWF 10.24 M"],
-  ["NT", "Nyamata Twyford", "1 Order (Aug 2, 2026)", "RWF 6.50 M"],
-];
+const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+const customers = salesCustomers.slice(0, 4).map((customer) => [
+  getInitials(customer.name),
+  customer.name,
+  `${customer.orders.length} Orders (${customer.orders[0]?.date} - ${customer.lastOrder})`,
+  customer.totalSpend,
+] as const);
 
 const orders = [
   [
