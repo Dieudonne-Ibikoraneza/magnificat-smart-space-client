@@ -33,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { salesCustomers } from "@/data/sales-customers";
+import { salesOrders } from "@/data/sales-orders";
 
 const datasets = {
   W: [
@@ -93,23 +94,7 @@ const customers = uniqueCustomers.slice(0, 5).map((customer) => ({
   amount: customer.lifetimeSpend,
 }));
 
-const orders = [
-  [
-    "ORD-092",
-    "Vision City Villas",
-    "Oct 24, 2026",
-    "RWF 12,400,000",
-    "Processing",
-  ],
-  ["ORD-091", "Norrsken House", "Oct 22, 2026", "RWF 8,250,000", "Shipped"],
-  [
-    "ORD-090",
-    "Kigali Heights Corp.",
-    "Oct 20, 2026",
-    "RWF 45,000,020",
-    "Delivered",
-  ],
-];
+const orders = salesOrders.slice(0, 3);
 
 const orderStatusVariants = {
   Processing: "secondary",
@@ -366,13 +351,13 @@ const SalesOverviewPage = () => {
             <h2 className="truncate text-lg font-bold text-ink">
               Recent Orders
             </h2>
-            <button
-              type="button"
+            <Link
+              href="/sales/orders"
               className="group flex shrink-0 items-center gap-1 text-xs font-semibold tracking-wider text-ink"
             >
               VIEW ALL
               <ChevronRight className="size-4 transition-transform group-hover:translate-x-1" />
-            </button>
+            </Link>
           </div>
           <div className="hidden overflow-x-auto md:block">
             <Table>
@@ -393,32 +378,25 @@ const SalesOverviewPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {orders.map(([id, customer, date, amount, status]) => (
+                {orders.map((order) => (
                   <TableRow
-                    key={id}
-                    
+                    key={order.id}
                   >
-                    <TableCell className="font-semibold text-ink">{id}</TableCell>
-                    <TableCell className="text-ink">{customer}</TableCell>
+                    <TableCell className="font-semibold text-ink"><Link href={`/sales/orders/${order.id}`} className="hover:underline">{order.id}</Link></TableCell>
+                    <TableCell className="text-ink">{order.customerName}</TableCell>
                     <TableCell className="whitespace-nowrap text-ink">
-                      {date}
+                      {order.date}
                     </TableCell>
                     <TableCell className="font-semibold whitespace-nowrap text-ink">
-                      {amount}
+                      {order.amount}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getOrderStatusVariant(status)}>
-                        {status}
+                      <Badge variant={getOrderStatusVariant(order.status)}>
+                        {order.status}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <button
-                        type="button"
-                        aria-label={`Actions for ${id}`}
-                        className="rounded-md p-1.5 text-ink hover:bg-secondary"
-                      >
-                        <MoreVertical className="size-4" />
-                      </button>
+                      <Link href={`/sales/orders/${order.id}`} aria-label={`View ${order.id}`} className="rounded-md p-1.5 text-ink hover:bg-secondary"><MoreVertical className="size-4" /></Link>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -426,22 +404,24 @@ const SalesOverviewPage = () => {
             </Table>
           </div>
           <ul className="divide-y divide-border md:hidden">
-            {orders.map(([id, customer, date, amount, status]) => (
+            {orders.map((order) => (
               <li
-                key={id}
+                key={order.id}
                 className="flex items-start justify-between gap-3 px-5 py-4 font-data"
               >
-                <div>
-                  <p className="text-sm font-semibold text-ink">{id}</p>
-                  <p className="text-sm text-ink">{customer}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{date}</p>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <p className="text-sm font-semibold text-ink">{amount}</p>
-                    <Badge variant={getOrderStatusVariant(status)}>
-                      {status}
+                <Link href={`/sales/orders/${order.id}`} className="flex min-w-0 flex-1 items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ink">{order.id}</p>
+                    <p className="truncate text-sm text-ink">{order.customerName}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{order.date}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    <p className="text-sm font-semibold text-ink">{order.amount}</p>
+                    <Badge variant={getOrderStatusVariant(order.status)}>
+                      {order.status}
                     </Badge>
-                </div>
+                  </div>
+                </Link>
               </li>
             ))}
           </ul>

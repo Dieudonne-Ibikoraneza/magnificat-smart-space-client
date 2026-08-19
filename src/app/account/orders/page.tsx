@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { ArrowLeft, ArrowRight, Download, ListFilter } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,54 +22,12 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { getVisiblePages } from "@/lib/catalog-utils";
+import { accountOrders, type AccountOrderStatus } from "@/data/account-orders";
 
-type OrderStatus = "Processing" | "Shipped" | "Delivered";
+type OrderStatus = AccountOrderStatus;
 type DateFilter = "all" | "30" | "90" | "year";
 
-type Order = {
-  id: string;
-  status: OrderStatus;
-  products: string[];
-  images: string[];
-  date: string;
-  total: number;
-};
-
-const orders: Order[] = [
-  {
-    id: "MGN-99201",
-    status: "Processing",
-    products: ["Calacatta Gold Polished", "Slate Zenith", "Carrara White Polished", "Travertine Beige"],
-    images: [
-      "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=240&q=85",
-      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=240&q=85",
-    ],
-    date: "July 28, 2026",
-    total: 2248500,
-  },
-  {
-    id: "MGN-99202",
-    status: "Shipped",
-    products: ["Calacatta Gold Polished", "Slate Zenith"],
-    images: [
-      "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&w=240&q=85",
-      "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=240&q=85",
-    ],
-    date: "July 28, 2026",
-    total: 2248500,
-  },
-  {
-    id: "MGN-99203",
-    status: "Delivered",
-    products: ["Calacatta Gold Polished", "Carrara White Polished"],
-    images: [
-      "https://images.unsplash.com/photo-1615529162924-f8605388461d?auto=format&fit=crop&w=240&q=85",
-      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=240&q=85&sat=-20",
-    ],
-    date: "July 28, 2026",
-    total: 2248500,
-  },
-];
+const orders = accountOrders;
 
 const formatPrice = (value: number) => `RWF ${value.toLocaleString()}`;
 
@@ -215,9 +174,9 @@ const OrdersPage = () => {
                 </div>
               </div>
 
-              <Button type="button" variant="outline" className="group h-10 w-full justify-center gap-3 border-slate-200 bg-white px-4 text-sm font-bold text-ink transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-ink lg:max-w-44 lg:self-end">
+              <Link href={"/account/orders/" + order.id} className="group inline-flex h-10 w-full items-center justify-center gap-3 rounded-md border border-slate-200 bg-white px-4 text-sm font-bold text-ink transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-ink lg:max-w-44 lg:self-end">
                 View Details <ArrowRight className="size-[18px] transition-transform duration-200 group-hover:translate-x-1" />
-              </Button>
+              </Link>
             </div>
           </article>
         ))}

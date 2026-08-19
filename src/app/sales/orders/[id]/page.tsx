@@ -187,7 +187,7 @@ const OrderDetailPage = async ({ params }: OrderDetailPageProps) => {
           ))}
         </div>
 
-        <div className="grid items-start gap-5 sm:gap-6 xl:grid-cols-[1.7fr_1fr]">
+        <div className="mt-4 grid items-start gap-5 sm:gap-6 xl:grid-cols-[1.7fr_1fr]">
           <section className="overflow-hidden rounded-2xl bg-card">
             <div className="flex items-center justify-between gap-3 px-5 py-5 sm:px-6">
               <h2 className="text-lg font-bold text-ink sm:text-2xl">Order Items</h2>
