@@ -147,7 +147,7 @@ const OrdersPage = () => {
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search by order ID or customer..."
                 aria-label="Search orders"
-                className="w-full rounded-full border border-border bg-background py-3 pr-4 pl-11 text-sm text-ink outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/40"
+                className="w-full rounded-full border border-border bg-[#F9FAFB] py-3 pr-4 pl-11 text-sm text-ink outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/40"
               />
             </div>
             <div className="flex items-center justify-between gap-4 lg:justify-end">
@@ -292,7 +292,9 @@ const OrdersPage = () => {
                         }
                       }}
                     >
-                      <TableCell className="font-semibold">{order.id}</TableCell>
+                      <TableCell className="font-semibold">
+                        {order.id}
+                      </TableCell>
                       <TableCell>{order.customerName}</TableCell>
                       <TableCell className="whitespace-nowrap">
                         {order.date}

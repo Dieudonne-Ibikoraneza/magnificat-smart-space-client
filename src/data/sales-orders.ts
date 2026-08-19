@@ -1,10 +1,17 @@
 import { getSalesCustomer, salesCustomers } from "@/data/sales-customers";
+import { products } from "@/data/catalog";
+import { calculateTileQuantity } from "@/lib/tile-calculator";
 
 export type SalesOrderStatus = "Processing" | "Shipped" | "Delivered";
 
 export type SalesOrderItem = {
+  productId: string;
   product: string;
+  image: string;
   quantity: string;
+  boxes: number;
+  additionalPieces: number;
+  pieces: number;
   unitPrice: string;
   total: string;
 };
@@ -47,8 +54,8 @@ const orderTemplates = [
     updatedAgo: "2 hours ago",
     expectedDelivery: "5 days",
     items: [
-      { product: "Calacatta Gold Polished", quantity: "450 sqm", unitPrice: "RWF 45,000", total: "RWF 20,250,000" },
-      { product: "Nero Marquina Premium", quantity: "300 sqm", unitPrice: "RWF 35,000", total: "RWF 10,500,000" },
+      { productId: "1", product: "Calacatta Gold Polished", quantity: "450 sqm", boxes: 258, pieces: 1806, unitPrice: "RWF 45,000", total: "RWF 20,250,000" },
+      { productId: "2", product: "Nero Marquina Premium", quantity: "300 sqm", boxes: 172, pieces: 1200, unitPrice: "RWF 35,000", total: "RWF 10,500,000" },
     ],
   },
   {
@@ -59,8 +66,8 @@ const orderTemplates = [
     updatedAgo: "1 day ago",
     expectedDelivery: "3 days",
     items: [
-      { product: "Statuario Venato Slab", quantity: "220 sqm", unitPrice: "RWF 52,000", total: "RWF 11,440,000" },
-      { product: "Oak Herringbone Parquet", quantity: "180 sqm", unitPrice: "RWF 31,000", total: "RWF 5,580,000" },
+      { productId: "3", product: "Statuario Venato Slab", quantity: "220 sqm", boxes: 147, pieces: 2200, unitPrice: "RWF 52,000", total: "RWF 11,440,000" },
+      { productId: "4", product: "Oak Herringbone Parquet", quantity: "180 sqm", boxes: 120, pieces: 1800, unitPrice: "RWF 31,000", total: "RWF 5,580,000" },
     ],
   },
   {
@@ -71,8 +78,8 @@ const orderTemplates = [
     updatedAgo: "4 days ago",
     expectedDelivery: "Delivered",
     items: [
-      { product: "Terrazzo Ivory Matte", quantity: "600 sqm", unitPrice: "RWF 18,500", total: "RWF 11,100,000" },
-      { product: "Basalt Grey Textured", quantity: "150 sqm", unitPrice: "RWF 24,000", total: "RWF 3,600,000" },
+      { productId: "5", product: "Terrazzo Ivory Matte", quantity: "600 sqm", boxes: 393, pieces: 6667, unitPrice: "RWF 18,500", total: "RWF 11,100,000" },
+      { productId: "6", product: "Basalt Grey Textured", quantity: "150 sqm", boxes: 79, pieces: 938, unitPrice: "RWF 24,000", total: "RWF 3,600,000" },
     ],
   },
 ];
@@ -80,6 +87,21 @@ const orderTemplates = [
 const orderRecords = salesCustomers.flatMap((customer, customerIndex) =>
   orderTemplates.map((order, orderIndex) => ({
     ...order,
+    items: order.items.map((item) => {
+      const product = products.find((candidate) => candidate.id === item.productId) ?? products[0];
+      const calculation = calculateTileQuantity(
+        Number(item.quantity.replace(/[^0-9.]/g, "")),
+        product,
+      );
+
+      return {
+        ...item,
+        boxes: calculation.completeBoxes,
+        additionalPieces: calculation.remainingPieces,
+        pieces: calculation.totalPieces,
+        image: product.image,
+      };
+    }),
     customerSlug: customer.slug,
     id: "ORD-" + (7001 + customerIndex * orderTemplates.length + orderIndex),
   })),

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Boxes,
   Building2,
@@ -102,7 +103,7 @@ const OrderDetailPage = async ({ params }: OrderDetailPageProps) => {
 
   return (
     <>
-      <header className="border-b border-border pb-5 sm:pb-6">
+      <header className="pb-5 sm:pb-6">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -156,12 +157,12 @@ const OrderDetailPage = async ({ params }: OrderDetailPageProps) => {
         </div>
       </header>
 
-      <div className="mt-6 space-y-5 sm:space-y-6">
+      <div className="pace-y-5 sm:space-y-6">
         <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
           {summary.map(({ icon: Icon, label, value, note }) => (
             <article
               key={label}
-              className="rounded-2xl bg-card p-5 shadow-sm transition-transform duration-200 active:scale-95 sm:p-6"
+              className="rounded-2xl bg-card p-5 transition-transform duration-200 active:scale-95 sm:p-6"
             >
               <div className="flex items-start justify-between gap-3">
                 <span className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
@@ -197,10 +198,13 @@ const OrderDetailPage = async ({ params }: OrderDetailPageProps) => {
               <ul className="divide-y divide-[#E8E8E8]">
                 {order.items.map((item) => (
                   <li key={item.product} className="px-5 py-4 font-data">
-                    <p className="text-sm font-semibold text-ink uppercase">{item.product}</p>
+                    <Link href={"/products/" + item.productId} className="flex items-center gap-3 font-semibold text-ink uppercase hover:underline">
+                      <Image src={item.image} alt="" width={48} height={48} unoptimized className="size-12 shrink-0 rounded-sm object-cover" />
+                      <span>{item.product}</span>
+                    </Link>
                     <div className="mt-2 flex items-center justify-between gap-3 text-sm">
                       <span className="text-muted-foreground">
-                        {item.quantity} • {item.unitPrice}
+                        {item.quantity} • {item.boxes} boxes{item.additionalPieces > 0 ? " + " + item.additionalPieces + " pcs" : ""} ({item.pieces} pcs) • {item.unitPrice}
                       </span>
                       <span className="font-semibold text-ink">{item.total}</span>
                     </div>
@@ -222,8 +226,18 @@ const OrderDetailPage = async ({ params }: OrderDetailPageProps) => {
                 <TableBody>
                   {order.items.map((item) => (
                     <TableRow key={item.product}>
-                      <TableCell className="font-medium text-ink uppercase">{item.product}</TableCell>
-                      <TableCell className="whitespace-nowrap text-ink">{item.quantity}</TableCell>
+                      <TableCell className="font-medium text-ink uppercase">
+                        <Link href={"/products/" + item.productId} className="flex items-center gap-3 hover:underline">
+                          <Image src={item.image} alt="" width={64} height={64} unoptimized className="size-16 shrink-0 rounded-sm object-cover" />
+                          <span>{item.product}</span>
+                        </Link>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-ink">
+                        <span className="block">{item.quantity}</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          {item.boxes} boxes{item.additionalPieces > 0 ? " + " + item.additionalPieces + " pcs" : ""} ({item.pieces} pcs)
+                        </span>
+                      </TableCell>
                       <TableCell className="whitespace-nowrap text-muted-foreground">{item.unitPrice}</TableCell>
                       <TableCell className="whitespace-nowrap font-semibold text-ink">{item.total}</TableCell>
                     </TableRow>
