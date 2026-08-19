@@ -9,7 +9,9 @@ import {
   LayoutGrid,
   List,
   PackageOpen,
+  Search,
   SlidersHorizontal,
+  X,
 } from "lucide-react";
 import { ProductCard, type Product } from "@/components/product-card";
 import {
@@ -185,6 +187,11 @@ const CatalogToolbar = ({
   onSortChange,
   onViewModeChange,
   onOpenFilters,
+  searchOpen,
+  searchVisible,
+  onToggleSearch,
+  searchQuery,
+  onSearchChange,
 }: {
   showingStart: number;
   showingEnd: number;
@@ -194,17 +201,30 @@ const CatalogToolbar = ({
   onSortChange: (value: SortOption) => void;
   onViewModeChange: (mode: "grid" | "list") => void;
   onOpenFilters: () => void;
+  searchOpen: boolean;
+  searchVisible: boolean;
+  onToggleSearch: () => void;
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
 }) => (
-  <div className="relative mb-4 flex flex-col items-start justify-between gap-3 rounded-xl bg-white px-5 py-3 shadow-sm sm:flex-row sm:items-center">
+  <div
+    className="relative mb-4 flex flex-col gap-3 overflow-hidden rounded-xl bg-white px-5 py-3 shadow-sm transition-[max-height] duration-300 ease-in-out"
+    style={{
+      maxHeight: searchVisible ? "320px" : "128px",
+      transition: "max-height 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+      willChange: "max-height",
+    }}
+  >
     <Button
       type="button"
       size="icon-lg"
-      className="fixed bottom-6 right-6 z-40 size-14 rounded-full bg-primary text-ink shadow-lg hover:bg-primary/90 lg:hidden"
+      className="fixed right-6 bottom-6 z-40 size-14 rounded-full bg-primary text-ink shadow-lg hover:bg-primary/90 xl:hidden"
       onClick={onOpenFilters}
       aria-label="Open filters"
     >
       <SlidersHorizontal className="size-6" />
     </Button>
+    <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <p className="text-sm text-muted">
       {totalResults === 0 ? (
         "No results"
@@ -250,31 +270,57 @@ const CatalogToolbar = ({
           </SelectContent>
         </Select>
       </div>
-      <div className="flex rounded-lg bg-muted-background p-1">
+      <div className="flex items-center gap-2">
+        <div className="flex rounded-lg bg-muted-background p-1">
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            onClick={() => onViewModeChange("grid")}
+            className={viewMode === "grid" ? "bg-white text-ink shadow-sm" : "text-muted"}
+            aria-label="Grid view"
+          >
+            <LayoutGrid />
+          </Button>
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            onClick={() => onViewModeChange("list")}
+            className={viewMode === "list" ? "bg-white text-ink shadow-sm" : "text-muted"}
+            aria-label="List view"
+          >
+            <List />
+          </Button>
+        </div>
         <Button
+          type="button"
           size="icon-xs"
           variant="ghost"
-          onClick={() => onViewModeChange("grid")}
-          className={
-            viewMode === "grid" ? "bg-white text-ink shadow-sm" : "text-muted"
-          }
-          aria-label="Grid view"
+          className={searchOpen ? "bg-muted-background text-ink" : "text-muted"}
+          onClick={onToggleSearch}
+          aria-label={searchOpen ? "Close product search" : "Search products"}
+          aria-expanded={searchOpen}
         >
-          <LayoutGrid />
-        </Button>
-        <Button
-          size="icon-xs"
-          variant="ghost"
-          onClick={() => onViewModeChange("list")}
-          className={
-            viewMode === "list" ? "bg-white text-ink shadow-sm" : "text-muted"
-          }
-          aria-label="List view"
-        >
-          <List />
+          {searchOpen ? <X className="size-5" /> : <Search className="size-5" />}
         </Button>
       </div>
     </div>
+    </div>
+    {searchVisible ? (
+      <div className={searchOpen ? "animate-in slide-in-from-top-2 fade-in duration-200" : "animate-out slide-out-to-top-2 fade-out duration-200"}>
+        <label htmlFor="catalog-search" className="sr-only">Search products</label>
+        <div className="relative ml-auto w-full max-w-md">
+          <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted" />
+          <Input
+            id="catalog-search"
+            autoFocus
+            value={searchQuery}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Search products by name or collection..."
+            className="h-11 w-full rounded-full border-slate-200 bg-[#F9FAFB] pr-4 pl-11 text-sm focus-visible:ring-primary/40"
+          />
+        </div>
+      </div>
+    ) : null}
   </div>
 );
 
@@ -297,7 +343,7 @@ const MobileFiltersSheet = ({
 
   return (
     <div
-      className={`fixed inset-0 z-50 bg-ink/30 backdrop-blur-sm lg:hidden ${closing ? "animate-out fade-out duration-300" : "animate-in fade-in duration-200"}`}
+      className={`fixed inset-0 z-50 bg-ink/30 backdrop-blur-sm xl:hidden ${closing ? "animate-out fade-out duration-300" : "animate-in fade-in duration-200"}`}
       role="dialog"
       aria-modal="true"
       aria-label="Filters"
@@ -336,9 +382,13 @@ const MobileFiltersSheet = ({
 export const ProductCatalog = ({
   products,
   breadcrumb,
+  showFavorites = true,
+  detailsBasePath = "/products",
 }: {
   products: Product[];
   breadcrumb?: ReactNode;
+  showFavorites?: boolean;
+  detailsBasePath?: string;
 }) => {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [currentPage, setCurrentPage] = useState(1);
@@ -346,13 +396,23 @@ export const ProductCatalog = ({
   const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filtersClosing, setFiltersClosing] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const isCollectionEmpty = products.length === 0;
 
   const processedProducts = useMemo(() => {
-    const filtered = filterProducts(products, filters);
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+    const searchedProducts = products.filter((product) =>
+      normalizedSearch === "" ||
+      product.name.toLowerCase().includes(normalizedSearch) ||
+      product.collection.toLowerCase().includes(normalizedSearch) ||
+      product.collectionId.toLowerCase().includes(normalizedSearch),
+    );
+    const filtered = filterProducts(searchedProducts, filters);
     return sortProducts(filtered, sortBy);
-  }, [products, filters, sortBy]);
+  }, [products, filters, searchQuery, sortBy]);
 
   const pagination = useMemo(
     () => paginateProducts(processedProducts, currentPage),
@@ -399,6 +459,17 @@ export const ProductCatalog = ({
     }, 300);
   };
 
+  const toggleSearch = () => {
+    if (searchOpen) {
+      setSearchOpen(false);
+      window.setTimeout(() => setSearchVisible(false), 200);
+      return;
+    }
+
+    setSearchVisible(true);
+    window.requestAnimationFrame(() => setSearchOpen(true));
+  };
+
   return (
     <>
       <MobileFiltersSheet
@@ -414,7 +485,7 @@ export const ProductCatalog = ({
         {breadcrumb && <div className="mb-6">{breadcrumb}</div>}
 
         <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
-          <aside className="scrollbar-hide hidden w-72 shrink-0 space-y-6 lg:sticky lg:block lg:max-h-[calc(100dvh-8rem)] lg:self-start lg:overflow-y-auto lg:pr-1 lg:top-26">
+          <aside className="scrollbar-hide hidden w-72 shrink-0 space-y-6 xl:sticky xl:top-6 xl:block xl:max-h-[calc(100dvh-3rem)] xl:self-start xl:overflow-y-auto xl:pr-1">
             <FilterOptionsCard
               filters={filters}
               onToggle={handleToggleFilter}
@@ -433,6 +504,14 @@ export const ProductCatalog = ({
               onSortChange={handleSortChange}
               onViewModeChange={setViewMode}
               onOpenFilters={openFilters}
+              searchOpen={searchOpen}
+              searchVisible={searchVisible}
+              onToggleSearch={toggleSearch}
+              searchQuery={searchQuery}
+              onSearchChange={(value) => {
+                setSearchQuery(value);
+                setCurrentPage(1);
+              }}
             />
 
             {pagination.items.length === 0 ? (
@@ -453,6 +532,8 @@ export const ProductCatalog = ({
                     key={product.id}
                     product={product}
                     list={viewMode === "list"}
+                    showFavorite={showFavorites}
+                    detailsBasePath={detailsBasePath}
                   />
                 ))}
               </div>

@@ -20,7 +20,7 @@ const navigation = [
   { label: "Customers", href: "/sales/customers", icon: Users },
   { label: "Orders", href: "/sales/orders", icon: ShoppingCart },
   { label: "Catalog", href: "/sales/catalog", icon: BriefcaseBusiness },
-  { label: "Account Settings", href: "/account/settings", icon: BarChart3 },
+  { label: "Account Settings", href: "/sales/settings", icon: BarChart3 },
 ] as const;
 
 type SalesMenuContextValue = {
@@ -76,7 +76,7 @@ const SalesLayout = ({ children }: { children: React.ReactNode }) => {
           />
         </>
       )}
-        <main className="min-h-dvh min-w-0 overflow-x-hidden px-4 py-6 sm:px-6 lg:ml-70 lg:px-10 lg:py-8 xl:ml-80">
+        <main className="min-h-dvh min-w-0 overflow-x-clip px-4 py-6 sm:px-6 lg:ml-70 lg:px-10 lg:py-8 xl:ml-80">
           <div className="mx-auto w-full max-w-360">
             {children}
           </div>

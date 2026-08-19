@@ -6,8 +6,8 @@ import { useSalesMenu } from "@/app/sales/layout";
 type SalesPageHeaderProps = {
   title: string;
   subtitle: string;
-  actionLabel: string;
-  actionIcon: "packagePlus" | "userPlus";
+  actionLabel?: string;
+  actionIcon?: "packagePlus" | "userPlus";
 };
 
 const actionIcons = {
@@ -22,7 +22,7 @@ export const SalesPageHeader = ({
   actionIcon,
 }: SalesPageHeaderProps) => {
   const { openMenu } = useSalesMenu();
-  const ActionIcon = actionIcons[actionIcon];
+  const ActionIcon = actionIcon ? actionIcons[actionIcon] : null;
 
   return (
     <header className="flex items-center justify-between gap-3">
@@ -40,13 +40,15 @@ export const SalesPageHeader = ({
           <p className="mt-1 hidden text-sm text-muted-foreground sm:block">{subtitle}</p>
         </div>
       </div>
-      <button
-        type="button"
-        className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:px-6 sm:py-3.5"
-      >
-        <ActionIcon className="size-5" strokeWidth={1.9} />
-        <span className="whitespace-nowrap">{actionLabel}</span>
-      </button>
+      {ActionIcon && actionLabel ? (
+        <button
+          type="button"
+          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:px-6 sm:py-3.5"
+        >
+          <ActionIcon className="size-5" strokeWidth={1.9} />
+          <span className="whitespace-nowrap">{actionLabel}</span>
+        </button>
+      ) : null}
     </header>
   );
 };
