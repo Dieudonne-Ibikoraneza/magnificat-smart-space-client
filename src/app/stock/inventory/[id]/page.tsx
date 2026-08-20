@@ -3,12 +3,13 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  ArrowLeft,
-  ArrowRight,
   Check,
+  ClipboardCheck,
   Layers3,
   Maximize2,
+  Pencil,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import {
   Breadcrumb,
@@ -23,16 +24,20 @@ import { QuantityCalculator } from "@/components/quantity-calculator";
 import type { Product } from "@/components/product-card";
 import { products } from "@/data/catalog";
 
-type SalesProductDetailsProps = { params: Promise<{ id: string }> };
-
-const formatPrice = (value: number) => `RWF ${value.toLocaleString("en-US")}`;
-
+type StockProductDetailsProps = { params: Promise<{ id: string }> };
+const stockQuantities: Record<string, number> = {
+  "1": 1240,
+  "2": 45,
+  "3": 0,
+  "4": 0,
+  "5": 45,
+  "6": 45,
+};
 const stockLabels = {
   in_stock: "In stock",
   low_stock: "Low stock",
   out_of_stock: "Out of stock",
 } as const;
-
 const stockStyles = {
   in_stock: "border-green-200 bg-green-50 text-green-700",
   low_stock: "border-amber/30 bg-white text-amber",
@@ -50,37 +55,35 @@ const getSuitableFor = (suitableFor: Product["suitableFor"]) => {
 
 export const generateMetadata = async ({
   params,
-}: SalesProductDetailsProps): Promise<Metadata> => {
+}: StockProductDetailsProps): Promise<Metadata> => {
   const { id } = await params;
   const product = products.find((item) => item.id === id);
   return {
-    title: product
-      ? product.name + " | Sales Catalog"
-      : "Product | Sales Catalog",
+    title: product ? `${product.name} | Inventory` : "Product | Inventory",
   };
 };
 
-const SalesProductDetailsPage = async ({
+const StockProductDetailsPage = async ({
   params,
-}: SalesProductDetailsProps) => {
+}: StockProductDetailsProps) => {
   const { id } = await params;
   const product = products.find((item) => item.id === id);
   if (!product) notFound();
-
+  const currentStock = stockQuantities[product.id] ?? 0;
   return (
     <>
       <header className="border-b border-border pb-5 sm:pb-6">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink render={<Link href="/sales/overview" />}>
+              <BreadcrumbLink render={<Link href="/stock/overview" />}>
                 Overview
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink render={<Link href="/sales/catalog" />}>
-                Catalog
+              <BreadcrumbLink render={<Link href="/stock/inventory" />}>
+                Inventory
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
@@ -95,21 +98,14 @@ const SalesProductDetailsPage = async ({
               {product.name}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Product details and quantity planning.
+              Product details and inventory controls.
             </p>
           </div>
-          <Button
-            type="button"
-            className="h-auto gap-2 rounded-lg px-4 py-2.5 text-sm font-bold active:scale-95"
-          >
-            Create Order <ArrowRight className="size-4" />
-          </Button>
         </div>
       </header>
-
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.9fr)] lg:items-start">
         <div className="space-y-6">
-          <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted-background sm:aspect-[4/3] lg:aspect-square">
+          <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted-background sm:aspect-4/3 lg:aspect-square">
             <Image
               src={product.image}
               alt={product.name}
@@ -133,7 +129,6 @@ const SalesProductDetailsPage = async ({
             </p>
           </section>
         </div>
-
         <div className="space-y-6">
           <section className="rounded-2xl bg-card p-5 sm:p-6">
             <div className="flex items-start justify-between gap-4">
@@ -152,12 +147,23 @@ const SalesProductDetailsPage = async ({
                 {stockLabels[product.stockStatus]}
               </span>
             </div>
-            <p className="mt-6 border-b border-slate-200 pb-5 text-2xl font-bold text-ink">
-              {formatPrice(product.price)}{" "}
+            <p className="mt-6 pb-5 text-2xl font-bold text-ink">
+              {product.price.toLocaleString("en-US")} RWF{" "}
               <span className="text-sm font-medium text-muted-foreground">
                 / sqm
               </span>
             </p>
+            <div className="rounded-xl border border-border bg-secondary/50 px-4 py-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold text-ink">
+                  Current Stock Level
+                </span>
+                <span className="font-data text-xl font-bold text-ink">
+                  {currentStock.toLocaleString()}{" "}
+                  <span className="text-sm font-normal">boxes</span>
+                </span>
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-5 py-6">
               <div>
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -180,7 +186,8 @@ const SalesProductDetailsPage = async ({
                   Finish
                 </p>
                 <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-ink">
-                  <Sparkles className="size-4" /> Polished
+                  <Sparkles className="size-4" />
+                  Polished
                 </p>
               </div>
               <div>
@@ -188,7 +195,8 @@ const SalesProductDetailsPage = async ({
                   Material
                 </p>
                 <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-ink">
-                  <Layers3 className="size-4" /> Porcelain
+                  <Layers3 className="size-4" />
+                  Porcelain
                 </p>
               </div>
             </div>
@@ -210,10 +218,32 @@ const SalesProductDetailsPage = async ({
             </div>
           </section>
           <QuantityCalculator product={product} />
+          <Button type="button" className="h-13 w-full gap-2 rounded-lg text-sm font-bold">
+            <ClipboardCheck className="size-5" />
+            Adjust Stock
+          </Button>
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 gap-2 font-semibold border border-[#E8E8E8] text-sm"
+            >
+              <Pencil className="size-4 stroke-2.5" />
+              Edit Details
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="h-12 gap-2 font-semibold text-sm"
+            >
+              <Trash2 className="size-4 stroke-2.5" />
+              Delete
+            </Button>
+          </div>
         </div>
       </div>
     </>
   );
 };
 
-export default SalesProductDetailsPage;
+export default StockProductDetailsPage;
