@@ -1,0 +1,109 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, Menu, Pencil, Plus, Trash2 } from "lucide-react";
+import { useStockMenu } from "@/app/stock/layout";
+import { collections } from "@/data/collections";
+import { Button } from "@/components/ui/button";
+
+const StockCollectionCard = ({
+  collection,
+}: {
+  collection: (typeof collections)[number];
+}) => (
+  <article className="group relative flex min-h-97.5 overflow-hidden rounded-3xl bg-ink shadow-sm transition-shadow duration-300 hover:shadow-[0_16px_36px_rgba(15,39,71,0.18)]">
+    <Image
+      src={collection.image}
+      alt={collection.title}
+      fill
+      unoptimized
+      className="object-cover opacity-75 transition duration-700 group-hover:scale-105 group-hover:opacity-90"
+      sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
+    />
+    <div className="absolute inset-0 bg-linear-to-t from-ink via-ink/55 to-transparent" />
+    <div className="relative z-10 mt-auto flex w-full translate-y-2 flex-col p-6 transition-transform duration-300 group-hover:translate-y-0 sm:p-7">
+      <h2 className="text-xl font-bold leading-tight text-white sm:text-2xl">
+        {collection.title}
+      </h2>
+      <p className="mt-3 line-clamp-2 text-sm leading-5 text-white/80">
+        {collection.description}
+      </p>
+
+      <div className="mt-6 flex items-center gap-2">
+        <Button
+          nativeButton={false}
+          render={<Link href={`/stock/collections/${collection.id}`} />}
+          className="group/cta h-12 min-h-12 min-w-0 flex-1 gap-3 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
+        >
+          <span className="truncate">View Collection</span>
+          <ArrowRight className="size-4 shrink-0 transition-transform duration-300 group-hover/cta:translate-x-1" />
+        </Button>
+
+        <div className="flex h-12 min-h-12 shrink-0 items-center overflow-hidden rounded-full bg-primary shadow-sm">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="h-12 w-10 rounded-none text-ink hover:bg-white/45"
+            aria-label={`Edit ${collection.title}`}
+          >
+            <Pencil className="size-4" strokeWidth={2.25} />
+          </Button>
+          <span className="h-4 w-px bg-ink/15" aria-hidden="true" />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="h-12 w-10 rounded-none text-ink hover:bg-white/45 hover:text-red-600"
+            aria-label={`Delete ${collection.title}`}
+          >
+            <Trash2 className="size-4" strokeWidth={2.25} />
+          </Button>
+        </div>
+      </div>
+    </div>
+  </article>
+);
+
+export default function StockCollectionsPage() {
+  const { openMenu } = useStockMenu();
+
+  return (
+    <>
+      <header className="flex flex-wrap items-center justify-between gap-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={openMenu}
+            aria-label="Open menu"
+            className="inline-flex size-10 items-center justify-center rounded-lg border border-border bg-card text-ink lg:hidden"
+          >
+            <Menu className="size-5" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+              Collections
+            </h1>
+            <p className="mt-1 text-sm text-muted sm:text-base">
+              {collections.length} product collections currently managed
+            </p>
+          </div>
+        </div>
+        <Button
+          type="button"
+          className="h-11 w-full gap-2 bg-primary px-5 font-bold text-ink hover:bg-primary/90 sm:w-auto"
+        >
+          <Plus className="size-4" />
+          Add New Collection
+        </Button>
+      </header>
+
+      <section className="mt-6 grid gap-6 sm:mt-8 sm:grid-cols-2 xl:grid-cols-3">
+        {collections.map((collection) => (
+          <StockCollectionCard key={collection.id} collection={collection} />
+        ))}
+      </section>
+    </>
+  );
+}

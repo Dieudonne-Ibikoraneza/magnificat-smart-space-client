@@ -2,7 +2,15 @@
 
 import { use, useMemo } from "react";
 import { notFound } from "next/navigation";
-import { CollectionBreadcrumb } from "@/components/collection-breadcrumb";
+import Link from "next/link";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { ProductCatalog } from "@/components/product-catalog";
 import { getProductsByCollection } from "@/data/catalog";
 import { getCollectionById } from "@/data/collections";
@@ -26,7 +34,15 @@ const CollectionDetailsPage = ({
 
   return (
     <ProductCatalog
-      breadcrumb={<CollectionBreadcrumb collection={collection} />}
+      breadcrumb={
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem><BreadcrumbLink render={<Link href="/collections" />}>Collections</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem><BreadcrumbPage>{collection.title}</BreadcrumbPage></BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      }
       products={collectionProducts}
     />
   );
