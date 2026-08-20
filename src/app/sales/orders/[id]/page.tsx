@@ -27,6 +27,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import {
   Table,
   TableBody,
@@ -130,6 +131,9 @@ const OrderDetailPage = async ({ params }: OrderDetailPageProps) => {
               Order #{order.id}
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-3">
+              {order.createdByType === "staff" && (
+                <StaffCreatedIndicator createdByName={order.createdByName} />
+              )}
               <Badge variant={orderVariant(order.status)}>{order.status}</Badge>
               <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Clock className="size-4" />

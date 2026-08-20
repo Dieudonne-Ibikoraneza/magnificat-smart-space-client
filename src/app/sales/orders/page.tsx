@@ -10,6 +10,7 @@ import {
   Search,
 } from "lucide-react";
 import { SalesPageHeader } from "@/components/sales-page-header";
+import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -198,9 +199,14 @@ const OrdersPage = () => {
                         {order.customerName}
                       </h2>
                     </div>
-                    <Badge variant={getOrderStatusVariant(order.status)}>
-                      {order.status}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {order.createdByType === "staff" && (
+                        <StaffCreatedIndicator createdByName={order.createdByName} />
+                      )}
+                      <Badge variant={getOrderStatusVariant(order.status)}>
+                        {order.status}
+                      </Badge>
+                    </div>
                   </div>
                   <div className="my-4 h-px bg-[#E5E7EB]" />
                   <dl className="space-y-3 font-data text-sm">
@@ -258,9 +264,14 @@ const OrdersPage = () => {
                       <p className="text-sm font-semibold text-ink">
                         {order.amount}
                       </p>
-                      <Badge variant={getOrderStatusVariant(order.status)}>
-                        {order.status}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {order.createdByType === "staff" && (
+                          <StaffCreatedIndicator createdByName={order.createdByName} />
+                        )}
+                        <Badge variant={getOrderStatusVariant(order.status)}>
+                          {order.status}
+                        </Badge>
+                      </div>
                     </div>
                   </button>
                 </li>
@@ -303,9 +314,14 @@ const OrdersPage = () => {
                         {order.amount}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getOrderStatusVariant(order.status)}>
-                          {order.status}
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {order.createdByType === "staff" && (
+                            <StaffCreatedIndicator createdByName={order.createdByName} />
+                          )}
+                          <Badge variant={getOrderStatusVariant(order.status)}>
+                            {order.status}
+                          </Badge>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

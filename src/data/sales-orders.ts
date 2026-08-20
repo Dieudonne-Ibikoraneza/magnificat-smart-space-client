@@ -3,6 +3,7 @@ import { products } from "@/data/catalog";
 import { calculateTileQuantity } from "@/lib/tile-calculator";
 
 export type SalesOrderStatus = "Processing" | "Shipped" | "Delivered";
+export type SalesOrderCreatorType = "customer" | "staff";
 
 export type SalesOrderItem = {
   productId: string;
@@ -31,6 +32,8 @@ export type SalesOrder = {
   amount: string;
   amountShort: string;
   status: SalesOrderStatus;
+  createdByType: SalesOrderCreatorType;
+  createdByName: string;
   updatedAgo: string;
   expectedDelivery: string;
   totalVolume: string;
@@ -38,8 +41,8 @@ export type SalesOrder = {
   timeline: SalesOrderTimelineStep[];
 };
 
-const createTimeline = (status: SalesOrderStatus, date: string): SalesOrderTimelineStep[] => [
-  { label: "Order Placed", timestamp: date + " • 09:41 AM", note: "Created by the sales team via portal.", state: "done" },
+const createTimeline = (status: SalesOrderStatus, date: string, createdByName: string): SalesOrderTimelineStep[] => [
+  { label: "Order Placed", timestamp: date + " • 09:41 AM", note: "Created by " + createdByName + ".", state: "done" },
   { label: "Processing", timestamp: date + " • 11:30 AM", note: "Warehouse team is currently picking and packing items.", state: status === "Processing" ? "current" : "done" },
   { label: "Ready for Dispatch", timestamp: status === "Processing" ? undefined : date + " • 04:15 PM", note: status === "Processing" ? "Pending" : "Loaded and manifested for delivery.", state: status === "Processing" ? "pending" : status === "Shipped" ? "current" : "done" },
   { label: "Delivered", timestamp: status === "Delivered" ? date + " • 05:02 PM" : undefined, note: status === "Delivered" ? "Signed for on site." : "Pending", state: status === "Delivered" ? "current" : "pending" },
@@ -51,6 +54,8 @@ const orderTemplates = [
     amount: "RWF 12,400,000",
     amountShort: "RWF 12.4M",
     status: "Processing" as const,
+    createdByType: "customer" as const,
+    createdByName: "the customer",
     updatedAgo: "2 hours ago",
     expectedDelivery: "5 days",
     items: [
@@ -63,6 +68,8 @@ const orderTemplates = [
     amount: "RWF 8,250,000",
     amountShort: "RWF 8.25M",
     status: "Shipped" as const,
+    createdByType: "staff" as const,
+    createdByName: "a sales person",
     updatedAgo: "1 day ago",
     expectedDelivery: "3 days",
     items: [
@@ -75,6 +82,8 @@ const orderTemplates = [
     amount: "RWF 45,000,020",
     amountShort: "RWF 45.0M",
     status: "Delivered" as const,
+    createdByType: "staff" as const,
+    createdByName: "the stock manager",
     updatedAgo: "4 days ago",
     expectedDelivery: "Delivered",
     items: [
@@ -85,26 +94,37 @@ const orderTemplates = [
 ];
 
 const orderRecords = salesCustomers.flatMap((customer, customerIndex) =>
-  orderTemplates.map((order, orderIndex) => ({
-    ...order,
-    items: order.items.map((item) => {
-      const product = products.find((candidate) => candidate.id === item.productId) ?? products[0];
-      const calculation = calculateTileQuantity(
-        Number(item.quantity.replace(/[^0-9.]/g, "")),
-        product,
-      );
+  orderTemplates.map((order, orderIndex) => {
+    const createdByType: SalesOrderCreatorType = customerIndex % 2 === 0 ? "customer" : "staff";
 
-      return {
-        ...item,
-        boxes: calculation.completeBoxes,
-        additionalPieces: calculation.remainingPieces,
-        pieces: calculation.totalPieces,
-        image: product.image,
-      };
-    }),
-    customerSlug: customer.slug,
-    id: "ORD-" + (7001 + customerIndex * orderTemplates.length + orderIndex),
-  })),
+    return {
+      ...order,
+      createdByType,
+      createdByName:
+        createdByType === "customer"
+          ? "the customer"
+          : orderIndex === 1
+            ? "a sales person"
+            : "the stock manager",
+      items: order.items.map((item) => {
+        const product = products.find((candidate) => candidate.id === item.productId) ?? products[0];
+        const calculation = calculateTileQuantity(
+          Number(item.quantity.replace(/[^0-9.]/g, "")),
+          product,
+        );
+
+        return {
+          ...item,
+          boxes: calculation.completeBoxes,
+          additionalPieces: calculation.remainingPieces,
+          pieces: calculation.totalPieces,
+          image: product.image,
+        };
+      }),
+      customerSlug: customer.slug,
+      id: "ORD-" + (7001 + customerIndex * orderTemplates.length + orderIndex),
+    };
+  }),
 );
 
 export const salesOrders: SalesOrder[] = orderRecords.map((order) => {
@@ -115,7 +135,7 @@ export const salesOrders: SalesOrder[] = orderRecords.map((order) => {
     ...order,
     customerName: customer?.name ?? "Unknown customer",
     totalVolume: totalVolume.toLocaleString("en-US") + " SQM Total Volume",
-    timeline: createTimeline(order.status, order.date),
+    timeline: createTimeline(order.status, order.date, order.createdByName),
   };
 });
 

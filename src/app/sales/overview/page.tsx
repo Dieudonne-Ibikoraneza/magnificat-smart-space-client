@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Bar,
   BarChart,
@@ -18,7 +19,6 @@ import {
   Coins,
   MoreVertical,
   Menu,
-  TrendingUp,
   UserPlus,
   UsersRound,
 } from "lucide-react";
@@ -33,9 +33,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { salesCustomers } from "@/data/sales-customers";
-import { salesOrders } from "@/data/sales-orders";
+import { salesOrders, type SalesOrderCreatorType } from "@/data/sales-orders";
 
-const datasets = {
+const salesPerformanceDatasets = {
   W: [
     { day: "Mon", value: 2_100_000 },
     { day: "Tue", value: 3_400_000 },
@@ -96,6 +96,74 @@ const customers = uniqueCustomers.slice(0, 5).map((customer) => ({
 
 const orders = salesOrders.slice(0, 3);
 
+const parseAmount = (amount: string) => Number(amount.replace(/[^0-9]/g, ""));
+
+const formatCompactCurrency = (amount: number) => {
+  if (amount >= 1_000_000_000) return `RWF ${(amount / 1_000_000_000).toFixed(1)}B`;
+  if (amount >= 1_000_000) return `RWF ${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `RWF ${(amount / 1_000).toFixed(1)}K`;
+  return `RWF ${amount.toLocaleString("en-US")}`;
+};
+
+const totalSales = salesOrders.reduce((sum, order) => sum + parseAmount(order.amount), 0);
+const latestOrder = salesOrders.reduce((latest, order) =>
+  new Date(order.date) > new Date(latest.date) ? order : latest,
+);
+const latestOrderDate = new Date(latestOrder.date);
+const latestOrderMonthKey = `${latestOrderDate.getFullYear()}-${latestOrderDate.getMonth()}`;
+const latestOrderMonthLabel = latestOrderDate.toLocaleDateString("en-US", {
+  month: "long",
+  year: "numeric",
+});
+const monthlyOrders = salesOrders.filter((order) => {
+  const orderDate = new Date(order.date);
+  return `${orderDate.getFullYear()}-${orderDate.getMonth()}` === latestOrderMonthKey;
+});
+const monthlySales = monthlyOrders.reduce((sum, order) => sum + parseAmount(order.amount), 0);
+
+const getSalesBreakdown = (ordersToMeasure: typeof salesOrders) =>
+  ordersToMeasure.reduce(
+    (breakdown, order) => {
+      breakdown[order.createdByType] += parseAmount(order.amount);
+      return breakdown;
+    },
+    { customer: 0, staff: 0 } as Record<SalesOrderCreatorType, number>,
+  );
+
+const totalSalesBreakdown = getSalesBreakdown(salesOrders);
+const monthlySalesBreakdown = getSalesBreakdown(monthlyOrders);
+
+type ComparisonPoint = {
+  day: string;
+  customer: number;
+  staff: number;
+};
+
+const comparisonRatios = {
+  W: [0.62, 0.44, 0.7, 0.51, 0.58, 0.39, 0.66],
+  M: [0.48, 0.61, 0.55, 0.72, 0.43, 0.64, 0.52, 0.37, 0.68, 0.46, 0.59],
+  Y: [0.41, 0.57, 0.49, 0.66, 0.53, 0.72, 0.45, 0.61, 0.38, 0.69, 0.51, 0.63],
+} as const;
+
+const createComparisonDataset = <T extends { day: string; value: number }>(
+  dataset: readonly T[],
+  ratios: readonly number[],
+): ComparisonPoint[] =>
+  dataset.map(({ day, value }, index) => {
+    const customerRatio = ratios[index % ratios.length];
+    return {
+      day,
+      customer: Math.round(value * customerRatio),
+      staff: Math.round(value * (1 - customerRatio)),
+    };
+  });
+
+const comparisonDatasets: Record<"W" | "M" | "Y", ComparisonPoint[]> = {
+  W: createComparisonDataset(salesPerformanceDatasets.W, comparisonRatios.W),
+  M: createComparisonDataset(salesPerformanceDatasets.M, comparisonRatios.M),
+  Y: createComparisonDataset(salesPerformanceDatasets.Y, comparisonRatios.Y),
+};
+
 const orderStatusVariants = {
   Processing: "secondary",
   Shipped: "primary",
@@ -106,7 +174,7 @@ const orderStatusVariants = {
 const getOrderStatusVariant = (status: string) =>
   orderStatusVariants[status as keyof typeof orderStatusVariants] ?? "default";
 
-const ChartTooltip = ({
+const RevenueTooltip = ({
   active,
   payload,
   label,
@@ -119,9 +187,7 @@ const ChartTooltip = ({
 
   return (
     <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
-      <p className="font-data text-xs font-semibold tracking-widest text-data-ink">
-        {label}
-      </p>
+      <p className="font-data text-xs font-semibold tracking-widest text-data-ink">{label}</p>
       <p className="mt-1 font-data text-sm text-ink">
         Revenue: RWF {payload[0].value.toLocaleString()}
       </p>
@@ -129,10 +195,39 @@ const ChartTooltip = ({
   );
 };
 
+const ComparisonTooltip = ({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ name?: string; value: number; color?: string }>;
+  label?: string;
+}) => {
+  if (!active || !payload?.length) return null;
+
+  return (
+    <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
+      <p className="font-data text-xs font-semibold tracking-widest text-data-ink">{label}</p>
+      <div className="mt-2 space-y-1 font-data text-sm text-ink">
+        {payload.map((entry) => (
+          <p key={entry.name} className="flex items-center justify-between gap-5">
+            <span className="flex items-center gap-2">
+              <span className="size-2 rounded-full" style={{ backgroundColor: entry.color }} />
+              {entry.name === "customer" ? "Customer-created" : "Staff-created"}
+            </span>
+            <span>RWF {entry.value.toLocaleString()}</span>
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const SalesChart = () => {
-  const [range, setRange] = useState<keyof typeof datasets>("M");
+  const [range, setRange] = useState<keyof typeof salesPerformanceDatasets>("M");
   const [hovered, setHovered] = useState<number | null>(null);
-  const data = datasets[range];
+  const data = salesPerformanceDatasets[range];
 
   return (
     <section className="rounded-2xl bg-card p-5 sm:p-6">
@@ -196,10 +291,7 @@ const SalesChart = () => {
                 fontFamily: "var(--font-data)",
               }}
             />
-            <Tooltip
-              cursor={{ fill: "transparent" }}
-              content={<ChartTooltip />}
-            />
+            <Tooltip cursor={{ fill: "transparent" }} content={<RevenueTooltip />} />
             <Bar
               dataKey="value"
               barSize="70%"
@@ -220,9 +312,61 @@ const SalesChart = () => {
       </div>
       <div className="mt-2 flex items-center justify-center gap-2">
         <span className="size-3 rounded-sm bg-chart-blue" />
-        <span className="font-data text-sm text-data-ink">
-          Sales Performance
-        </span>
+        <span className="font-data text-sm text-data-ink">Sales Performance</span>
+      </div>
+    </section>
+  );
+};
+
+const SalesCreatorComparisonChart = () => {
+  const [range, setRange] = useState<keyof typeof comparisonDatasets>("M");
+  const [hovered, setHovered] = useState<number | null>(null);
+  const data = comparisonDatasets[range];
+
+  return (
+    <section className="rounded-2xl bg-card p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-ink">Sales by Order Creator</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Compare customer-created and staff-created sales
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {(["W", "M", "Y"] as const).map((item) => (
+            <button
+              type="button"
+              key={item}
+              onClick={() => setRange(item)}
+              aria-pressed={range === item}
+              className={`size-8 rounded-md text-xs font-semibold transition-all ${range === item ? "bg-primary text-primary-foreground shadow-sm" : "border border-border bg-card text-ink hover:bg-secondary"}`}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="mt-6 h-65 w-full font-data sm:mt-8 sm:h-80">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} barCategoryGap="4%" barGap={6} margin={{ top: 8, right: 4, left: 0, bottom: 24 }} onMouseLeave={() => setHovered(null)}>
+            <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
+            <XAxis dataKey="day" angle={-40} textAnchor="end" tickLine={false} axisLine={false} interval="preserveStartEnd" tick={{ fill: "var(--data-ink)", fontSize: 11, fontFamily: "var(--font-data)" }} />
+            <YAxis tickLine={false} axisLine={false} width={44} tickFormatter={(value: number) => value === 0 ? "0" : `${value / 1_000_000}M`} tick={{ fill: "var(--data-ink)", fontSize: 11, fontFamily: "var(--font-data)" }} />
+            <Tooltip cursor={{ fill: "transparent" }} content={<ComparisonTooltip />} />
+            <Bar dataKey="customer" name="customer" fill="var(--chart-blue)" radius={[2, 2, 0, 0]} animationDuration={700} onMouseEnter={(_: unknown, index: number) => setHovered(index)}>
+              {data.map((_, index) => <Cell key={`customer-${index}`} fill="var(--chart-blue)" fillOpacity={hovered === null || hovered === index ? 1 : 0.45} />)}
+            </Bar>
+            <Bar dataKey="staff" name="staff" fill="var(--primary)" radius={[2, 2, 0, 0]} animationDuration={700} onMouseEnter={(_: unknown, index: number) => setHovered(index)}>
+              {data.map((_, index) => <Cell key={`staff-${index}`} fill="var(--primary)" fillOpacity={hovered === null || hovered === index ? 1 : 0.45} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="mt-2 flex items-center justify-center gap-2">
+        <span className="size-3 rounded-sm bg-chart-blue" />
+        <span className="font-data text-sm text-data-ink">Customer-created</span>
+        <span className="ml-3 size-3 rounded-sm bg-primary" />
+        <span className="font-data text-sm text-data-ink">Staff-created</span>
       </div>
     </section>
   );
@@ -230,22 +374,17 @@ const SalesChart = () => {
 
 const Kpis = () => {
   const cards = [
-    [
-      "Total Sales (YTD)",
-      "RWF 128,500,00",
-      Coins,
-      "+14%",
-      "vs last month",
-      "bg-[#FAFDE9]",
-    ],
-    ["Active Customers", "42", UsersRound, "", "3 new this week", "bg-[#F3F4F6]"],
-    ["Pending Orders", "12", Clock3, "", "Requires attention", "bg-[#FEF3C7]"],
-    ["Monthly Sales", "RWF 128,500,00", Coins, "+14%", "vs last month", "bg-[#FAFDE9]"],
+    { label: "Total Sales", value: totalSales, breakdown: totalSalesBreakdown, icon: Coins, note: "All recorded orders", iconBackground: "bg-[#FAFDE9]" },
+    { label: "Active Customers", value: "42", breakdown: undefined, icon: UsersRound, note: "3 new this week", iconBackground: "bg-[#F3F4F6]" },
+    { label: "Pending Orders", value: "12", breakdown: undefined, icon: Clock3, note: "Requires attention", iconBackground: "bg-[#FEF3C7]" },
+    { label: "Monthly Sales", value: monthlySales, breakdown: monthlySalesBreakdown, icon: Coins, note: `Based on ${latestOrderMonthLabel}`, iconBackground: "bg-[#FAFDE9]" },
   ] as const;
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {cards.map(([label, value, Icon, trend, note, iconBackground]) => (
+      {cards.map((card) => {
+        const { label, value, breakdown, icon: Icon, note, iconBackground } = card;
+        return (
         <article
           key={label}
           className="group cursor-pointer rounded-xl bg-white p-5 transition-all duration-200 ease-out active:scale-95 sm:p-6"
@@ -259,25 +398,33 @@ const Kpis = () => {
             </span>
           </div>
           <p className="mt-4 wrap-break-word text-2xl font-bold text-ink">
-            {value}
+            {typeof value === "number" ? formatCompactCurrency(value) : value}
           </p>
+          {breakdown && (
+            <div className="mt-4 space-y-2 border-t border-border pt-3 text-xs">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Customer-created</span>
+                <span className="font-data font-semibold text-ink">{formatCompactCurrency(breakdown.customer)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">Staff-created</span>
+                <span className="font-data font-semibold text-ink">{formatCompactCurrency(breakdown.staff)}</span>
+              </div>
+            </div>
+          )}
           <p className="mt-4 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground sm:mt-5">
-            {trend && (
-              <>
-                <TrendingUp className="size-4 text-primary" strokeWidth={2.2} />
-                <span className="font-semibold text-primary">{trend}</span>
-              </>
-            )}
             {note}
           </p>
         </article>
-      ))}
+        );
+      })}
     </div>
   );
 };
 
 const SalesOverviewPage = () => {
   const { openMenu } = useSalesMenu();
+  const router = useRouter();
 
   return (
     <>
@@ -346,6 +493,7 @@ const SalesOverviewPage = () => {
             </Link>
           </section>
         </div>
+        <SalesCreatorComparisonChart />
         <section className="animate-fade-in overflow-hidden rounded-2xl bg-card">
           <div className="flex items-center justify-between gap-3 px-5 py-5 sm:px-6">
             <h2 className="truncate text-lg font-bold text-ink">
@@ -381,6 +529,15 @@ const SalesOverviewPage = () => {
                 {orders.map((order) => (
                   <TableRow
                     key={order.id}
+                    tabIndex={0}
+                    aria-label={`View details for ${order.id}`}
+                    onClick={() => router.push(`/sales/orders/${order.id}`)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        router.push(`/sales/orders/${order.id}`);
+                      }
+                    }}
                   >
                     <TableCell className="font-semibold text-ink"><Link href={`/sales/orders/${order.id}`} className="hover:underline">{order.id}</Link></TableCell>
                     <TableCell className="text-ink">{order.customerName}</TableCell>
