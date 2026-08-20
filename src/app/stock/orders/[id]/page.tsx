@@ -13,7 +13,6 @@ import {
   Mail,
   MapPin,
   Phone,
-  Plus,
   Printer,
   Wallet,
 } from "lucide-react";
@@ -108,13 +107,13 @@ const OrderDetailPage = async ({ params }: OrderDetailPageProps) => {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink render={<Link href="/sales/overview" />}>
+              <BreadcrumbLink render={<Link href="/stock/overview" />}>
                 Overview
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink render={<Link href="/sales/orders" />}>
+              <BreadcrumbLink render={<Link href="/stock/orders" />}>
                 Orders
               </BreadcrumbLink>
             </BreadcrumbItem>
