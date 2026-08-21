@@ -11,6 +11,7 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
+import { StockPageHeader } from "@/app/stock/layout";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -72,7 +73,9 @@ const StockProductDetailsPage = async ({
   const currentStock = stockQuantities[product.id] ?? 0;
   return (
     <>
-      <header className="border-b border-border pb-5 sm:pb-6">
+      <StockPageHeader title={product.name} subtitle="Product details and inventory controls." />
+
+      <div className="mt-5 border-b border-border pb-5 sm:mt-6 sm:pb-6">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -92,17 +95,7 @@ const StockProductDetailsPage = async ({
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
-        <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold text-ink sm:text-4xl">
-              {product.name}
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Product details and inventory controls.
-            </p>
-          </div>
-        </div>
-      </header>
+      </div>
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.9fr)] lg:items-start">
         <div className="space-y-6">
           <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted-background sm:aspect-4/3 lg:aspect-square">

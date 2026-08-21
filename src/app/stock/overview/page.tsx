@@ -9,7 +9,6 @@ import {
   ClipboardClock,
   Clock3,
   Filter,
-  Menu,
   Package,
   PencilLine,
   Plus,
@@ -17,7 +16,7 @@ import {
   TrendingUp,
   WalletCards,
 } from "lucide-react";
-import { useStockMenu } from "@/app/stock/layout";
+import { StockPageHeader } from "@/app/stock/layout";
 import { products } from "@/data/catalog";
 import {
   Table,
@@ -125,29 +124,12 @@ const KpiCard = ({
 );
 
 const StockOverviewPage = () => {
-  const { openMenu } = useStockMenu();
-
   return (
     <>
-      <header className="flex flex-wrap items-center justify-between gap-5">
-        <div className="flex min-w-0 items-center gap-3">
-          <button
-            type="button"
-            aria-label="Open menu"
-            onClick={openMenu}
-            className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-ink lg:hidden"
-          >
-            <Menu className="size-5" />
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-ink sm:text-5xl">
-              Overview
-            </h1>
-            <p className="mt-1 text-sm text-[#60718b] sm:text-base">
-              Real-time inventory metrics and critical alerts.
-            </p>
-          </div>
-        </div>
+      <StockPageHeader
+        title="Overview"
+        subtitle="Real-time inventory metrics and critical alerts."
+      >
         <div className="flex w-full gap-3 sm:w-auto">
           <button
             type="button"
@@ -164,7 +146,7 @@ const StockOverviewPage = () => {
             Add Product
           </button>
         </div>
-      </header>
+      </StockPageHeader>
 
       <div className="mt-7 space-y-6 sm:mt-8 sm:space-y-7">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

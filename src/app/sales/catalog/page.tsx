@@ -1,5 +1,5 @@
 import { ProductCatalog } from "@/components/product-catalog";
-import { SalesPageHeader } from "@/components/sales-page-header";
+import { SalesPageHeader } from "@/app/sales/layout";
 import { products } from "@/data/catalog";
 
 const CatalogPage = () => (

@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Menu, Pencil, Plus, Trash2 } from "lucide-react";
-import { useStockMenu } from "@/app/stock/layout";
+import { ArrowRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { StockPageHeader } from "@/app/stock/layout";
 import { collections } from "@/data/collections";
 import { Button } from "@/components/ui/button";
 
@@ -67,29 +67,12 @@ const StockCollectionCard = ({
 );
 
 export default function StockCollectionsPage() {
-  const { openMenu } = useStockMenu();
-
   return (
     <>
-      <header className="flex flex-wrap items-center justify-between gap-5">
-        <div className="flex min-w-0 items-center gap-3">
-          <button
-            type="button"
-            onClick={openMenu}
-            aria-label="Open menu"
-            className="inline-flex size-10 items-center justify-center rounded-lg border border-border bg-card text-ink lg:hidden"
-          >
-            <Menu className="size-5" />
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-              Collections
-            </h1>
-            <p className="mt-1 text-sm text-muted sm:text-base">
-              {collections.length} product collections currently managed
-            </p>
-          </div>
-        </div>
+      <StockPageHeader
+        title="Collections"
+        subtitle={`${collections.length} product collections currently managed`}
+      >
         <Button
           type="button"
           className="h-11 w-full gap-2 bg-primary px-5 font-bold text-ink hover:bg-primary/90 sm:w-auto"
@@ -97,7 +80,7 @@ export default function StockCollectionsPage() {
           <Plus className="size-4" />
           Add New Collection
         </Button>
-      </header>
+      </StockPageHeader>
 
       <section className="mt-6 grid gap-6 sm:mt-8 sm:grid-cols-2 xl:grid-cols-3">
         {collections.map((collection) => (

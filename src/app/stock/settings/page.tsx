@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Save, Trash2, X } from "lucide-react";
-import { SalesPageHeader } from "@/app/sales/layout";
+import { StockPageHeader } from "@/app/stock/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -12,7 +12,7 @@ const initialProfile = {
   phone: "+250 788 123 456",
 };
 
-const SalesSettingsPage = () => {
+const StockSettingsPage = () => {
   const [profile, setProfile] = useState(initialProfile);
   const [saved, setSaved] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -44,7 +44,7 @@ const SalesSettingsPage = () => {
 
   return (
     <div className="mx-auto max-w-300">
-      <SalesPageHeader title="Account Settings" subtitle="Manage your profile and account preferences." />
+      <StockPageHeader title="Account Settings" subtitle="Manage your profile and account preferences." />
 
       <section className="mt-6 rounded-3xl bg-white p-6 sm:mt-8 sm:p-8 lg:px-10 lg:py-9">
         <h2 className="text-lg font-bold text-ink">Personal Profile</h2>
@@ -81,11 +81,11 @@ const SalesSettingsPage = () => {
       </section>
 
       {deleteDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="sales-delete-dialog-title">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="stock-delete-dialog-title">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl sm:p-8">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 id="sales-delete-dialog-title" className="text-xl font-bold text-ink">Delete account?</h2>
+                <h2 id="stock-delete-dialog-title" className="text-xl font-bold text-ink">Delete account?</h2>
                 <p className="mt-2 text-sm leading-5 text-muted">This action is permanent. Your account, order history, favorites, and saved designs will be removed.</p>
               </div>
               <Button type="button" variant="ghost" size="icon" onClick={closeDeleteDialog} aria-label="Close delete account dialog" className="size-8 shrink-0"><X className="size-5" /></Button>
@@ -102,4 +102,4 @@ const SalesSettingsPage = () => {
   );
 };
 
-export default SalesSettingsPage;
+export default StockSettingsPage;

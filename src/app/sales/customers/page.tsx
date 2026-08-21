@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Eye, ListFilter, Search, ShoppingCart } from "lucide-react";
+import { Eye, ListFilter, Search, ShoppingCart, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { SalesPageHeader } from "@/components/sales-page-header";
+import { SalesPageHeader } from "@/app/sales/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -37,8 +37,7 @@ const CustomersPage = () => {
       <SalesPageHeader
         title="Customers"
         subtitle="Manage profiles, track history, and initiate orders."
-        actionLabel="Add Customer"
-        actionIcon="userPlus"
+        action={{ label: "Add Customer", icon: UserPlus }}
       />
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
         <section className="rounded-2xl bg-card p-4 sm:p-5">

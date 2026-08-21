@@ -7,10 +7,9 @@ import {
   Grid3X3,
   LayoutList,
   ListFilter,
-  Menu,
   Search,
 } from "lucide-react";
-import { useStockMenu } from "@/app/stock/layout";
+import { StockPageHeader } from "@/app/stock/layout";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,7 +47,6 @@ const totalSqm = (items: { quantity: string }[]) =>
   );
 
 const OrdersPage = () => {
-  const { openMenu } = useStockMenu();
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
@@ -80,7 +78,9 @@ const OrdersPage = () => {
 
   return (
     <>
-      <header className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><button type="button" aria-label="Open menu" onClick={openMenu} className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-ink hover:bg-secondary lg:hidden"><Menu className="size-5" /></button><div className="min-w-0"><h1 className="truncate text-xl font-bold text-ink sm:text-2xl">Orders</h1><p className="mt-1 hidden text-sm text-muted-foreground sm:block">Monitor progress and manage customer transaction history.</p></div></div><button type="button" className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg sm:px-6 sm:py-3.5">New Order</button></header>
+      <StockPageHeader title="Orders" subtitle="Monitor progress and manage customer transaction history.">
+        <button type="button" className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg sm:px-6 sm:py-3.5">New Order</button>
+      </StockPageHeader>
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
         <section className="rounded-2xl bg-card p-4 sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center">

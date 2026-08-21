@@ -11,7 +11,6 @@ import {
   Eye,
   LayoutGrid,
   List,
-  Menu,
   Pencil,
   Plus,
   Search,
@@ -21,7 +20,7 @@ import {
 } from "lucide-react";
 import { getVisiblePages } from "@/lib/catalog-utils";
 import { cn } from "@/lib/utils";
-import { useStockMenu } from "@/app/stock/layout";
+import { StockPageHeader } from "@/app/stock/layout";
 import { inventoryProducts } from "@/data/inventory";
 import type { Product } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
@@ -180,7 +179,6 @@ export const InventoryProductCard = ({
 };
 
 const InventoryPage = () => {
-  const { openMenu } = useStockMenu();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [status, setStatus] = useState("all");
@@ -233,25 +231,10 @@ const InventoryPage = () => {
 
   return (
     <>
-      <header className="flex flex-wrap items-center justify-between gap-5">
-        <div className="flex min-w-0 items-center gap-3">
-          <button
-            type="button"
-            aria-label="Open menu"
-            onClick={openMenu}
-            className="inline-flex size-10 items-center justify-center rounded-lg border border-border bg-card text-ink lg:hidden"
-          >
-            <Menu className="size-5" />
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-              Inventory
-            </h1>
-            <p className="mt-1 text-sm text-[#53604d] sm:text-base">
-              {TOTAL_RESULTS.toLocaleString()} Products currently managed
-            </p>
-          </div>
-        </div>
+      <StockPageHeader
+        title="Inventory"
+        subtitle={`${TOTAL_RESULTS.toLocaleString()} Products currently managed`}
+      >
         <Button
           type="button"
           className="w-full gap-2 rounded-lg px-5 py-3 text-sm font-bold sm:w-auto"
@@ -259,7 +242,7 @@ const InventoryPage = () => {
           <Plus className="size-4" />
           Add New Product
         </Button>
-      </header>
+      </StockPageHeader>
 
       <section className="mt-6 rounded-xl border border-[#E5E7EB] bg-card p-4 shadow-sm sm:mt-8 sm:p-5">
         <div className="flex flex-col gap-3 xl:flex-row">

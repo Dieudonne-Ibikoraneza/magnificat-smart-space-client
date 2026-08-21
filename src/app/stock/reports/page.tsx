@@ -17,14 +17,13 @@ import {
   Calculator,
   Eye,
   LogIn,
-  Menu,
   Repeat2,
   RefreshCw,
   Share2,
   Sparkles,
   UsersRound,
 } from "lucide-react";
-import { useStockMenu } from "@/app/stock/layout";
+import { StockPageHeader } from "@/app/stock/layout";
 import { Button } from "@/components/ui/button";
 
 const chartData = {
@@ -110,34 +109,18 @@ const funnel = [
 ] as const;
 
 export default function StockReportsPage() {
-  const { openMenu } = useStockMenu();
   const [period, setPeriod] = useState<7 | 30 | 12>(30);
   const data = useMemo(() => chartData[period], [period]);
 
   return (
     <div className="mx-auto w-full max-w-[1070px]">
-      <header className="flex flex-wrap items-start justify-between gap-5">
-        <div className="flex items-start gap-3">
-          <button
-            type="button"
-            onClick={openMenu}
-            aria-label="Open menu"
-            className="mt-1 inline-flex size-10 items-center justify-center rounded-lg border border-border bg-card text-ink lg:hidden"
-          >
-            <Menu className="size-5" />
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-ink sm:text-5xl">
-              Reports
-            </h1>
-            <p className="mt-1 max-w-xl text-sm leading-6 text-muted sm:text-base">
-              Comprehensive analytics and performance metrics for the Magnificat
-              ecosystem.
-            </p>
-          </div>
-        </div>
-        <div className="flex h-11 items-center rounded-xl border border-[#edf0eb] bg-white p-1 shadow-sm gap-1">
-          {(
+      <StockPageHeader
+        title="Reports"
+        subtitle="Comprehensive analytics and performance metrics for the Magnificat ecosystem."
+      />
+
+      <div className="mt-6 flex h-11 items-center rounded-xl border border-[#edf0eb] bg-white p-1 shadow-sm gap-1">
+        {(
             [
               [7, "7 DAYS"],
               [30, "30 DAYS"],
@@ -176,8 +159,7 @@ export default function StockReportsPage() {
           >
             <CalendarDays className="size-5" />
           </Button>
-        </div>
-      </header>
+      </div>
 
       <div className="mt-7 grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
         <section className="rounded-[14px] bg-white p-6 shadow-sm sm:p-8">

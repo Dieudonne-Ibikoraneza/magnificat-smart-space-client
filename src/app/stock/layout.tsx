@@ -10,6 +10,7 @@ import {
   Boxes,
 } from "lucide-react";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import { PageHeader, type PageHeaderProps } from "@/components/page-header";
 
 const navigation = [
   {
@@ -32,6 +33,11 @@ export const useStockMenu = () => {
   const context = useContext(StockMenuContext);
   if (!context) throw new Error("useStockMenu must be used inside StockLayout");
   return context;
+};
+
+export const StockPageHeader = (props: Omit<PageHeaderProps, "onOpenMenu">) => {
+  const { openMenu } = useStockMenu();
+  return <PageHeader {...props} onOpenMenu={openMenu} />;
 };
 
 const StockLayout = ({ children }: { children: React.ReactNode }) => {

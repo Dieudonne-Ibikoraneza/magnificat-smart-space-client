@@ -54,40 +54,38 @@ export const DashboardSidebar = ({
           <X className="size-5" />
         </button>
       )}
-      <div className="flex h-full flex-col justify-between overflow-y-auto px-5 py-6">
-        <div>
-          <div className="px-2 pb-8">
-            <Image
-              src="/images/logo.png"
-              alt="Magnificat Smart Space"
-              width={240}
-              height={180}
-              className="mx-auto w-40 object-contain"
-            />
-          </div>
-          <nav className="space-y-1" aria-label={ariaLabel}>
-            {links.map(({ label, href, icon: Icon, active }) => {
-              const isActive = active?.(pathname) ?? pathname.startsWith(href);
-
-              return (
-                <Link
-                  href={href}
-                  key={href}
-                  aria-current={isActive ? "page" : undefined}
-                  onClick={close}
-                  className={`group relative flex w-full items-center gap-4 rounded-lg px-4 py-3 text-left text-[15px] transition-all duration-200 ${isActive ? "bg-[#f8fce7] font-semibold text-ink" : "font-medium text-ink/75 hover:translate-x-1 hover:bg-[#fbfdec] hover:text-ink"}`}
-                >
-                  <span
-                    className={`absolute right-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-full bg-primary ${isActive ? "scale-y-100" : "scale-y-0"}`}
-                  />
-                  <Icon className="size-5 shrink-0" strokeWidth={1.8} />
-                  <span className="truncate">{label}</span>
-                </Link>
-              );
-            })}
-          </nav>
+      <div className="flex h-full min-h-0 flex-col px-5 py-6">
+        <div className="shrink-0 px-2 pb-8">
+          <Image
+            src="/images/logo.png"
+            alt="Magnificat Smart Space"
+            width={240}
+            height={180}
+            className="mx-auto w-40 object-contain"
+          />
         </div>
-        <div className="mt-8 flex shrink-0 items-center gap-3 rounded-xl bg-[#F9F9F9] px-4 py-3">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto" aria-label={ariaLabel}>
+          {links.map(({ label, href, icon: Icon, active }) => {
+            const isActive = active?.(pathname) ?? pathname.startsWith(href);
+
+            return (
+              <Link
+                href={href}
+                key={href}
+                aria-current={isActive ? "page" : undefined}
+                onClick={close}
+                className={`group relative flex w-full items-center gap-4 rounded-lg px-4 py-3 text-left text-[15px] transition-all duration-200 ${isActive ? "bg-[#f8fce7] font-semibold text-ink" : "font-medium text-ink/75 hover:translate-x-1 hover:bg-[#fbfdec] hover:text-ink"}`}
+              >
+                <span
+                  className={`absolute right-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-full bg-primary ${isActive ? "scale-y-100" : "scale-y-0"}`}
+                />
+                <Icon className="size-5 shrink-0" strokeWidth={1.8} />
+                <span className="truncate">{label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="mt-4 flex shrink-0 items-center gap-3 rounded-xl bg-[#F9F9F9] px-4 py-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-sm font-semibold text-card">
             {user.initials}
           </span>

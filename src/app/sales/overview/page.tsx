@@ -18,11 +18,10 @@ import {
   Clock3,
   Coins,
   MoreVertical,
-  Menu,
   UserPlus,
   UsersRound,
 } from "lucide-react";
-import { useSalesMenu } from "@/app/sales/layout";
+import { SalesPageHeader } from "@/app/sales/layout";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -423,38 +422,15 @@ const Kpis = () => {
 };
 
 const SalesOverviewPage = () => {
-  const { openMenu } = useSalesMenu();
   const router = useRouter();
 
   return (
     <>
-      <header className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <button
-            type="button"
-            aria-label="Open menu"
-            onClick={openMenu}
-            className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-ink hover:bg-secondary lg:hidden"
-          >
-            <Menu className="size-5" />
-          </button>
-          <div className="min-w-0">
-            <h1 className="truncate text-xl font-bold text-ink sm:text-2xl">
-              Overview
-            </h1>
-            <p className="mt-1 hidden text-sm text-muted-foreground sm:block">
-              Track your sales performance and daily tasks.
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg sm:px-6 sm:py-3.5"
-        >
-          <UserPlus className="size-5" strokeWidth={1.9} />
-          <span className="whitespace-nowrap">Add Customer</span>
-        </button>
-      </header>
+      <SalesPageHeader
+        title="Overview"
+        subtitle="Track your sales performance and daily tasks."
+        action={{ label: "Add Customer", icon: UserPlus }}
+      />
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
         <Kpis />
         <div className="grid gap-5 sm:gap-6 xl:grid-cols-[1.7fr_1fr]">

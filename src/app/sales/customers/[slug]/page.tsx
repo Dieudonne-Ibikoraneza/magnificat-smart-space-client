@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { CalendarDays, ChevronRight, Plus, Wallet } from "lucide-react";
+import { SalesPageHeader } from "@/app/sales/layout";
 import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
@@ -65,7 +66,27 @@ const CustomerDetailPage = async ({ params }: CustomerDetailPageProps) => {
 
   return (
     <>
-      <header className="border-b border-border pb-5 sm:pb-6">
+      <SalesPageHeader
+        title={customer.name}
+        subtitle={`Customer ID: ${customer.customerId} • Joined ${customer.joined}`}
+      >
+        <div className="flex shrink-0 items-center gap-3">
+          <Badge
+            variant={customer.status === "Active" ? "primary" : "warning"}
+          >
+            {customer.status}
+          </Badge>
+          <Button
+            type="button"
+            className="h-auto rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95 sm:px-5"
+          >
+            <Plus className="size-4" strokeWidth={2.2} />
+            New Order
+          </Button>
+        </div>
+      </SalesPageHeader>
+
+      <div className="mt-5 border-b border-border pb-5 sm:mt-6 sm:pb-6">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -87,31 +108,7 @@ const CustomerDetailPage = async ({ params }: CustomerDetailPageProps) => {
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
-        <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold text-ink sm:text-4xl">
-              {customer.name}
-            </h1>
-            <p className="mt-1 truncate text-sm text-muted-foreground">
-              Customer ID: {customer.customerId} &bull; Joined {customer.joined}
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-3">
-            <Badge
-              variant={customer.status === "Active" ? "primary" : "warning"}
-            >
-              {customer.status}
-            </Badge>
-            <Button
-              type="button"
-              className="h-auto rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95 sm:px-5"
-            >
-              <Plus className="size-4" strokeWidth={2.2} />
-              New Order
-            </Button>
-          </div>
-        </div>
-      </header>
+      </div>
 
       <div className="mt-6 space-y-5 sm:space-y-6">
         <div className="grid gap-4 sm:grid-cols-2 xl:max-w-3xl">

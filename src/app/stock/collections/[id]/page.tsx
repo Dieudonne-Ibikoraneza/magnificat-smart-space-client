@@ -10,14 +10,13 @@ import {
   Clock,
   LayoutGrid,
   List,
-  Menu,
   Pencil,
   Search,
   SlidersHorizontal,
   Trash2,
 } from "lucide-react";
 import { notFound } from "next/navigation";
-import { useStockMenu } from "@/app/stock/layout";
+import { StockPageHeader } from "@/app/stock/layout";
 import { getCollectionById } from "@/data/collections";
 import { inventoryProducts } from "@/data/inventory";
 import { InventoryProductCard as InventoryCard } from "@/app/stock/inventory/page";
@@ -164,7 +163,6 @@ export default function StockCollectionDetailsPage({
 }) {
   const { id } = use(params);
   const collection = getCollectionById(id);
-  const { openMenu } = useStockMenu();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -215,65 +213,47 @@ export default function StockCollectionDetailsPage({
 
   return (
     <>
-      <header className="space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-5 lg:flex-nowrap">
-          <div className="flex min-w-0 items-start gap-3">
-            <button
-              type="button"
-              onClick={openMenu}
-              aria-label="Open menu"
-              className="mt-1 inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-ink lg:hidden"
-            >
-              <Menu className="size-5" />
-            </button>
-            <div className="min-w-0 lg:flex-1">
-              <Breadcrumb className="mb-3">
-                <BreadcrumbList>
-                  <BreadcrumbItem><BreadcrumbLink render={<Link href="/stock/collections" />}>Home</BreadcrumbLink></BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem><BreadcrumbLink render={<Link href="/stock/collections" />}>Collections</BreadcrumbLink></BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem><BreadcrumbPage>{collection.title}</BreadcrumbPage></BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-              <h1 className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-                {collection.title}
-              </h1>
-              <p className="mt-2 max-w-3xl text-sm text-muted sm:text-base">
-                {collection.description}
-              </p>
-              <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted sm:text-sm">
-                <span className="rounded-full bg-primary px-3 py-1.5 font-bold text-ink">
-                  {products.length} Products
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Clock className="size-4" strokeWidth={2} aria-hidden="true" />
-                  Last updated 2 hours ago
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-12 gap-2 font-bold uppercase px-4"
-            >
-              <Pencil className="size-4 stroke-3" />
-              Edit Collection
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              className="h-12 gap-2 font-bold uppercase px-4"
-            >
-              <Trash2 className="size-4 stroke-3" />
-              Delete Collection
-            </Button>
-          </div>
+      <StockPageHeader title={collection.title} subtitle={collection.description}>
+        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-12 gap-2 font-bold uppercase px-4"
+          >
+            <Pencil className="size-4 stroke-3" />
+            Edit Collection
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            className="h-12 gap-2 font-bold uppercase px-4"
+          >
+            <Trash2 className="size-4 stroke-3" />
+            Delete Collection
+          </Button>
         </div>
-      </header>
+      </StockPageHeader>
+
+      <div className="mt-5 sm:mt-6">
+        <Breadcrumb className="mb-3">
+          <BreadcrumbList>
+            <BreadcrumbItem><BreadcrumbLink render={<Link href="/stock/collections" />}>Home</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem><BreadcrumbLink render={<Link href="/stock/collections" />}>Collections</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem><BreadcrumbPage>{collection.title}</BreadcrumbPage></BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted sm:text-sm">
+          <span className="rounded-full bg-primary px-3 py-1.5 font-bold text-ink">
+            {products.length} Products
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Clock className="size-4" strokeWidth={2} aria-hidden="true" />
+            Last updated 2 hours ago
+          </span>
+        </div>
+      </div>
 
       <section className="mt-6 rounded-xl border border-[#E5E7EB] bg-card p-4 shadow-sm sm:mt-8 sm:p-5">
         <div className="flex flex-col gap-3 xl:flex-row">

@@ -8,8 +8,9 @@ import {
   LayoutList,
   ListFilter,
   Search,
+  UserPlus,
 } from "lucide-react";
-import { SalesPageHeader } from "@/components/sales-page-header";
+import { SalesPageHeader } from "@/app/sales/layout";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -81,8 +82,7 @@ const OrdersPage = () => {
       <SalesPageHeader
         title="Orders"
         subtitle="Monitor progress and manage customer transaction history."
-        actionLabel="New Order"
-        actionIcon="userPlus"
+        action={{ label: "New Order", icon: UserPlus }}
       />
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
         <section className="rounded-2xl bg-card p-4 sm:p-5">
