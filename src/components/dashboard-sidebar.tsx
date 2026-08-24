@@ -11,6 +11,7 @@ export type DashboardSidebarLink = {
   label: string;
   icon: LucideIcon;
   active?: (pathname: string) => boolean;
+  section?: string;
 };
 
 export type DashboardSidebarUser = {
@@ -65,23 +66,32 @@ export const DashboardSidebar = ({
           />
         </div>
         <nav className="min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto" aria-label={ariaLabel}>
-          {links.map(({ label, href, icon: Icon, active }) => {
+          {links.map(({ label, href, icon: Icon, active, section }, index) => {
             const isActive = active?.(pathname) ?? pathname.startsWith(href);
+            const showSectionHeading = section && section !== links[index - 1]?.section;
 
             return (
-              <Link
-                href={href}
-                key={href}
-                aria-current={isActive ? "page" : undefined}
-                onClick={close}
-                className={`group relative flex w-full items-center gap-4 rounded-lg px-4 py-3 text-left text-[15px] transition-all duration-200 ${isActive ? "bg-[#f8fce7] font-semibold text-ink" : "font-medium text-ink/75 hover:translate-x-1 hover:bg-[#fbfdec] hover:text-ink"}`}
-              >
-                <span
-                  className={`absolute right-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-full bg-primary ${isActive ? "scale-y-100" : "scale-y-0"}`}
-                />
-                <Icon className="size-5 shrink-0" strokeWidth={1.8} />
-                <span className="truncate">{label}</span>
-              </Link>
+              <div key={href}>
+                {showSectionHeading && (
+                  <p
+                    className={`px-4 text-[11px] font-bold tracking-wide text-muted-foreground/70 uppercase ${index === 0 ? "pb-2" : "pt-5 pb-2"}`}
+                  >
+                    {section}
+                  </p>
+                )}
+                <Link
+                  href={href}
+                  aria-current={isActive ? "page" : undefined}
+                  onClick={close}
+                  className={`group relative flex w-full items-center gap-4 rounded-lg px-4 py-3 text-left text-[15px] transition-all duration-200 ${isActive ? "bg-[#f8fce7] font-semibold text-ink" : "font-medium text-ink/75 hover:translate-x-1 hover:bg-[#fbfdec] hover:text-ink"}`}
+                >
+                  <span
+                    className={`absolute right-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-full bg-primary ${isActive ? "scale-y-100" : "scale-y-0"}`}
+                  />
+                  <Icon className="size-5 shrink-0" strokeWidth={1.8} />
+                  <span className="truncate">{label}</span>
+                </Link>
+              </div>
             );
           })}
         </nav>
