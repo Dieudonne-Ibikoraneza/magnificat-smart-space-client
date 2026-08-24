@@ -126,6 +126,11 @@ body {
   .chat-message-enter-bot { animation: none; }
 }
 
+.recharts-cartesian-axis-tick-value,
+.recharts-cartesian-axis-tick-value tspan {
+  font-family: var(--font-data) !important;
+}
+
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;

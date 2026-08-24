@@ -16,15 +16,16 @@ import {
   YAxis,
 } from "recharts";
 import {
-  Banknote,
-  CheckCircle2,
+  Coins,
+  CircleCheckBig,
   ExternalLink,
   Repeat2,
-  TrendingUp,
-  Users,
+  UsersRound,
 } from "lucide-react";
 import { AnalyticsPageHeader } from "@/app/analytics/layout";
+import { ChartAxisTick } from "@/components/chart-axis-tick";
 import { ConversionFunnel } from "@/components/conversion-funnel";
+import { KpiCards, type KpiCardData } from "@/components/kpi-cards";
 import { cn } from "@/lib/utils";
 import { products } from "@/data/catalog";
 import { salesCustomers } from "@/data/sales-customers";
@@ -78,19 +79,16 @@ const recommendationData = [
   { day: "Sun", matchScore: 46, acceptance: 55 },
 ];
 
-type Kpi = {
-  label: string;
-  value: string;
-  icon: typeof Banknote;
-  trend?: string;
-  badge?: string;
-};
-
-const kpis: Kpi[] = [
-  { label: "Total Sales (RWF)", value: "128.5M", icon: Banknote, trend: "+12%" },
-  { label: "Total Customers", value: "842", icon: Users, trend: "+8.4%" },
+const kpis: KpiCardData[] = [
+  { label: "Total Sales (RWF)", value: "128.5M", icon: Coins, trend: "+12%" },
+  { label: "Total Customers", value: "842", icon: UsersRound, trend: "+8.4%" },
   { label: "Repeat Purchase Rate", value: "68%", icon: Repeat2, trend: "+5%" },
-  { label: "Recommendation Acceptance Rate", value: "82%", icon: CheckCircle2, badge: "Good" },
+  {
+    label: "Recommendation Acceptance Rate",
+    value: "82%",
+    icon: CircleCheckBig,
+    badge: { label: "Good", icon: CircleCheckBig },
+  },
 ];
 
 const topTiles = products.slice(0, 3).map((product, index) => ({
@@ -125,7 +123,9 @@ const RevenueTooltip = ({
 
   return (
     <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
-      <p className="font-data text-xs font-semibold tracking-widest text-data-ink">{label}</p>
+      <p className="font-data text-xs font-semibold tracking-widest text-data-ink">
+        {label}
+      </p>
       <p className="mt-1 font-data text-sm text-ink">
         Revenue: RWF {payload[0].value.toLocaleString()}
       </p>
@@ -146,42 +146,20 @@ const RecommendationTooltip = ({
 
   return (
     <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
-      <p className="font-data text-xs font-semibold tracking-widest text-data-ink">{label}</p>
+      <p className="font-data text-xs font-semibold tracking-widest text-data-ink">
+        {label}
+      </p>
       <div className="mt-1 space-y-0.5 font-data text-sm text-ink">
         {payload.map((entry) => (
           <p key={entry.name}>
-            {entry.name === "acceptance" ? "Acceptance" : "Match Score"}: {entry.value}
+            {entry.name === "acceptance" ? "Acceptance" : "Match Score"}:{" "}
+            {entry.value}
           </p>
         ))}
       </div>
     </div>
   );
 };
-
-const KpiCards = () => (
-  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-    {kpis.map(({ label, value, icon: Icon, trend, badge }) => (
-      <article key={label} className="rounded-2xl bg-card p-5 sm:p-6">
-        <span className="inline-flex size-9 items-center justify-center rounded-lg border border-border text-ink">
-          <Icon className="size-4" strokeWidth={1.8} />
-        </span>
-        <p className="mt-4 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-          {label}
-        </p>
-        <p className="mt-1 text-3xl font-black text-ink">{value}</p>
-        {trend ? (
-          <p className="mt-2 flex items-center gap-1 text-xs font-bold text-green-600">
-            <TrendingUp className="size-3.5" /> {trend}
-          </p>
-        ) : (
-          <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-[11px] font-bold text-green-700">
-            <CheckCircle2 className="size-3.5" /> {badge}
-          </p>
-        )}
-      </article>
-    ))}
-  </div>
-);
 
 const SalesOverviewChart = () => {
   const [range, setRange] = useState<keyof typeof revenueDatasets>("WEEKLY");
@@ -193,7 +171,9 @@ const SalesOverviewChart = () => {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-ink">Sales Overview</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Revenue Performance</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Revenue Performance
+          </p>
         </div>
         <div className="flex h-9 items-center rounded-lg border border-border bg-background p-1">
           {(["WEEKLY", "MONTHLY", "YEARLY"] as const).map((item) => (
@@ -222,7 +202,11 @@ const SalesOverviewChart = () => {
             margin={{ top: 8, right: 4, left: 0, bottom: 24 }}
             onMouseLeave={() => setHovered(null)}
           >
-            <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
+            <CartesianGrid
+              vertical={false}
+              strokeDasharray="4 4"
+              stroke="var(--border)"
+            />
             <XAxis
               dataKey="day"
               angle={-40}
@@ -230,16 +214,21 @@ const SalesOverviewChart = () => {
               tickLine={false}
               axisLine={false}
               interval="preserveStartEnd"
-              tick={{ fill: "var(--data-ink)", fontSize: 11, fontFamily: "var(--font-data)" }}
+              tick={ChartAxisTick}
             />
             <YAxis
               tickLine={false}
               axisLine={false}
               width={44}
-              tickFormatter={(value: number) => (value === 0 ? "0" : `${value / 1_000_000}M`)}
-              tick={{ fill: "var(--data-ink)", fontSize: 11, fontFamily: "var(--font-data)" }}
+              tickFormatter={(value: number) =>
+                value === 0 ? "0" : `${value / 1_000_000}M`
+              }
+              tick={ChartAxisTick}
             />
-            <Tooltip cursor={{ fill: "transparent" }} content={<RevenueTooltip />} />
+            <Tooltip
+              cursor={{ fill: "transparent" }}
+              content={<RevenueTooltip />}
+            />
             <Bar
               dataKey="value"
               barSize="70%"
@@ -282,22 +271,32 @@ const AiRecommendationChart = () => (
     </div>
     <div className="mt-6 h-65 w-full font-data sm:mt-8 sm:h-80">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={recommendationData} margin={{ top: 8, right: 4, left: 0, bottom: 24 }}>
-          <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
+        <LineChart
+          data={recommendationData}
+          margin={{ top: 8, right: 4, left: 0, bottom: 24 }}
+        >
+          <CartesianGrid
+            vertical={false}
+            strokeDasharray="4 4"
+            stroke="var(--border)"
+          />
           <XAxis
             dataKey="day"
             tickLine={false}
             axisLine={false}
-            tick={{ fill: "var(--data-ink)", fontSize: 11, fontFamily: "var(--font-data)" }}
+            tick={ChartAxisTick}
           />
           <YAxis
             tickLine={false}
             axisLine={false}
             width={32}
             domain={[0, 100]}
-            tick={{ fill: "var(--data-ink)", fontSize: 11, fontFamily: "var(--font-data)" }}
+            tick={ChartAxisTick}
           />
-          <Tooltip cursor={{ stroke: "var(--border)" }} content={<RecommendationTooltip />} />
+          <Tooltip
+            cursor={{ stroke: "var(--border)" }}
+            content={<RecommendationTooltip />}
+          />
           <Line
             type="monotone"
             dataKey="matchScore"
@@ -335,18 +334,34 @@ const TopPerformingTiles = () => (
     </div>
     <ul className="mt-4">
       {topTiles.map((tile, index) => (
-        <li key={tile.id} className={index > 0 ? "border-t border-border" : undefined}>
+        <li
+          key={tile.id}
+          className={index > 0 ? "border-t border-border" : undefined}
+        >
           <div className="flex items-center gap-3 py-4">
             <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-              <Image src={tile.image} alt={tile.name} fill unoptimized className="object-cover" sizes="56px" />
+              <Image
+                src={tile.image}
+                alt={tile.name}
+                fill
+                unoptimized
+                className="object-cover"
+                sizes="56px"
+              />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-ink">{tile.name}</p>
-              <p className="truncate text-xs text-muted-foreground">{tile.collection}</p>
+              <p className="truncate text-sm font-semibold text-ink">
+                {tile.name}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {tile.collection}
+              </p>
             </div>
             <div className="shrink-0 text-right">
               <p className="text-sm font-semibold text-ink">{tile.views}</p>
-              <p className="mt-0.5 text-xs font-semibold text-green-600">{tile.selection}% selection</p>
+              <p className="mt-0.5 text-xs font-semibold text-green-600">
+                {tile.selection}% selection
+              </p>
             </div>
           </div>
         </li>
@@ -368,7 +383,10 @@ const TopCustomers = () => (
     </div>
     <ul className="mt-4">
       {topCustomers.map((customer, index) => (
-        <li key={customer.slug} className={index > 0 ? "border-t border-border" : undefined}>
+        <li
+          key={customer.slug}
+          className={index > 0 ? "border-t border-border" : undefined}
+        >
           <Link
             href={`/sales/customers/${customer.slug}`}
             className="flex items-center gap-3 py-4 transition-colors hover:bg-secondary/60"
@@ -377,10 +395,16 @@ const TopCustomers = () => (
               {customer.initials}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-ink">{customer.name}</p>
-              <p className="truncate text-xs text-muted-foreground">{customer.meta}</p>
+              <p className="truncate text-sm font-semibold text-ink">
+                {customer.name}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {customer.meta}
+              </p>
             </div>
-            <span className="shrink-0 font-data text-sm font-semibold text-ink">{customer.amount}</span>
+            <span className="shrink-0 font-data text-sm font-semibold text-ink">
+              {customer.amount}
+            </span>
           </Link>
         </li>
       ))}
@@ -395,7 +419,7 @@ const AnalyticsOverviewPage = () => (
       subtitle="High-level performance metrics and trends across the Magnificat ecosystem."
     />
     <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
-      <KpiCards />
+      <KpiCards items={kpis} />
       <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
         <SalesOverviewChart />
         <AiRecommendationChart />
