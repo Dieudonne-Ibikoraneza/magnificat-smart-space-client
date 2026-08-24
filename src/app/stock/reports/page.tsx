@@ -10,20 +10,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  BarChart3,
-  Bot,
-  CalendarDays,
-  Calculator,
-  Eye,
-  LogIn,
-  Repeat2,
-  RefreshCw,
-  Share2,
-  Sparkles,
-  UsersRound,
-} from "lucide-react";
+import { Bot, CalendarDays, RefreshCw } from "lucide-react";
 import { StockPageHeader } from "@/app/stock/layout";
+import { ConversionFunnel } from "@/components/conversion-funnel";
 import { Button } from "@/components/ui/button";
 
 const chartData = {
@@ -95,18 +84,6 @@ const RevenueTooltip = ({
     </div>
   );
 };
-
-const funnel = [
-  ["System Open", "Sessions started", "5,240", "", LogIn],
-  ["Account Registration / Login", "", "4,892", "93% conversion", UsersRound],
-  ["Product Catalog Browsing", "", "4,520", "92% conversion", Eye],
-  ["Product Detail Views", "", "3,812", "84% conversion", Eye],
-  ["Calculator Usage", "", "2,450", "64% conversion", Calculator],
-  ["3D Room Visualizer Open", "", "1,945", "79% conversion", Sparkles],
-  ["Tile Design Applied", "", "1,420", "73% conversion", BarChart3],
-  ["Designs Saved / Shared", "", "1,105", "77% conversion", Share2],
-  ["Final Orders Placed", "", "842", "76% conversion", Repeat2],
-] as const;
 
 export default function StockReportsPage() {
   const [period, setPeriod] = useState<7 | 30 | 12>(30);
@@ -276,58 +253,9 @@ export default function StockReportsPage() {
         </div>
       </div>
 
-      <section className="mt-6 rounded-[14px] bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-2xl font-extrabold text-ink">Conversion Funnel</h2>
-        <p className="mt-1 text-sm text-muted">
-          User progression through the digital catalog
-        </p>
-        <div className="mt-7 space-y-3">
-          {funnel.map(([title, subtitle, count, conversion, Icon], index) => (
-            <div
-              key={title}
-              style={{
-                marginLeft: `${index * 12}px`,
-                width: `calc(100% - ${index * 12}px)`,
-              }}
-              className={`group relative flex items-center gap-3 transition-all duration-300 ease-in-out will-change-transform ${index > 0 && index < funnel.length - 1 ? "cursor-pointer hover:-translate-y-1 hover:scale-[1.01]" : index === 0 ? "cursor-not-allowed" : "cursor-default"}`}
-            >
-              <div
-                className={`z-10 flex size-10 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${index === funnel.length - 1 ? "bg-ink text-primary" : index === 0 ? "bg-muted-background text-muted" : "bg-muted-background text-muted group-hover:bg-primary group-hover:text-ink group-hover:shadow-[0_4px_12px_rgba(196,241,0,0.35)]"}`}
-              >
-                <Icon className="size-4" />
-              </div>
-              <div
-                className={`flex min-h-12 min-w-0 w-full flex-1 items-center justify-between rounded-lg border p-4 transition-all duration-300 ease-in-out ${index === funnel.length - 1 ? "border-ink bg-ink text-white" : index === 0 ? "border-[#E8E8E8] bg-[#F3F3F3] shadow-none" : "border-[#E8E8E8] bg-[#F3F3F3] shadow-none group-hover:border-primary group-hover:bg-primary/10 group-hover:shadow-[0_6px_18px_rgba(15,39,71,0.08)]"}`}
-              >
-                <div>
-                  <p
-                    className={`text-xs font-extrabold tracking-widest uppercase ${index === funnel.length - 1 ? "text-primary" : "text-ink"}`}
-                  >
-                    {title}
-                  </p>
-                  {subtitle && (
-                    <p className="mt-0.5 text-[8px] font-semibold tracking-wider text-muted uppercase">
-                      {subtitle}
-                    </p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-extrabold leading-none">
-                    {count}
-                  </p>
-                  {conversion && (
-                    <p
-                      className={`mt-1 text-[10px] font-extrabold tracking-widest uppercase ${index === funnel.length - 1 ? "text-white/70" : "text-muted"}`}
-                    >
-                      {conversion}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <div className="mt-6">
+        <ConversionFunnel />
+      </div>
     </div>
   );
 }

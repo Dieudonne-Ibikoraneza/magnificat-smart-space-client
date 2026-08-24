@@ -1,6 +1,392 @@
 "use client";
 
+import { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  Banknote,
+  CheckCircle2,
+  ExternalLink,
+  Repeat2,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import { AnalyticsPageHeader } from "@/app/analytics/layout";
+import { ConversionFunnel } from "@/components/conversion-funnel";
+import { cn } from "@/lib/utils";
+import { products } from "@/data/catalog";
+import { salesCustomers } from "@/data/sales-customers";
+
+const revenueDatasets = {
+  WEEKLY: [
+    { day: "Mon", value: 6_000_000 },
+    { day: "Tue", value: 8_100_000 },
+    { day: "Wed", value: 11_200_000 },
+    { day: "Thu", value: 10_400_000 },
+    { day: "Fri", value: 14_100_000 },
+    { day: "Sat", value: 19_000_000 },
+    { day: "Sun", value: 13_300_000 },
+  ],
+  MONTHLY: [
+    { day: "Oct 01", value: 6_800_000 },
+    { day: "Oct 05", value: 9_400_000 },
+    { day: "Oct 10", value: 11_900_000 },
+    { day: "Oct 15", value: 11_100_000 },
+    { day: "Oct 20", value: 12_400_000 },
+    { day: "Oct 25", value: 12_300_000 },
+    { day: "Oct 30", value: 12_350_000 },
+    { day: "Nov 05", value: 11_000_000 },
+    { day: "Nov 10", value: 15_200_000 },
+    { day: "Nov 15", value: 18_400_000 },
+    { day: "Nov 20", value: 13_400_000 },
+  ],
+  YEARLY: [
+    { day: "Jan", value: 42_000_000 },
+    { day: "Feb", value: 51_000_000 },
+    { day: "Mar", value: 47_500_000 },
+    { day: "Apr", value: 62_000_000 },
+    { day: "May", value: 58_000_000 },
+    { day: "Jun", value: 71_000_000 },
+    { day: "Jul", value: 66_500_000 },
+    { day: "Aug", value: 78_000_000 },
+    { day: "Sep", value: 73_000_000 },
+    { day: "Oct", value: 88_000_000 },
+    { day: "Nov", value: 81_000_000 },
+    { day: "Dec", value: 95_000_000 },
+  ],
+} as const;
+
+const recommendationData = [
+  { day: "Mon", matchScore: 18, acceptance: 5 },
+  { day: "Tue", matchScore: 32, acceptance: 34 },
+  { day: "Wed", matchScore: 45, acceptance: 48 },
+  { day: "Thu", matchScore: 50, acceptance: 45 },
+  { day: "Fri", matchScore: 42, acceptance: 62 },
+  { day: "Sat", matchScore: 56, acceptance: 85 },
+  { day: "Sun", matchScore: 46, acceptance: 55 },
+];
+
+type Kpi = {
+  label: string;
+  value: string;
+  icon: typeof Banknote;
+  trend?: string;
+  badge?: string;
+};
+
+const kpis: Kpi[] = [
+  { label: "Total Sales (RWF)", value: "128.5M", icon: Banknote, trend: "+12%" },
+  { label: "Total Customers", value: "842", icon: Users, trend: "+8.4%" },
+  { label: "Repeat Purchase Rate", value: "68%", icon: Repeat2, trend: "+5%" },
+  { label: "Recommendation Acceptance Rate", value: "82%", icon: CheckCircle2, badge: "Good" },
+];
+
+const topTiles = products.slice(0, 3).map((product, index) => ({
+  ...product,
+  views: "12.4K views",
+  selection: [12, 10.1, 9.2][index],
+}));
+
+const topCustomers = salesCustomers.slice(0, 4).map((customer) => ({
+  slug: customer.slug,
+  initials: customer.name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase(),
+  name: customer.name,
+  meta: `${customer.orders.length} Orders • Last ${customer.lastOrder}`,
+  amount: customer.lifetimeSpend,
+}));
+
+const RevenueTooltip = ({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ value: number }>;
+  label?: string;
+}) => {
+  if (!active || !payload?.length) return null;
+
+  return (
+    <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
+      <p className="font-data text-xs font-semibold tracking-widest text-data-ink">{label}</p>
+      <p className="mt-1 font-data text-sm text-ink">
+        Revenue: RWF {payload[0].value.toLocaleString()}
+      </p>
+    </div>
+  );
+};
+
+const RecommendationTooltip = ({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ name?: string; value: number }>;
+  label?: string;
+}) => {
+  if (!active || !payload?.length) return null;
+
+  return (
+    <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
+      <p className="font-data text-xs font-semibold tracking-widest text-data-ink">{label}</p>
+      <div className="mt-1 space-y-0.5 font-data text-sm text-ink">
+        {payload.map((entry) => (
+          <p key={entry.name}>
+            {entry.name === "acceptance" ? "Acceptance" : "Match Score"}: {entry.value}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const KpiCards = () => (
+  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    {kpis.map(({ label, value, icon: Icon, trend, badge }) => (
+      <article key={label} className="rounded-2xl bg-card p-5 sm:p-6">
+        <span className="inline-flex size-9 items-center justify-center rounded-lg border border-border text-ink">
+          <Icon className="size-4" strokeWidth={1.8} />
+        </span>
+        <p className="mt-4 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+          {label}
+        </p>
+        <p className="mt-1 text-3xl font-black text-ink">{value}</p>
+        {trend ? (
+          <p className="mt-2 flex items-center gap-1 text-xs font-bold text-green-600">
+            <TrendingUp className="size-3.5" /> {trend}
+          </p>
+        ) : (
+          <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-[11px] font-bold text-green-700">
+            <CheckCircle2 className="size-3.5" /> {badge}
+          </p>
+        )}
+      </article>
+    ))}
+  </div>
+);
+
+const SalesOverviewChart = () => {
+  const [range, setRange] = useState<keyof typeof revenueDatasets>("WEEKLY");
+  const [hovered, setHovered] = useState<number | null>(null);
+  const data = revenueDatasets[range];
+
+  return (
+    <section className="rounded-2xl bg-card p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-ink">Sales Overview</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Revenue Performance</p>
+        </div>
+        <div className="flex h-9 items-center rounded-lg border border-border bg-background p-1">
+          {(["WEEKLY", "MONTHLY", "YEARLY"] as const).map((item) => (
+            <button
+              type="button"
+              key={item}
+              onClick={() => setRange(item)}
+              aria-pressed={range === item}
+              className={cn(
+                "h-7 rounded-md px-3 text-[10px] font-bold tracking-wide transition-colors",
+                range === item
+                  ? "bg-ink text-primary"
+                  : "text-muted-foreground hover:bg-secondary",
+              )}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="mt-6 h-65 w-full font-data sm:mt-8 sm:h-80">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={[...data]}
+            barCategoryGap="30%"
+            margin={{ top: 8, right: 4, left: 0, bottom: 24 }}
+            onMouseLeave={() => setHovered(null)}
+          >
+            <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
+            <XAxis
+              dataKey="day"
+              angle={-40}
+              textAnchor="end"
+              tickLine={false}
+              axisLine={false}
+              interval="preserveStartEnd"
+              tick={{ fill: "var(--data-ink)", fontSize: 11, fontFamily: "var(--font-data)" }}
+            />
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              width={44}
+              tickFormatter={(value: number) => (value === 0 ? "0" : `${value / 1_000_000}M`)}
+              tick={{ fill: "var(--data-ink)", fontSize: 11, fontFamily: "var(--font-data)" }}
+            />
+            <Tooltip cursor={{ fill: "transparent" }} content={<RevenueTooltip />} />
+            <Bar
+              dataKey="value"
+              barSize="70%"
+              radius={[2, 2, 0, 0]}
+              animationDuration={700}
+              onMouseEnter={(_, index) => setHovered(index)}
+            >
+              {data.map((_, index) => (
+                <Cell
+                  key={index}
+                  fill="var(--chart-blue)"
+                  fillOpacity={hovered === null || hovered === index ? 1 : 0.45}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </section>
+  );
+};
+
+const AiRecommendationChart = () => (
+  <section className="rounded-2xl bg-card p-5 sm:p-6">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h2 className="text-lg font-bold text-ink">AI Recommendation</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          AI Recommendations match score vs acceptance rate
+        </p>
+      </div>
+      <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span className="size-2 rounded-full bg-ink/60" /> Match Score
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-2 rounded-full bg-primary" /> Acceptance
+        </span>
+      </div>
+    </div>
+    <div className="mt-6 h-65 w-full font-data sm:mt-8 sm:h-80">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={recommendationData} margin={{ top: 8, right: 4, left: 0, bottom: 24 }}>
+          <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
+          <XAxis
+            dataKey="day"
+            tickLine={false}
+            axisLine={false}
+            tick={{ fill: "var(--data-ink)", fontSize: 11, fontFamily: "var(--font-data)" }}
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            width={32}
+            domain={[0, 100]}
+            tick={{ fill: "var(--data-ink)", fontSize: 11, fontFamily: "var(--font-data)" }}
+          />
+          <Tooltip cursor={{ stroke: "var(--border)" }} content={<RecommendationTooltip />} />
+          <Line
+            type="monotone"
+            dataKey="matchScore"
+            name="matchScore"
+            stroke="#d1d5db"
+            strokeWidth={2}
+            dot={false}
+            animationDuration={700}
+          />
+          <Line
+            type="monotone"
+            dataKey="acceptance"
+            name="acceptance"
+            stroke="var(--primary)"
+            strokeWidth={2.5}
+            dot={false}
+            animationDuration={700}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  </section>
+);
+
+const TopPerformingTiles = () => (
+  <section className="rounded-2xl bg-card p-5 sm:p-6">
+    <div className="flex items-center justify-between gap-3">
+      <h2 className="text-lg font-bold text-ink">Top Performing Tiles</h2>
+      <Link
+        href="/analytics/tiles"
+        className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline"
+      >
+        <ExternalLink className="size-3.5" /> View All
+      </Link>
+    </div>
+    <ul className="mt-4">
+      {topTiles.map((tile, index) => (
+        <li key={tile.id} className={index > 0 ? "border-t border-border" : undefined}>
+          <div className="flex items-center gap-3 py-4">
+            <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted-background">
+              <Image src={tile.image} alt={tile.name} fill unoptimized className="object-cover" sizes="56px" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-ink">{tile.name}</p>
+              <p className="truncate text-xs text-muted-foreground">{tile.collection}</p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-sm font-semibold text-ink">{tile.views}</p>
+              <p className="mt-0.5 text-xs font-semibold text-green-600">{tile.selection}% selection</p>
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  </section>
+);
+
+const TopCustomers = () => (
+  <section className="rounded-2xl bg-card p-5 sm:p-6">
+    <div className="flex items-center justify-between gap-3">
+      <h2 className="text-lg font-bold text-ink">Top Customers</h2>
+      <Link
+        href="/sales/customers"
+        className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline"
+      >
+        <ExternalLink className="size-3.5" /> View All
+      </Link>
+    </div>
+    <ul className="mt-4">
+      {topCustomers.map((customer, index) => (
+        <li key={customer.slug} className={index > 0 ? "border-t border-border" : undefined}>
+          <Link
+            href={`/sales/customers/${customer.slug}`}
+            className="flex items-center gap-3 py-4 transition-colors hover:bg-secondary/60"
+          >
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-semibold text-card">
+              {customer.initials}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-ink">{customer.name}</p>
+              <p className="truncate text-xs text-muted-foreground">{customer.meta}</p>
+            </div>
+            <span className="shrink-0 font-data text-sm font-semibold text-ink">{customer.amount}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  </section>
+);
 
 const AnalyticsOverviewPage = () => (
   <>
@@ -8,6 +394,18 @@ const AnalyticsOverviewPage = () => (
       title="Overview"
       subtitle="High-level performance metrics and trends across the Magnificat ecosystem."
     />
+    <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
+      <KpiCards />
+      <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
+        <SalesOverviewChart />
+        <AiRecommendationChart />
+      </div>
+      <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
+        <TopPerformingTiles />
+        <TopCustomers />
+      </div>
+      <ConversionFunnel />
+    </div>
   </>
 );
 

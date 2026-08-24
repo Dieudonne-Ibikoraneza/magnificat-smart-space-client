@@ -120,7 +120,7 @@ export const AccountSidebar = () => {
               className="absolute inset-0 h-full w-full rounded-none bg-ink/40 hover:bg-ink/40"
             />
             <div
-              className={`absolute bottom-0 left-0 top-0 flex w-[min(76vw,280px)] flex-col gap-8 overflow-y-auto bg-white p-5 shadow-2xl ${closing ? "animate-out slide-out-to-left duration-300" : "animate-in slide-in-from-left duration-300"}`}
+              className={`absolute bottom-0 left-0 top-0 flex w-[min(76vw,280px)] flex-col gap-8 overflow-x-hidden overflow-y-auto bg-white p-5 shadow-2xl ${closing ? "animate-out slide-out-to-left duration-300" : "animate-in slide-in-from-left duration-300"}`}
             >
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold text-ink">Account</h2>

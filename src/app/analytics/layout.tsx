@@ -2,9 +2,9 @@
 
 import { createContext, useContext, useState } from "react";
 import {
-  BarChart3,
+  WalletCards,
   Bot,
-  Component,
+  Boxes,
   LayoutGrid,
   Settings,
   Users,
@@ -21,8 +21,8 @@ const navigation = [
     active: (pathname: string) => pathname.startsWith("/analytics/overview"),
   },
   { label: "Customer Analytics", href: "/analytics/customers", icon: Users },
-  { label: "Sales Analytics", href: "/analytics/sales", icon: BarChart3 },
-  { label: "Tiles Analytics", href: "/analytics/tiles", icon: Component },
+  { label: "Sales Analytics", href: "/analytics/sales", icon: WalletCards },
+  { label: "Tiles Analytics", href: "/analytics/tiles", icon: Boxes },
   { label: "Journey Analytics", href: "/analytics/journey", icon: Workflow },
   { label: "AI Analytics", href: "/analytics/ai", icon: Bot },
   { label: "Account Settings", href: "/analytics/settings", icon: Settings },
