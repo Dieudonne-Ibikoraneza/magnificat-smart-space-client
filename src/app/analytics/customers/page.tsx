@@ -3,8 +3,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Bar,
-  BarChart,
   CartesianGrid,
   Line,
   LineChart,
@@ -24,9 +22,9 @@ import {
 import { AnalyticsPageHeader } from "@/app/analytics/layout";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CategoryBarChart } from "@/components/category-bar-chart";
 import { ChartAxisTick } from "@/components/chart-axis-tick";
 import { KpiCards, type KpiCardData } from "@/components/kpi-cards";
-import { cn } from "@/lib/utils";
 import { salesCustomers } from "@/data/sales-customers";
 
 const kpis: KpiCardData[] = [
@@ -37,10 +35,10 @@ const kpis: KpiCardData[] = [
 ];
 
 const projectTypes = [
-  { room: "Living Room", customers: 4_200 },
-  { room: "Bathroom", customers: 9_500 },
-  { room: "Kitchen", customers: 7_029 },
-  { room: "Bedroom", customers: 8_500 },
+  { category: "Living Room", value: 4_200 },
+  { category: "Bathroom", value: 9_500 },
+  { category: "Kitchen", value: 7_029 },
+  { category: "Bedroom", value: 8_500 },
 ];
 
 const customerTrend = [
@@ -70,43 +68,11 @@ const journeyDropOff = [
 ];
 
 const acquisitionChannels = [
-  { channel: "Social Media", customers: 5_200 },
-  { channel: "Search Engine", customers: 9_500 },
-  { channel: "Referral", customers: 7_029 },
-  { channel: "Other", customers: 8_300 },
+  { category: "Social Media", value: 5_200 },
+  { category: "Search Engine", value: 9_500 },
+  { category: "Referral", value: 7_029 },
+  { category: "Other", value: 8_300 },
 ];
-
-const CategoryTooltip = ({
-  active,
-  payload,
-  label,
-  dataKey,
-  uppercase,
-}: {
-  active?: boolean;
-  payload?: Array<{ value: number }>;
-  label?: string;
-  dataKey: string;
-  uppercase?: boolean;
-}) => {
-  if (!active || !payload?.length) return null;
-
-  return (
-    <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
-      <p
-        className={cn(
-          "font-data text-xs font-semibold tracking-widest text-data-ink",
-          uppercase && "uppercase",
-        )}
-      >
-        {label}
-      </p>
-      <p className="mt-1 font-data text-sm text-ink">
-        {dataKey}: {payload[0].value.toLocaleString()}
-      </p>
-    </div>
-  );
-};
 
 const CustomerTrendTooltip = ({
   active,
@@ -132,40 +98,6 @@ const CustomerTrendTooltip = ({
     </div>
   );
 };
-
-const ProjectTypesChart = () => (
-  <section className="rounded-2xl bg-card p-5 sm:p-6">
-    <h2 className="text-lg font-bold text-ink">Project Types Distribution</h2>
-    <p className="mt-1 text-sm text-muted-foreground">
-      Distribution of customer projects by category, Number of customers vs. Project Type
-    </p>
-    <div className="mt-6 h-65 w-full font-data sm:mt-8 sm:h-80">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={projectTypes} barCategoryGap="30%" margin={{ top: 8, right: 4, left: 0, bottom: 8 }}>
-          <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
-          <XAxis
-            dataKey="room"
-            tickLine={false}
-            axisLine={false}
-            tick={ChartAxisTick}
-            tickFormatter={(value: string) => value.toUpperCase()}
-          />
-          <YAxis
-            tickLine={false}
-            axisLine={false}
-            width={44}
-            ticks={[0, 1_000, 5_000, 10_000, 20_000]}
-            domain={[0, 20_000]}
-            tickFormatter={(value: number) => value.toLocaleString()}
-            tick={ChartAxisTick}
-          />
-          <Tooltip cursor={{ fill: "transparent" }} content={<CategoryTooltip dataKey="Customers" />} />
-          <Bar dataKey="customers" fill="var(--chart-blue)" barSize="70%" radius={[2, 2, 0, 0]} animationDuration={700} />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  </section>
-);
 
 const CustomerTrendChart = () => (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
@@ -246,39 +178,6 @@ const JourneyDropOff = () => {
     </section>
   );
 };
-
-const AcquisitionChannelChart = () => (
-  <section className="rounded-2xl bg-card p-5 sm:p-6">
-    <h2 className="text-lg font-bold text-ink">Acquisition Channel</h2>
-    <p className="mt-1 text-sm text-muted-foreground">Customers by Source of Discovery</p>
-    <div className="mt-6 h-65 w-full font-data sm:mt-8 sm:h-80">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={acquisitionChannels} barCategoryGap="30%" margin={{ top: 8, right: 4, left: 0, bottom: 8 }}>
-          <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
-          <XAxis
-            dataKey="channel"
-            tickLine={false}
-            axisLine={false}
-            interval={0}
-            tick={ChartAxisTick}
-            tickFormatter={(value: string) => value.toUpperCase()}
-          />
-          <YAxis
-            tickLine={false}
-            axisLine={false}
-            width={44}
-            ticks={[0, 1_000, 5_000, 10_000, 20_000]}
-            domain={[0, 20_000]}
-            tickFormatter={(value: number) => value.toLocaleString()}
-            tick={ChartAxisTick}
-          />
-          <Tooltip cursor={{ fill: "transparent" }} content={<CategoryTooltip dataKey="Customers" uppercase />} />
-          <Bar dataKey="customers" fill="var(--chart-blue)" barSize="70%" radius={[2, 2, 0, 0]} animationDuration={700} />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  </section>
-);
 
 const CustomersDirectory = () => {
   const [status, setStatus] = useState("all");
@@ -416,12 +315,31 @@ const AnalyticsCustomersPage = () => (
     <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
       <KpiCards items={kpis} />
       <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
-        <ProjectTypesChart />
+        <CategoryBarChart
+          title="Project Types Distribution"
+          subtitle="Distribution of customer projects by category, Number of customers vs. Project Type"
+          data={projectTypes}
+          tooltipLabel="Customers"
+          tooltipValueFormatter={(value) => value.toLocaleString()}
+          yTicks={[0, 1_000, 5_000, 10_000, 20_000]}
+          yDomainMax={20_000}
+          yTickFormatter={(value) => value.toLocaleString()}
+        />
         <CustomerTrendChart />
       </div>
       <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
         <JourneyDropOff />
-        <AcquisitionChannelChart />
+        <CategoryBarChart
+          title="Acquisition Channel"
+          subtitle="Customers by Source of Discovery"
+          data={acquisitionChannels}
+          tooltipLabel="Customers"
+          tooltipValueFormatter={(value) => value.toLocaleString()}
+          yTicks={[0, 1_000, 5_000, 10_000, 20_000]}
+          yDomainMax={20_000}
+          yTickFormatter={(value) => value.toLocaleString()}
+          uppercaseTooltipLabel
+        />
       </div>
       <CustomersDirectory />
     </div>

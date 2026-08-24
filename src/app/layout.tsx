@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 const RootLayout = ({ children }: LayoutProps<"/">) => {
   return (
     <html lang="en" className={cn("h-full antialiased", "font-sans", inter.variable, manrope.variable)}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="flex min-h-full min-w-0 flex-col overflow-x-hidden">{children}</body>
     </html>
   );
 }
