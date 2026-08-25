@@ -65,7 +65,7 @@ export const DashboardSidebar = ({
             className="mx-auto w-40 object-contain"
           />
         </div>
-        <nav className="min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto" aria-label={ariaLabel}>
+        <nav className="scrollbar-hide min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto" aria-label={ariaLabel}>
           {links.map(({ label, href, icon: Icon, active, section }, index) => {
             const isActive = active?.(pathname) ?? pathname.startsWith(href);
             const showSectionHeading = section && section !== links[index - 1]?.section;
