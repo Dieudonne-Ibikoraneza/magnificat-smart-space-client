@@ -7,20 +7,22 @@ import {
   ArrowUpRight,
   ChevronsLeft,
   ChevronsRight,
-  Eye,
   Filter,
   Heart,
   LayoutGrid,
   List,
-  MousePointerClick,
   ChartNoAxesColumn,
-  MousePointerSquareDashed,
   Search,
-  ShoppingBasket,
-  Wallet,
+  BadgeCheck,
+  Smile,
+  BroomSparkles,
+  ThumbsDown,
+  ThumbsUp,
   TrendingUp,
+  TrendingUpDown,
+  Minus,
 } from "lucide-react";
-import { AnalyticsPageHeader } from "@/app/analytics/layout";
+import { AdminPageHeader } from "@/app/admin/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,54 +58,36 @@ const PAGE_SIZE = 10;
 const TOTAL_PAGES = 103;
 const TOTAL_RESULTS = 842;
 
-type TilesKpi =
-  | { label: string; value: string; sub: string; icon: typeof Eye }
-  | { label: string; value: string; badge: string; icon: typeof Eye };
-
-const kpis: TilesKpi[] = [
+const kpis = [
   {
-    label: "Most Viewed",
-    value: "Calacatta Gold Polished",
-    sub: "12.4K views",
-    icon: Eye,
+    label: "Total Recommendations",
+    value: "1,220,291",
+    change: "12.4%",
+    icon: BroomSparkles,
   },
   {
-    label: "Most Applied",
-    value: "Calacatta Gold Polished",
-    sub: "12.4K applications",
-    icon: MousePointerSquareDashed,
+    label: "Acceptance Rate",
+    value: "33.3%",
+    change: "4.2%",
+    icon: BadgeCheck,
   },
   {
-    label: "Most Purchased",
-    value: "Calacatta Gold Polished",
-    sub: "12.4K sales",
-    icon: ShoppingBasket,
+    label: "Avg. Match Score",
+    value: "89.2%",
+    change: "2.4%",
+    icon: TrendingUpDown,
   },
-  {
-    label: "Avg. Selection Rate",
-    value: "18.4%",
-    badge: "12.4%",
-    icon: MousePointerClick,
-  },
-  { label: "Avg. Conversion", value: "12%", badge: "2.4%", icon: Wallet },
 ];
 
-const mostViewedTiles = inventoryProducts.slice(0, 3).map((product, index) => ({
-  ...product,
-  selection: [12, 10.1, 9.2][index],
-}));
-
-const mostAppliedTiles = inventoryProducts
-  .slice(3, 6)
-  .map((product, index) => ({
-    ...product,
-    size3d: ["60x60cm", "30x60cm", "15x90cm"][index],
-    units: [420, 80, 92][index],
-  }));
+const sentiments = [
+  { label: "72%", value: 72, icon: ThumbsUp, bar: "bg-blue-500", chip: "bg-blue-100 text-blue-600" },
+  { label: "20%", value: 20, icon: Minus, bar: "bg-muted-foreground/40", chip: "bg-muted-background text-muted-foreground" },
+  { label: "8%", value: 8, icon: ThumbsDown, bar: "bg-red-500", chip: "bg-red-100 text-red-600" },
+];
 
 const performanceProducts = [
   {
-    id: inventoryProducts[0].id,
+    id: "perf-1",
     name: "Calacatta Gold",
     collection: "120x60cm Premium Slabs",
     description: "A timeless Italian classic with bold gold veining.",
@@ -112,9 +96,10 @@ const performanceProducts = [
     currentStock: 1_240,
     soldStock: 580,
     soldStockLevel: "healthy" as const,
+    recommendations: "1,029,091",
   },
   {
-    id: inventoryProducts[1].id,
+    id: "perf-2",
     name: "Nero Marquina",
     collection: "80x80cm Luxury Black Series",
     description: "Deep black marble with striking white lightning veins.",
@@ -123,9 +108,10 @@ const performanceProducts = [
     currentStock: 1_080,
     soldStock: 45,
     soldStockLevel: "low" as const,
+    recommendations: "201,012",
   },
   {
-    id: inventoryProducts[2].id,
+    id: "perf-3",
     name: "Carrara White",
     collection: "10x30cm Classic Subway Collection",
     description: "Elegant and versatile tiles for modern kitchen backsplashes.",
@@ -134,9 +120,10 @@ const performanceProducts = [
     currentStock: 512,
     soldStock: 14,
     soldStockLevel: "critical" as const,
+    recommendations: "100,022",
   },
   {
-    id: inventoryProducts[3].id,
+    id: "perf-4",
     name: "Ocean Hex Mosaic",
     collection: "30x30cm Coastal Geometric Series",
     description: "Vibrant teal and gold accents inspired by the sea.",
@@ -145,6 +132,7 @@ const performanceProducts = [
     currentStock: 480,
     soldStock: 520,
     soldStockLevel: "healthy" as const,
+    recommendations: "98,201",
   },
 ];
 
@@ -163,139 +151,73 @@ const stockLevelText = {
 const filteredProducts = inventoryProducts.slice(0, PAGE_SIZE);
 
 const KpiCards = () => (
-  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
     {kpis.map((kpi) => {
       const Icon = kpi.icon;
       return (
         <article
           key={kpi.label}
-          className="flex flex-col rounded-2xl bg-card p-5 sm:p-6"
+          className="flex h-full flex-col rounded-2xl bg-card p-5 sm:p-6"
         >
           <div className="flex items-start justify-between gap-3">
-            <Icon className="size-5 stroke-2 text-ink" />
-            {"badge" in kpi ? (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-[11px] font-bold text-green-700">
-                <MousePointerClick className="size-3" />
-                {kpi.badge}
-              </span>
-            ) : null}
+            <Icon className="size-5 stroke-2" />
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-[11px] font-bold text-green-700">
+              <TrendingUp className="size-3" />
+              {kpi.change}
+            </span>
           </div>
-          <p className="mt-4 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-            {kpi.label}
-          </p>
-          <p className="mt-1 truncate text-xl font-black text-ink">
-            {kpi.value}
-          </p>
-          {"sub" in kpi ? (
-            <p className="mt-1 text-xs text-muted-foreground">{kpi.sub}</p>
-          ) : null}
+          <div className="mt-4 flex flex-1 flex-col justify-end">
+            <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {kpi.label}
+            </p>
+            <p className="mt-1 text-2xl font-black text-ink sm:text-3xl">
+              {kpi.value}
+            </p>
+          </div>
         </article>
       );
     })}
+    <article className="flex h-full flex-col rounded-2xl bg-card p-5 sm:p-6">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+          Feedback Sentiment
+        </p>
+        <Smile className="size-5 shrink-0 stroke-2 text-ink" />
+      </div>
+      <div className="mt-4 flex flex-1 flex-col justify-end space-y-2.5">
+        {sentiments.map((sentiment) => {
+          const Icon = sentiment.icon;
+          return (
+            <div key={sentiment.label} className="flex items-center gap-2.5">
+              <span
+                className={cn(
+                  "flex size-6 shrink-0 items-center justify-center rounded-full",
+                  sentiment.chip,
+                )}
+              >
+                <Icon className="size-3.5" />
+              </span>
+              <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted-background">
+                <div
+                  className={cn("h-full rounded-full", sentiment.bar)}
+                  style={{ width: `${sentiment.value}%` }}
+                />
+              </div>
+              <span className="w-9 shrink-0 text-right text-xs font-bold text-ink">
+                {sentiment.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </article>
   </div>
 );
 
-const InteractionOverview = () => (
-  <section>
-    <h2 className="text-lg font-bold text-ink">Interaction Overview</h2>
-    <p className="mt-1 text-sm text-muted-foreground">
-      Snapshot of most viewed and applied tiles.
-    </p>
-    <div className="mt-5 grid gap-5 sm:gap-6 xl:grid-cols-2">
-      <div className="rounded-2xl bg-card p-5 sm:p-6">
-        <h3 className="text-lg font-bold text-ink">Most Viewed Tiles</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Top picks based on viewer popularity
-        </p>
-        <ul className="mt-4">
-          {mostViewedTiles.map((tile, index) => (
-            <li
-              key={tile.id}
-              className={index > 0 ? "border-t border-border" : undefined}
-            >
-              <div className="flex items-center gap-3 py-4">
-                <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-                  <Image
-                    src={tile.image}
-                    alt={tile.displayName}
-                    fill
-                    unoptimized
-                    className="object-cover"
-                    sizes="56px"
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-ink">
-                    {tile.displayName}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    Marble Series
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="font-data text-sm font-semibold text-ink">
-                    12.4K views
-                  </p>
-                  <p className="mt-0.5 text-xs font-semibold text-green-600">
-                    {tile.selection}% selection
-                  </p>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className="rounded-2xl bg-card p-5 sm:p-6">
-        <h3 className="text-lg font-bold text-ink">Most Applied in 3D Rooms</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          By selection rate in rooms display.
-        </p>
-        <ul className="mt-4">
-          {mostAppliedTiles.map((tile, index) => (
-            <li
-              key={tile.id}
-              className={index > 0 ? "border-t border-border" : undefined}
-            >
-              <div className="flex items-center gap-3 py-4">
-                <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-                  <Image
-                    src={tile.image}
-                    alt={tile.displayName}
-                    fill
-                    unoptimized
-                    className="object-cover"
-                    sizes="56px"
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-ink">
-                    {tile.displayName}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    Marble Series . {tile.size3d}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="font-data text-sm font-semibold text-ink">
-                    12.4K Applications
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {tile.units} units
-                  </p>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  </section>
-);
-
-const PerformanceMetrics = () => (
+const TopRecommendedProducts = () => (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-lg font-bold text-ink">Performance Metrics</h2>
+      <h2 className="text-lg font-bold text-ink">Top Recommended Products</h2>
       <Badge variant="secondary">Top 5 products</Badge>
     </div>
     <div className="mt-5 overflow-x-auto">
@@ -307,8 +229,7 @@ const PerformanceMetrics = () => (
             <TableHead>Current Stock</TableHead>
             <TableHead>Sold Stock</TableHead>
             <TableHead>Views</TableHead>
-            <TableHead>Applications</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>Recommendations</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -345,7 +266,12 @@ const PerformanceMetrics = () => (
               </TableCell>
               <TableCell className="whitespace-nowrap">
                 <span className="inline-flex items-center gap-1.5 font-data text-ink">
-                  <span className="size-2 rounded-full bg-green-500" />
+                  <span
+                    className={cn(
+                      "size-2 rounded-full",
+                      stockLevelDot[product.soldStockLevel],
+                    )}
+                  />
                   {product.currentStock.toLocaleString()} pcs
                 </span>
               </TableCell>
@@ -367,104 +293,16 @@ const PerformanceMetrics = () => (
               </TableCell>
               <TableCell className="whitespace-nowrap text-ink">
                 12.4K views
-                <span className="mt-0.5 block text-xs font-semibold text-green-600 flex gap-1">
+                <span className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-green-600">
                   <TrendingUp className="size-4 stroke-2" /> 18% rate
                 </span>
-              </TableCell>
-              <TableCell className="whitespace-nowrap text-ink">
-                12.4K Apps.
-              </TableCell>
-              <TableCell className="whitespace-nowrap">
-                <span className="inline-flex items-center gap-1.5 text-green-700">
-                  <span className="size-2 rounded-full bg-green-500" /> In stock
-                </span>
-              </TableCell>
-              <TableCell>
-                <Link
-                  href={`/stock/inventory/${product.id}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold whitespace-nowrap text-ink hover:-translate-y-0.5 hover:shadow-md active:scale-95"
-                >
-                  View Details <ArrowUpRight className="size-3.5" />
-                </Link>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  </section>
-);
-
-const MostLikedProducts = () => (
-  <section className="rounded-2xl bg-card p-5 sm:p-6">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-lg font-bold text-ink">Most Liked Products</h2>
-      <Badge variant="secondary">Top 5 products</Badge>
-    </div>
-    <div className="mt-5 overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Product</TableHead>
-            <TableHead>SKU / Code</TableHead>
-            <TableHead>Views</TableHead>
-            <TableHead>Applications</TableHead>
-            <TableHead>Likes</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {performanceProducts.map((product) => (
-            <TableRow key={product.id}>
-              <TableCell className="min-w-64">
-                <div className="flex items-center gap-3">
-                  <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      fill
-                      unoptimized
-                      className="object-cover"
-                      sizes="48px"
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-ink">
-                      {product.name}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {product.collection}
-                    </p>
-                    <p className="mt-0.5 line-clamp-1 max-w-64 text-xs text-muted-foreground italic">
-                      {product.description}
-                    </p>
-                  </div>
-                </div>
               </TableCell>
               <TableCell className="whitespace-nowrap font-data text-ink">
-                {product.sku}
-              </TableCell>
-              <TableCell className="whitespace-nowrap text-ink">
-                12.4K views
-                <span className="mt-0.5 block text-xs font-semibold text-green-600 flex gap-1">
-                  <TrendingUp className="size-4 stroke-2" /> 18% rate
-                </span>
-              </TableCell>
-              <TableCell className="whitespace-nowrap text-ink">
-                12.4K Apps.
-              </TableCell>
-              <TableCell className="whitespace-nowrap text-ink">
-                12.4K Likes
-              </TableCell>
-              <TableCell className="whitespace-nowrap">
-                <span className="inline-flex items-center gap-1.5 text-green-700">
-                  <span className="size-2 rounded-full bg-green-500" /> In stock
-                </span>
+                {product.recommendations}
               </TableCell>
               <TableCell>
                 <Link
-                  href={`/stock/inventory/${product.id}`}
+                  href={`/admin/inventory/${product.id}`}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold whitespace-nowrap text-ink hover:-translate-y-0.5 hover:shadow-md active:scale-95"
                 >
                   View Details <ArrowUpRight className="size-3.5" />
@@ -528,7 +366,7 @@ const TileCard = ({
                 className="size-4 shrink-0"
                 strokeWidth={2.25}
               />
-              <span className="truncate">{product.views} views</span>
+              <span className="truncate">{product.views} recommendations</span>
             </span>
             <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-bold tracking-wide text-red-500 uppercase sm:text-[11px]">
               <Heart className="size-3.5" strokeWidth={2.5} />
@@ -553,7 +391,7 @@ const TileCard = ({
             <span className="text-sm font-medium text-muted">pcs</span>
           </p>
           <Link
-            href={`/stock/inventory/${product.id}`}
+            href={`/admin/inventory/${product.id}`}
             aria-label={`View ${product.displayName}`}
             className="inline-flex size-11 items-center justify-center rounded-full border border-slate-100 bg-muted-background text-ink hover:bg-primary"
           >
@@ -780,20 +618,18 @@ const AllProducts = () => {
   );
 };
 
-const AnalyticsTilesPage = () => (
+const AdminAiAnalyticsPage = () => (
   <>
-    <AnalyticsPageHeader
-      title="Tiles Analytics"
-      subtitle="Monitor engagement and conversion performance across the tile catalog"
+    <AdminPageHeader
+      title="AI Analytics"
+      subtitle="Monitor how automated suggestions drive customer engagement and product discovery across the platform."
     />
     <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
       <KpiCards />
-      <InteractionOverview />
-      <PerformanceMetrics />
-      <MostLikedProducts />
+      <TopRecommendedProducts />
       <AllProducts />
     </div>
   </>
 );
 
-export default AnalyticsTilesPage;
+export default AdminAiAnalyticsPage;

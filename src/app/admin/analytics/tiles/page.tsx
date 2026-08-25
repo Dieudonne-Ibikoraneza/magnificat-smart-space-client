@@ -20,7 +20,7 @@ import {
   Wallet,
   TrendingUp,
 } from "lucide-react";
-import { AnalyticsPageHeader } from "@/app/analytics/layout";
+import { AdminPageHeader } from "@/app/admin/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -381,7 +381,7 @@ const PerformanceMetrics = () => (
               </TableCell>
               <TableCell>
                 <Link
-                  href={`/stock/inventory/${product.id}`}
+                  href={`/admin/inventory/${product.id}`}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold whitespace-nowrap text-ink hover:-translate-y-0.5 hover:shadow-md active:scale-95"
                 >
                   View Details <ArrowUpRight className="size-3.5" />
@@ -464,7 +464,7 @@ const MostLikedProducts = () => (
               </TableCell>
               <TableCell>
                 <Link
-                  href={`/stock/inventory/${product.id}`}
+                  href={`/admin/inventory/${product.id}`}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold whitespace-nowrap text-ink hover:-translate-y-0.5 hover:shadow-md active:scale-95"
                 >
                   View Details <ArrowUpRight className="size-3.5" />
@@ -553,7 +553,7 @@ const TileCard = ({
             <span className="text-sm font-medium text-muted">pcs</span>
           </p>
           <Link
-            href={`/stock/inventory/${product.id}`}
+            href={`/admin/inventory/${product.id}`}
             aria-label={`View ${product.displayName}`}
             className="inline-flex size-11 items-center justify-center rounded-full border border-slate-100 bg-muted-background text-ink hover:bg-primary"
           >
@@ -780,9 +780,9 @@ const AllProducts = () => {
   );
 };
 
-const AnalyticsTilesPage = () => (
+const AdminTilesAnalyticsPage = () => (
   <>
-    <AnalyticsPageHeader
+    <AdminPageHeader
       title="Tiles Analytics"
       subtitle="Monitor engagement and conversion performance across the tile catalog"
     />
@@ -796,4 +796,4 @@ const AnalyticsTilesPage = () => (
   </>
 );
 
-export default AnalyticsTilesPage;
+export default AdminTilesAnalyticsPage;
