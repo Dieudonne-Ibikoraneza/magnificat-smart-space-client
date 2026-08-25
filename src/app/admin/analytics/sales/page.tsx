@@ -19,9 +19,12 @@ import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CategoryBarChart } from "@/components/category-bar-chart";
 import { RevenueTrendChart } from "@/components/revenue-trend-chart";
+import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import { cn } from "@/lib/utils";
 import { products } from "@/data/catalog";
-import { salesOrders, type SalesOrderStatus } from "@/data/sales-orders";
+import { salesOrders, type SalesOrderCreatorType, type SalesOrderStatus } from "@/data/sales-orders";
+
+type SalesKpiBreakdown = Record<SalesOrderCreatorType, number>;
 
 type SalesKpi =
   | {
@@ -29,6 +32,7 @@ type SalesKpi =
       value: string;
       icon: typeof Wallet;
       trend: string;
+      breakdown?: SalesKpiBreakdown;
     }
   | {
       label: string;
@@ -38,8 +42,26 @@ type SalesKpi =
       subtitle: string;
     };
 
+const parseAmount = (amount: string) => Number(amount.replace(/[^0-9]/g, ""));
+
+const formatCompactCurrency = (amount: number) => {
+  if (amount >= 1_000_000_000) return `RWF ${(amount / 1_000_000_000).toFixed(1)}B`;
+  if (amount >= 1_000_000) return `RWF ${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `RWF ${(amount / 1_000).toFixed(1)}K`;
+  return `RWF ${amount.toLocaleString("en-US")}`;
+};
+
+const totalSalesBreakdown = salesOrders.reduce(
+  (breakdown, order) => {
+    breakdown[order.createdByType] += parseAmount(order.amount);
+    return breakdown;
+  },
+  { customer: 0, staff: 0 } as SalesKpiBreakdown,
+);
+const totalSales = totalSalesBreakdown.customer + totalSalesBreakdown.staff;
+
 const kpis: SalesKpi[] = [
-  { label: "Total Sales", value: "RWF 145.2M", icon: Wallet, trend: "+12.4%" },
+  { label: "Total Sales", value: formatCompactCurrency(totalSales), icon: Wallet, trend: "+12.4%", breakdown: totalSalesBreakdown },
   { label: "Average Order Value", value: "RWF 84,200", icon: ShoppingBasket, trend: "+4.2%" },
   { label: "Total Orders", value: "1,029", icon: ShoppingBasket, trend: "-2.4%" },
   {
@@ -114,6 +136,18 @@ const KpiCard = (kpi: SalesKpi) => {
           <p className="mt-1 text-xs text-muted-foreground">{kpi.subtitle}</p>
         )}
       </div>
+      {"breakdown" in kpi && kpi.breakdown && (
+        <div className="mt-4 space-y-2 border-t border-border pt-3 text-xs">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Customer-created</span>
+            <span className="font-data font-semibold text-ink">{formatCompactCurrency(kpi.breakdown.customer)}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Staff-created</span>
+            <span className="font-data font-semibold text-ink">{formatCompactCurrency(kpi.breakdown.staff)}</span>
+          </div>
+        </div>
+      )}
     </article>
   );
 };
@@ -298,7 +332,12 @@ const RecentOrders = () => {
                   <p className="truncate font-data text-xs text-muted-foreground">#{order.id}</p>
                   <h3 className="mt-0.5 truncate text-xl font-bold text-ink">{order.customerName}</h3>
                 </div>
-                <Badge variant={orderStatusVariants[order.status]}>{order.status}</Badge>
+                <div className="flex shrink-0 items-center gap-2">
+                  {order.createdByType === "staff" && (
+                    <StaffCreatedIndicator createdByName={order.createdByName} />
+                  )}
+                  <Badge variant={orderStatusVariants[order.status]}>{order.status}</Badge>
+                </div>
               </div>
               <dl className="mt-5 space-y-3 border-t border-[#E5E7EB] pt-4 text-sm">
                 <div className="flex items-start justify-between gap-3">

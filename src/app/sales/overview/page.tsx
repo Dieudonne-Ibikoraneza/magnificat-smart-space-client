@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { SalesPageHeader } from "@/app/sales/layout";
 import { Badge } from "@/components/ui/badge";
+import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import {
   Table,
   TableBody,
@@ -524,9 +525,14 @@ const SalesOverviewPage = () => {
                       {order.amount}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getOrderStatusVariant(order.status)}>
-                        {order.status}
-                      </Badge>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {order.createdByType === "staff" && (
+                          <StaffCreatedIndicator createdByName={order.createdByName} />
+                        )}
+                        <Badge variant={getOrderStatusVariant(order.status)}>
+                          {order.status}
+                        </Badge>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Link href={`/sales/orders/${order.id}`} aria-label={`View ${order.id}`} className="rounded-md p-1.5 text-ink hover:bg-secondary"><MoreVertical className="size-4" /></Link>
@@ -550,9 +556,14 @@ const SalesOverviewPage = () => {
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-2">
                     <p className="text-sm font-semibold text-ink">{order.amount}</p>
-                    <Badge variant={getOrderStatusVariant(order.status)}>
-                      {order.status}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {order.createdByType === "staff" && (
+                        <StaffCreatedIndicator createdByName={order.createdByName} />
+                      )}
+                      <Badge variant={getOrderStatusVariant(order.status)}>
+                        {order.status}
+                      </Badge>
+                    </div>
                   </div>
                 </Link>
               </li>

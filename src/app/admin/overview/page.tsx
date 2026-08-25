@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { AdminPageHeader } from "@/app/admin/layout";
 import { Badge } from "@/components/ui/badge";
+import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import { ChartAxisTick } from "@/components/chart-axis-tick";
 import { cn } from "@/lib/utils";
 import { salesOrders } from "@/data/sales-orders";
@@ -606,9 +607,14 @@ const RecentOrders = () => (
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-3">
                   <p className="truncate text-sm font-semibold text-ink">{order.id}</p>
-                  <Badge variant={orderStatusBadgeVariant[order.status]}>
-                    {orderStatusLabel[order.status]}
-                  </Badge>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {order.createdByType === "staff" && (
+                      <StaffCreatedIndicator createdByName={order.createdByName} />
+                    )}
+                    <Badge variant={orderStatusBadgeVariant[order.status]}>
+                      {orderStatusLabel[order.status]}
+                    </Badge>
+                  </div>
                 </div>
                 <p className="truncate text-sm text-muted-foreground">
                   {order.customerName} • {order.itemCount} Items

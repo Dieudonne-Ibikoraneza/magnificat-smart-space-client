@@ -34,13 +34,13 @@ const AccountLayout = ({ children }: { children: React.ReactNode }) => {
             type="button"
             aria-label="Close account menu"
             onClick={() => setMenuOpen(false)}
-            className="fixed inset-x-0 bottom-0 top-20 z-40 bg-ink/40 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 z-[55] bg-ink/40 backdrop-blur-sm lg:hidden"
           />
           <DashboardSidebar
             links={accountNavigation}
             ariaLabel="Account navigation"
             close={() => setMenuOpen(false)}
-            className="fixed left-4 right-4 top-24 z-50 max-h-[calc(100vh-8rem)] w-auto animate-in fade-in slide-in-from-top-4 overflow-y-auto rounded-2xl bg-card shadow-2xl duration-200 sm:left-6 sm:right-auto sm:w-84 lg:hidden"
+            className="fixed left-4 right-4 top-24 z-[60] max-h-[calc(100vh-8rem)] w-auto animate-in fade-in slide-in-from-top-4 overflow-y-auto rounded-2xl bg-card shadow-2xl duration-200 sm:left-6 sm:right-auto sm:w-84 lg:hidden"
           />
         </>
       )}

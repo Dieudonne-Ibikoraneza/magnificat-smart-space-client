@@ -6,6 +6,7 @@ import { AdminDetailHeader } from "@/app/admin/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import {
   Table,
   TableBody,
@@ -199,9 +200,14 @@ const CustomerDetailPage = async ({ params }: CustomerDetailPageProps) => {
                         {order.amount}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getOrderStatusVariant(order.status)}>
-                          {order.status}
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {order.createdByType === "staff" && (
+                            <StaffCreatedIndicator createdByName={order.createdByName} />
+                          )}
+                          <Badge variant={getOrderStatusVariant(order.status)}>
+                            {order.status}
+                          </Badge>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Link
@@ -235,9 +241,14 @@ const CustomerDetailPage = async ({ params }: CustomerDetailPageProps) => {
                       <p className="text-sm font-semibold text-ink">
                         {order.amount}
                       </p>
-                      <Badge variant={getOrderStatusVariant(order.status)}>
-                        {order.status}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {order.createdByType === "staff" && (
+                          <StaffCreatedIndicator createdByName={order.createdByName} />
+                        )}
+                        <Badge variant={getOrderStatusVariant(order.status)}>
+                          {order.status}
+                        </Badge>
+                      </div>
                     </div>
                   </Link>
                 </li>
