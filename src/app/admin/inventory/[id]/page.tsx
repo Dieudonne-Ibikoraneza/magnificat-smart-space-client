@@ -10,13 +10,13 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { StockDetailHeader } from "@/app/stock/layout";
+import { AdminDetailHeader } from "@/app/admin/layout";
 import { Button } from "@/components/ui/button";
 import { QuantityCalculator } from "@/components/quantity-calculator";
 import type { Product } from "@/components/product-card";
 import { products } from "@/data/catalog";
 
-type StockProductDetailsProps = { params: Promise<{ id: string }> };
+type AdminProductDetailsProps = { params: Promise<{ id: string }> };
 const stockQuantities: Record<string, number> = {
   "1": 1240,
   "2": 45,
@@ -47,7 +47,7 @@ const getSuitableFor = (suitableFor: Product["suitableFor"]) => {
 
 export const generateMetadata = async ({
   params,
-}: StockProductDetailsProps): Promise<Metadata> => {
+}: AdminProductDetailsProps): Promise<Metadata> => {
   const { id } = await params;
   const product = products.find((item) => item.id === id);
   return {
@@ -55,25 +55,24 @@ export const generateMetadata = async ({
   };
 };
 
-const StockProductDetailsPage = async ({
+const AdminProductDetailsPage = async ({
   params,
-}: StockProductDetailsProps) => {
+}: AdminProductDetailsProps) => {
   const { id } = await params;
   const product = products.find((item) => item.id === id);
   if (!product) notFound();
   const currentStock = stockQuantities[product.id] ?? 0;
   return (
     <>
-      <StockDetailHeader
+      <AdminDetailHeader
         breadcrumbs={[
-          { label: "Overview", href: "/stock/overview" },
-          { label: "Inventory", href: "/stock/inventory" },
+          { label: "Overview", href: "/admin/overview" },
+          { label: "Stock & Inventory", href: "/admin/inventory" },
           { label: product.name },
         ]}
         title={product.name}
       />
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.9fr)] lg:items-start">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.9fr)] lg:items-start">
         <div className="space-y-6">
           <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted-background sm:aspect-4/3 lg:aspect-square">
             <Image
@@ -216,4 +215,4 @@ const StockProductDetailsPage = async ({
   );
 };
 
-export default StockProductDetailsPage;
+export default AdminProductDetailsPage;

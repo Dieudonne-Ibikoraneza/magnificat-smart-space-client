@@ -13,20 +13,11 @@ import {
   Mail,
   MapPin,
   Phone,
-  Plus,
   Printer,
   Wallet,
 } from "lucide-react";
-import { SalesPageHeader } from "@/app/sales/layout";
+import { SalesDetailHeader } from "@/app/sales/layout";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import {
@@ -105,57 +96,44 @@ const OrderDetailPage = async ({ params }: OrderDetailPageProps) => {
 
   return (
     <>
-      <SalesPageHeader title={`Order #${order.id}`} subtitle="Line items, customer details and delivery timeline.">
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-auto gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase transition-transform duration-200 active:scale-95"
-          >
-            <Printer className="size-4" />
-            Print Invoice
-          </Button>
-          <Button
-            type="button"
-            className="h-auto gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase transition-transform duration-200 active:scale-95"
-          >
-            Update Status
-          </Button>
-        </div>
-      </SalesPageHeader>
-
-      <div className="mt-5 pb-5 sm:mt-6 sm:pb-6">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink render={<Link href="/sales/overview" />}>
-                Overview
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink render={<Link href="/sales/orders" />}>
-                Orders
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{order.id}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          {order.createdByType === "staff" && (
-            <StaffCreatedIndicator createdByName={order.createdByName} />
-          )}
-          <Badge variant={orderVariant(order.status)}>{order.status}</Badge>
-          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Clock className="size-4" />
-            Last updated {order.updatedAgo}
-          </span>
-        </div>
-      </div>
+      <SalesDetailHeader
+        breadcrumbs={[
+          { label: "Overview", href: "/sales/overview" },
+          { label: "Orders", href: "/sales/orders" },
+          { label: order.id },
+        ]}
+        title={`Order #${order.id}`}
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase transition-transform duration-200 active:scale-95"
+            >
+              <Printer className="size-4" />
+              Print Invoice
+            </Button>
+            <Button
+              type="button"
+              className="h-auto gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase transition-transform duration-200 active:scale-95"
+            >
+              Update Status
+            </Button>
+          </>
+        }
+        meta={
+          <>
+            {order.createdByType === "staff" && (
+              <StaffCreatedIndicator createdByName={order.createdByName} />
+            )}
+            <Badge variant={orderVariant(order.status)}>{order.status}</Badge>
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="size-4" />
+              Last updated {order.updatedAgo}
+            </span>
+          </>
+        }
+      />
 
       <div className="pace-y-5 sm:space-y-6">
         <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { PageHeader, type PageHeaderProps } from "@/components/page-header";
+import { DetailPageHeader, type DetailPageHeaderProps } from "@/components/detail-page-header";
 
 const navigation = [
   {
@@ -53,6 +54,11 @@ export const useAdminMenu = () => {
 export const AdminPageHeader = (props: Omit<PageHeaderProps, "onOpenMenu">) => {
   const { openMenu } = useAdminMenu();
   return <PageHeader {...props} onOpenMenu={openMenu} />;
+};
+
+export const AdminDetailHeader = (props: Omit<DetailPageHeaderProps, "onOpenMenu">) => {
+  const { openMenu } = useAdminMenu();
+  return <DetailPageHeader {...props} onOpenMenu={openMenu} />;
 };
 
 const AdminLayout = ({ children }: { children: React.ReactNode }) => {

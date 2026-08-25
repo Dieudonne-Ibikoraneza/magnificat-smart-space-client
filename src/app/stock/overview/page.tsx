@@ -130,17 +130,17 @@ const StockOverviewPage = () => {
         title="Overview"
         subtitle="Real-time inventory metrics and critical alerts."
       >
-        <div className="flex w-full gap-3 sm:w-auto">
+        <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-[#dce2e9] bg-card px-4 py-3 text-sm font-semibold text-ink shadow-sm hover:bg-secondary sm:flex-none"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-[#dce2e9] bg-card px-4 py-3 text-sm font-semibold text-ink shadow-sm hover:bg-secondary"
           >
             <PencilLine className="size-4" />
             Manual Adjust
           </button>
           <button
             type="button"
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-sm hover:-translate-y-0.5 hover:shadow-md sm:flex-none"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-sm hover:-translate-y-0.5 hover:shadow-md"
           >
             <Plus className="size-4" />
             Add Product

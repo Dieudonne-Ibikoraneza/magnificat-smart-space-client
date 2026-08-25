@@ -3,11 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Pencil, Plus, Trash2 } from "lucide-react";
-import { StockPageHeader } from "@/app/stock/layout";
+import { AdminPageHeader } from "@/app/admin/layout";
 import { collections } from "@/data/collections";
 import { Button } from "@/components/ui/button";
 
-const StockCollectionCard = ({
+const AdminCollectionCard = ({
   collection,
 }: {
   collection: (typeof collections)[number];
@@ -33,7 +33,7 @@ const StockCollectionCard = ({
       <div className="mt-6 flex items-center gap-2">
         <Button
           nativeButton={false}
-          render={<Link href={`/stock/collections/${collection.id}`} />}
+          render={<Link href={`/admin/collections/${collection.id}`} />}
           className="group/cta h-12 min-h-12 min-w-0 flex-1 gap-3 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
         >
           <span className="truncate">View Collection</span>
@@ -66,10 +66,10 @@ const StockCollectionCard = ({
   </article>
 );
 
-export default function StockCollectionsPage() {
+export default function AdminCollectionsPage() {
   return (
     <>
-      <StockPageHeader
+      <AdminPageHeader
         title="Collections"
         subtitle={`${collections.length} product collections currently managed`}
       >
@@ -80,11 +80,11 @@ export default function StockCollectionsPage() {
           <Plus className="size-4" />
           Add New Collection
         </Button>
-      </StockPageHeader>
+      </AdminPageHeader>
 
       <section className="mt-6 grid gap-6 sm:mt-8 sm:grid-cols-2 xl:grid-cols-3">
         {collections.map((collection) => (
-          <StockCollectionCard key={collection.id} collection={collection} />
+          <AdminCollectionCard key={collection.id} collection={collection} />
         ))}
       </section>
     </>

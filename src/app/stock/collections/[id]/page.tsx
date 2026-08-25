@@ -16,18 +16,10 @@ import {
   Trash2,
 } from "lucide-react";
 import { notFound } from "next/navigation";
-import { StockPageHeader } from "@/app/stock/layout";
+import { StockDetailHeader } from "@/app/stock/layout";
 import { getCollectionById } from "@/data/collections";
 import { inventoryProducts } from "@/data/inventory";
 import { InventoryProductCard as InventoryCard } from "@/app/stock/inventory/page";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import type { InventoryProduct } from "@/data/inventory";
 import { getVisiblePages } from "@/lib/catalog-utils";
 import { cn } from "@/lib/utils";
@@ -213,47 +205,46 @@ export default function StockCollectionDetailsPage({
 
   return (
     <>
-      <StockPageHeader title={collection.title} subtitle={collection.description}>
-        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-12 gap-2 font-bold uppercase px-4"
-          >
-            <Pencil className="size-4 stroke-3" />
-            Edit Collection
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            className="h-12 gap-2 font-bold uppercase px-4"
-          >
-            <Trash2 className="size-4 stroke-3" />
-            Delete Collection
-          </Button>
-        </div>
-      </StockPageHeader>
-
-      <div className="mt-5 sm:mt-6">
-        <Breadcrumb className="mb-3">
-          <BreadcrumbList>
-            <BreadcrumbItem><BreadcrumbLink render={<Link href="/stock/collections" />}>Home</BreadcrumbLink></BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem><BreadcrumbLink render={<Link href="/stock/collections" />}>Collections</BreadcrumbLink></BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem><BreadcrumbPage>{collection.title}</BreadcrumbPage></BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-        <div className="flex flex-wrap items-center gap-3 text-xs text-muted sm:text-sm">
-          <span className="rounded-full bg-primary px-3 py-1.5 font-bold text-ink">
-            {products.length} Products
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <Clock className="size-4" strokeWidth={2} aria-hidden="true" />
-            Last updated 2 hours ago
-          </span>
-        </div>
-      </div>
+      <StockDetailHeader
+        breadcrumbs={[
+          { label: "Overview", href: "/stock/overview" },
+          { label: "Collections", href: "/stock/collections" },
+          { label: collection.title },
+        ]}
+        title={collection.title}
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 gap-2 font-bold uppercase px-4"
+            >
+              <Pencil className="size-4 stroke-3" />
+              Edit Collection
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="h-12 gap-2 font-bold uppercase px-4"
+            >
+              <Trash2 className="size-4 stroke-3" />
+              Delete Collection
+            </Button>
+          </>
+        }
+        meta={
+          <>
+            <p className="w-full max-w-2xl text-sm text-muted sm:text-base">{collection.description}</p>
+            <span className="rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-ink sm:text-sm">
+              {products.length} Products
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted sm:text-sm">
+              <Clock className="size-4" strokeWidth={2} aria-hidden="true" />
+              Last updated 2 hours ago
+            </span>
+          </>
+        }
+      />
 
       <section className="mt-6 rounded-xl border border-[#E5E7EB] bg-card p-4 shadow-sm sm:mt-8 sm:p-5">
         <div className="flex flex-col gap-3 xl:flex-row">
@@ -309,7 +300,7 @@ export default function StockCollectionDetailsPage({
             <Button
               type="button"
               variant="outline"
-              className="h-11 w-full justify-center gap-2 sm:w-auto"
+              className="h-11 justify-center gap-2"
             >
               <SlidersHorizontal className="size-4" />
               Filters

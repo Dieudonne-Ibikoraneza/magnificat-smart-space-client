@@ -16,7 +16,7 @@ import {
   Printer,
   Wallet,
 } from "lucide-react";
-import { StockDetailHeader } from "@/app/stock/layout";
+import { AdminDetailHeader } from "@/app/admin/layout";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
@@ -96,10 +96,10 @@ const OrderDetailPage = async ({ params }: OrderDetailPageProps) => {
 
   return (
     <>
-      <StockDetailHeader
+      <AdminDetailHeader
         breadcrumbs={[
-          { label: "Overview", href: "/stock/overview" },
-          { label: "Orders", href: "/stock/orders" },
+          { label: "Overview", href: "/admin/overview" },
+          { label: "Orders", href: "/admin/orders" },
           { label: order.id },
         ]}
         title={`Order #${order.id}`}
@@ -153,7 +153,7 @@ const OrderDetailPage = async ({ params }: OrderDetailPageProps) => {
               </p>
               {label === "Customer" ? (
                 <Link
-                  href={"/sales/customers/" + order.customerSlug}
+                  href={"/admin/customers/" + order.customerSlug}
                   className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-ink transition-transform duration-200 hover:translate-x-1"
                 >
                   View profile <ChevronRight className="size-3.5" />
@@ -245,7 +245,7 @@ const OrderDetailPage = async ({ params }: OrderDetailPageProps) => {
                   <div>
                     <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">Company</dt>
                     <dd className="mt-1">
-                      <Link href={"/sales/customers/" + customer.slug} className="font-medium text-ink underline decoration-primary decoration-2 underline-offset-4 hover:opacity-70">
+                      <Link href={"/admin/customers/" + customer.slug} className="font-medium text-ink underline decoration-primary decoration-2 underline-offset-4 hover:opacity-70">
                         {customer.name}
                       </Link>
                     </dd>

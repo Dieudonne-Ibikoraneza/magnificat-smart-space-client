@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { CalendarDays, ChevronRight, Plus, Wallet } from "lucide-react";
-import { SalesDetailHeader } from "@/app/sales/layout";
+import { AdminDetailHeader } from "@/app/admin/layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -58,10 +58,10 @@ const CustomerDetailPage = async ({ params }: CustomerDetailPageProps) => {
 
   return (
     <>
-      <SalesDetailHeader
+      <AdminDetailHeader
         breadcrumbs={[
-          { label: "Overview", href: "/sales/overview" },
-          { label: "Customers", href: "/sales/customers" },
+          { label: "Overview", href: "/admin/overview" },
+          { label: "Customers", href: "/admin/customers" },
           { label: customer.name },
         ]}
         title={customer.name}
@@ -88,7 +88,7 @@ const CustomerDetailPage = async ({ params }: CustomerDetailPageProps) => {
         }
       />
 
-      <div className="mt-1 space-y-5 sm:space-y-6">
+      <div className="space-y-5 sm:space-y-6">
         <div className="grid gap-4 sm:grid-cols-2 xl:max-w-3xl">
           {[
             {
@@ -186,7 +186,7 @@ const CustomerDetailPage = async ({ params }: CustomerDetailPageProps) => {
                     <TableRow key={order.id}>
                       <TableCell className="font-semibold text-ink">
                         <Link
-                          href={"/sales/orders/" + order.id}
+                          href={"/admin/orders/" + order.id}
                           className="hover:underline"
                         >
                           {order.id}
@@ -205,7 +205,7 @@ const CustomerDetailPage = async ({ params }: CustomerDetailPageProps) => {
                       </TableCell>
                       <TableCell>
                         <Link
-                          href={"/sales/orders/" + order.id}
+                          href={"/admin/orders/" + order.id}
                           className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold tracking-wider text-ink uppercase transition-all hover:bg-secondary active:scale-95"
                         >
                           View <ChevronRight className="size-4" />
@@ -220,7 +220,7 @@ const CustomerDetailPage = async ({ params }: CustomerDetailPageProps) => {
               {recentOrders.map((order) => (
                 <li key={order.id}>
                   <Link
-                    href={"/sales/orders/" + order.id}
+                    href={"/admin/orders/" + order.id}
                     className="flex items-start justify-between gap-3 px-5 py-4 font-data transition-colors hover:bg-secondary/50"
                   >
                     <div>

@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { getVisiblePages } from "@/lib/catalog-utils";
 import { cn } from "@/lib/utils";
-import { StockPageHeader } from "@/app/stock/layout";
+import { AdminPageHeader } from "@/app/admin/layout";
 import { inventoryProducts } from "@/data/inventory";
 import type { Product } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
@@ -80,7 +80,7 @@ const statusStyles = {
 
 const getStatus = (product: Product) => statusStyles[product.stockStatus];
 
-export const InventoryProductCard = ({
+export const AdminInventoryProductCard = ({
   product,
 }: {
   product: (typeof inventoryProducts)[number];
@@ -110,7 +110,7 @@ export const InventoryProductCard = ({
         </span>
 
         <Link
-          href={`/stock/inventory/${product.id}`}
+          href={`/admin/inventory/${product.id}`}
           aria-label={`Open ${product.displayName} inventory details`}
           className="absolute top-3 right-3 z-10 inline-flex size-9 items-center justify-center rounded-full bg-white/95 text-ink shadow-sm transition-transform hover:scale-105 hover:bg-white"
         >
@@ -178,7 +178,7 @@ export const InventoryProductCard = ({
   );
 };
 
-const InventoryPage = () => {
+const AdminInventoryPage = () => {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [status, setStatus] = useState("all");
@@ -231,8 +231,8 @@ const InventoryPage = () => {
 
   return (
     <>
-      <StockPageHeader
-        title="Inventory"
+      <AdminPageHeader
+        title="Stock & Inventory"
         subtitle={`${TOTAL_RESULTS.toLocaleString()} Products currently managed`}
       >
         <Button
@@ -242,7 +242,7 @@ const InventoryPage = () => {
           <Plus className="size-4" />
           Add New Product
         </Button>
-      </StockPageHeader>
+      </AdminPageHeader>
 
       <section className="mt-6 rounded-xl border border-[#E5E7EB] bg-card p-4 shadow-sm sm:mt-8 sm:p-5">
         <div className="flex flex-col gap-3 xl:flex-row">
@@ -338,7 +338,7 @@ const InventoryPage = () => {
         {view === "grid" ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {pageItems.map((product) => (
-              <InventoryProductCard key={product.id} product={product} />
+              <AdminInventoryProductCard key={product.id} product={product} />
             ))}
           </div>
         ) : (
@@ -379,7 +379,7 @@ const InventoryPage = () => {
                             </div>
                             <div>
                               <Link
-                                href={`/stock/inventory/${product.id}`}
+                                href={`/admin/inventory/${product.id}`}
                                 className="font-bold text-ink text-lg leading-6 hover:underline"
                               >
                                 {product.displayName}
@@ -558,4 +558,4 @@ const InventoryPage = () => {
   );
 };
 
-export default InventoryPage;
+export default AdminInventoryPage;

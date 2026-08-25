@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { PageHeader, type PageHeaderProps } from "@/components/page-header";
+import { DetailPageHeader, type DetailPageHeaderProps } from "@/components/detail-page-header";
 
 const navigation = [
   {
@@ -43,6 +44,11 @@ export const useSalesMenu = () => {
 export const SalesPageHeader = (props: Omit<PageHeaderProps, "onOpenMenu">) => {
   const { openMenu } = useSalesMenu();
   return <PageHeader {...props} onOpenMenu={openMenu} />;
+};
+
+export const SalesDetailHeader = (props: Omit<DetailPageHeaderProps, "onOpenMenu">) => {
+  const { openMenu } = useSalesMenu();
+  return <DetailPageHeader {...props} onOpenMenu={openMenu} />;
 };
 
 const SalesLayout = ({ children }: { children: React.ReactNode }) => {

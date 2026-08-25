@@ -2,27 +2,26 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { use, useMemo, useState } from "react";
 import {
   ArrowUpRight,
-  ChartNoAxesColumn,
   ChevronsLeft,
   ChevronsRight,
-  Eye,
+  Clock,
   LayoutGrid,
   List,
   Pencil,
-  Plus,
   Search,
   SlidersHorizontal,
   Trash2,
-  TrendingUp,
 } from "lucide-react";
+import { notFound } from "next/navigation";
+import { AdminDetailHeader } from "@/app/admin/layout";
+import { getCollectionById } from "@/data/collections";
+import { inventoryProducts } from "@/data/inventory";
+import type { InventoryProduct } from "@/data/inventory";
 import { getVisiblePages } from "@/lib/catalog-utils";
 import { cn } from "@/lib/utils";
-import { StockPageHeader } from "@/app/stock/layout";
-import { inventoryProducts } from "@/data/inventory";
-import type { Product } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,14 +31,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Pagination,
   PaginationContent,
@@ -58,34 +49,26 @@ const statusStyles = {
   in_stock: {
     label: "In stock",
     dot: "bg-green-500",
-    text: "text-green-700",
     badge: "border-green-200 bg-green-50 text-green-700",
     quantity: "text-ink",
   },
   low_stock: {
     label: "Low stock",
     dot: "bg-amber-500",
-    text: "text-amber-700",
     badge: "border-amber/30 bg-white/95 text-amber",
     quantity: "text-amber-600",
   },
   out_of_stock: {
     label: "Out of stock",
     dot: "bg-red-500",
-    text: "text-red-600",
     badge: "border-red-200 bg-red-50 text-red-700",
     quantity: "text-red-600",
   },
 } as const;
 
-const getStatus = (product: Product) => statusStyles[product.stockStatus];
-
-export const InventoryProductCard = ({
-  product,
-}: {
-  product: (typeof inventoryProducts)[number];
-}) => {
-  const status = getStatus(product);
+const CollectionProductCard = ({ product }: { product: InventoryProduct }) => {
+  const status = statusStyles[product.stockStatus];
+  const quantity = product.quantity;
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-3xl bg-white shadow-sm transition-shadow hover:shadow-[0_8px_30px_rgba(15,39,71,0.10)]">
@@ -101,44 +84,28 @@ export const InventoryProductCard = ({
 
         <span
           className={cn(
-            "absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold",
+            "absolute top-4 left-4 inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold shadow-sm",
             status.badge,
           )}
         >
-          <span className={cn("size-2 rounded-full", status.dot)} />
+          <span className={cn("size-1.5 rounded-full", status.dot)} />
           {status.label}
         </span>
 
         <Link
-          href={`/stock/inventory/${product.id}`}
-          aria-label={`Open ${product.displayName} inventory details`}
+          href={`/admin/inventory/${product.id}`}
+          aria-label={`Open ${product.displayName}`}
           className="absolute top-3 right-3 z-10 inline-flex size-9 items-center justify-center rounded-full bg-white/95 text-ink shadow-sm transition-transform hover:scale-105 hover:bg-white"
         >
-          <ArrowUpRight className="size-5" strokeWidth={2.25} />
+          <ArrowUpRight className="size-4" strokeWidth={2.25} />
         </Link>
-
-        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-ink/35 via-ink/10 to-transparent px-3 pb-3 pt-10 sm:px-4 sm:pb-4">
-          <div className="flex items-center justify-between gap-3 rounded-full bg-white/95 px-3.5 py-2.5 shadow-[0_8px_24px_rgba(15,39,71,0.18)] backdrop-blur-sm sm:px-4 sm:py-3">
-            <span className="flex min-w-0 items-center gap-2 text-[10px] font-bold tracking-tight text-ink uppercase sm:text-xs">
-              <ChartNoAxesColumn
-                className="size-4 shrink-0"
-                strokeWidth={2.25}
-              />
-              <span className="truncate">{product.views} Views</span>
-            </span>
-            <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-bold tracking-wide text-green-600 uppercase sm:text-[11px]">
-              <TrendingUp className="size-3.5" strokeWidth={2.5} />
-              {product.rate} Rate
-            </span>
-          </div>
-        </div>
       </div>
 
       <div className="flex flex-1 flex-col p-5 sm:p-6">
-        <p className="mb-1 text-xs font-semibold tracking-wide text-[#C0A786] uppercase">
+        <p className="mb-1 text-xs font-semibold tracking-wide text-[#d4c09e] uppercase">
           {product.collection} • {product.size}
         </p>
-        <h2 className="mb-1 text-base font-bold text-ink sm:text-xl">
+        <h2 className="mb-1 text-base font-bold text-ink sm:text-lg">
           {product.displayName}
         </h2>
         <p className="line-clamp-2 min-h-10 text-sm leading-5 text-muted">
@@ -147,7 +114,7 @@ export const InventoryProductCard = ({
 
         <div className="mt-auto flex items-center justify-between gap-3 pt-4 sm:pt-5">
           <p className={cn("text-xl font-bold", status.quantity)}>
-            {product.quantity.toLocaleString()}{" "}
+            {quantity.toLocaleString()}{" "}
             <span className="text-sm font-medium text-muted">pcs</span>
           </p>
 
@@ -178,47 +145,49 @@ export const InventoryProductCard = ({
   );
 };
 
-const InventoryPage = () => {
+export default function AdminCollectionDetailsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
+  const collection = getCollectionById(id);
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("all");
   const [status, setStatus] = useState("all");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const results = useMemo(
+  const products = inventoryProducts;
+
+  const filtered = useMemo(
     () =>
-      inventoryProducts.filter((product) => {
-        const matchesQuery =
-          product.displayName.toLowerCase().includes(query.toLowerCase()) ||
-          product.id.toLowerCase().includes(query.toLowerCase());
-        const matchesCategory =
-          category === "all" || product.collection === category;
-        const matchesStatus =
-          status === "all" || product.stockStatus === status;
-        return matchesQuery && matchesCategory && matchesStatus;
+      products.filter((product) => {
+        const text = `${product.displayName} ${product.description} ${product.id}`.toLowerCase();
+        return (
+          text.includes(query.toLowerCase()) &&
+          (status === "all" || product.stockStatus === status)
+        );
       }),
-    [category, query, status],
+    [products, query, status],
   );
 
   const safePage = Math.min(Math.max(currentPage, 1), TOTAL_PAGES);
   const showingStart =
-    results.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+    filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const showingEnd = Math.min(safePage * PAGE_SIZE, TOTAL_RESULTS);
 
   const pageItems = useMemo(() => {
-    if (results.length === 0) return [];
-
+    if (filtered.length === 0) return [];
     const count = Math.max(0, showingEnd - showingStart + 1);
     const offset = (safePage - 1) * PAGE_SIZE;
-
     return Array.from({ length: count }, (_, index) => {
-      const source = results[(offset + index) % results.length];
+      const source = filtered[(offset + index) % filtered.length];
       return {
-        ...source,
-        id: source.id,
+        product: source,
+        key: `${source.id}-p${safePage}-${index}`,
       };
     });
-  }, [results, safePage, showingEnd, showingStart]);
+  }, [filtered, safePage, showingEnd, showingStart]);
 
   const visiblePages = useMemo(
     () => getVisiblePages(safePage, TOTAL_PAGES),
@@ -229,20 +198,50 @@ const InventoryPage = () => {
     setCurrentPage(Math.min(Math.max(page, 1), TOTAL_PAGES));
   };
 
+  if (!collection) notFound();
+
   return (
     <>
-      <StockPageHeader
-        title="Inventory"
-        subtitle={`${TOTAL_RESULTS.toLocaleString()} Products currently managed`}
-      >
-        <Button
-          type="button"
-          className="gap-2 rounded-lg px-5 py-3 text-sm font-bold"
-        >
-          <Plus className="size-4" />
-          Add New Product
-        </Button>
-      </StockPageHeader>
+      <AdminDetailHeader
+        breadcrumbs={[
+          { label: "Overview", href: "/admin/overview" },
+          { label: "Collections", href: "/admin/collections" },
+          { label: collection.title },
+        ]}
+        title={collection.title}
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 gap-2 font-bold uppercase px-4"
+            >
+              <Pencil className="size-4 stroke-3" />
+              Edit Collection
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="h-12 gap-2 font-bold uppercase px-4"
+            >
+              <Trash2 className="size-4 stroke-3" />
+              Delete Collection
+            </Button>
+          </>
+        }
+        meta={
+          <>
+            <p className="w-full max-w-2xl text-sm text-muted sm:text-base">{collection.description}</p>
+            <span className="rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-ink">
+              {products.length} Products
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted sm:text-sm">
+              <Clock className="size-4" strokeWidth={2} aria-hidden="true" />
+              Last updated 2 hours ago
+            </span>
+          </>
+        }
+      />
 
       <section className="mt-6 rounded-xl border border-[#E5E7EB] bg-card p-4 shadow-sm sm:mt-8 sm:p-5">
         <div className="flex flex-col gap-3 xl:flex-row">
@@ -255,18 +254,12 @@ const InventoryPage = () => {
                 setCurrentPage(1);
               }}
               placeholder="Search products, SKUs..."
-              aria-label="Search inventory"
+              aria-label="Search collection products"
               className="h-11 rounded-full bg-[#fafbfc] pl-11 text-sm"
             />
           </div>
           <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center">
-            <Select
-              value={category}
-              onValueChange={(value) => {
-                setCategory(value ?? "all");
-                setCurrentPage(1);
-              }}
-            >
+            <Select defaultValue="all">
               <SelectTrigger className="h-11 min-w-0 bg-card sm:w-36">
                 <SelectValue>
                   {(value) => (value === "all" ? "Category" : value)}
@@ -274,7 +267,8 @@ const InventoryPage = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All categories</SelectItem>
-                <SelectItem value="Floor Tile">Floor Tile</SelectItem>
+                <SelectItem value="floor">Floor Tile</SelectItem>
+                <SelectItem value="wall">Wall Tile</SelectItem>
               </SelectContent>
             </Select>
             <Select
@@ -337,132 +331,88 @@ const InventoryPage = () => {
       <div className="mt-6 sm:mt-8">
         {view === "grid" ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {pageItems.map((product) => (
-              <InventoryProductCard key={product.id} product={product} />
+            {pageItems.map(({ key, product }) => (
+              <CollectionProductCard key={key} product={product} />
             ))}
           </div>
         ) : (
-          <section className="overflow-hidden rounded-2xl bg-card">
-            <div className="overflow-x-auto">
-              <Table className="min-w-260">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="px-3 py-4">Product</TableHead>
-                    <TableHead className="px-3 py-4">SKU / Code</TableHead>
-                    <TableHead className="px-3 py-4">Size / Format</TableHead>
-                    <TableHead className="px-3 py-4">Current Stock</TableHead>
-                    <TableHead className="px-3 py-4">
-                      Unit Price (RWF)
-                    </TableHead>
-                    <TableHead className="px-3 py-4">Last Updated</TableHead>
-                    <TableHead className="px-3 py-4">Analytics</TableHead>
-                    <TableHead className="px-3 py-4 text-right">
-                      Actions
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pageItems.map((product, index) => {
-                    const itemStatus = getStatus(product);
-                    return (
-                      <TableRow key={`${product.id}-${index}`}>
-                        <TableCell className="p-4">
-                          <div className="flex items-center gap-3">
-                            <div className="relative size-17.5 shrink-0 overflow-hidden rounded-sm">
-                              <Image
-                                src={product.image}
-                                alt=""
-                                fill
-                                unoptimized
-                                className="object-cover"
-                              />
-                            </div>
-                            <div>
-                              <Link
-                                href={`/stock/inventory/${product.id}`}
-                                className="font-bold text-ink text-lg leading-6 hover:underline"
-                              >
-                                {product.displayName}
-                              </Link>
-                              <p className="mt-1 text-xs text-muted-foreground italic">
-                                {product.size} {product.collection}
-                              </p>
-                              <p className="mt-0.5 line-clamp-1 max-w-56 text-sm font-medium text-muted-foreground">
-                                {product.description}
-                              </p>
-                            </div>
+          <div className="overflow-x-auto rounded-2xl border border-border bg-white">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="bg-muted-background text-xs text-muted uppercase">
+                <tr>
+                  <th className="p-4">Product</th>
+                  <th className="p-4">SKU / Code</th>
+                  <th className="p-4">Current stock</th>
+                  <th className="p-4">Unit price</th>
+                  <th className="p-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageItems.map(({ key, product }) => {
+                  const quantity = product.quantity;
+                  return (
+                    <tr key={key} className="border-t border-border">
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <Image
+                            src={product.image}
+                            alt=""
+                            width={48}
+                            height={48}
+                            unoptimized
+                            className="size-12 rounded object-cover"
+                          />
+                          <div>
+                            <Link
+                              href={`/admin/inventory/${product.id}`}
+                              className="font-semibold text-ink hover:underline"
+                            >
+                              {product.displayName}
+                            </Link>
+                            <p className="max-w-xs truncate text-xs text-muted">
+                              {product.description}
+                            </p>
                           </div>
-                        </TableCell>
-                        <TableCell className="p-4 text-sm text-ink">
-                          SLB-{product.id.split("-")[0].padStart(3, "0")}
-                        </TableCell>
-                        <TableCell className="p-4 text-sm text-ink">
-                          {product.size}
-                        </TableCell>
-                        <TableCell className="p-4">
-                          <span
-                            className={`inline-flex items-center gap-2 font-data font-semibold ${itemStatus.text}`}
+                        </div>
+                      </td>
+                      <td className="p-4 text-muted">
+                        SLB-{product.id.padStart(3, "0")}
+                      </td>
+                      <td className="p-4 font-semibold">
+                        {quantity.toLocaleString()} pcs
+                      </td>
+                      <td className="p-4">
+                        RWF {product.price.toLocaleString()}
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center overflow-hidden rounded-full bg-primary w-fit">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="rounded-none text-ink hover:bg-white/45"
+                            aria-label={`Edit ${product.displayName}`}
                           >
-                            <span
-                              className={`size-2 rounded-full ${itemStatus.dot}`}
-                            />
-                            {product.quantity.toLocaleString()}{" "}
-                            <span className="font-sans text-sm font-normal text-muted-foreground">
-                              boxes
-                            </span>
-                          </span>
-                        </TableCell>
-                        <TableCell className="p-4 font-data text-base font-medium text-ink">
-                          {product.price.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="p-4 text-sm text-muted-foreground">
-                          Oct 24, 2023
-                        </TableCell>
-                        <TableCell className="p-4">
-                          <p className="text-base font-semibold text-ink">
-                            {product.views} views
-                          </p>
-                          <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-green-700">
-                            <TrendingUp className="size-4" />
-                            {product.rate} rate
-                          </p>
-                        </TableCell>
-                        <TableCell className="p-4">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`View ${product.displayName}`}
-                            >
-                              <Eye className="size-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`Edit ${product.displayName}`}
-                            >
-                              <Pencil className="size-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              className="text-red-500"
-                              aria-label={`Delete ${product.displayName}`}
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          </section>
+                            <Pencil className="size-4" />
+                          </Button>
+                          <span className="h-4 w-px bg-ink/15" aria-hidden="true" />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="rounded-none text-ink hover:bg-white/45 hover:text-red-600"
+                            aria-label={`Delete ${product.displayName}`}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -556,6 +506,4 @@ const InventoryPage = () => {
       </footer>
     </>
   );
-};
-
-export default InventoryPage;
+}
