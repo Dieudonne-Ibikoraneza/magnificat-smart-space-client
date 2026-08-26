@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { StockPageHeader } from "@/app/stock/layout";
 import { collections } from "@/data/collections";
@@ -67,6 +68,8 @@ const StockCollectionCard = ({
 );
 
 export default function StockCollectionsPage() {
+  const router = useRouter();
+
   return (
     <>
       <StockPageHeader
@@ -75,6 +78,7 @@ export default function StockCollectionsPage() {
       >
         <Button
           type="button"
+          onClick={() => router.push("/stock/collections/new")}
           className="h-11 gap-2 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
         >
           <Plus className="size-4" />
