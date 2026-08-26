@@ -31,11 +31,11 @@ export type DetailPageHeaderProps = {
 const Crumb = ({ item }: { item: DetailBreadcrumbItem }) => (
   <BreadcrumbItem className="min-w-0 shrink">
     {item.href ? (
-      <BreadcrumbLink render={<Link href={item.href} />} className="block truncate">
+      <BreadcrumbLink render={<Link href={item.href} />} className="block truncate py-1.5">
         {item.label}
       </BreadcrumbLink>
     ) : (
-      <BreadcrumbPage className="block truncate">{item.label}</BreadcrumbPage>
+      <BreadcrumbPage className="block truncate py-1.5">{item.label}</BreadcrumbPage>
     )}
   </BreadcrumbItem>
 );

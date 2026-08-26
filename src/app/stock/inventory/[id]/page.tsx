@@ -104,7 +104,7 @@ const StockProductDetailsPage = async ({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-bold tracking-wider text-muted uppercase">
-                  {product.collection} • {product.size}
+                  {product.collection} • {product.size} • SKU {product.sku}
                 </p>
                 <h2 className="mt-3 text-2xl font-bold text-ink sm:text-3xl">
                   {product.name}

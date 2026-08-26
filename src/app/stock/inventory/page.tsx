@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   ArrowUpRight,
@@ -179,6 +180,7 @@ export const InventoryProductCard = ({
 };
 
 const InventoryPage = () => {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [status, setStatus] = useState("all");
@@ -237,7 +239,8 @@ const InventoryPage = () => {
       >
         <Button
           type="button"
-          className="gap-2 rounded-lg px-5 py-3 text-sm font-bold"
+          onClick={() => router.push("/stock/inventory/new")}
+          className="h-11 gap-2 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
         >
           <Plus className="size-4" />
           Add New Product
@@ -394,7 +397,7 @@ const InventoryPage = () => {
                           </div>
                         </TableCell>
                         <TableCell className="p-4 text-sm text-ink">
-                          SLB-{product.id.split("-")[0].padStart(3, "0")}
+                          {product.sku}
                         </TableCell>
                         <TableCell className="p-4 text-sm text-ink">
                           {product.size}

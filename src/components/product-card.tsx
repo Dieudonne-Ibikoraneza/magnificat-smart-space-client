@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 
 export type Product = {
   id: string;
+  sku: string;
   name: string;
   collectionId: string;
   collection: string;

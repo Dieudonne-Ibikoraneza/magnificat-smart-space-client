@@ -379,7 +379,7 @@ export default function StockCollectionDetailsPage({
                         </div>
                       </td>
                       <td className="p-4 text-muted">
-                        SLB-{product.id.padStart(3, "0")}
+                        {product.sku}
                       </td>
                       <td className="p-4 font-semibold">
                         {quantity.toLocaleString()} pcs

@@ -6,6 +6,7 @@ export const getProductsByCollection = (collectionId: string) =>
 export const products: Product[] = [
   {
     id: "1",
+    sku: "SLB-CG-001",
     name: "Calacatta Gold Polished",
     collectionId: "premium-slabs",
     collection: "Floor Tile",
@@ -24,6 +25,7 @@ export const products: Product[] = [
   },
   {
     id: "2",
+    sku: "SLB-CG-002",
     name: "Calacatta Gold Polished",
     collectionId: "premium-slabs",
     collection: "Floor Tile",
@@ -42,6 +44,7 @@ export const products: Product[] = [
   },
   {
     id: "3",
+    sku: "SLB-CG-003",
     name: "Calacatta Gold Polished",
     collectionId: "wood-effect",
     collection: "Floor Tile",
@@ -60,6 +63,7 @@ export const products: Product[] = [
   },
   {
     id: "4",
+    sku: "SLB-CG-004",
     name: "Calacatta Gold Polished",
     collectionId: "wood-effect",
     collection: "Floor Tile",
@@ -78,6 +82,7 @@ export const products: Product[] = [
   },
   {
     id: "5",
+    sku: "SLB-CG-005",
     name: "Calacatta Gold Polished",
     collectionId: "large-floor",
     collection: "Floor Tile",
@@ -96,6 +101,7 @@ export const products: Product[] = [
   },
   {
     id: "6",
+    sku: "SLB-CG-006",
     name: "Calacatta Gold Polished",
     collectionId: "standard-floor",
     collection: "Floor Tile",
@@ -114,6 +120,7 @@ export const products: Product[] = [
   },
   {
     id: "7",
+    sku: "SLB-CG-007",
     name: "Calacatta Gold Polished",
     collectionId: "subway-wall",
     collection: "Floor Tile",
@@ -132,6 +139,7 @@ export const products: Product[] = [
   },
   {
     id: "8",
+    sku: "SLB-CG-008",
     name: "Calacatta Gold Polished",
     collectionId: "subway-wall",
     collection: "Floor Tile",
@@ -150,6 +158,7 @@ export const products: Product[] = [
   },
   {
     id: "9",
+    sku: "SLB-CG-009",
     name: "Calacatta Gold Polished",
     collectionId: "mosaics",
     collection: "Floor Tile",
@@ -168,6 +177,7 @@ export const products: Product[] = [
   },
   {
     id: "10",
+    sku: "SLB-CG-010",
     name: "Calacatta Gold Polished",
     collectionId: "mosaics",
     collection: "Floor Tile",
