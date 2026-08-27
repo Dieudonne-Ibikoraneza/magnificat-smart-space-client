@@ -10,10 +10,151 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Bot, CalendarDays, RefreshCw } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowDownToLine,
+  ArrowUp,
+  ArrowUpFromLine,
+  Bot,
+  CalendarDays,
+  PencilLine,
+  RefreshCw,
+  Scale,
+} from "lucide-react";
 import { StockPageHeader } from "@/app/stock/layout";
 import { ConversionFunnel } from "@/components/conversion-funnel";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+
+type MovementType = "Inbound" | "Outbound" | "Adjustment";
+
+type Movement = {
+  item: string;
+  reference: string;
+  type: MovementType;
+  quantity: number;
+  unit: "boxes" | "box";
+  by: string;
+  time: string;
+};
+
+const movementTone: Record<MovementType, string> = {
+  Inbound: "bg-primary/20 text-[#556500]",
+  Outbound: "bg-[#f1f3f2] text-ink",
+  Adjustment: "bg-[#767961]/20 text-[#767961]",
+};
+
+const movementIcon: Record<MovementType, typeof ArrowDown> = {
+  Inbound: ArrowDown,
+  Outbound: ArrowUp,
+  Adjustment: PencilLine,
+};
+
+const movements: Movement[] = [
+  {
+    item: "Carrara White Slab",
+    reference: "PO-2023-089",
+    type: "Inbound",
+    quantity: 12,
+    unit: "boxes",
+    by: "J. Mugisha",
+    time: "10 min ago",
+  },
+  {
+    item: "Absolute Black Granite",
+    reference: "ORD-9921",
+    type: "Outbound",
+    quantity: -3,
+    unit: "boxes",
+    by: "A. Uwase",
+    time: "1 hr ago",
+  },
+  {
+    item: "Statuario Mosaics",
+    reference: "Adj-User-JD",
+    type: "Adjustment",
+    quantity: -1,
+    unit: "box",
+    by: "J. Doe",
+    time: "3 hrs ago",
+  },
+  {
+    item: "Calacatta Gold Slab",
+    reference: "PO-2023-091",
+    type: "Inbound",
+    quantity: 24,
+    unit: "boxes",
+    by: "J. Mugisha",
+    time: "5 hrs ago",
+  },
+  {
+    item: "Nero Marquina Tiles",
+    reference: "ORD-9918",
+    type: "Outbound",
+    quantity: -8,
+    unit: "boxes",
+    by: "A. Uwase",
+    time: "7 hrs ago",
+  },
+  {
+    item: "Emperador Dark Mosaics",
+    reference: "Adj-User-KP",
+    type: "Adjustment",
+    quantity: 2,
+    unit: "boxes",
+    by: "K. Peace",
+    time: "Yesterday",
+  },
+  {
+    item: "Botticino Classico Slab",
+    reference: "PO-2023-085",
+    type: "Inbound",
+    quantity: 16,
+    unit: "boxes",
+    by: "J. Mugisha",
+    time: "Yesterday",
+  },
+  {
+    item: "Travertine Noce Tiles",
+    reference: "ORD-9905",
+    type: "Outbound",
+    quantity: -5,
+    unit: "boxes",
+    by: "A. Uwase",
+    time: "2 days ago",
+  },
+  {
+    item: "Thassos White Mosaics",
+    reference: "Adj-User-JD-02",
+    type: "Adjustment",
+    quantity: -2,
+    unit: "boxes",
+    by: "J. Doe",
+    time: "2 days ago",
+  },
+  {
+    item: "Crema Marfil Slab",
+    reference: "PO-2023-080",
+    type: "Inbound",
+    quantity: 30,
+    unit: "boxes",
+    by: "J. Mugisha",
+    time: "3 days ago",
+  },
+];
+
+const movementFilters = ["All", "Inbound", "Outbound", "Adjustment"] as const;
+
+const formatSignedQuantity = (quantity: number, unit: Movement["unit"]) =>
+  `${quantity > 0 ? "+" : quantity < 0 ? "−" : ""}${Math.abs(quantity)} ${unit}`;
 
 const chartData = {
   7: [
@@ -85,19 +226,72 @@ const RevenueTooltip = ({
   );
 };
 
+const MovementSummaryCard = ({
+  icon: Icon,
+  label,
+  value,
+  valueTone = "text-ink",
+}: {
+  icon: typeof ArrowDownToLine;
+  label: string;
+  value: string;
+  valueTone?: string;
+}) => (
+  <div className="rounded-xl border border-[#edf0eb] bg-white p-4 shadow-sm">
+    <div className="flex items-center gap-2">
+      <span className="flex size-8 items-center justify-center rounded-lg bg-secondary text-ink">
+        <Icon className="size-4" strokeWidth={2} />
+      </span>
+      <p className="text-[10px] font-bold tracking-wide text-muted uppercase">
+        {label}
+      </p>
+    </div>
+    <p className={cn("mt-3 text-2xl font-black tracking-tight", valueTone)}>
+      {value}
+    </p>
+  </div>
+);
+
 export default function StockReportsPage() {
   const [period, setPeriod] = useState<7 | 30 | 12>(30);
   const data = useMemo(() => chartData[period], [period]);
+  const [movementFilter, setMovementFilter] =
+    useState<(typeof movementFilters)[number]>("All");
+
+  const filteredMovements = useMemo(
+    () =>
+      movementFilter === "All"
+        ? movements
+        : movements.filter((movement) => movement.type === movementFilter),
+    [movementFilter],
+  );
+
+  const movementTotals = useMemo(() => {
+    const inbound = movements
+      .filter((movement) => movement.type === "Inbound")
+      .reduce((sum, movement) => sum + movement.quantity, 0);
+    const outbound = movements
+      .filter((movement) => movement.type === "Outbound")
+      .reduce((sum, movement) => sum + Math.abs(movement.quantity), 0);
+    const adjustments = movements.filter(
+      (movement) => movement.type === "Adjustment",
+    ).length;
+    return {
+      inbound,
+      outbound,
+      adjustments,
+      net: inbound - outbound,
+    };
+  }, []);
 
   return (
     <div className="mx-auto w-full max-w-[1070px]">
       <StockPageHeader
         title="Reports"
         subtitle="Comprehensive analytics and performance metrics for the Magnificat ecosystem."
-      />
-
-      <div className="mt-6 flex h-11 items-center rounded-xl border border-[#edf0eb] bg-white p-1 shadow-sm gap-1">
-        {(
+      >
+        <div className="flex h-11 shrink-0 items-center gap-1 rounded-xl border border-[#edf0eb] bg-white p-1 shadow-sm">
+          {(
             [
               [7, "7 DAYS"],
               [30, "30 DAYS"],
@@ -136,7 +330,8 @@ export default function StockReportsPage() {
           >
             <CalendarDays className="size-5" />
           </Button>
-      </div>
+        </div>
+      </StockPageHeader>
 
       <div className="mt-7 grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
         <section className="rounded-[14px] bg-white p-6 shadow-sm sm:p-8">
@@ -252,6 +447,172 @@ export default function StockReportsPage() {
           </section>
         </div>
       </div>
+
+      <section className="mt-6 rounded-[14px] bg-white p-6 shadow-sm sm:p-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-ink">Stock Movements</h2>
+            <p className="text-sm text-muted">
+              Inbound, outbound and adjustment activity across the warehouse.
+            </p>
+          </div>
+          <div className="flex h-9 items-center gap-1 rounded-lg border border-[#edf0eb] bg-white p-1 shadow-sm">
+            {movementFilters.map((filter) => (
+              <Button
+                key={filter}
+                type="button"
+                variant="ghost"
+                onClick={() => setMovementFilter(filter)}
+                className={cn(
+                  "h-7 rounded-md px-2.5 text-[11px] font-bold tracking-wide",
+                  movementFilter === filter
+                    ? "bg-ink text-primary hover:bg-ink/80 hover:text-primary/80"
+                    : "text-[#514c4d] hover:bg-[#f5f5f5]",
+                )}
+              >
+                {filter}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <MovementSummaryCard
+            icon={ArrowDownToLine}
+            label="Total Inbound"
+            value={`+${movementTotals.inbound} boxes`}
+            valueTone="text-[#556500]"
+          />
+          <MovementSummaryCard
+            icon={ArrowUpFromLine}
+            label="Total Outbound"
+            value={`−${movementTotals.outbound} boxes`}
+          />
+          <MovementSummaryCard
+            icon={PencilLine}
+            label="Adjustments"
+            value={`${movementTotals.adjustments}`}
+          />
+          <MovementSummaryCard
+            icon={Scale}
+            label="Net Change"
+            value={`${movementTotals.net >= 0 ? "+" : "−"}${Math.abs(movementTotals.net)} boxes`}
+            valueTone={movementTotals.net >= 0 ? "text-[#556500]" : "text-red-600"}
+          />
+        </div>
+
+        <div className="mt-6 hidden overflow-x-auto md:block">
+          <Table className="min-w-160">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Qty (Boxes)</TableHead>
+                <TableHead>By</TableHead>
+                <TableHead>Time</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredMovements.map((movement) => {
+                const Icon = movementIcon[movement.type];
+                return (
+                  <TableRow
+                    key={movement.reference}
+                    className="hover:bg-secondary/40"
+                  >
+                    <TableCell>
+                      <p className="text-sm font-bold text-ink">
+                        {movement.item}
+                      </p>
+                      <p className="mt-1 text-xs font-medium text-ink">
+                        {movement.reference}
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium",
+                          movementTone[movement.type],
+                        )}
+                      >
+                        <Icon className="size-3.5" />
+                        {movement.type}
+                      </span>
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        "font-data",
+                        movement.quantity < 0 ? "text-red-600" : "text-ink",
+                      )}
+                    >
+                      {formatSignedQuantity(movement.quantity, movement.unit)}
+                    </TableCell>
+                    <TableCell className="text-xs text-[#71809a]">
+                      {movement.by}
+                    </TableCell>
+                    <TableCell className="text-xs text-[#71809a]">
+                      {movement.time}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {filteredMovements.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="py-8 text-center text-sm text-muted"
+                  >
+                    No movements for this filter.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <ul className="mt-4 divide-y divide-[#e7e8e7] md:hidden">
+          {filteredMovements.map((movement) => {
+            const Icon = movementIcon[movement.type];
+            return (
+              <li
+                key={movement.reference}
+                className="flex items-start justify-between gap-3 py-4"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-ink">
+                    {movement.item}
+                  </p>
+                  <p className="mt-1 text-xs text-[#71809a]">
+                    {movement.reference} • {movement.by} • {movement.time}
+                  </p>
+                  <span
+                    className={cn(
+                      "mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs",
+                      movementTone[movement.type],
+                    )}
+                  >
+                    <Icon className="size-3.5" />
+                    {movement.type}
+                  </span>
+                </div>
+                <span
+                  className={cn(
+                    "font-data text-sm font-semibold",
+                    movement.quantity < 0 ? "text-red-600" : "text-ink",
+                  )}
+                >
+                  {formatSignedQuantity(movement.quantity, movement.unit)}
+                </span>
+              </li>
+            );
+          })}
+          {filteredMovements.length === 0 && (
+            <li className="py-8 text-center text-sm text-muted">
+              No movements for this filter.
+            </li>
+          )}
+        </ul>
+      </section>
 
       <div className="mt-6">
         <ConversionFunnel />
