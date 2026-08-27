@@ -68,7 +68,8 @@ const CustomerDetailPage = async ({ params }: CustomerDetailPageProps) => {
         title={customer.name}
         actions={
           <Button
-            type="button"
+            nativeButton={false}
+            render={<Link href={`/sales/orders/new?customer=${customer.slug}`} />}
             className="h-auto rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95 sm:px-5"
           >
             <Plus className="size-4" strokeWidth={2.2} />

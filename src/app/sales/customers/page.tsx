@@ -166,6 +166,7 @@ const CustomersPage = () => {
                   <Button
                     type="button"
                     variant="outline"
+                    onClick={() => router.push(`/sales/orders/new?customer=${customer.slug}`)}
                     className="h-auto rounded-md border-border py-2.5 text-xs font-bold tracking-wider text-ink uppercase transition-all hover:border-primary bg-transparent hover:bg-primary active:scale-95"
                   >
                     <ShoppingCart className="size-4" strokeWidth={1.9} />

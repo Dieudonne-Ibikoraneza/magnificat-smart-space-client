@@ -3,8 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowRight, Heart } from "lucide-react";
+import { ArrowRight, Check, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export type Product = {
   id: string;
@@ -41,17 +42,26 @@ export const ProductCard = ({
   list = false,
   showFavorite = true,
   detailsBasePath = "/products",
+  selectable = false,
+  selected = false,
+  onToggle,
 }: {
   product: Product;
   list?: boolean;
   showFavorite?: boolean;
   detailsBasePath?: string;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggle?: () => void;
 }) => {
   const [liked, setLiked] = useState(false);
 
   return (
     <article
-      className={`group relative flex overflow-hidden rounded-3xl bg-white shadow-sm transition-shadow hover:shadow-[0_8px_30px_rgba(15,39,71,0.10)] ${list ? "flex-col sm:flex-row" : "flex-col"}`}
+      className={cn(
+        `group relative flex overflow-hidden rounded-3xl bg-white shadow-sm transition-shadow hover:shadow-[0_8px_30px_rgba(15,39,71,0.10)] ${list ? "flex-col sm:flex-row" : "flex-col"}`,
+        selectable && selected && "ring-2 ring-primary",
+      )}
     >
       <div
         className={`relative shrink-0 overflow-hidden bg-muted-background ${list ? "aspect-[16/10] w-full sm:aspect-square sm:w-60" : "aspect-square w-full rounded-b-3xl"}`}
@@ -71,7 +81,21 @@ export const ProductCard = ({
           <span className="mr-1.5">•</span>
           {stockLabels[product.stockStatus]}
         </span>
-        {showFavorite ? (
+        {selectable && (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-pressed={selected}
+            aria-label={selected ? `Remove ${product.name} from order` : `Select ${product.name}`}
+            className={cn(
+              "absolute top-3 right-3 z-20 inline-flex size-9 items-center justify-center rounded-full shadow-sm transition-transform hover:scale-105",
+              selected ? "bg-primary text-ink" : "bg-white/90 text-transparent hover:bg-white",
+            )}
+          >
+            <Check className="size-5" strokeWidth={2.5} />
+          </button>
+        )}
+        {showFavorite && !selectable ? (
           <Button
             type="button"
             variant="ghost"
@@ -111,16 +135,18 @@ export const ProductCard = ({
             RWF {product.price.toLocaleString()}{" "}
             <span className="ml-1 text-xs font-normal text-muted">/ sqm</span>
           </p>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-11 rounded-full border border-slate-100 bg-muted-background text-ink hover:bg-primary hover:text-ink"
-            aria-label={`View ${product.name}`}
-            nativeButton={false}
-            render={<Link href={`${detailsBasePath}/${product.id}`} aria-label={`View ${product.name}`} />}
-          >
-            <ArrowRight className="size-5" />
-          </Button>
+          {!selectable && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-11 rounded-full border border-slate-100 bg-muted-background text-ink hover:bg-primary hover:text-ink"
+              aria-label={`View ${product.name}`}
+              nativeButton={false}
+              render={<Link href={`${detailsBasePath}/${product.id}`} aria-label={`View ${product.name}`} />}
+            >
+              <ArrowRight className="size-5" />
+            </Button>
+          )}
         </div>
       </div>
     </article>

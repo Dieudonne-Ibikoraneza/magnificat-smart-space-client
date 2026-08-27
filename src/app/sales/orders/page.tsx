@@ -79,11 +79,16 @@ const OrdersPage = () => {
 
   return (
     <>
-      <SalesPageHeader
-        title="Orders"
-        subtitle="Monitor progress and manage customer transaction history."
-        action={{ label: "New Order", icon: UserPlus }}
-      />
+      <SalesPageHeader title="Orders" subtitle="Monitor progress and manage customer transaction history.">
+        <Button
+          type="button"
+          onClick={() => router.push("/sales/orders/new")}
+          className="h-11 gap-2 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
+        >
+          <UserPlus className="size-4" />
+          New Order
+        </Button>
+      </SalesPageHeader>
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
         <section className="rounded-2xl bg-card p-4 sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center">

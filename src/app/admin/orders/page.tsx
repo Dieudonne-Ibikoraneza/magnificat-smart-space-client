@@ -8,6 +8,7 @@ import {
   LayoutList,
   ListFilter,
   Search,
+  UserPlus,
 } from "lucide-react";
 import { AdminPageHeader } from "@/app/admin/layout";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
@@ -79,7 +80,14 @@ const OrdersPage = () => {
   return (
     <>
       <AdminPageHeader title="Orders" subtitle="Monitor progress and manage customer transaction history.">
-        <button type="button" className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg sm:px-6 sm:py-3.5">New Order</button>
+        <Button
+          type="button"
+          onClick={() => router.push("/admin/orders/new")}
+          className="h-11 gap-2 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
+        >
+          <UserPlus className="size-4" />
+          New Order
+        </Button>
       </AdminPageHeader>
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
         <section className="rounded-2xl bg-card p-4 sm:p-5">

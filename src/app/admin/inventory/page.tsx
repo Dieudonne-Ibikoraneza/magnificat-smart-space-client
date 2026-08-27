@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import {
   ArrowUpRight,
   ChartNoAxesColumn,
+  Check,
   ChevronsLeft,
   ChevronsRight,
   Eye,
@@ -83,13 +84,24 @@ const getStatus = (product: Product) => statusStyles[product.stockStatus];
 
 export const AdminInventoryProductCard = ({
   product,
+  selectable = false,
+  selected = false,
+  onToggle,
 }: {
   product: (typeof inventoryProducts)[number];
+  selectable?: boolean;
+  selected?: boolean;
+  onToggle?: () => void;
 }) => {
   const status = getStatus(product);
 
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-3xl bg-white shadow-sm transition-shadow hover:shadow-[0_8px_30px_rgba(15,39,71,0.10)]">
+    <article
+      className={cn(
+        "group relative flex flex-col overflow-hidden rounded-3xl bg-white shadow-sm transition-shadow hover:shadow-[0_8px_30px_rgba(15,39,71,0.10)]",
+        selectable && selected && "ring-2 ring-primary",
+      )}
+    >
       <div className="relative aspect-square w-full shrink-0 overflow-hidden rounded-b-3xl bg-muted-background">
         <Image
           src={product.image}
@@ -110,13 +122,28 @@ export const AdminInventoryProductCard = ({
           {status.label}
         </span>
 
-        <Link
-          href={`/admin/inventory/${product.id}`}
-          aria-label={`Open ${product.displayName} inventory details`}
-          className="absolute top-3 right-3 z-10 inline-flex size-9 items-center justify-center rounded-full bg-white/95 text-ink shadow-sm transition-transform hover:scale-105 hover:bg-white"
-        >
-          <ArrowUpRight className="size-5" strokeWidth={2.25} />
-        </Link>
+        {selectable ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-pressed={selected}
+            aria-label={selected ? `Remove ${product.displayName} from order` : `Select ${product.displayName}`}
+            className={cn(
+              "absolute top-3 right-3 z-10 inline-flex size-9 items-center justify-center rounded-full shadow-sm transition-transform hover:scale-105",
+              selected ? "bg-primary text-ink" : "bg-white/95 text-transparent hover:bg-white",
+            )}
+          >
+            <Check className="size-5" strokeWidth={2.5} />
+          </button>
+        ) : (
+          <Link
+            href={`/admin/inventory/${product.id}`}
+            aria-label={`Open ${product.displayName} inventory details`}
+            className="absolute top-3 right-3 z-10 inline-flex size-9 items-center justify-center rounded-full bg-white/95 text-ink shadow-sm transition-transform hover:scale-105 hover:bg-white"
+          >
+            <ArrowUpRight className="size-5" strokeWidth={2.25} />
+          </Link>
+        )}
 
         <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-ink/35 via-ink/10 to-transparent px-3 pb-3 pt-10 sm:px-4 sm:pb-4">
           <div className="flex items-center justify-between gap-3 rounded-full bg-white/95 px-3.5 py-2.5 shadow-[0_8px_24px_rgba(15,39,71,0.18)] backdrop-blur-sm sm:px-4 sm:py-3">
@@ -152,27 +179,29 @@ export const AdminInventoryProductCard = ({
             <span className="text-sm font-medium text-muted">pcs</span>
           </p>
 
-          <div className="flex items-center overflow-hidden rounded-full bg-primary shadow-sm">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="rounded-none text-ink hover:bg-white/45"
-              aria-label={`Edit ${product.displayName}`}
-            >
-              <Pencil className="size-4" strokeWidth={2.25} />
-            </Button>
-            <span className="h-4 w-px bg-ink/15" aria-hidden="true" />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="rounded-none text-ink hover:bg-white/45 hover:text-red-600"
-              aria-label={`Delete ${product.displayName}`}
-            >
-              <Trash2 className="size-4" strokeWidth={2.25} />
-            </Button>
-          </div>
+          {!selectable && (
+            <div className="flex items-center overflow-hidden rounded-full bg-primary shadow-sm">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="rounded-none text-ink hover:bg-white/45"
+                aria-label={`Edit ${product.displayName}`}
+              >
+                <Pencil className="size-4" strokeWidth={2.25} />
+              </Button>
+              <span className="h-4 w-px bg-ink/15" aria-hidden="true" />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="rounded-none text-ink hover:bg-white/45 hover:text-red-600"
+                aria-label={`Delete ${product.displayName}`}
+              >
+                <Trash2 className="size-4" strokeWidth={2.25} />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </article>

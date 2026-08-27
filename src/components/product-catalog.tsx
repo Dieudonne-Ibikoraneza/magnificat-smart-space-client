@@ -52,7 +52,7 @@ import {
   type SortOption,
 } from "@/lib/catalog-utils";
 
-const FilterOptionsCard = ({
+export const FilterOptionsCard = ({
   bare = false,
   filters,
   onToggle,
