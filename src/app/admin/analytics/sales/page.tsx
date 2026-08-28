@@ -15,6 +15,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { AdminPageHeader } from "@/app/admin/layout";
+import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CategoryBarChart } from "@/components/category-bar-chart";
@@ -371,16 +372,21 @@ const RecentOrders = () => {
   );
 };
 
-const AdminAnalyticsSalesPage = () => (
+const AdminAnalyticsSalesPage = () => {
+  const [period, setPeriod] = useState<AnalyticsPeriodDays>(7);
+
+  return (
   <>
     <AdminPageHeader
       title="Sales Analytics"
       subtitle="Review revenue performances, order trends and top-selling products."
-    />
+    >
+      <AnalyticsPeriodSwitcher period={period} onChange={setPeriod} />
+    </AdminPageHeader>
     <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
       <KpiCards />
       <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
-        <RevenueTrendChart title="Revenue Trends" subtitle="Total Sales over selected period in RWF" />
+        <RevenueTrendChart title="Revenue Trends" subtitle="Total Sales over selected period in RWF" range={periodToRange[period]} />
         <CategoryBarChart
           title="Project Types"
           subtitle="Revenue distribution across room types"
@@ -399,6 +405,7 @@ const AdminAnalyticsSalesPage = () => (
       <RecentOrders />
     </div>
   </>
-);
+  );
+};
 
 export default AdminAnalyticsSalesPage;

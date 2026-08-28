@@ -37,11 +37,11 @@ export const QuantityCalculator = ({ product }: { product: Product }) => {
         {product.size}: {formatNumber(product.tileArea)} m² per piece · {formatNumber(product.boxCoverage)} m² per box · {product.piecesPerBox} pcs per box
       </p>
       <dl className="mt-6 space-y-4 border-t border-slate-100 pt-6 text-sm">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4"><dt className="text-base font-bold text-ink">Total quantity</dt><dd className="text-xl font-bold text-ink">{formatNumber(calculation.purchasedArea)} sqm</dd></div>
         <div className="flex justify-between"><dt className="text-muted">Complete boxes</dt><dd className="font-bold text-ink">{calculation.completeBoxes}</dd></div>
         <div className="flex justify-between"><dt className="text-muted">Remaining area</dt><dd className="font-bold text-ink">{formatNumber(calculation.remainingArea)} m²</dd></div>
         <div className="flex justify-between"><dt className="text-muted">Additional pieces</dt><dd className="font-bold text-ink">{calculation.remainingPieces}</dd></div>
-        <div className="flex items-center justify-between border-t border-slate-100 pt-4"><dt className="text-base font-bold text-ink">Total quantity</dt><dd className="text-xl font-bold text-ink">{calculation.completeBoxes} boxes + {calculation.remainingPieces} pcs</dd></div>
-        <div className="flex justify-between text-xs text-muted"><dt>Equivalent total</dt><dd>{calculation.totalPieces} pieces · {formatNumber(calculation.purchasedArea)} m²</dd></div>
+        <div className="flex justify-between text-xs text-muted"><dt>Equivalent (conversion)</dt><dd>{calculation.completeBoxes} boxes + {calculation.remainingPieces} pcs · {calculation.totalPieces} pieces total</dd></div>
       </dl>
     </section>
   );

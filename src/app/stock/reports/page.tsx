@@ -40,8 +40,8 @@ type Movement = {
   item: string;
   reference: string;
   type: MovementType;
+  /** Quantity moved, in sqm — sqm is the unit stock is tracked in. */
   quantity: number;
-  unit: "boxes" | "box";
   by: string;
   time: string;
 };
@@ -63,8 +63,7 @@ const movements: Movement[] = [
     item: "Carrara White Slab",
     reference: "PO-2023-089",
     type: "Inbound",
-    quantity: 12,
-    unit: "boxes",
+    quantity: 21,
     by: "J. Mugisha",
     time: "10 min ago",
   },
@@ -72,8 +71,7 @@ const movements: Movement[] = [
     item: "Absolute Black Granite",
     reference: "ORD-9921",
     type: "Outbound",
-    quantity: -3,
-    unit: "boxes",
+    quantity: -5,
     by: "A. Uwase",
     time: "1 hr ago",
   },
@@ -81,8 +79,7 @@ const movements: Movement[] = [
     item: "Statuario Mosaics",
     reference: "Adj-User-JD",
     type: "Adjustment",
-    quantity: -1,
-    unit: "box",
+    quantity: -2,
     by: "J. Doe",
     time: "3 hrs ago",
   },
@@ -90,8 +87,7 @@ const movements: Movement[] = [
     item: "Calacatta Gold Slab",
     reference: "PO-2023-091",
     type: "Inbound",
-    quantity: 24,
-    unit: "boxes",
+    quantity: 42,
     by: "J. Mugisha",
     time: "5 hrs ago",
   },
@@ -99,8 +95,7 @@ const movements: Movement[] = [
     item: "Nero Marquina Tiles",
     reference: "ORD-9918",
     type: "Outbound",
-    quantity: -8,
-    unit: "boxes",
+    quantity: -14,
     by: "A. Uwase",
     time: "7 hrs ago",
   },
@@ -108,8 +103,7 @@ const movements: Movement[] = [
     item: "Emperador Dark Mosaics",
     reference: "Adj-User-KP",
     type: "Adjustment",
-    quantity: 2,
-    unit: "boxes",
+    quantity: 4,
     by: "K. Peace",
     time: "Yesterday",
   },
@@ -117,8 +111,7 @@ const movements: Movement[] = [
     item: "Botticino Classico Slab",
     reference: "PO-2023-085",
     type: "Inbound",
-    quantity: 16,
-    unit: "boxes",
+    quantity: 28,
     by: "J. Mugisha",
     time: "Yesterday",
   },
@@ -126,8 +119,7 @@ const movements: Movement[] = [
     item: "Travertine Noce Tiles",
     reference: "ORD-9905",
     type: "Outbound",
-    quantity: -5,
-    unit: "boxes",
+    quantity: -9,
     by: "A. Uwase",
     time: "2 days ago",
   },
@@ -135,8 +127,7 @@ const movements: Movement[] = [
     item: "Thassos White Mosaics",
     reference: "Adj-User-JD-02",
     type: "Adjustment",
-    quantity: -2,
-    unit: "boxes",
+    quantity: -3,
     by: "J. Doe",
     time: "2 days ago",
   },
@@ -144,8 +135,7 @@ const movements: Movement[] = [
     item: "Crema Marfil Slab",
     reference: "PO-2023-080",
     type: "Inbound",
-    quantity: 30,
-    unit: "boxes",
+    quantity: 52,
     by: "J. Mugisha",
     time: "3 days ago",
   },
@@ -153,8 +143,8 @@ const movements: Movement[] = [
 
 const movementFilters = ["All", "Inbound", "Outbound", "Adjustment"] as const;
 
-const formatSignedQuantity = (quantity: number, unit: Movement["unit"]) =>
-  `${quantity > 0 ? "+" : quantity < 0 ? "−" : ""}${Math.abs(quantity)} ${unit}`;
+const formatSignedQuantity = (quantity: number) =>
+  `${quantity > 0 ? "+" : quantity < 0 ? "−" : ""}${Math.abs(quantity)} sqm`;
 
 const chartData = {
   7: [
@@ -480,13 +470,13 @@ export default function StockReportsPage() {
           <MovementSummaryCard
             icon={ArrowDownToLine}
             label="Total Inbound"
-            value={`+${movementTotals.inbound} boxes`}
+            value={`+${movementTotals.inbound} sqm`}
             valueTone="text-[#556500]"
           />
           <MovementSummaryCard
             icon={ArrowUpFromLine}
             label="Total Outbound"
-            value={`−${movementTotals.outbound} boxes`}
+            value={`−${movementTotals.outbound} sqm`}
           />
           <MovementSummaryCard
             icon={PencilLine}
@@ -496,7 +486,7 @@ export default function StockReportsPage() {
           <MovementSummaryCard
             icon={Scale}
             label="Net Change"
-            value={`${movementTotals.net >= 0 ? "+" : "−"}${Math.abs(movementTotals.net)} boxes`}
+            value={`${movementTotals.net >= 0 ? "+" : "−"}${Math.abs(movementTotals.net)} sqm`}
             valueTone={movementTotals.net >= 0 ? "text-[#556500]" : "text-red-600"}
           />
         </div>
@@ -545,7 +535,7 @@ export default function StockReportsPage() {
                         movement.quantity < 0 ? "text-red-600" : "text-ink",
                       )}
                     >
-                      {formatSignedQuantity(movement.quantity, movement.unit)}
+                      {formatSignedQuantity(movement.quantity)}
                     </TableCell>
                     <TableCell className="text-xs text-[#71809a]">
                       {movement.by}
@@ -601,7 +591,7 @@ export default function StockReportsPage() {
                     movement.quantity < 0 ? "text-red-600" : "text-ink",
                   )}
                 >
-                  {formatSignedQuantity(movement.quantity, movement.unit)}
+                  {formatSignedQuantity(movement.quantity)}
                 </span>
               </li>
             );

@@ -3,8 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, X } from "lucide-react";
+import { X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { LogoutButton } from "@/components/logout-button";
 
 export type DashboardSidebarLink = {
   href: string;
@@ -107,13 +108,7 @@ export const DashboardSidebar = ({
               {user.email}
             </p>
           </div>
-          <button
-            type="button"
-            aria-label="Sign out"
-            className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"
-          >
-            <LogOut className="size-5" strokeWidth={1.8} />
-          </button>
+          <LogoutButton className="text-destructive hover:bg-destructive/10" />
         </div>
       </div>
     </aside>

@@ -7,8 +7,8 @@ import {
   CalendarDays,
   Check,
   Clock,
+  Headset,
   History,
-  MapPin,
   Printer,
   Wallet,
 } from "lucide-react";
@@ -31,6 +31,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CustomerQuotationCard } from "@/components/customer-quotation-card";
+import { DeliveryDetailsCard } from "@/components/delivery-details-card";
+import { OrderSupportDialog } from "@/components/order-support-dialog";
 import { getAccountOrder } from "@/data/account-orders";
 
 type AccountOrderDetailsProps = { params: Promise<{ id: string }> };
@@ -81,9 +84,19 @@ const AccountOrderDetailsPage = async ({ params }: AccountOrderDetailsProps) => 
               <Clock className="size-4" /> Placed on {order.date}
             </div>
           </div>
-          <Button type="button" variant="outline" className="h-auto gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase">
-            <Printer className="size-4" /> Print Invoice
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <OrderSupportDialog
+              reason="edit"
+              trigger={
+                <Button type="button" variant="outline" className="h-auto gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase">
+                  <Headset className="size-4" /> Need Changes?
+                </Button>
+              }
+            />
+            <Button type="button" variant="outline" className="h-auto gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase">
+              <Printer className="size-4" /> Print Invoice
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -147,10 +160,9 @@ const AccountOrderDetailsPage = async ({ params }: AccountOrderDetailsProps) => 
           </section>
 
           <div className="space-y-5 sm:space-y-6">
-            <section className="rounded-2xl bg-white p-5 sm:p-6">
-              <div className="flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-lg bg-secondary"><MapPin className="size-5" /></span><h2 className="text-lg font-bold text-ink sm:text-xl">Customer Info</h2></div>
-              <div className="mt-5 flex items-start gap-3 text-sm"><MapPin className="mt-0.5 size-4 shrink-0 text-muted" /><div><p className="text-[11px] font-bold tracking-wider text-muted uppercase">Delivery Address</p><p className="mt-1 text-ink">Kigali, Rwanda</p></div></div>
-            </section>
+            <DeliveryDetailsCard initial={order.deliveryDetails} />
+
+            <CustomerQuotationCard orderId={order.id} subtotalValue={order.total} quotation={order.quotation} />
 
             <section className="rounded-2xl bg-white p-5 sm:p-6">
               <div className="flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-lg bg-secondary"><History className="size-5" /></span><h2 className="text-lg font-bold text-ink sm:text-xl">Timeline</h2></div>
@@ -168,6 +180,18 @@ const AccountOrderDetailsPage = async ({ params }: AccountOrderDetailsProps) => 
                   </li>
                 ))}
               </ol>
+              {order.status !== "Delivered" && (
+                <div className="mt-6 border-t border-slate-100 pt-4">
+                  <OrderSupportDialog
+                    reason="stuck"
+                    trigger={
+                      <button type="button" className="flex items-center gap-1.5 text-xs font-semibold text-ink hover:underline">
+                        <Headset className="size-3.5" /> Order not moving? Contact support
+                      </button>
+                    }
+                  />
+                </div>
+              )}
             </section>
           </div>
         </div>

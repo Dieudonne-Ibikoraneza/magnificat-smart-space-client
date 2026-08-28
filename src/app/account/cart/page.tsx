@@ -2,9 +2,17 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ExternalLink, Plus, Minus, ShoppingCart, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, ExternalLink, Plus, Minus, ShoppingCart, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { DeliveryDetailsDialog } from "@/components/delivery-details-dialog";
+import { CartNegotiationChat } from "@/components/cart-negotiation-chat";
+import { stockLabels, stockStyles } from "@/components/product-card";
+import { toast } from "@/components/ui/toast";
+import { products } from "@/data/catalog";
+import type { DeliveryDetails } from "@/data/order-workflow";
+import { getStockShortage } from "@/lib/stock-availability";
 
 type CartItem = {
   id: string;
@@ -37,17 +45,51 @@ const formatPrice = (value: number) => `RWF ${value.toLocaleString()}`;
 
 const CartPage = () => {
   const [items, setItems] = useState(initialCart);
+  const [submitted, setSubmitted] = useState<{ deliveryDetails: DeliveryDetails } | null>(null);
   const subtotal = useMemo(
     () =>
       items.reduce((total, item) => total + item.quantity * item.unitPrice, 0),
     [items],
   );
 
+  const shortages = useMemo(
+    () =>
+      items
+        .map((item) => {
+          const product = products.find((candidate) => candidate.id === item.id);
+          return product ? getStockShortage(product, item.quantity) : null;
+        })
+        .filter((shortage): shortage is NonNullable<typeof shortage> => shortage !== null),
+    [items],
+  );
+
+  const shortageFor = (id: string) => shortages.find((shortage) => shortage.productId === id);
+
+  const handleOrderSubmit = (deliveryDetails: DeliveryDetails) => {
+    setSubmitted({ deliveryDetails });
+    setItems([]);
+    toast.success("Order submitted", {
+      description: "Sent to our stock team for review. You'll find it under My Orders once it's confirmed.",
+    });
+  };
+
   const updateQuantity = (id: string, change: number) => {
     setItems((current) =>
       current.map((item) =>
         item.id === id
-          ? { ...item, quantity: Math.max(1, item.quantity + change) }
+          ? { ...item, quantity: Math.round(Math.max(0.01, item.quantity + change) * 100) / 100 }
+          : item,
+      ),
+    );
+  };
+
+  /** Lets the customer type an exact sqm amount (decimals included), not just nudge by whole units. */
+  const setQuantityDirect = (id: string, raw: string) => {
+    const parsed = Number(raw);
+    setItems((current) =>
+      current.map((item) =>
+        item.id === id
+          ? { ...item, quantity: raw === "" ? 0 : Number.isFinite(parsed) ? Math.max(0, parsed) : item.quantity }
           : item,
       ),
     );
@@ -64,6 +106,30 @@ const CartPage = () => {
 
   const printQuotation = () => window.print();
 
+  if (submitted) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <div className="flex flex-col items-center rounded-3xl bg-white px-6 py-14 text-center shadow-sm">
+          <span className="flex size-16 items-center justify-center rounded-full bg-green-100 text-green-600">
+            <CheckCircle2 className="size-8" />
+          </span>
+          <h1 className="mt-5 text-2xl font-bold text-ink">Order submitted</h1>
+          <p className="mt-2 max-w-md text-sm text-muted">
+            Thanks — your order has been sent to our stock team for review. We&apos;ll prepare a full quotation, including transport fees and payment details, and notify you here once it&apos;s ready.
+          </p>
+          <div className="mt-6 w-full max-w-sm rounded-2xl bg-[#F9FAFB] p-4 text-left text-sm">
+            <p className="text-[11px] font-bold tracking-wider text-muted uppercase">Delivery to</p>
+            <p className="mt-1 font-semibold text-ink">{submitted.deliveryDetails.contactName} · {submitted.deliveryDetails.phone}</p>
+            <p className="text-muted">{submitted.deliveryDetails.address}, {submitted.deliveryDetails.city}</p>
+          </div>
+          <Button nativeButton={false} render={<Link href="/account/orders" />} className="mt-6 h-11 gap-2 px-5">
+            View My Orders <ArrowRight className="size-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-360 mx-auto">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
@@ -71,14 +137,25 @@ const CartPage = () => {
           <strong>Your selection</strong>
           {" "}<span className="font-normal">({items.length} items)</span>
         </h1>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => setItems([])}
-          className="gap-2 px-0 text-red-500 hover:bg-transparent hover:text-red-600"
-        >
-          <Trash2 className="size-5" /> Clear Cart
-        </Button>
+        <ConfirmDialog
+          trigger={
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={items.length === 0}
+              className="gap-2 px-0 text-red-500 hover:bg-transparent hover:text-red-600 disabled:opacity-40"
+            >
+              <Trash2 className="size-5" /> Clear Cart
+            </Button>
+          }
+          title="Clear your cart?"
+          description="This removes every item from your selection. This can't be undone."
+          confirmLabel="Clear cart"
+          onConfirm={() => {
+            setItems([]);
+            toast.success("Cart cleared");
+          }}
+        />
       </div>
       <div className="mx-auto grid gap-8 xl:grid-cols-[minmax(0,1fr)_420px]">
         <section>
@@ -97,7 +174,9 @@ const CartPage = () => {
                 </Button>
               </div>
             ) : (
-              items.map((item) => (
+              items.map((item) => {
+                const shortage = shortageFor(item.id);
+                return (
                 <article
                   key={item.id}
                   className="grid overflow-hidden rounded-2xl bg-white shadow-sm sm:grid-cols-[220px_minmax(0,1fr)]"
@@ -159,9 +238,17 @@ const CartPage = () => {
                         >
                           <Minus className="size-3.5" />
                         </Button>
-                        <span className="min-w-10 text-center">
-                          {item.quantity}
-                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          inputMode="decimal"
+                          value={item.quantity}
+                          onChange={(event) => setQuantityDirect(item.id, event.target.value)}
+                          onFocus={(event) => event.target.select()}
+                          aria-label={`Quantity for ${item.name}, in sqm`}
+                          className="h-9 w-16 border-x border-slate-200 text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        />
                         <Button
                           type="button"
                           variant="ghost"
@@ -178,12 +265,24 @@ const CartPage = () => {
                         <strong>{formatPrice(item.unitPrice)}</strong> /sqm
                       </p>
                     </div>
+                    {shortage && (
+                      <p
+                        className={`mt-3 flex items-start gap-2 rounded-lg border px-3 py-2.5 text-xs font-medium ${stockStyles[shortage.status]}`}
+                      >
+                        <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                        <span>
+                          <span className="font-bold">{stockLabels[shortage.status]}.</span>{" "}
+                          Your requested quantity isn&apos;t fully available — chat with our stock team below to negotiate it.
+                        </span>
+                      </p>
+                    )}
                     <p className="mt-6 text-xl font-bold text-ink">
                       {formatPrice(item.quantity * item.unitPrice)}
                     </p>
                   </div>
                 </article>
-              ))
+                );
+              })
             )}
           </div>
         </section>
@@ -197,13 +296,24 @@ const CartPage = () => {
             <strong>Total Cost</strong>
             <strong className="text-2xl">{formatPrice(subtotal)}</strong>
           </div>
-          <Button
-            type="button"
-            disabled={items.length === 0}
-            className="relative h-14 w-full justify-center px-5 text-base font-bold disabled:pointer-events-auto disabled:cursor-not-allowed"
-          >
-            Place Order <ArrowRight className="absolute right-5 size-5" />
-          </Button>
+          <DeliveryDetailsDialog
+            onSubmit={handleOrderSubmit}
+            trigger={
+              <Button
+                type="button"
+                disabled={items.length === 0 || shortages.length > 0}
+                className="relative h-14 w-full justify-center px-5 text-base font-bold disabled:pointer-events-auto disabled:cursor-not-allowed"
+              >
+                Place Order <ArrowRight className="absolute right-5 size-5" />
+              </Button>
+            }
+          />
+          {shortages.length > 0 && (
+            <p className="mt-3 text-center text-xs font-medium text-amber-800">
+              We can&apos;t place this order yet — {shortages.length === 1 ? "one item exceeds" : `${shortages.length} items exceed`} what&apos;s
+              currently in stock. Chat with our stock team below to work it out.
+            </p>
+          )}
           <div className="my-5 flex items-center gap-4 text-sm text-muted">
             <span className="h-px flex-1 bg-slate-200" />
             OR
@@ -220,6 +330,8 @@ const CartPage = () => {
           </Button>
         </aside>
       </div>
+
+      <CartNegotiationChat shortages={shortages} />
 
       <section id="quotation-print" aria-hidden="true" className="quotation-printable mx-auto max-w-4xl bg-white p-5 text-ink sm:p-10">
         <header className="flex items-start justify-between gap-8 border-b border-slate-200 pb-6">

@@ -2,7 +2,9 @@
 
 import { createContext, useContext, useState } from "react";
 import {
+  BookOpen,
   Bot,
+  Box,
   Boxes,
   LayoutGrid,
   Layers,
@@ -32,6 +34,8 @@ const navigation = [
   { label: "Stock & Inventory", href: "/admin/inventory", icon: ShelvingUnit, section: "Operations" },
   { label: "Customers", href: "/admin/customers", icon: User, section: "Operations" },
   { label: "Collections", href: "/admin/collections", icon: Layers, section: "Operations" },
+  { label: "3D Rooms", href: "/admin/rooms", icon: Box, section: "Content" },
+  { label: "Knowledge Base", href: "/admin/knowledge-base", icon: BookOpen, section: "Content" },
   { label: "Customer Analytics", href: "/admin/analytics/customers", icon: Users, section: "Analytics" },
   { label: "Sales Analytics", href: "/admin/analytics/sales", icon: WalletCards, section: "Analytics" },
   { label: "Tiles Analytics", href: "/admin/analytics/tiles", icon: Boxes, section: "Analytics" },

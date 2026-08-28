@@ -23,6 +23,7 @@ import {
   Minus,
 } from "lucide-react";
 import { AnalyticsPageHeader } from "@/app/analytics/layout";
+import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays, type AnalyticsRange } from "@/components/analytics-period-switcher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,10 +59,17 @@ const PAGE_SIZE = 10;
 const TOTAL_PAGES = 103;
 const TOTAL_RESULTS = 842;
 
-const kpis = [
+const baseTotalRecommendations = 1_220_291;
+const totalRecommendationsByPeriod: Record<AnalyticsRange, string> = {
+  WEEKLY: Math.round(baseTotalRecommendations * 0.24).toLocaleString("en-US"),
+  MONTHLY: baseTotalRecommendations.toLocaleString("en-US"),
+  YEARLY: Math.round(baseTotalRecommendations * 11.8).toLocaleString("en-US"),
+};
+
+const getKpis = (range: AnalyticsRange) => [
   {
     label: "Total Recommendations",
-    value: "1,220,291",
+    value: totalRecommendationsByPeriod[range],
     change: "12.4%",
     icon: BroomSparkles,
   },
@@ -150,7 +158,7 @@ const stockLevelText = {
 
 const filteredProducts = inventoryProducts.slice(0, PAGE_SIZE);
 
-const KpiCards = () => (
+const KpiCards = ({ kpis }: { kpis: ReturnType<typeof getKpis> }) => (
   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
     {kpis.map((kpi) => {
       const Icon = kpi.icon;
@@ -272,7 +280,7 @@ const TopRecommendedProducts = () => (
                       stockLevelDot[product.soldStockLevel],
                     )}
                   />
-                  {product.currentStock.toLocaleString()} pcs
+                  {product.currentStock.toLocaleString()} sqm
                 </span>
               </TableCell>
               <TableCell className="whitespace-nowrap">
@@ -288,7 +296,7 @@ const TopRecommendedProducts = () => (
                       stockLevelDot[product.soldStockLevel],
                     )}
                   />
-                  {product.soldStock.toLocaleString()} pcs
+                  {product.soldStock.toLocaleString()} sqm
                 </span>
               </TableCell>
               <TableCell className="whitespace-nowrap text-ink">
@@ -388,7 +396,7 @@ const TileCard = ({
         <div className="mt-auto flex items-center justify-between gap-3 pt-4 sm:pt-5">
           <p className="text-xl font-bold text-ink">
             {product.quantity.toLocaleString()}{" "}
-            <span className="text-sm font-medium text-muted">pcs</span>
+            <span className="text-sm font-medium text-muted">sqm</span>
           </p>
           <Link
             href={`/stock/inventory/${product.id}`}
@@ -618,18 +626,24 @@ const AllProducts = () => {
   );
 };
 
-const AnalyticsAiPage = () => (
-  <>
-    <AnalyticsPageHeader
-      title="AI Analytics"
-      subtitle="Monitor how automated suggestions drive customer engagement and product discovery across the platform."
-    />
-    <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
-      <KpiCards />
-      <TopRecommendedProducts />
-      <AllProducts />
-    </div>
-  </>
-);
+const AnalyticsAiPage = () => {
+  const [period, setPeriod] = useState<AnalyticsPeriodDays>(30);
+
+  return (
+    <>
+      <AnalyticsPageHeader
+        title="AI Analytics"
+        subtitle="Monitor how automated suggestions drive customer engagement and product discovery across the platform."
+      >
+        <AnalyticsPeriodSwitcher period={period} onChange={setPeriod} />
+      </AnalyticsPageHeader>
+      <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
+        <KpiCards kpis={getKpis(periodToRange[period])} />
+        <TopRecommendedProducts />
+        <AllProducts />
+      </div>
+    </>
+  );
+};
 
 export default AnalyticsAiPage;

@@ -25,13 +25,19 @@ export type Product = {
   suitableFor: "floor" | "wall" | "both";
 };
 
-const stockStyles = {
+/**
+ * Shared status → label/color mapping. Customer-facing surfaces show this
+ * status instead of exact on-hand quantities — precise stock counts are for
+ * staff only (see `getStockShortage`'s `status` field and its customer-facing
+ * callers in the cart and stock negotiation chat).
+ */
+export const stockStyles = {
   in_stock: "bg-green-50 text-green-700 border-green-200",
-  low_stock: "bg-white/90 text-amber border-amber/30",
+  low_stock: "bg-amber-50 text-amber-800 border-amber-200",
   out_of_stock: "bg-red-50 text-red-700 border-red-200",
 };
 
-const stockLabels = {
+export const stockLabels = {
   in_stock: "In stock",
   low_stock: "Low stock",
   out_of_stock: "Out of stock",

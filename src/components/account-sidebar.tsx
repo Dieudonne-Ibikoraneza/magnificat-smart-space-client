@@ -6,19 +6,21 @@ import {
   History,
   Settings,
   ShoppingCart,
+  Sparkles,
   Star,
-  LogOut,
   Menu,
   X,
 } from "lucide-react";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
+import { LogoutButton } from "@/components/logout-button";
 
 const accountLinks = [
   { href: "/account/cart", label: "My Cart", icon: ShoppingCart },
   { href: "/account/orders", label: "My Orders", icon: History },
   { href: "/account/favorites", label: "Favorites", icon: Star },
+  { href: "/account/designs", label: "Saved Designs", icon: Sparkles },
   { href: "/account/settings", label: "Account Settings", icon: Settings },
 ];
 
@@ -72,15 +74,7 @@ export const AccountSidebar = () => {
           <p className="truncate text-xs text-muted">john.doe@example.com</p>
         </div>
       </div>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        aria-label="Log out"
-        className="text-red-500 hover:bg-red-50 hover:text-red-600"
-      >
-        <LogOut className="size-5" />
-      </Button>
+      <LogoutButton />
     </div>
   );
 

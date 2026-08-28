@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { History, Menu, Settings, ShoppingCart, Star } from "lucide-react";
+import { History, Menu, Settings, ShoppingCart, Sparkles, Star } from "lucide-react";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { SiteHeader } from "@/components/siteheader";
 
@@ -9,6 +9,7 @@ const accountNavigation = [
   { href: "/account/cart", label: "My Cart", icon: ShoppingCart },
   { href: "/account/orders", label: "My Orders", icon: History },
   { href: "/account/favorites", label: "Favorites", icon: Star },
+  { href: "/account/designs", label: "Saved Designs", icon: Sparkles },
   {
     href: "/account/settings",
     label: "Account Settings",

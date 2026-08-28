@@ -21,6 +21,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { AnalyticsPageHeader } from "@/app/analytics/layout";
+import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays, type AnalyticsRange } from "@/components/analytics-period-switcher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,33 +61,42 @@ type TilesKpi =
   | { label: string; value: string; sub: string; icon: typeof Eye }
   | { label: string; value: string; badge: string; icon: typeof Eye };
 
-const kpis: TilesKpi[] = [
-  {
-    label: "Most Viewed",
-    value: "Calacatta Gold Polished",
-    sub: "12.4K views",
-    icon: Eye,
-  },
-  {
-    label: "Most Applied",
-    value: "Calacatta Gold Polished",
-    sub: "12.4K applications",
-    icon: MousePointerSquareDashed,
-  },
-  {
-    label: "Most Purchased",
-    value: "Calacatta Gold Polished",
-    sub: "12.4K sales",
-    icon: ShoppingBasket,
-  },
-  {
-    label: "Avg. Selection Rate",
-    value: "18.4%",
-    badge: "12.4%",
-    icon: MousePointerClick,
-  },
-  { label: "Avg. Conversion", value: "12%", badge: "2.4%", icon: Wallet },
-];
+const periodFactor: Record<AnalyticsRange, number> = { WEEKLY: 0.24, MONTHLY: 1, YEARLY: 11.8 };
+const baseInteractionCount = 12_400;
+const formatCompactCount = (value: number) =>
+  value >= 1_000 ? `${(value / 1_000).toFixed(1)}K` : value.toLocaleString("en-US");
+
+const getKpis = (range: AnalyticsRange): TilesKpi[] => {
+  const count = formatCompactCount(Math.round(baseInteractionCount * periodFactor[range]));
+
+  return [
+    {
+      label: "Most Viewed",
+      value: "Calacatta Gold Polished",
+      sub: `${count} views`,
+      icon: Eye,
+    },
+    {
+      label: "Most Applied",
+      value: "Calacatta Gold Polished",
+      sub: `${count} applications`,
+      icon: MousePointerSquareDashed,
+    },
+    {
+      label: "Most Purchased",
+      value: "Calacatta Gold Polished",
+      sub: `${count} sales`,
+      icon: ShoppingBasket,
+    },
+    {
+      label: "Avg. Selection Rate",
+      value: "18.4%",
+      badge: "12.4%",
+      icon: MousePointerClick,
+    },
+    { label: "Avg. Conversion", value: "12%", badge: "2.4%", icon: Wallet },
+  ];
+};
 
 const mostViewedTiles = inventoryProducts.slice(0, 3).map((product, index) => ({
   ...product,
@@ -162,7 +172,7 @@ const stockLevelText = {
 
 const filteredProducts = inventoryProducts.slice(0, PAGE_SIZE);
 
-const KpiCards = () => (
+const KpiCards = ({ kpis }: { kpis: TilesKpi[] }) => (
   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
     {kpis.map((kpi) => {
       const Icon = kpi.icon;
@@ -346,7 +356,7 @@ const PerformanceMetrics = () => (
               <TableCell className="whitespace-nowrap">
                 <span className="inline-flex items-center gap-1.5 font-data text-ink">
                   <span className="size-2 rounded-full bg-green-500" />
-                  {product.currentStock.toLocaleString()} pcs
+                  {product.currentStock.toLocaleString()} sqm
                 </span>
               </TableCell>
               <TableCell className="whitespace-nowrap">
@@ -362,7 +372,7 @@ const PerformanceMetrics = () => (
                       stockLevelDot[product.soldStockLevel],
                     )}
                   />
-                  {product.soldStock.toLocaleString()} pcs
+                  {product.soldStock.toLocaleString()} sqm
                 </span>
               </TableCell>
               <TableCell className="whitespace-nowrap text-ink">
@@ -550,7 +560,7 @@ const TileCard = ({
         <div className="mt-auto flex items-center justify-between gap-3 pt-4 sm:pt-5">
           <p className="text-xl font-bold text-ink">
             {product.quantity.toLocaleString()}{" "}
-            <span className="text-sm font-medium text-muted">pcs</span>
+            <span className="text-sm font-medium text-muted">sqm</span>
           </p>
           <Link
             href={`/stock/inventory/${product.id}`}
@@ -780,20 +790,26 @@ const AllProducts = () => {
   );
 };
 
-const AnalyticsTilesPage = () => (
-  <>
-    <AnalyticsPageHeader
-      title="Tiles Analytics"
-      subtitle="Monitor engagement and conversion performance across the tile catalog"
-    />
-    <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
-      <KpiCards />
-      <InteractionOverview />
-      <PerformanceMetrics />
-      <MostLikedProducts />
-      <AllProducts />
-    </div>
-  </>
-);
+const AnalyticsTilesPage = () => {
+  const [period, setPeriod] = useState<AnalyticsPeriodDays>(30);
+
+  return (
+    <>
+      <AnalyticsPageHeader
+        title="Tiles Analytics"
+        subtitle="Monitor engagement and conversion performance across the tile catalog"
+      >
+        <AnalyticsPeriodSwitcher period={period} onChange={setPeriod} />
+      </AnalyticsPageHeader>
+      <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
+        <KpiCards kpis={getKpis(periodToRange[period])} />
+        <InteractionOverview />
+        <PerformanceMetrics />
+        <MostLikedProducts />
+        <AllProducts />
+      </div>
+    </>
+  );
+};
 
 export default AnalyticsTilesPage;

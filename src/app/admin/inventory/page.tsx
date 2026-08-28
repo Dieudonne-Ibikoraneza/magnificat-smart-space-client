@@ -176,7 +176,7 @@ export const AdminInventoryProductCard = ({
         <div className="mt-auto flex items-center justify-between gap-3 pt-4 sm:pt-5">
           <p className={cn("text-xl font-bold", status.quantity)}>
             {product.quantity.toLocaleString()}{" "}
-            <span className="text-sm font-medium text-muted">pcs</span>
+            <span className="text-sm font-medium text-muted">sqm</span>
           </p>
 
           {!selectable && (
@@ -440,7 +440,7 @@ const AdminInventoryPage = () => {
                             />
                             {product.quantity.toLocaleString()}{" "}
                             <span className="font-sans text-sm font-normal text-muted-foreground">
-                              boxes
+                              sqm
                             </span>
                           </span>
                         </TableCell>

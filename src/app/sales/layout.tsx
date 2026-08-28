@@ -6,6 +6,7 @@ import {
   BriefcaseBusiness,
   LayoutGrid,
   ShoppingCart,
+  Sparkles,
   Users,
 } from "lucide-react";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
@@ -22,6 +23,7 @@ const navigation = [
   { label: "Customers", href: "/sales/customers", icon: Users },
   { label: "Orders", href: "/sales/orders", icon: ShoppingCart },
   { label: "Catalog", href: "/sales/catalog", icon: BriefcaseBusiness },
+  { label: "Shared Designs", href: "/sales/designs", icon: Sparkles },
   { label: "Account Settings", href: "/sales/settings", icon: BarChart3 },
 ] as const;
 

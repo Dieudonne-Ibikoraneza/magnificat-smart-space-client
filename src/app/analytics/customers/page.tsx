@@ -20,6 +20,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { AnalyticsPageHeader } from "@/app/analytics/layout";
+import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays, type AnalyticsRange } from "@/components/analytics-period-switcher";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CategoryBarChart } from "@/components/category-bar-chart";
@@ -41,20 +42,44 @@ const projectTypes = [
   { category: "Bedroom", value: 8_500 },
 ];
 
-const customerTrend = [
-  { month: "Jan", newCustomers: 20, repeatCustomers: 12 },
-  { month: "Feb", newCustomers: 35, repeatCustomers: 22 },
-  { month: "Mar", newCustomers: 48, repeatCustomers: 30 },
-  { month: "Apr", newCustomers: 42, repeatCustomers: 45 },
-  { month: "May", newCustomers: 55, repeatCustomers: 38 },
-  { month: "Jun", newCustomers: 62, repeatCustomers: 44 },
-  { month: "Jul", newCustomers: 58, repeatCustomers: 40 },
-  { month: "Aug", newCustomers: 70, repeatCustomers: 48 },
-  { month: "Sep", newCustomers: 85, repeatCustomers: 52 },
-  { month: "Oct", newCustomers: 78, repeatCustomers: 58 },
-  { month: "Nov", newCustomers: 65, repeatCustomers: 50 },
-  { month: "Dec", newCustomers: 60, repeatCustomers: 46 },
-];
+const customerTrendDatasets: Record<AnalyticsRange, { month: string; newCustomers: number; repeatCustomers: number }[]> = {
+  WEEKLY: [
+    { month: "Mon", newCustomers: 8, repeatCustomers: 5 },
+    { month: "Tue", newCustomers: 12, repeatCustomers: 7 },
+    { month: "Wed", newCustomers: 15, repeatCustomers: 10 },
+    { month: "Thu", newCustomers: 11, repeatCustomers: 9 },
+    { month: "Fri", newCustomers: 18, repeatCustomers: 13 },
+    { month: "Sat", newCustomers: 24, repeatCustomers: 17 },
+    { month: "Sun", newCustomers: 16, repeatCustomers: 12 },
+  ],
+  MONTHLY: [
+    { month: "Oct 01", newCustomers: 22, repeatCustomers: 14 },
+    { month: "Oct 05", newCustomers: 28, repeatCustomers: 18 },
+    { month: "Oct 10", newCustomers: 35, repeatCustomers: 23 },
+    { month: "Oct 15", newCustomers: 31, repeatCustomers: 27 },
+    { month: "Oct 20", newCustomers: 40, repeatCustomers: 29 },
+    { month: "Oct 25", newCustomers: 38, repeatCustomers: 31 },
+    { month: "Oct 30", newCustomers: 42, repeatCustomers: 33 },
+    { month: "Nov 05", newCustomers: 36, repeatCustomers: 30 },
+    { month: "Nov 10", newCustomers: 48, repeatCustomers: 36 },
+    { month: "Nov 15", newCustomers: 55, repeatCustomers: 41 },
+    { month: "Nov 20", newCustomers: 45, repeatCustomers: 38 },
+  ],
+  YEARLY: [
+    { month: "Jan", newCustomers: 20, repeatCustomers: 12 },
+    { month: "Feb", newCustomers: 35, repeatCustomers: 22 },
+    { month: "Mar", newCustomers: 48, repeatCustomers: 30 },
+    { month: "Apr", newCustomers: 42, repeatCustomers: 45 },
+    { month: "May", newCustomers: 55, repeatCustomers: 38 },
+    { month: "Jun", newCustomers: 62, repeatCustomers: 44 },
+    { month: "Jul", newCustomers: 58, repeatCustomers: 40 },
+    { month: "Aug", newCustomers: 70, repeatCustomers: 48 },
+    { month: "Sep", newCustomers: 85, repeatCustomers: 52 },
+    { month: "Oct", newCustomers: 78, repeatCustomers: 58 },
+    { month: "Nov", newCustomers: 65, repeatCustomers: 50 },
+    { month: "Dec", newCustomers: 60, repeatCustomers: 46 },
+  ],
+};
 
 const journeyDropOff = [
   { label: "System Opened", value: 18_800, conversion: "" },
@@ -99,12 +124,18 @@ const CustomerTrendTooltip = ({
   );
 };
 
-const CustomerTrendChart = () => (
+const trendSubtitle: Record<AnalyticsRange, string> = {
+  WEEKLY: "7-day comparison",
+  MONTHLY: "30-day comparison",
+  YEARLY: "12-month comparison",
+};
+
+const CustomerTrendChart = ({ range }: { range: AnalyticsRange }) => (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h2 className="text-lg font-bold text-ink">New vs. Repeat Customers Over Time</h2>
-        <p className="mt-1 text-sm text-muted-foreground">12-month comparison</p>
+        <p className="mt-1 text-sm text-muted-foreground">{trendSubtitle[range]}</p>
       </div>
       <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
         <span className="flex items-center gap-1.5">
@@ -117,7 +148,7 @@ const CustomerTrendChart = () => (
     </div>
     <div className="mt-6 h-65 w-full font-data sm:mt-8 sm:h-80">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={customerTrend} margin={{ top: 8, right: 4, left: 0, bottom: 8 }}>
+        <LineChart data={customerTrendDatasets[range]} margin={{ top: 8, right: 4, left: 0, bottom: 8 }}>
           <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
           <XAxis
             dataKey="month"
@@ -309,41 +340,47 @@ const CustomersDirectory = () => {
   );
 };
 
-const AnalyticsCustomersPage = () => (
-  <>
-    <AnalyticsPageHeader title="Customer Analytics" subtitle="Customer insights and engagement trends." />
-    <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
-      <KpiCards items={kpis} />
-      <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
-        <CategoryBarChart
-          title="Project Types Distribution"
-          subtitle="Distribution of customer projects by category, Number of customers vs. Project Type"
-          data={projectTypes}
-          tooltipLabel="Customers"
-          tooltipValueFormatter={(value) => value.toLocaleString()}
-          yTicks={[0, 1_000, 5_000, 10_000, 20_000]}
-          yDomainMax={20_000}
-          yTickFormatter={(value) => value.toLocaleString()}
-        />
-        <CustomerTrendChart />
+const AnalyticsCustomersPage = () => {
+  const [period, setPeriod] = useState<AnalyticsPeriodDays>(7);
+
+  return (
+    <>
+      <AnalyticsPageHeader title="Customer Analytics" subtitle="Customer insights and engagement trends.">
+        <AnalyticsPeriodSwitcher period={period} onChange={setPeriod} />
+      </AnalyticsPageHeader>
+      <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
+        <KpiCards items={kpis} />
+        <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
+          <CategoryBarChart
+            title="Project Types Distribution"
+            subtitle="Distribution of customer projects by category, Number of customers vs. Project Type"
+            data={projectTypes}
+            tooltipLabel="Customers"
+            tooltipValueFormatter={(value) => value.toLocaleString()}
+            yTicks={[0, 1_000, 5_000, 10_000, 20_000]}
+            yDomainMax={20_000}
+            yTickFormatter={(value) => value.toLocaleString()}
+          />
+          <CustomerTrendChart range={periodToRange[period]} />
+        </div>
+        <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
+          <JourneyDropOff />
+          <CategoryBarChart
+            title="Acquisition Channel"
+            subtitle="Customers by Source of Discovery"
+            data={acquisitionChannels}
+            tooltipLabel="Customers"
+            tooltipValueFormatter={(value) => value.toLocaleString()}
+            yTicks={[0, 1_000, 5_000, 10_000, 20_000]}
+            yDomainMax={20_000}
+            yTickFormatter={(value) => value.toLocaleString()}
+            uppercaseTooltipLabel
+          />
+        </div>
+        <CustomersDirectory />
       </div>
-      <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
-        <JourneyDropOff />
-        <CategoryBarChart
-          title="Acquisition Channel"
-          subtitle="Customers by Source of Discovery"
-          data={acquisitionChannels}
-          tooltipLabel="Customers"
-          tooltipValueFormatter={(value) => value.toLocaleString()}
-          yTicks={[0, 1_000, 5_000, 10_000, 20_000]}
-          yDomainMax={20_000}
-          yTickFormatter={(value) => value.toLocaleString()}
-          uppercaseTooltipLabel
-        />
-      </div>
-      <CustomersDirectory />
-    </div>
-  </>
-);
+    </>
+  );
+};
 
 export default AnalyticsCustomersPage;

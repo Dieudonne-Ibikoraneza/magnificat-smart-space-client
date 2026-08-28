@@ -4,6 +4,7 @@ import { Fragment, Suspense, useEffect, useMemo, useRef, useState, type ReactNod
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  AlertTriangle,
   Boxes,
   Calculator,
   Check,
@@ -25,6 +26,7 @@ import {
 } from "lucide-react";
 import { AdminDetailHeader } from "@/app/admin/layout";
 import { FilterOptionsCard } from "@/components/product-catalog";
+import { StockNegotiationChat } from "@/components/stock-negotiation-chat";
 import {
   Accordion,
   AccordionContent,
@@ -70,6 +72,7 @@ import {
   type CatalogFilters,
   type SortOption,
 } from "@/lib/catalog-utils";
+import { getStockShortage, type StockShortage } from "@/lib/stock-availability";
 import { cn } from "@/lib/utils";
 
 const isPositiveNumber = (value: string) => value.trim() !== "" && Number(value) > 0;
@@ -529,10 +532,12 @@ const AreaCalculatorCard = ({
   product,
   value,
   onChange,
+  shortage,
 }: {
   product: Product;
   value: string;
   onChange: (value: string) => void;
+  shortage?: StockShortage | null;
 }) => {
   const valid = isPositiveNumber(value);
   const calc = valid ? calculateTileQuantity(Number(value), product) : null;
@@ -574,6 +579,12 @@ const AreaCalculatorCard = ({
         ) : (
           <p className="mt-3 text-xs text-muted-foreground">Enter the area to calculate boxes &amp; pieces.</p>
         )}
+        {shortage && (
+          <p className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-xs font-medium text-amber-800">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            Only {shortage.availableSqm > 0 ? `${shortage.availableSqm} sqm` : "none"} available — the stock negotiation chat has been opened below.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -589,10 +600,12 @@ const ProductStep = ({
   selectedProducts,
   onToggle,
   onAreaChange,
+  shortages,
 }: {
   selectedProducts: Record<string, string>;
   onToggle: (id: string) => void;
   onAreaChange: (id: string, value: string) => void;
+  shortages: StockShortage[];
 }) => {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortOption>("newest");
@@ -676,6 +689,7 @@ const ProductStep = ({
                     product={product}
                     value={selectedProducts[product.id] ?? ""}
                     onChange={(value) => onAreaChange(product.id, value)}
+                    shortage={shortages.find((shortage) => shortage.productId === product.id)}
                   />
                 )}
               </div>
@@ -918,6 +932,18 @@ const CreateOrderWizard = () => {
   const selectedProductIds = Object.keys(selectedProducts);
   const allAreasValid = selectedProductIds.length > 0 && selectedProductIds.every((id) => isPositiveNumber(selectedProducts[id]));
 
+  const shortages: StockShortage[] = useMemo(
+    () =>
+      selectedProductIds
+        .map((id) => {
+          const product = inventoryProducts.find((item) => item.id === id);
+          const area = Number(selectedProducts[id]);
+          return product && isPositiveNumber(selectedProducts[id]) ? getStockShortage(product, area) : null;
+        })
+        .filter((shortage): shortage is StockShortage => shortage !== null),
+    [selectedProductIds, selectedProducts],
+  );
+
   const orderItems: OrderLine[] = useMemo(() => {
     if (step !== 3 || !allAreasValid) return [];
     return selectedProductIds.map((id) => {
@@ -995,7 +1021,7 @@ const CreateOrderWizard = () => {
 
         {step === 1 && <CustomerStep selectedSlug={selectedCustomerSlug} onSelect={setSelectedCustomerSlug} />}
         {step === 2 && (
-          <ProductStep selectedProducts={selectedProducts} onToggle={toggleProduct} onAreaChange={setProductArea} />
+          <ProductStep selectedProducts={selectedProducts} onToggle={toggleProduct} onAreaChange={setProductArea} shortages={shortages} />
         )}
         {step === 3 && selectedCustomer && <ReviewStep customer={selectedCustomer} items={orderItems} grandTotal={grandTotal} />}
 
@@ -1028,6 +1054,8 @@ const CreateOrderWizard = () => {
           )}
         </div>
       </div>
+
+      <StockNegotiationChat shortages={shortages} />
     </>
   );
 };

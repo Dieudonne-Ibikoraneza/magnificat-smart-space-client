@@ -25,6 +25,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { AdminPageHeader } from "@/app/admin/layout";
+import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays, type AnalyticsRange } from "@/components/analytics-period-switcher";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { salesCustomers } from "@/data/sales-customers";
@@ -35,7 +36,7 @@ type JourneyStep = {
   count: number;
 };
 
-const journeySteps: JourneyStep[] = [
+const monthlyJourneySteps: JourneyStep[] = [
   { title: "System Open", count: 5_240 },
   { title: "Account Registration / Login", count: 4_892 },
   { title: "Product Catalog Browsing", count: 4_520 },
@@ -46,6 +47,16 @@ const journeySteps: JourneyStep[] = [
   { title: "Designs Saved / Shared", count: 1_105 },
   { title: "Final Orders Placed", count: 842 },
 ];
+
+/** Scales the 30-day baseline funnel to a 7-day or 12-month view, preserving drop-off shape. */
+const scaleJourneySteps = (steps: JourneyStep[], factor: number): JourneyStep[] =>
+  steps.map((step) => ({ ...step, count: Math.max(1, Math.round(step.count * factor)) }));
+
+const journeyStepsByPeriod: Record<AnalyticsRange, JourneyStep[]> = {
+  WEEKLY: scaleJourneySteps(monthlyJourneySteps, 0.23),
+  MONTHLY: monthlyJourneySteps,
+  YEARLY: scaleJourneySteps(monthlyJourneySteps, 11.4),
+};
 
 type StepStat = { label: string; value: string; icon: typeof Users };
 
@@ -158,20 +169,22 @@ const stepDetails: Record<string, StepDetail> = {
 };
 
 const JourneyFunnel = ({
+  steps,
   selectedStep,
   onSelectStep,
 }: {
+  steps: JourneyStep[];
   selectedStep: number;
   onSelectStep: (index: number) => void;
 }) => (
   <section>
     <h2 className="text-lg font-bold text-ink">Customer Journey Funnel</h2>
     <div className="scrollbar-hide mt-4 flex gap-6 overflow-x-auto px-2 pb-2">
-      {journeySteps.map((step, index) => {
+      {steps.map((step, index) => {
         const isFirst = index === 0;
         const isActive = selectedStep === index;
-        const percentOfTotal = Math.round((step.count / journeySteps[0].count) * 100);
-        const previousCount = index > 0 ? journeySteps[index - 1].count : null;
+        const percentOfTotal = Math.round((step.count / steps[0].count) * 100);
+        const previousCount = index > 0 ? steps[index - 1].count : null;
         const change =
           previousCount !== null
             ? Math.round(((step.count - previousCount) / previousCount) * 100)
@@ -219,7 +232,7 @@ const JourneyFunnel = ({
                 </div>
               </div>
             </button>
-            {index < journeySteps.length - 1 && (
+            {index < steps.length - 1 && (
               <span
                 className={cn(
                   "absolute top-1/2 right-0 z-10 inline-flex size-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border  bg-card text-muted-foreground shadow-sm",
@@ -327,16 +340,20 @@ const StepDrillDown = ({ step }: { step: JourneyStep }) => {
 
 const AdminJourneyAnalyticsPage = () => {
   const [selectedStep, setSelectedStep] = useState(1);
+  const [period, setPeriod] = useState<AnalyticsPeriodDays>(30);
+  const steps = journeyStepsByPeriod[periodToRange[period]];
 
   return (
     <>
       <AdminPageHeader
         title="Journey Analytics"
         subtitle="Analyze customer flow and conversion through the journey funnel"
-      />
+      >
+        <AnalyticsPeriodSwitcher period={period} onChange={setPeriod} />
+      </AdminPageHeader>
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
-        <JourneyFunnel selectedStep={selectedStep} onSelectStep={setSelectedStep} />
-        <StepDrillDown step={journeySteps[selectedStep]} />
+        <JourneyFunnel steps={steps} selectedStep={selectedStep} onSelectStep={setSelectedStep} />
+        <StepDrillDown step={steps[selectedStep]} />
       </div>
     </>
   );

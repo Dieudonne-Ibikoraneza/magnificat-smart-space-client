@@ -17,8 +17,10 @@ import {
   Wallet,
 } from "lucide-react";
 import { AdminDetailHeader } from "@/app/admin/layout";
-import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { OrderQuotationPanel } from "@/components/order-quotation-panel";
+import { OrderStatusControl } from "@/components/order-status-control";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import {
   Table,
@@ -32,16 +34,6 @@ import { getSalesCustomer } from "@/data/sales-customers";
 import { getSalesOrder, sumSalesOrderItems } from "@/data/sales-orders";
 
 type OrderDetailPageProps = { params: Promise<{ id: string }> };
-type BadgeVariant = NonNullable<BadgeProps["variant"]>;
-
-const orderVariant = (
-  status: "Processing" | "Shipped" | "Delivered",
-): BadgeVariant =>
-  ({
-    Processing: "secondary",
-    Shipped: "primary",
-    Delivered: "muted",
-  } as const)[status];
 
 export const generateMetadata = async ({
   params,
@@ -104,29 +96,21 @@ const OrderDetailPage = async ({ params }: OrderDetailPageProps) => {
         ]}
         title={`Order #${order.id}`}
         actions={
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-auto gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase transition-transform duration-200 active:scale-95"
-            >
-              <Printer className="size-4" />
-              Print Invoice
-            </Button>
-            <Button
-              type="button"
-              className="h-auto gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase transition-transform duration-200 active:scale-95"
-            >
-              Update Status
-            </Button>
-          </>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-auto gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase transition-transform duration-200 active:scale-95"
+          >
+            <Printer className="size-4" />
+            Print Invoice
+          </Button>
         }
         meta={
           <>
             {order.createdByType === "staff" && (
               <StaffCreatedIndicator createdByName={order.createdByName} />
             )}
-            <Badge variant={orderVariant(order.status)}>{order.status}</Badge>
+            <OrderStatusControl orderId={order.id} initialStatus={order.status} />
             <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
               <Clock className="size-4" />
               Last updated {order.updatedAgo}
@@ -233,6 +217,14 @@ const OrderDetailPage = async ({ params }: OrderDetailPageProps) => {
           </section>
 
           <div className="space-y-5 sm:space-y-6">
+            <OrderQuotationPanel
+              orderId={order.id}
+              subtotalValue={Number(order.amount.replace(/[^0-9]/g, ""))}
+              deliveryDetails={order.deliveryDetails}
+              quotation={order.quotation}
+              canManage={true}
+            />
+
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <div className="flex items-center gap-3">
                 <span className="flex size-9 items-center justify-center rounded-lg bg-secondary text-ink">

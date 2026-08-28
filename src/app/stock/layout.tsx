@@ -4,6 +4,7 @@ import { createContext, useContext, useState } from "react";
 import {
   FileText,
   LayoutGrid,
+  MessagesSquare,
   ShelvingUnit,
   Settings,
   ShoppingCart,
@@ -22,6 +23,7 @@ const navigation = [
   },
   { label: "Inventory", href: "/stock/inventory", icon: ShelvingUnit },
   { label: "Orders", href: "/stock/orders", icon: ShoppingCart },
+  { label: "Negotiations", href: "/stock/negotiations", icon: MessagesSquare },
   { label: "Collections", href: "/stock/collections", icon: Boxes },
   { label: "Reports", href: "/stock/reports", icon: FileText },
   { label: "Account Settings", href: "/stock/settings", icon: Settings },

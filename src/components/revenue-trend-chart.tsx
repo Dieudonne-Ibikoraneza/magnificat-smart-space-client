@@ -65,9 +65,18 @@ const RevenueTooltip = ({
   );
 };
 
-export const RevenueTrendChart = ({ title, subtitle }: { title: string; subtitle: string }) => {
-  const [range, setRange] = useState<keyof typeof revenueDatasets>("WEEKLY");
+export const RevenueTrendChart = ({
+  title,
+  subtitle,
+  range: controlledRange,
+}: {
+  title: string;
+  subtitle: string;
+  range?: keyof typeof revenueDatasets;
+}) => {
+  const [internalRange, setInternalRange] = useState<keyof typeof revenueDatasets>("WEEKLY");
   const [hovered, setHovered] = useState<number | null>(null);
+  const range = controlledRange ?? internalRange;
   const data = revenueDatasets[range];
 
   return (
@@ -77,24 +86,26 @@ export const RevenueTrendChart = ({ title, subtitle }: { title: string; subtitle
           <h2 className="text-lg font-bold text-ink">{title}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
         </div>
-        <div className="flex h-9 items-center rounded-lg border border-border bg-background p-1">
-          {(["WEEKLY", "MONTHLY", "YEARLY"] as const).map((item) => (
-            <button
-              type="button"
-              key={item}
-              onClick={() => setRange(item)}
-              aria-pressed={range === item}
-              className={cn(
-                "h-7 rounded-md px-3 text-[10px] font-bold tracking-wide transition-colors",
-                range === item
-                  ? "bg-ink text-primary"
-                  : "text-muted-foreground hover:bg-secondary",
-              )}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
+        {controlledRange === undefined && (
+          <div className="flex h-9 items-center rounded-lg border border-border bg-background p-1">
+            {(["WEEKLY", "MONTHLY", "YEARLY"] as const).map((item) => (
+              <button
+                type="button"
+                key={item}
+                onClick={() => setInternalRange(item)}
+                aria-pressed={range === item}
+                className={cn(
+                  "h-7 rounded-md px-3 text-[10px] font-bold tracking-wide transition-colors",
+                  range === item
+                    ? "bg-ink text-primary"
+                    : "text-muted-foreground hover:bg-secondary",
+                )}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       <div className="mt-6 h-65 w-full font-data sm:mt-8 sm:h-80">
         <ResponsiveContainer width="100%" height="100%">

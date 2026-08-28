@@ -20,6 +20,8 @@ const navigationLinks = [
   { href: "/", label: "Products", match: (pathname: string) => pathname === "/" || pathname.startsWith("/products") },
   { href: "/collections", label: "Collections", match: (pathname: string) => pathname.startsWith("/collections") },
   { href: "/visualizer", label: "3D Visualizer", match: (pathname: string) => pathname.startsWith("/visualizer") },
+  { href: "/compare", label: "Compare", match: (pathname: string) => pathname.startsWith("/compare") },
+  { href: "/calculator", label: "Calculator", match: (pathname: string) => pathname.startsWith("/calculator") },
   { href: "/chatbot", label: "AI Chatbot", match: (pathname: string) => pathname.startsWith("/chatbot") },
 ];
 

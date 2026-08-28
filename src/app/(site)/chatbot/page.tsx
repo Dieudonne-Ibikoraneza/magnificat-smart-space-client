@@ -1,20 +1,50 @@
 "use client";
 
-import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
-import { Bot, ChevronDown, CornerDownRight, Send, UserRound } from "lucide-react";
+import { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
+import {
+  Bot,
+  ChevronDown,
+  CornerDownRight,
+  ImagePlus,
+  Loader2,
+  Paperclip,
+  Send,
+  UserRound,
+  Video,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/components/ui/toast";
 import { ChatProductCard } from "@/components/chat-product-card";
 import { followUps, recommendedProducts, roomOptions, type ChatProduct } from "@/data/chat";
 import { cn } from "@/lib/utils";
+
+/**
+ * A photo or video of the customer's own room, attached to a message. The doc
+ * (3.6) asks the assistant to generate a preview of the room styled with the
+ * selected tiles, and to accept a client-submitted video and return a version
+ * with the design applied — both start from an attachment like this.
+ */
+type ChatAttachment = {
+  kind: "image" | "video";
+  name: string;
+  /** Object URL for the local preview; revoked when the page unmounts. */
+  url: string;
+};
 
 type ChatMessage = {
   id: string;
   sender: "bot" | "user";
   text: string;
   products?: ChatProduct[];
+  attachment?: ChatAttachment;
+  /** Set while the room preview for `attachment` is still rendering. */
+  renderingPreview?: boolean;
   isNew?: boolean;
 };
+
+const MAX_ATTACHMENT_MB = 25;
 
 type ConversationStep = "room" | "size" | "wall" | "furniture" | "complete";
 
@@ -38,9 +68,20 @@ export default function ChatbotPage() {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  /** Every object URL handed out, so none leak when the page unmounts. */
+  const objectUrlsRef = useRef<string[]>([]);
+
+  useEffect(
+    () => () => {
+      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    },
+    [],
+  );
 
   useEffect(() => {
     const scrollArea = scrollRef.current;
@@ -94,9 +135,81 @@ export default function ChatbotPage() {
     addBotReply(botPrompts.size);
   };
 
+  const pickAttachment = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
+    if (!isImage && !isVideo) {
+      toast.error("Unsupported file", { description: "Attach a photo or a video of your room." });
+      return;
+    }
+    if (file.size > MAX_ATTACHMENT_MB * 1024 * 1024) {
+      toast.error("File too large", { description: `Keep attachments under ${MAX_ATTACHMENT_MB} MB.` });
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    objectUrlsRef.current.push(url);
+    setAttachment({ kind: isImage ? "image" : "video", name: file.name, url });
+  };
+
+  const clearAttachment = () => setAttachment(null);
+
+  /**
+   * Sends the attached room photo/video with the message and stands in for the
+   * image/video model round-trip, which replies with the styled preview.
+   */
+  const sendAttachment = (media: ChatAttachment, text: string) => {
+    const messageId = makeId();
+    setMessages((current) => [
+      ...current,
+      { id: messageId, sender: "user", text, attachment: media, isNew: true },
+    ]);
+    setAttachment(null);
+    setIsTyping(true);
+
+    window.setTimeout(() => {
+      setIsTyping(false);
+      setMessages((current) => [
+        ...current,
+        {
+          id: makeId(),
+          sender: "bot",
+          text:
+            media.kind === "image"
+              ? "Working on a preview of your room with these tiles applied — this takes a moment."
+              : "Got your video. I'm applying the selected design to the footage — this takes a little longer than a photo.",
+          attachment: media,
+          renderingPreview: true,
+          isNew: true,
+        },
+      ]);
+    }, 650);
+  };
+
   const submitAnswer = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const answer = input.trim();
+
+    if (attachment && !isTyping) {
+      setInput("");
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "56px";
+        textareaRef.current.style.overflowY = "hidden";
+      }
+      sendAttachment(
+        attachment,
+        answer ||
+          (attachment.kind === "image"
+            ? "Here's a photo of my room — show me how these tiles would look."
+            : "Here's a video of my room — apply the design to it."),
+      );
+      return;
+    }
+
     if (!answer || answer.length > MAX_MESSAGE_LENGTH || isTyping || step === "room") return;
     setInput("");
     if (textareaRef.current) {
@@ -176,6 +289,36 @@ export default function ChatbotPage() {
                     className={`whitespace-pre-wrap rounded-xl px-5 py-3 text-xs leading-relaxed sm:text-sm ${message.sender === "user" ? "rounded-tr-sm bg-ink text-white" : "bg-white text-slate-700 shadow-sm"}`}
                   >
                     {message.text}
+                    {message.attachment && (
+                      <figure className="mt-3 overflow-hidden rounded-lg bg-black/5">
+                        {message.attachment.kind === "image" ? (
+                          // Local object URL, so next/image optimisation doesn't apply.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={message.attachment.url}
+                            alt={
+                              message.renderingPreview
+                                ? "Preview of your room being generated"
+                                : `Your room: ${message.attachment.name}`
+                            }
+                            className="max-h-64 w-full object-cover"
+                          />
+                        ) : (
+                          <video
+                            src={message.attachment.url}
+                            controls
+                            className="max-h-64 w-full object-cover"
+                            aria-label={`Your room video: ${message.attachment.name}`}
+                          />
+                        )}
+                        {message.renderingPreview && (
+                          <figcaption className="flex items-center gap-2 px-3 py-2 text-[11px] font-medium text-slate-600">
+                            <Loader2 className="size-3 animate-spin" />
+                            Rendering your styled preview…
+                          </figcaption>
+                        )}
+                      </figure>
+                    )}
                   </div>
                   {message.sender === "user" && (
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-white">
@@ -266,22 +409,69 @@ export default function ChatbotPage() {
         onSubmit={submitAnswer}
         className="z-10 shrink-0 bg-background px-1 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-2"
       >
+        {attachment && (
+          <div className="mb-2 flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-ink">
+              {attachment.kind === "image" ? <ImagePlus className="size-4" /> : <Video className="size-4" />}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-xs font-semibold text-ink">{attachment.name}</span>
+              <span className="block text-[11px] text-muted">
+                {attachment.kind === "image" ? "Room photo" : "Room video"} · ready to send
+              </span>
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={clearAttachment}
+              aria-label="Remove attachment"
+              className="shrink-0 text-muted hover:text-ink"
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+        )}
+
         <div className="relative">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*"
+            onChange={pickAttachment}
+            className="sr-only"
+            aria-label="Attach a photo or video of your room"
+          />
           <Textarea
             ref={textareaRef}
             value={input}
             onChange={(event) => handleInputChange(event.target.value)}
             onKeyDown={handleInputKeyDown}
-            disabled={step === "room" || isTyping}
+            disabled={(step === "room" && !attachment) || isTyping}
             rows={1}
-            placeholder="Type your message here..."
-            className="h-14 min-h-14 max-h-35 overflow-y-hidden rounded-xl bg-white px-3 py-3.5 pr-16 text-sm leading-normal"
+            placeholder={attachment ? "Add a note about your room (optional)…" : "Type your message here..."}
+            className="h-14 min-h-14 max-h-35 overflow-y-hidden rounded-xl bg-white px-3 py-3.5 pr-26 text-sm leading-normal"
           />
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isTyping}
+            aria-label="Attach a photo or video of your room"
+            className="absolute bottom-3 right-14 top-auto size-9 rounded-full text-muted hover:bg-secondary hover:text-ink"
+          >
+            <Paperclip className="size-4" />
+          </Button>
           <Button
             type="submit"
             size="icon"
             aria-label="Send message"
-            disabled={!input.trim() || input.length > MAX_MESSAGE_LENGTH || step === "room" || isTyping}
+            disabled={
+              isTyping ||
+              input.length > MAX_MESSAGE_LENGTH ||
+              (attachment ? false : !input.trim() || step === "room")
+            }
             className="absolute bottom-3 right-3 top-auto size-9 rounded-full bg-slate-200 text-ink hover:bg-primary"
           >
             <Send className="size-4" />
@@ -294,7 +484,8 @@ export default function ChatbotPage() {
           )}
         >
           <p className={showCharacterCount ? "hidden sm:flex" : ""}>
-            Press Enter to submit · Shift + Enter for a new line
+            Press Enter to submit · Shift + Enter for a new line · Attach a room photo or video for a
+            styled preview
           </p>
           {showCharacterCount && (
             <p className={input.length > MAX_MESSAGE_LENGTH ? "font-semibold text-red-500" : ""}>

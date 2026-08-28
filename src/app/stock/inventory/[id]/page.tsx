@@ -3,16 +3,16 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import {
   Check,
-  ClipboardCheck,
   Layers3,
   Maximize2,
   Pencil,
   Sparkles,
-  Trash2,
 } from "lucide-react";
 import { StockDetailHeader } from "@/app/stock/layout";
 import { Button } from "@/components/ui/button";
 import { QuantityCalculator } from "@/components/quantity-calculator";
+import { StockLevelPanel } from "@/components/stock-level-panel";
+import { DeleteProductButton } from "@/components/delete-product-button";
 import type { Product } from "@/components/product-card";
 import { products } from "@/data/catalog";
 
@@ -123,17 +123,6 @@ const StockProductDetailsPage = async ({
                 / sqm
               </span>
             </p>
-            <div className="rounded-xl border border-border bg-secondary/50 px-4 py-4">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-semibold text-ink">
-                  Current Stock Level
-                </span>
-                <span className="font-data text-xl font-bold text-ink">
-                  {currentStock.toLocaleString()}{" "}
-                  <span className="text-sm font-normal">boxes</span>
-                </span>
-              </div>
-            </div>
             <div className="grid grid-cols-2 gap-5 py-6">
               <div>
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -188,10 +177,7 @@ const StockProductDetailsPage = async ({
             </div>
           </section>
           <QuantityCalculator product={product} />
-          <Button type="button" className="h-13 w-full gap-2 rounded-lg text-sm font-bold">
-            <ClipboardCheck className="size-5" />
-            Adjust Stock
-          </Button>
+          <StockLevelPanel productName={product.name} initialStockSqm={currentStock} />
           <div className="grid grid-cols-2 gap-3">
             <Button
               type="button"
@@ -201,14 +187,7 @@ const StockProductDetailsPage = async ({
               <Pencil className="size-4 stroke-2.5" />
               Edit Details
             </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              className="h-12 gap-2 font-semibold text-sm"
-            >
-              <Trash2 className="size-4 stroke-2.5" />
-              Delete
-            </Button>
+            <DeleteProductButton productName={product.name} redirectTo="/stock/inventory" />
           </div>
         </div>
       </div>

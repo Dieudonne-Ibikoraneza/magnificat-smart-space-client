@@ -1,3 +1,9 @@
+import {
+  buildQuotation,
+  type DeliveryDetails,
+  type OrderQuotation,
+} from "@/data/order-workflow";
+
 export type AccountOrderStatus = "Processing" | "Shipped" | "Delivered";
 
 export type AccountOrderItem = {
@@ -24,6 +30,8 @@ export type AccountOrder = {
   updatedAgo: string;
   totalVolume: string;
   items: AccountOrderItem[];
+  deliveryDetails?: DeliveryDetails;
+  quotation: OrderQuotation;
 };
 
 export const accountOrders: AccountOrder[] = [
@@ -41,6 +49,7 @@ export const accountOrders: AccountOrder[] = [
     expectedDelivery: "5 days",
     updatedAgo: "2 hours ago",
     totalVolume: "123 SQM Total Volume",
+    quotation: buildQuotation("awaiting_review"),
     items: [
       { productId: "1", name: "Calacatta Gold Polished", image: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=240&q=85", quantity: "48 sqm", boxes: 28, additionalPieces: 0, pieces: 196, unitPrice: 22000, total: 1056000 },
       { productId: "2", name: "Slate Zenith", image: "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=240&q=85", quantity: "42 sqm", boxes: 24, additionalPieces: 0, pieces: 168, unitPrice: 18500, total: 777000 },
@@ -61,6 +70,14 @@ export const accountOrders: AccountOrder[] = [
     expectedDelivery: "3 days",
     updatedAgo: "1 day ago",
     totalVolume: "133 SQM Total Volume",
+    deliveryDetails: {
+      contactName: "John Doe",
+      phone: "+250 780 000 000",
+      address: "KG 21 Ave, Kacyiru",
+      city: "Kigali",
+      preferredDate: "Within 3 days of confirmation",
+    },
+    quotation: buildQuotation("quotation_sent", { transportFee: 45_000, transportFeeNote: "1 truckload, Kigali city delivery", sentAt: "1 day ago" }),
     items: [
       { productId: "5", name: "Calacatta Gold Polished", image: "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&w=240&q=85", quantity: "75 sqm", boxes: 49, additionalPieces: 1, pieces: 834, unitPrice: 12000, total: 900000 },
       { productId: "6", name: "Slate Zenith", image: "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=240&q=85", quantity: "58 sqm", boxes: 31, additionalPieces: 1, pieces: 373, unitPrice: 23250, total: 1348500 },
@@ -80,6 +97,20 @@ export const accountOrders: AccountOrder[] = [
     expectedDelivery: "Delivered",
     updatedAgo: "4 days ago",
     totalVolume: "118 SQM Total Volume",
+    deliveryDetails: {
+      contactName: "John Doe",
+      phone: "+250 780 000 000",
+      address: "KG 21 Ave, Kacyiru",
+      city: "Kigali",
+      preferredDate: "Delivered",
+    },
+    quotation: buildQuotation("payment_verified", {
+      transportFee: 0,
+      transportFeeNote: "Free delivery — order exceeded the free-transport threshold",
+      sentAt: "4 days ago",
+      paymentSubmittedAt: "4 days ago",
+      verifiedAt: "3 days ago",
+    }),
     items: [
       { productId: "7", name: "Calacatta Gold Polished", image: "https://images.unsplash.com/photo-1615529162924-f8605388461d?auto=format&fit=crop&w=240&q=85", quantity: "60 sqm", boxes: 42, additionalPieces: 1, pieces: 169, unitPrice: 17000, total: 1020000 },
       { productId: "8", name: "Carrara White Polished", image: "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=240&q=85&sat=-20", quantity: "58 sqm", boxes: 41, additionalPieces: 1, pieces: 165, unitPrice: 21146.55, total: 1228500 },

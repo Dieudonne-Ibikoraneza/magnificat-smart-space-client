@@ -7,13 +7,16 @@ import {
   ArrowLeft,
   ArrowRight,
   Bookmark,
+  CalendarClock,
   Check,
   Layers3,
   Maximize2,
+  Scale,
   Sparkles,
 } from "lucide-react";
 import { products } from "@/data/catalog";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { QuantityCalculator } from "@/components/quantity-calculator";
 import type { Product } from "@/components/product-card";
 
@@ -117,7 +120,7 @@ const ProductDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => 
           <section className="rounded-2xl bg-ink p-7 text-center text-white shadow-sm sm:p-8">
             <h2 className="text-xl font-bold">See it in your room</h2>
             <p className="mx-auto mt-3 max-w-md text-sm leading-5 text-white/70">Use our AI-powered 3D visualizer to see how these tiles look in your space before you buy.</p>
-            <Button className="group mt-6 h-14 min-h-14 px-7 py-3 font-bold bg-primary text-ink hover:bg-primary/90">Start Visualizing <ArrowRight className="transition-transform duration-300 group-hover:translate-x-1" /></Button>
+            <Button nativeButton={false} render={<Link href="/visualizer" />} className="group mt-6 h-14 min-h-14 px-7 py-3 font-bold bg-primary text-ink hover:bg-primary/90">Start Visualizing <ArrowRight className="transition-transform duration-300 group-hover:translate-x-1" /></Button>
           </section>
 
           <QuantityCalculator product={product} />
@@ -126,10 +129,34 @@ const ProductDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => 
             <Button type="button" className="h-14 min-h-14 w-full gap-3 py-3 font-bold bg-primary text-ink hover:bg-primary/90" onClick={() => setSaved((value) => !value)} aria-pressed={saved}>
               <Bookmark className={saved ? "fill-current" : ""} /> {saved ? "Saved Product" : "Save Product"}
             </Button>
-            <Button type="button" className="group h-14 min-h-14 w-full gap-3 py-3 font-bold bg-primary text-ink hover:bg-primary/90">
+            <Button nativeButton={false} render={<Link href="/account/cart" />} className="group h-14 min-h-14 w-full gap-3 py-3 font-bold bg-primary text-ink hover:bg-primary/90">
               Place Order <ArrowRight className="transition-transform duration-300 group-hover:translate-x-1" />
             </Button>
           </div>
+
+          {/* Doc 3.3: alongside "place order", the client can "book" — reserve the item for showroom pickup or a custom order. */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              toast.success("Booking requested", {
+                description: `We'll hold ${product.name} for you and get in touch to confirm pickup or a custom order.`,
+              })
+            }
+            className="h-14 min-h-14 w-full gap-3 py-3 text-base font-bold"
+          >
+            <CalendarClock className="size-5" /> Book this tile instead
+          </Button>
+          <p className="-mt-4 text-center text-xs text-muted">
+            Booking reserves the item without paying now — for showroom pickup or a custom order.
+          </p>
+
+          <Link
+            href={`/compare?ids=${product.id}`}
+            className="flex items-center justify-center gap-2 text-sm font-semibold text-muted transition-colors hover:text-ink"
+          >
+            <Scale className="size-4" /> Compare this tile with others
+          </Link>
         </div>
       </div>
     </div>

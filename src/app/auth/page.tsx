@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type KeyboardEvent, type ClipboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ClipboardEvent } from "react";
 import {
   ArrowRight,
   CheckCircle2,
@@ -23,18 +23,35 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
+import { authApi, tokenStore, usersApi, type DiscoverySource, type HearAboutUs } from "@/lib/api";
+import { ApiError } from "@/lib/api/client";
+import { useApi } from "@/lib/api/use-api";
+import { roleHomePath } from "@/lib/auth-routes";
 import { groupDigitsInThrees, isValidEmail, isValidFullName, isValidRwandaMobileDigits } from "@/lib/validation";
 
 const RWANDA_PREFIX = "+250";
 
+/** Matches the server's default `OTP_RESEND_COOLDOWN_SECONDS` — see server/.env. */
+const RESEND_COOLDOWN_SECONDS = 60;
+
+/** Server messages are shown as-is; anything else (a dropped connection) gets a generic fallback. */
+const errorMessage = (cause: unknown, fallback: string) =>
+  cause instanceof ApiError ? cause.message : fallback;
+
 type ViewState = "login" | "signup" | "otp";
 
-const discoverySources = [
-  { value: "friend", label: "Friend / Referral" },
-  { value: "social", label: "Social Media" },
-  { value: "search", label: "Search Engine" },
-  { value: "advertisement", label: "Advertisement" },
-] as const;
+/**
+ * Used only until `GET /auth/discovery-sources` responds. The server owns the
+ * canonical list (its values are what `POST /auth/register` accepts), so these
+ * are the same enum values, not a second source of truth.
+ */
+const fallbackDiscoverySources: DiscoverySource[] = [
+  { value: "REFERRAL", label: "Referral" },
+  { value: "SOCIAL_MEDIA", label: "Social Media" },
+  { value: "SEARCH_ENGINE", label: "Search Engine" },
+  { value: "ADVERTISEMENT", label: "Advertisement" },
+  { value: "OTHER", label: "Other" },
+];
 
 const fieldClassName = "h-11 pl-11 text-sm";
 
@@ -226,6 +243,9 @@ const OtpFields = ({
 const AuthPage = () => {
   const [view, setView] = useState<ViewState>("login");
   const [discoverySource, setDiscoverySource] = useState("");
+  // The list of options is public, so it loads without a session.
+  const { data: fetchedDiscoverySources } = useApi(() => authApi.discoverySources());
+  const discoverySources = fetchedDiscoverySources ?? fallbackDiscoverySources;
   const [loginEmail, setLoginEmail] = useState("");
   const [signupName, setSignupName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
@@ -233,7 +253,24 @@ const AuthPage = () => {
   const [otpCode, setOtpCode] = useState(["", "", "", ""]);
   const [otpSourceView, setOtpSourceView] = useState<"login" | "signup">("login");
   const [submitting, setSubmitting] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const router = useRouter();
+
+  // Already have a working session? Skip straight past the login form. Silent
+  // on failure — an expired or missing token just leaves the visitor here.
+  useEffect(() => {
+    if (!tokenStore.getAccessToken()) return;
+    usersApi
+      .me()
+      .then((user) => router.replace(roleHomePath(user.role)))
+      .catch(() => undefined);
+  }, [router]);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setInterval(() => setResendCooldown((seconds) => Math.max(0, seconds - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [resendCooldown]);
 
   const verifiedEmail = otpSourceView === "signup" ? signupEmail : loginEmail;
   const loginEmailValid = isValidEmail(loginEmail);
@@ -247,9 +284,10 @@ const AuthPage = () => {
   const switchView = (next: ViewState) => {
     setView(next);
     setOtpCode(["", "", "", ""]);
+    setResendCooldown(0);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (view === "login") {
       if (!loginEmailValid) {
         toast.error("Enter a valid email address", {
@@ -258,14 +296,21 @@ const AuthPage = () => {
         return;
       }
       setSubmitting(true);
-      window.setTimeout(() => {
-        setSubmitting(false);
+      try {
+        await authApi.login(loginEmail.trim());
         toast.success("Verification code sent", {
           description: `We sent a 4-digit code to ${loginEmail.trim()}.`,
         });
         setOtpSourceView("login");
+        setResendCooldown(RESEND_COOLDOWN_SECONDS);
         setView("otp");
-      }, 500);
+      } catch (cause) {
+        toast.error("Couldn't send the code", {
+          description: errorMessage(cause, "Please try again."),
+        });
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
 
@@ -277,14 +322,26 @@ const AuthPage = () => {
         return;
       }
       setSubmitting(true);
-      window.setTimeout(() => {
-        setSubmitting(false);
+      try {
+        await authApi.register({
+          fullName: signupName.trim(),
+          email: signupEmail.trim(),
+          phone: `${RWANDA_PREFIX}${signupPhone}`,
+          heardAboutUs: discoverySource as HearAboutUs,
+        });
         toast.success("Verification code sent", {
           description: `We sent a 4-digit code to ${signupEmail.trim()}.`,
         });
         setOtpSourceView("signup");
+        setResendCooldown(RESEND_COOLDOWN_SECONDS);
         setView("otp");
-      }, 500);
+      } catch (cause) {
+        toast.error("Couldn't create your account", {
+          description: errorMessage(cause, "Please try again."),
+        });
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
 
@@ -296,20 +353,37 @@ const AuthPage = () => {
     }
 
     setSubmitting(true);
-    window.setTimeout(() => {
-      setSubmitting(false);
+    try {
+      await authApi.verifyOtp(verifiedEmail.trim(), otpCode.join(""));
+      const user = await usersApi.me();
       toast.success("Login successful", {
         description: "Welcome back to Magnificat Smart Space.",
       });
-      router.push("/");
-    }, 500);
+      router.push(roleHomePath(user.role));
+    } catch (cause) {
+      toast.error("Verification failed", {
+        description: errorMessage(cause, "Please try again."),
+      });
+      setOtpCode(["", "", "", ""]);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const resendOtp = () => {
-    setOtpCode(["", "", "", ""]);
-    toast.info("Verification code resent", {
-      description: `We sent a new code to ${verifiedEmail.trim()}.`,
-    });
+  const resendOtp = async () => {
+    if (resendCooldown > 0) return;
+    try {
+      await authApi.resendOtp(verifiedEmail.trim());
+      setOtpCode(["", "", "", ""]);
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      toast.info("Verification code resent", {
+        description: `We sent a new code to ${verifiedEmail.trim()}.`,
+      });
+    } catch (cause) {
+      toast.error("Couldn't resend the code", {
+        description: errorMessage(cause, "Please try again."),
+      });
+    }
   };
 
   const submitDisabled =
@@ -368,7 +442,7 @@ const AuthPage = () => {
               </div>
             )}
 
-            <form className="flex flex-grow flex-col" onSubmit={(event) => { event.preventDefault(); handleSubmit(); }}>
+            <form className="flex flex-grow flex-col" onSubmit={(event) => { event.preventDefault(); void handleSubmit(); }}>
               <div className="space-y-5">
                 {view === "signup" && (
                   <>
@@ -413,7 +487,18 @@ const AuthPage = () => {
                       <div className="flex items-center gap-2"><span className="font-semibold text-ink">{verifiedEmail.trim()}</span><Button type="button" variant="ghost" size="icon-xs" onClick={() => switchView(otpSourceView)} className="ml-1 text-muted hover:text-ink" aria-label="Edit email"><Pencil className="size-4 text-muted" /></Button></div>
                     </div>
                     <OtpFields code={otpCode} onChange={setOtpCode} />
-                    <p className="mt-2 text-sm text-muted">Didn&apos;t receive code? <Button type="button" variant="link" className="h-auto p-0 text-sm font-medium text-ink hover:underline" onClick={resendOtp}>Resend OTP</Button></p>
+                    <p className="mt-2 text-sm text-muted">
+                      Didn&apos;t receive code?{" "}
+                      <Button
+                        type="button"
+                        variant="link"
+                        disabled={resendCooldown > 0}
+                        className="h-auto p-0 text-sm font-medium text-ink hover:underline disabled:no-underline disabled:opacity-60"
+                        onClick={() => void resendOtp()}
+                      >
+                        {resendCooldown > 0 ? `Resend OTP (${resendCooldown}s)` : "Resend OTP"}
+                      </Button>
+                    </p>
                   </div>
                 )}
               </div>

@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Line, LineChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Coins, CircleCheckBig, ExternalLink, Repeat2, UsersRound } from "lucide-react";
 import { AnalyticsPageHeader } from "@/app/analytics/layout";
+import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
 import { ChartAxisTick } from "@/components/chart-axis-tick";
 import { ConversionFunnel } from "@/components/conversion-funnel";
 import { KpiCards, type KpiCardData } from "@/components/kpi-cards";
@@ -242,25 +244,35 @@ const TopCustomers = () => (
   </section>
 );
 
-const AnalyticsOverviewPage = () => (
-  <>
-    <AnalyticsPageHeader
-      title="Overview"
-      subtitle="High-level performance metrics and trends across the Magnificat ecosystem."
-    />
-    <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
-      <KpiCards items={kpis} />
-      <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
-        <RevenueTrendChart title="Sales Overview" subtitle="Revenue Performance" />
-        <AiRecommendationChart />
+const AnalyticsOverviewPage = () => {
+  const [period, setPeriod] = useState<AnalyticsPeriodDays>(7);
+
+  return (
+    <>
+      <AnalyticsPageHeader
+        title="Overview"
+        subtitle="High-level performance metrics and trends across the Magnificat ecosystem."
+      >
+        <AnalyticsPeriodSwitcher period={period} onChange={setPeriod} />
+      </AnalyticsPageHeader>
+      <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
+        <KpiCards items={kpis} />
+        <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
+          <RevenueTrendChart
+            title="Sales Overview"
+            subtitle="Revenue Performance"
+            range={periodToRange[period]}
+          />
+          <AiRecommendationChart />
+        </div>
+        <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
+          <TopPerformingTiles />
+          <TopCustomers />
+        </div>
+        <ConversionFunnel />
       </div>
-      <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
-        <TopPerformingTiles />
-        <TopCustomers />
-      </div>
-      <ConversionFunnel />
-    </div>
-  </>
-);
+    </>
+  );
+};
 
 export default AnalyticsOverviewPage;
