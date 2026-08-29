@@ -15,6 +15,8 @@ export type ApiState<T> = {
 type InternalState<T> = {
   /** Which run this result belongs to, so a stale one can be recognised. */
   key: string;
+  /** The `deps` half of `key` — lets a `reload()` be told apart from a genuine input change. */
+  depsKey: string;
   data?: T;
   error?: string;
   loading: boolean;
@@ -27,18 +29,29 @@ type InternalState<T> = {
  * than allowed to overwrite a newer result, so rapid filter changes can't land
  * out of order.
  *
+ * A `reload()` of the *same* query (e.g. re-fetching the cart after a
+ * quantity edit) keeps the last good result on screen while the new one
+ * loads, instead of blanking the whole page to a spinner over one small
+ * change. A genuine input change (different `deps`) still resets to blank —
+ * showing the previous entity's data while a new one loads would be
+ * misleading, not just stale.
+ *
  * `fetcher` may be an inline closure — it is read through a ref, and only
  * `deps` decide when to re-run.
  */
 export const useApi = <T>(fetcher: () => Promise<T>, deps: unknown[] = []): ApiState<T> => {
   const [reloadToken, setReloadToken] = useState(0);
-  const key = `${reloadToken}:${JSON.stringify(deps)}`;
+  const depsKey = JSON.stringify(deps);
+  const key = `${reloadToken}:${depsKey}`;
 
-  const [state, setState] = useState<InternalState<T>>({ key, loading: true });
+  const [state, setState] = useState<InternalState<T>>({ key, depsKey, loading: true });
 
-  // Inputs changed: drop straight back to loading for the new key. Adjusting
-  // state during render like this is cheaper than an effect + extra paint.
-  if (state.key !== key) setState({ key, loading: true });
+  // Inputs changed: adjusting state during render like this is cheaper than
+  // an effect + extra paint. Only a genuinely different query clears `data`.
+  if (state.key !== key) {
+    const sameQuery = state.depsKey === depsKey;
+    setState({ key, depsKey, loading: true, data: sameQuery ? state.data : undefined });
+  }
 
   // Latest-value ref, updated in its own effect so nothing is written during render.
   const fetcherRef = useRef(fetcher);
@@ -52,12 +65,13 @@ export const useApi = <T>(fetcher: () => Promise<T>, deps: unknown[] = []): ApiS
     fetcherRef
       .current()
       .then((data) => {
-        if (active) setState({ key, data, loading: false });
+        if (active) setState({ key, depsKey, data, loading: false });
       })
       .catch((cause: unknown) => {
         if (!active) return;
         setState({
           key,
+          depsKey,
           error:
             cause instanceof ApiError
               ? cause.message
@@ -69,16 +83,17 @@ export const useApi = <T>(fetcher: () => Promise<T>, deps: unknown[] = []): ApiS
     return () => {
       active = false;
     };
-  }, [key]);
+  }, [key, depsKey]);
 
   const reload = useCallback(() => setReloadToken((token) => token + 1), []);
 
-  // While a new key is settling, `state` still holds the previous key's result —
-  // report that as loading rather than briefly showing stale data.
+  // While a new key is settling, `state` may still be catching up (its own
+  // effect hasn't landed yet) — that's still `loading`, whatever `data` it's
+  // holding onto in the meantime.
   const settled = state.key === key;
 
   return {
-    data: settled ? state.data : undefined,
+    data: state.data,
     loading: !settled || state.loading,
     error: settled ? state.error : undefined,
     reload,

@@ -4,13 +4,18 @@ import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, MessageCircle, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
-import { stockLabels } from "@/components/product-card";
 import { cn } from "@/lib/utils";
 import { cartNegotiationsApi } from "@/lib/api";
+import { useCurrentUser } from "@/lib/current-user";
 import type { ApiCartNegotiation, ApiCartNegotiationMessage } from "@/lib/api/types";
+import { appendMessageOnce, useNegotiationThread } from "@/lib/negotiations-socket";
 import type { StockShortage } from "@/lib/stock-availability";
 
 const formatSqm = (value: number) => `${value} sqm`;
+
+/** Exact on-hand quantity, in the note staff see — see `getStockShortage`'s `availableSqm` field. */
+const formatAvailabilityNote = (item: StockShortage) =>
+  item.availableSqm > 0 ? `${item.availableSqm} sqm available` : "Out of stock";
 
 /**
  * Cart-side counterpart to `StockNegotiationChat`, but real: no order exists
@@ -24,11 +29,12 @@ const formatSqm = (value: number) => `${value} sqm`;
  * their inbox regardless, as a permanent record.
  */
 export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] }) => {
+  const { user } = useCurrentUser();
   const [open, setOpen] = useState(false);
   const [negotiation, setNegotiation] = useState<ApiCartNegotiation | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
+  const [pendingIds, setPendingIds] = useState<string[]>([]);
   const listRef = useRef<HTMLDivElement | null>(null);
 
   // Rehydrate any existing thread on mount so a reload doesn't lose history —
@@ -54,14 +60,51 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
   }, [negotiation, open]);
 
+  // Instant delivery once a thread exists — `appendMessageOnce` skips this
+  // component's own just-sent message, already appended locally below.
+  useNegotiationThread<ApiCartNegotiationMessage>(
+    negotiation ? { kind: "cart", id: negotiation.id } : null,
+    (message) => {
+      setNegotiation((current) => current && { ...current, messages: appendMessageOnce(current.messages, message) });
+    },
+  );
+
   if (shortages.length === 0 || !hydrated) return null;
 
   const messages = negotiation?.messages ?? [];
 
+  // Appears the instant the customer hits send — the API call and the socket
+  // echo of it both happen in the background afterwards, never blocking the
+  // bubble from showing. `pendingIds` just dims it until the server confirms.
   const sendMessage = async () => {
     const body = draft.trim();
-    if (!body || sending) return;
-    setSending(true);
+    if (!body) return;
+    setDraft("");
+
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const optimisticMessage: ApiCartNegotiationMessage = {
+      id: tempId,
+      negotiationId: negotiation?.id ?? "",
+      author: "CUSTOMER",
+      senderId: user?.id ?? null,
+      sender: user ? { id: user.id, fullName: user.fullName, role: user.role } : null,
+      body,
+      createdAt: new Date().toISOString(),
+    };
+    setPendingIds((current) => [...current, tempId]);
+    setNegotiation((current) =>
+      current
+        ? { ...current, messages: [...current.messages, optimisticMessage] }
+        : {
+            id: tempId,
+            customerId: user?.id ?? "",
+            createdAt: optimisticMessage.createdAt,
+            updatedAt: optimisticMessage.createdAt,
+            items: [],
+            messages: [optimisticMessage],
+          },
+    );
+
     try {
       const alreadyKnown = (item: StockShortage) =>
         negotiation?.items.some(
@@ -76,22 +119,32 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
             productId: item.productId,
             productName: item.productName,
             requestedAreaSqm: item.requestedSqm,
-            availabilityNote: stockLabels[item.status],
+            availabilityNote: formatAvailabilityNote(item),
           })),
           body,
         );
         setNegotiation(updated);
       } else {
         const message = await cartNegotiationsApi.postMessage(negotiation.id, body);
-        setNegotiation((current) => current && { ...current, messages: [...current.messages, message] });
+        setNegotiation(
+          (current) =>
+            current && {
+              ...current,
+              messages: appendMessageOnce(
+                current.messages.filter((existing) => existing.id !== tempId),
+                message,
+              ),
+            },
+        );
       }
-      setDraft("");
     } catch (cause) {
+      setNegotiation((current) => current && { ...current, messages: current.messages.filter((m) => m.id !== tempId) });
+      setDraft(body);
       toast.error("Message not sent", {
         description: cause instanceof Error ? cause.message : "Please try again.",
       });
     } finally {
-      setSending(false);
+      setPendingIds((current) => current.filter((id) => id !== tempId));
     }
   };
 
@@ -124,7 +177,7 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
 
           <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
             {messages.length === 0 ? (
-              <p className="mx-auto max-w-[85%] rounded-lg bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-800">
+              <p className="mx-auto w-fit max-w-[85%] rounded-lg bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-800">
                 {shortages.length === 1
                   ? `${shortages[0].productName}: you're requesting ${formatSqm(shortages[0].requestedSqm)}, more than we currently have. Send a message below to reach our stock team.`
                   : `${shortages.length} items in your cart exceed what's currently in stock. Send a message below to reach our stock team.`}
@@ -132,11 +185,13 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
             ) : (
               messages.map((message) => {
                 const from = bubbleFrom(message);
+                const pending = pendingIds.includes(message.id);
                 return (
                   <div
                     key={message.id}
                     className={cn(
-                      "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm",
+                      "w-fit max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm",
+                      pending && "opacity-60",
                       from === "user"
                         ? "ml-auto rounded-br-sm bg-primary text-ink"
                         : from === "system"
@@ -148,13 +203,6 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
                   </div>
                 );
               })
-            )}
-            {sending && (
-              <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-secondary px-3.5 py-2.5 text-ink">
-                <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.2s]" />
-                <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.1s]" />
-                <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground" />
-              </div>
             )}
           </div>
 
@@ -168,15 +216,14 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
                   void sendMessage();
                 }
               }}
-              disabled={sending}
               placeholder="Type a message…"
-              className="h-10 flex-1 rounded-full border border-border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-60"
+              className="h-10 flex-1 rounded-full border border-border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             />
             <Button
               type="button"
               size="icon"
               onClick={() => void sendMessage()}
-              disabled={draft.trim() === "" || sending}
+              disabled={draft.trim() === ""}
               aria-label="Send message"
               className="size-10 shrink-0 rounded-full"
             >

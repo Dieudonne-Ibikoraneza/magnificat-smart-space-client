@@ -5,9 +5,12 @@ import Link from "next/link";
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight, Check, Minus, Plus, Scale, Search, X } from "lucide-react";
+import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
+import { CompareSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { products } from "@/data/catalog";
+import { productsApi, toProduct } from "@/lib/api";
+import { useApi } from "@/lib/api/use-api";
 import type { Product } from "@/components/product-card";
 import { cn } from "@/lib/utils";
 
@@ -45,8 +48,8 @@ const comparisonRows: {
   label: string;
   value: (product: Product) => string;
 }[] = [
-  { label: "Price per box", value: (p) => formatRWF(p.price) },
-  { label: "Price per m²", value: (p) => formatRWF(p.price / p.boxCoverage) },
+  { label: "Price per m²", value: (p) => formatRWF(p.price) },
+  { label: "Price per box", value: (p) => formatRWF(p.price * p.boxCoverage) },
   { label: "Tile size", value: (p) => p.size },
   { label: "Area per piece", value: (p) => `${formatNumber(p.tileArea)} m²` },
   { label: "Coverage per box", value: (p) => `${formatNumber(p.boxCoverage)} m²` },
@@ -59,23 +62,34 @@ const comparisonRows: {
 
 const ComparePageContent = () => {
   const searchParams = useSearchParams();
-  const initialIds = (searchParams.get("ids") ?? "")
-    .split(",")
-    .map((id) => id.trim())
-    .filter((id) => products.some((product) => product.id === id))
-    .slice(0, MAX_COMPARED);
+  const { data, loading, error, reload } = useApi(() => productsApi.list({ limit: 100 }));
+  const products = useMemo(() => data?.items.map((product) => toProduct(product)) ?? [], [data]);
 
-  const [selectedIds, setSelectedIds] = useState<string[]>(
-    initialIds.length > 0 ? initialIds : products.slice(0, 2).map((product) => product.id),
-  );
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [seeded, setSeeded] = useState(false);
   const [search, setSearch] = useState("");
+
+  // Products arrive asynchronously, so the `?ids=` seed (or the default
+  // first-two) can only be applied once they're in — and only once, so it
+  // doesn't stomp on selections the visitor has already made by then.
+  // Adjusting state during render like this (rather than in an effect) is
+  // the cheaper, endorsed way to sync to a value that just became available.
+  if (!seeded && products.length > 0) {
+    const requestedIds = (searchParams.get("ids") ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => products.some((product) => product.id === id))
+      .slice(0, MAX_COMPARED);
+    setSelectedIds(requestedIds.length > 0 ? requestedIds : products.slice(0, 2).map((product) => product.id));
+    setSeeded(true);
+  }
 
   const selected = useMemo(
     () =>
       selectedIds
         .map((id) => products.find((product) => product.id === id))
         .filter((product): product is Product => product !== undefined),
-    [selectedIds],
+    [selectedIds, products],
   );
 
   const pickerResults = useMemo(() => {
@@ -87,7 +101,7 @@ const ComparePageContent = () => {
         product.sku.toLowerCase().includes(term) ||
         product.size.toLowerCase().includes(term),
     );
-  }, [search]);
+  }, [search, products]);
 
   const toggle = (id: string) =>
     setSelectedIds((current) => {
@@ -99,6 +113,12 @@ const ComparePageContent = () => {
   /** A row is worth highlighting only when the products actually differ on it. */
   const differs = (row: (typeof comparisonRows)[number]) =>
     selected.length > 1 && new Set(selected.map((product) => row.value(product))).size > 1;
+
+  if (loading) return <CompareSkeleton />;
+  if (error) return <ApiErrorState message={error} onRetry={reload} className="my-16" />;
+  if (products.length === 0) {
+    return <ApiEmptyState message="No products are available to compare yet." className="my-16" />;
+  }
 
   return (
     <div className="pb-10">

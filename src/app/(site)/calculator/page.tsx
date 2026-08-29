@@ -199,7 +199,7 @@ export default function FloorPlanCalculatorPage() {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-ink">{item.name}</span>
                     <span className="block truncate text-xs text-muted">
-                      {item.size} · {formatRWF(item.price)} per box
+                      {item.size} · {formatRWF(item.price)} per sqm
                     </span>
                   </span>
                 </button>

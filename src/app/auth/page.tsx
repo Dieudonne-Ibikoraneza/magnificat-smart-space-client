@@ -23,10 +23,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
-import { authApi, tokenStore, usersApi, type DiscoverySource, type HearAboutUs } from "@/lib/api";
+import { authApi, usersApi, type DiscoverySource, type HearAboutUs } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { useApi } from "@/lib/api/use-api";
 import { roleHomePath } from "@/lib/auth-routes";
+import { useCart } from "@/lib/cart-store";
+import { useCurrentUser } from "@/lib/current-user";
 import { groupDigitsInThrees, isValidEmail, isValidFullName, isValidRwandaMobileDigits } from "@/lib/validation";
 
 const RWANDA_PREFIX = "+250";
@@ -255,16 +257,13 @@ const AuthPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const router = useRouter();
+  const { user: currentUser, loading: currentUserLoading, refresh: refreshCurrentUser } = useCurrentUser();
+  const { refresh: refreshCart } = useCart();
 
-  // Already have a working session? Skip straight past the login form. Silent
-  // on failure — an expired or missing token just leaves the visitor here.
+  // Already have a working session? Skip straight past the login form.
   useEffect(() => {
-    if (!tokenStore.getAccessToken()) return;
-    usersApi
-      .me()
-      .then((user) => router.replace(roleHomePath(user.role)))
-      .catch(() => undefined);
-  }, [router]);
+    if (!currentUserLoading && currentUser) router.replace(roleHomePath(currentUser.role));
+  }, [currentUser, currentUserLoading, router]);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -356,6 +355,11 @@ const AuthPage = () => {
     try {
       await authApi.verifyOtp(verifiedEmail.trim(), otpCode.join(""));
       const user = await usersApi.me();
+      // Refreshes the shared session and cart so the destination's sidebar,
+      // header cart count etc. show this user immediately, rather than only
+      // on their next navigation.
+      refreshCurrentUser();
+      refreshCart();
       toast.success("Login successful", {
         description: "Welcome back to Magnificat Smart Space.",
       });

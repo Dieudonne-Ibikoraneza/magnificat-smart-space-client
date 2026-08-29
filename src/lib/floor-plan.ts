@@ -20,7 +20,7 @@ export type FloorPlanInput = {
 };
 
 export type FloorPlanProduct = TilePackaging & {
-  /** Price of one box, in RWF. */
+  /** Price per square metre (m²), in RWF — what staff enter, and what pricing is based on, not the box. */
   price: number;
   /** Pieces physically available to allocate right now. */
   availablePieces: number;
@@ -70,7 +70,10 @@ export const calculateFloorPlan = (
   const fromStockPieces = Math.min(available, quantity.totalPieces);
   const toSourcePieces = quantity.totalPieces - fromStockPieces;
 
-  const unitPricePerPiece = product.piecesPerBox > 0 ? product.price / product.piecesPerBox : 0;
+  // Priced by area, not by the box: one piece covers `tileArea` m², so its
+  // price is just that share of the per-m² price — mirrors the server
+  // (`calculator.service.ts`), which bills the whole line the same way.
+  const unitPricePerPiece = product.price * product.tileArea;
 
   return {
     baseAreaSqm,

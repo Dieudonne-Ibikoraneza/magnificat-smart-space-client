@@ -15,7 +15,9 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { cartNegotiationsApi, ordersApi } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
+import { useCurrentUser } from "@/lib/current-user";
 import type { ApiCartNegotiationItem, OrderMessageAuthor, Role } from "@/lib/api/types";
+import { appendMessageOnce, useNegotiationsInboxFeed, useNegotiationThread } from "@/lib/negotiations-socket";
 import { cn } from "@/lib/utils";
 
 /** Shared shape of `ApiOrderMessage` and `ApiCartNegotiationMessage`. */
@@ -134,12 +136,13 @@ const loadConversations = async (): Promise<Conversation[]> => {
  * the same bubble language as the customer-facing negotiation chats.
  */
 const StockNegotiationsPage = () => {
+  const { user } = useCurrentUser();
   const { data: conversations, loading, error, reload } = useApi(loadConversations);
   const [overrides, setOverrides] = useState<Record<string, ThreadMessage[]>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
+  const [pendingIds, setPendingIds] = useState<string[]>([]);
 
   const merged = useMemo(
     () =>
@@ -166,26 +169,87 @@ const StockNegotiationsPage = () => {
 
   const selected = filtered.find((c) => c.id === selectedId) ?? null;
 
-  const sendMessage = async () => {
-    const body = draft.trim();
-    if (!body || !selected || sending) return;
-    setSending(true);
-    try {
-      const message =
-        selected.kind === "order"
-          ? await ordersApi.postMessage(selected.id, body)
-          : await cartNegotiationsApi.postMessage(selected.id, body);
+  // A thread getting a new message elsewhere just needs its own messages
+  // re-pulled (for reordering/preview) — never the whole inbox (list of
+  // orders + cart negotiations + every thread's messages, N+1 requests) just
+  // to reflect one new line. The open thread is already live via
+  // `useNegotiationThread` below, so it's skipped here to avoid a duplicate
+  // fetch stepping on the optimistic bubble `sendMessage` just appended.
+  // Only a thread this inbox has never seen (a brand-new conversation) still
+  // needs the full `reload()`, since there is no per-thread endpoint to
+  // create list entries from.
+  useNegotiationsInboxFeed((thread) => {
+    if (selected && selected.kind === thread.kind && selected.id === thread.id) return;
+    const known = (conversations ?? []).some((c) => c.kind === thread.kind && c.id === thread.id);
+    if (!known) {
+      reload();
+      return;
+    }
+    void (thread.kind === "order" ? ordersApi.listMessages(thread.id) : cartNegotiationsApi.get(thread.id))
+      .then((result) => (Array.isArray(result) ? result : result.messages))
+      .then((messages) => setOverrides((current) => ({ ...current, [thread.id]: messages })))
+      .catch(() => undefined);
+  });
+
+  // Instant delivery into the open thread, on top of the list-level refresh above.
+  useNegotiationThread(
+    selected ? { kind: selected.kind, id: selected.id } : null,
+    (message: ThreadMessage) => {
+      if (!selected) return;
       setOverrides((current) => ({
         ...current,
-        [selected.id]: [...selected.messages, message],
+        [selected.id]: appendMessageOnce(current[selected.id] ?? selected.messages, message),
       }));
-      setDraft("");
+    },
+  );
+
+  // Appears in the thread the instant staff hits send — the API call and the
+  // socket echo of it happen in the background afterwards. `pendingIds` just
+  // dims the bubble until the server confirms it.
+  const sendMessage = async () => {
+    const body = draft.trim();
+    if (!body || !selected) return;
+    setDraft("");
+
+    const { id: selectedId, kind: selectedKind, messages: baseMessages } = selected;
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const optimisticMessage: ThreadMessage = {
+      id: tempId,
+      author: "STAFF",
+      senderId: user?.id ?? null,
+      sender: user ? { id: user.id, fullName: user.fullName, role: user.role } : null,
+      body,
+      createdAt: new Date().toISOString(),
+    };
+    setPendingIds((current) => [...current, tempId]);
+    setOverrides((current) => ({
+      ...current,
+      [selectedId]: [...(current[selectedId] ?? baseMessages), optimisticMessage],
+    }));
+
+    try {
+      const message =
+        selectedKind === "order"
+          ? await ordersApi.postMessage(selectedId, body)
+          : await cartNegotiationsApi.postMessage(selectedId, body);
+      setOverrides((current) => ({
+        ...current,
+        [selectedId]: appendMessageOnce(
+          (current[selectedId] ?? baseMessages).filter((existing) => existing.id !== tempId),
+          message,
+        ),
+      }));
     } catch (cause) {
+      setOverrides((current) => ({
+        ...current,
+        [selectedId]: (current[selectedId] ?? baseMessages).filter((existing) => existing.id !== tempId),
+      }));
+      setDraft(body);
       toast.error("Message not sent", {
         description: cause instanceof Error ? cause.message : "Please try again.",
       });
     } finally {
-      setSending(false);
+      setPendingIds((current) => current.filter((id) => id !== tempId));
     }
   };
 
@@ -347,6 +411,7 @@ const StockNegotiationsPage = () => {
                         key={message.id}
                         className={cn(
                           "flex",
+                          pendingIds.includes(message.id) && "opacity-60",
                           message.author === "STAFF"
                             ? "justify-end"
                             : message.author === "CUSTOMER"
@@ -392,16 +457,15 @@ const StockNegotiationsPage = () => {
                           void sendMessage();
                         }
                       }}
-                      disabled={sending}
                       placeholder="Type a message…"
                       aria-label={`Message ${selected.customerName}`}
-                      className="h-11 flex-1 rounded-full border border-border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-60"
+                      className="h-11 flex-1 rounded-full border border-border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                     />
                     <Button
                       type="button"
                       size="icon"
                       onClick={() => void sendMessage()}
-                      disabled={draft.trim() === "" || sending}
+                      disabled={draft.trim() === ""}
                       aria-label="Send message"
                       className="size-11 shrink-0 rounded-full"
                     >

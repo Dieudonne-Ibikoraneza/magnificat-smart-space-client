@@ -2,9 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
-import { ArrowRight, Check, Heart } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState, type MouseEvent } from "react";
+import { ArrowRight, Check, Heart, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
+import { tokenStore } from "@/lib/api";
+import { useCart } from "@/lib/cart-store";
 import { cn } from "@/lib/utils";
 
 export type Product = {
@@ -61,6 +65,28 @@ export const ProductCard = ({
   onToggle?: () => void;
 }) => {
   const [liked, setLiked] = useState(false);
+  const router = useRouter();
+  const cart = useCart();
+
+  const handleAddToCart = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!tokenStore.getAccessToken()) {
+      toast.error("Sign in required", {
+        description: "Create a free account or log in to add tiles to your cart.",
+      });
+      router.push("/auth");
+      return;
+    }
+    // Additive, not a flat default: on top of whatever's already in the
+    // cart for this product, so repeat clicks behave the way an "add to
+    // cart" button is expected to. Updates on screen immediately — the
+    // actual save happens in the background (see `useCart`).
+    const existing = cart.lines.find((line) => line.productId === product.id);
+    const nextArea = Math.round(((existing?.areaSqm ?? 0) + product.boxCoverage) * 100) / 100;
+    cart.setQuantity(product, nextArea);
+    toast.success("Added to cart", { description: `${product.name} — now ${nextArea} m² in your cart.` });
+  };
 
   return (
     <article
@@ -142,16 +168,29 @@ export const ProductCard = ({
             <span className="ml-1 text-xs font-normal text-muted">/ sqm</span>
           </p>
           {!selectable && (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="size-11 rounded-full border border-slate-100 bg-muted-background text-ink hover:bg-primary hover:text-ink"
-              aria-label={`View ${product.name}`}
-              nativeButton={false}
-              render={<Link href={`${detailsBasePath}/${product.id}`} aria-label={`View ${product.name}`} />}
-            >
-              <ArrowRight className="size-5" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                disabled={product.stockStatus === "out_of_stock"}
+                onClick={handleAddToCart}
+                className="size-11 rounded-full border border-slate-100 bg-muted-background text-ink hover:bg-primary hover:text-ink disabled:pointer-events-none disabled:opacity-50"
+                aria-label={`Add ${product.name} to cart`}
+              >
+                <ShoppingCart className="size-5" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-11 rounded-full border border-slate-100 bg-muted-background text-ink hover:bg-primary hover:text-ink"
+                aria-label={`View ${product.name}`}
+                nativeButton={false}
+                render={<Link href={`${detailsBasePath}/${product.id}`} aria-label={`View ${product.name}`} />}
+              >
+                <ArrowRight className="size-5" />
+              </Button>
+            </div>
           )}
         </div>
       </div>

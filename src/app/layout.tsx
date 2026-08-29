@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Inter, Manrope } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { CartProvider } from "@/lib/cart-store";
+import { CurrentUserProvider } from "@/lib/current-user";
 import { Toaster } from "@/components/ui/toast";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -16,7 +18,9 @@ const RootLayout = ({ children }: LayoutProps<"/">) => {
   return (
     <html lang="en" className={cn("h-full antialiased", "font-sans", inter.variable, manrope.variable)}>
       <body className="flex min-h-full min-w-0 flex-col overflow-x-hidden">
-        {children}
+        <CurrentUserProvider>
+          <CartProvider>{children}</CartProvider>
+        </CurrentUserProvider>
         <Toaster />
       </body>
     </html>

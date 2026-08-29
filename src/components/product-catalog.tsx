@@ -38,10 +38,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { filterGroups } from "@/data/catalog";
+import { filterGroups as legacyFilterGroups } from "@/data/catalog";
 import {
+  buildFilterGroups,
   EMPTY_FILTERS,
   type CatalogFilters,
+  type FilterGroup,
   filterProducts,
   getVisiblePages,
   hasActiveFilters,
@@ -57,11 +59,14 @@ export const FilterOptionsCard = ({
   filters,
   onToggle,
   onReset,
+  groups = legacyFilterGroups,
 }: {
   bare?: boolean;
   filters: CatalogFilters;
   onToggle: (group: keyof CatalogFilters, option: string) => void;
   onReset: () => void;
+  /** Defaults to the static mock list — pass real ones from `buildFilterGroups`. */
+  groups?: FilterGroup[];
 }) => (
   <section
     className={
@@ -82,9 +87,9 @@ export const FilterOptionsCard = ({
     </div>
     <Accordion
       multiple
-      defaultValue={filterGroups.map((group) => group.title)}
+      defaultValue={groups.map((group) => group.title)}
     >
-      {filterGroups.map((group) => (
+      {groups.map((group) => (
         <AccordionItem key={group.title} value={group.title}>
           <AccordionTrigger className="cursor-pointer py-4 text-sm font-semibold text-ink hover:no-underline">
             {group.title}
@@ -331,6 +336,7 @@ const MobileFiltersSheet = ({
   filters,
   onToggle,
   onReset,
+  groups,
 }: {
   open: boolean;
   closing: boolean;
@@ -338,6 +344,7 @@ const MobileFiltersSheet = ({
   filters: CatalogFilters;
   onToggle: (group: keyof CatalogFilters, option: string) => void;
   onReset: () => void;
+  groups: FilterGroup[];
 }) => {
   if (!open) return null;
 
@@ -363,6 +370,7 @@ const MobileFiltersSheet = ({
             filters={filters}
             onToggle={onToggle}
             onReset={onReset}
+            groups={groups}
           />
           <Button
             type="button"
@@ -401,6 +409,8 @@ export const ProductCatalog = ({
   const [searchQuery, setSearchQuery] = useState("");
 
   const isCollectionEmpty = products.length === 0;
+
+  const filterGroups = useMemo(() => buildFilterGroups(products), [products]);
 
   const processedProducts = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -479,6 +489,7 @@ export const ProductCatalog = ({
         filters={filters}
         onToggle={handleToggleFilter}
         onReset={handleResetFilters}
+        groups={filterGroups}
       />
 
       <div>
@@ -490,6 +501,7 @@ export const ProductCatalog = ({
               filters={filters}
               onToggle={handleToggleFilter}
               onReset={handleResetFilters}
+              groups={filterGroups}
             />
             <AiHelpCard />
           </aside>

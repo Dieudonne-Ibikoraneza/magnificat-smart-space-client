@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { ApiErrorState, ApiLoading } from "@/components/api-state";
+import { ApiErrorState } from "@/components/api-state";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,6 +12,8 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { ProductCatalog } from "@/components/product-catalog";
+import { ProductsPageSkeleton } from "@/components/skeletons";
+import { Skeleton } from "@/components/ui/skeleton";
 import { collectionsApi, productsApi, toProduct } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
 import CollectionNotFound from "./not-found";
@@ -30,7 +32,16 @@ const CollectionDetailsPage = ({ params }: { params: Promise<{ id: string }> }) 
     [id],
   );
 
-  if (loading) return <ApiLoading label="Loading collection…" className="py-32" />;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-4 w-64" />
+        <Skeleton className="h-9 w-72" />
+        <Skeleton className="h-4 w-full max-w-xl" />
+        <ProductsPageSkeleton />
+      </div>
+    );
+  }
 
   if (error) {
     // A deleted or mistyped collection id is a 404, not a failure worth retrying.

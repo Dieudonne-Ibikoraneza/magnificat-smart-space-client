@@ -3,6 +3,7 @@ import type {
   AnalyticsOverview,
   AnalyticsPeriod,
   ApiCart,
+  ApiCartItemRow,
   ApiCartNegotiation,
   ApiCartNegotiationMessage,
   ApiCollection,
@@ -114,6 +115,8 @@ export const usersApi = {
   ) => api.get<Paginated<ApiUser>>("/users/staff", { query }),
   createStaff: (body: { fullName: string; email: string; phone: string; role: Role }) =>
     api.post<ApiUser>("/users/staff", body),
+  updateStaff: (id: string, body: { fullName?: string; phone?: string; role?: Role }) =>
+    api.patch<ApiUser>(`/users/staff/${id}`, body),
   setStaffStatus: (id: string, status: "ACTIVE" | "INACTIVE") =>
     api.patch<ApiUser>(`/users/staff/${id}/status`, { status }),
 };
@@ -143,8 +146,9 @@ export type ProductInput = {
   description?: string;
   suitableFor?: SuitableFor;
   roomTypes?: RoomType[];
-  initialQuantity?: number;
-  lowStockThreshold?: number;
+  /** Opening stock in square metres — boxes/pieces are a display conversion only. */
+  initialAreaSqm?: number;
+  initialCostPrice?: number;
 };
 
 export const collectionsApi = {
@@ -170,10 +174,17 @@ export const productsApi = {
   update: (id: string, body: Partial<ProductInput>) => api.patch<ApiProduct>(`/products/${id}`, body),
   remove: (id: string) => api.delete<void>(`/products/${id}`),
 
+  /** `changeAreaSqm` is always square metres — boxes/pieces are a display conversion only, never sent here. */
   adjustStock: (
     id: string,
-    body: { changeQty: number; reason: string; type?: StockMovementType; reference?: string },
-  ) => api.patch<{ quantityOnHand: number }>(`/products/${id}/stock`, body),
+    body: {
+      changeAreaSqm: number;
+      reason: string;
+      type?: StockMovementType;
+      reference?: string;
+      costPrice?: number;
+    },
+  ) => api.patch<{ quantityOnHandSqm: number }>(`/products/${id}/stock`, body),
 };
 
 /** Doc 3.8: dimensions + wastage in, quantity, stock split and cost out. */
@@ -191,9 +202,10 @@ export const calculatorApi = {
 
 export const cartApi = {
   view: () => api.get<ApiCart>("/cart"),
+  /** Sets the line to exactly `areaSqm` (an upsert, not additive) — returns the raw row, not the computed cart. */
   upsertItem: (productId: string, areaSqm: number) =>
-    api.put<ApiCart>("/cart/items", { productId, areaSqm }),
-  removeItem: (productId: string) => api.delete<ApiCart>(`/cart/items/${productId}`),
+    api.put<ApiCartItemRow>("/cart/items", { productId, areaSqm }),
+  removeItem: (productId: string) => api.delete<void>(`/cart/items/${productId}`),
   clear: () => api.delete<void>("/cart"),
 };
 

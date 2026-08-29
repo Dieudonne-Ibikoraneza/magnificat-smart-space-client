@@ -1,4 +1,5 @@
 import type { Product } from "@/components/product-card";
+import { roomTypeLabels } from "@/lib/api/mappers";
 
 export const PAGE_SIZE = 6;
 
@@ -10,6 +11,26 @@ export type CatalogFilters = {
   Availability: string[];
   "Suitable for": string[];
 };
+
+export type FilterGroup = { title: keyof CatalogFilters; options: string[] };
+
+const SUITABLE_FOR_OPTIONS = ["Floor", "Wall", "Floor & Wall"];
+const AVAILABILITY_OPTIONS = ["In Stock Ready", "Low Stock", "Out of Stock (Pre-order)"];
+
+/**
+ * Room type is a closed enum (`roomTypeLabels`), so every value is offered
+ * regardless of what's actually in `products` — a customer can always filter
+ * by "Bedroom" even if today's page has none. Size isn't an enum — a
+ * collection sets it freely — so it's derived from what's actually on the
+ * page; this also means a single collection's catalog naturally only offers
+ * the one size it has, instead of a list of sizes that don't apply to it.
+ */
+export const buildFilterGroups = (products: Product[]): FilterGroup[] => [
+  { title: "Room type", options: Object.values(roomTypeLabels) },
+  { title: "Suitable for", options: SUITABLE_FOR_OPTIONS },
+  { title: "Size", options: Array.from(new Set(products.map((product) => product.size))).sort() },
+  { title: "Availability", options: AVAILABILITY_OPTIONS },
+];
 
 export const EMPTY_FILTERS: CatalogFilters = {
   "Room type": [],
@@ -116,10 +137,14 @@ export const sortProducts = (
     case "high":
       return sorted.sort((a, b) => b.price - a.price);
     case "newest":
-    default:
-      return sorted.sort(
-        (a, b) => Number.parseInt(b.id, 10) - Number.parseInt(a.id, 10),
-      );
+    default: {
+      // Mock catalog ids are sequential numbers, so a higher id is newer.
+      // Real product ids are UUIDs with no such ordering — for those, trust
+      // the order the products arrived in (the API already returns newest
+      // first by default) instead of sorting.
+      const allNumericIds = products.every((product) => /^\d+$/.test(product.id));
+      return allNumericIds ? sorted.sort((a, b) => Number(b.id) - Number(a.id)) : sorted;
+    }
   }
 };
 

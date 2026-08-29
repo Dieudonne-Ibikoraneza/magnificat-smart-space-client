@@ -10,6 +10,10 @@
   --amber: #f4b400;
   --muted: #6b7280;
   --muted-background: #f3f4f6;
+  /* Midpoint between --muted and --muted-background — visible enough to read as
+     a loading placeholder against the white/off-white panels it sits on, without
+     the harshness of using the muted-text color as a fill. */
+  --skeleton: #afb3bb;
   --background: #faf8f2;
   --foreground: #0f2747;
   --card: #ffffff;
@@ -56,6 +60,7 @@
   --color-data-ink: var(--data-ink);
   --color-muted: var(--muted);
   --color-muted-background: var(--muted-background);
+  --color-skeleton: var(--skeleton);
   --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-data: var(--font-manrope), "Manrope", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Consolas,

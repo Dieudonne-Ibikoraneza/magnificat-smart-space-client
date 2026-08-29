@@ -153,9 +153,16 @@ export type ApiProduct = {
   size: string;
   tileAreaSqm: number;
   stockStatus: StockStatus;
-  /** Staff-only: absent for anonymous and client viewers (doc 3.2). */
-  quantityOnHand?: number;
-  reservedQuantity?: number;
+  /**
+   * Staff-only: absent for anonymous and client viewers (doc 3.2). Stock is
+   * held and moved in square metres — boxes/pieces are a display conversion
+   * only, never the stored quantity.
+   */
+  quantityOnHandSqm?: number;
+  /** Same visibility as `quantityOnHandSqm` — the box/piece conversion of it. */
+  onHandBreakdown?: { totalPieces: number; completeBoxes: number; remainingPieces: number };
+  /** Present when the endpoint nests it (e.g. cart lines) — absent elsewhere, where `size` above already covers it. */
+  collection?: { id: string; title: string; slug: string; size: string };
 };
 
 export type TileQuantity = {
@@ -199,14 +206,25 @@ export type ApiCartItem = {
   areaSqm: string;
   createdAt: string;
   product?: ApiProduct;
+  /** The same box/piece breakdown `calculateTileQuantity` gives everywhere else — computed server-side from `areaSqm`. */
+  quantity: TileQuantity;
+  totalPrice: number;
 };
 
+/** `GET /cart`'s shape — note this is not `{id, userId, ...}`; the cart row itself is just `cartId`. */
 export type ApiCart = {
-  id: string;
-  userId: string;
+  cartId: string;
   items: ApiCartItem[];
+  total: number;
+};
+
+/** What `PUT /cart/items` returns — the raw upserted row, no computed fields. Re-fetch `view()` for those. */
+export type ApiCartItemRow = {
+  id: string;
+  cartId: string;
+  productId: string;
+  areaSqm: string;
   createdAt: string;
-  updatedAt: string;
 };
 
 export type ApiOrderItem = {
@@ -293,12 +311,12 @@ export type ApiOrder = {
   delivery?: ApiOrderDelivery | null;
 };
 
-/** Returned by `POST /orders`: what could not be covered by stock on hand. */
+/** Returned by `POST /orders`: what could not be covered by stock on hand, in m². */
 export type StockShortage = {
   productId: string;
   productName: string;
-  requestedPieces: number;
-  availablePieces: number;
+  requestedAreaSqm: number;
+  availableAreaSqm: number;
 };
 
 export type CreatedOrder = ApiOrder & { shortages: StockShortage[] };
@@ -443,7 +461,8 @@ export type TrendPoint = { label: string; value: number };
 export type StockMovement = {
   id: string;
   productId: string;
-  changeQty: number;
+  /** Square metres — boxes/pieces are a display conversion only, never the stored unit. */
+  changeAreaSqm: number;
   type: StockMovementType;
   reference: string | null;
   reason: string;
@@ -464,7 +483,7 @@ export type StockSummary = {
   outOfStockItems: number;
   totalInventoryValue: number;
   trend: TrendPoint[];
-  byType: { type: StockMovementType; movements: number; pieces: number }[];
+  byType: { type: StockMovementType; movements: number; areaSqm: number }[];
 };
 
 export type LowStockRow = {
@@ -472,8 +491,7 @@ export type LowStockRow = {
   name: string;
   sku: string;
   image: string;
-  quantityOnHand: number;
-  reservedQuantity: number;
+  quantityOnHandSqm: number;
   lowStockThreshold: number;
   stockStatus: StockStatus;
 };
@@ -564,7 +582,7 @@ export type TilePerformanceRow = {
   image: string;
   collection: string;
   size: string;
-  quantityOnHand: number;
+  quantityOnHandSqm: number;
   lowStockThreshold: number;
   viewed: number;
   applied: number;
@@ -602,7 +620,7 @@ export type RecommendationRow = {
   image: string;
   collection: string;
   size: string;
-  quantityOnHand: number;
+  quantityOnHandSqm: number;
   lowStockThreshold: number;
   displayed: number;
   accepted: number;

@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCart } from "@/lib/cart-store";
+import { useCurrentUser } from "@/lib/current-user";
+import { getInitials } from "@/lib/utils";
 
 const navigationLinks = [
   { href: "/", label: "Products", match: (pathname: string) => pathname === "/" || pathname.startsWith("/products") },
@@ -27,6 +30,8 @@ const navigationLinks = [
 
 export const SiteHeader = () => {
   const pathname = usePathname();
+  const { user } = useCurrentUser();
+  const cart = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuClosing, setMenuClosing] = useState(false);
   const mounted = useSyncExternalStore(
@@ -78,10 +83,30 @@ export const SiteHeader = () => {
           <button type="button" className="hidden items-center gap-1 text-sm font-medium transition-colors hover:text-ink sm:flex" aria-label="Change language">
             <Globe2 className="size-4" /> EN
           </button>
-          <Link href="/account/settings" className="transition-colors hover:text-ink" aria-label="Account"><UserRound className="size-5 sm:size-4" /></Link>
-          <Link href="/account/cart" className="relative transition-colors hover:text-ink" aria-label="Shopping cart">
+          <Link
+            href={user ? "/account/settings" : "/auth"}
+            className="transition-colors hover:text-ink"
+            aria-label={user ? `Account — signed in as ${user.fullName}` : "Sign in"}
+          >
+            {user ? (
+              <span className="flex size-6 items-center justify-center rounded-full bg-ink text-[10px] font-bold text-white sm:size-5.5">
+                {getInitials(user.fullName)}
+              </span>
+            ) : (
+              <UserRound className="size-5 sm:size-4" />
+            )}
+          </Link>
+          <Link
+            href="/account/cart"
+            className="relative transition-colors hover:text-ink"
+            aria-label={cart.count > 0 ? `Shopping cart, ${cart.count} item${cart.count === 1 ? "" : "s"}` : "Shopping cart"}
+          >
             <ShoppingCart className="size-5 sm:size-4" />
-            <span className="absolute -right-2 -top-2 flex size-4 items-center justify-center rounded-full bg-amber text-[10px] font-bold text-white">2</span>
+            {cart.count > 0 && (
+              <span className="absolute -right-2 -top-2 flex size-4 items-center justify-center rounded-full bg-amber text-[10px] font-bold text-white">
+                {cart.count}
+              </span>
+            )}
           </Link>
           <Button
             type="button"

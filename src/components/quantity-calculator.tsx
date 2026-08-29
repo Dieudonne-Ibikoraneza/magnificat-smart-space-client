@@ -8,8 +8,24 @@ import type { Product } from "@/components/product-card";
 
 const formatNumber = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
-export const QuantityCalculator = ({ product }: { product: Product }) => {
-  const [requiredArea, setRequiredArea] = useState("26");
+/**
+ * `value`/`onChange` are optional — pass them to let a parent read (and
+ * seed) the area, e.g. so an "Add to cart" button elsewhere on the page adds
+ * exactly what's previewed here. Omit them and the calculator manages its
+ * own state, as the staff-facing pages using it still do.
+ */
+export const QuantityCalculator = ({
+  product,
+  value,
+  onChange,
+}: {
+  product: Product;
+  value?: string;
+  onChange?: (value: string) => void;
+}) => {
+  const [internalArea, setInternalArea] = useState("26");
+  const requiredArea = value ?? internalArea;
+  const setRequiredArea = onChange ?? setInternalArea;
   const calculation = useMemo(
     () => calculateTileQuantity(Number(requiredArea), product),
     [product, requiredArea],

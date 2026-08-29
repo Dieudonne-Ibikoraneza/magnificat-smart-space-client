@@ -10,8 +10,11 @@ import {
   Users,
   Workflow,
 } from "lucide-react";
+import { ApiLoading } from "@/components/api-state";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { PageHeader, type PageHeaderProps } from "@/components/page-header";
+import { useRequireRole } from "@/lib/require-role";
+import { getInitials } from "@/lib/utils";
 
 const navigation = [
   {
@@ -45,6 +48,7 @@ export const AnalyticsPageHeader = (props: Omit<PageHeaderProps, "onOpenMenu">) 
 const AnalyticsLayout = ({ children }: { children: React.ReactNode }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuClosing, setMenuClosing] = useState(false);
+  const { user, authorized } = useRequireRole(["DATA_ANALYST", "ADMIN"]);
 
   const openMenu = () => {
     setMenuClosing(false);
@@ -59,10 +63,20 @@ const AnalyticsLayout = ({ children }: { children: React.ReactNode }) => {
     }, 300);
   };
 
+  if (!authorized || !user) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-background">
+        <ApiLoading label="Loading…" />
+      </div>
+    );
+  }
+
+  const sidebarUser = { initials: getInitials(user.fullName), name: user.fullName, email: user.email ?? "" };
+
   return (
     <AnalyticsMenuContext.Provider value={{ openMenu }}>
       <div className="min-h-dvh bg-background">
-        <DashboardSidebar links={navigation} ariaLabel="Data analyst navigation" />
+        <DashboardSidebar links={navigation} ariaLabel="Data analyst navigation" user={sidebarUser} />
         {menuOpen && (
           <>
             <button
@@ -74,6 +88,7 @@ const AnalyticsLayout = ({ children }: { children: React.ReactNode }) => {
             <DashboardSidebar
               links={navigation}
               ariaLabel="Data analyst navigation"
+              user={sidebarUser}
               close={closeMenu}
               className={`fixed inset-y-0 left-0 z-50 h-screen w-70 max-w-[85vw] bg-card shadow-2xl lg:hidden ${menuClosing ? "animate-out slide-out-to-left duration-300" : "animate-in slide-in-from-left duration-300"}`}
             />

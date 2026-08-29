@@ -82,11 +82,10 @@ export const toCollection = (collection: ApiCollection): Collection => ({
 });
 
 /**
- * Exact on-hand stock is only returned to staff (doc 3.2), so this is
- * `undefined` for a client or anonymous viewer — render the status badge
- * instead of a figure when it is.
+ * Exact on-hand stock (in m² — the unit stock is held and moved in; boxes/
+ * pieces are only ever a display conversion) is only returned to staff (doc
+ * 3.2), so this is `undefined` for a client or anonymous viewer — render the
+ * status badge instead of a figure when it is.
  */
-export const availableStock = (product: ApiProduct): number | undefined =>
-  product.quantityOnHand === undefined
-    ? undefined
-    : Math.max(0, product.quantityOnHand - (product.reservedQuantity ?? 0));
+export const availableStockSqm = (product: ApiProduct): number | undefined =>
+  product.quantityOnHandSqm === undefined ? undefined : Math.max(0, product.quantityOnHandSqm);
