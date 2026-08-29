@@ -10,15 +10,13 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DeliveryDetailsDialog } from "@/components/delivery-details-dialog";
 import { CartNegotiationChat } from "@/components/cart-negotiation-chat";
 import { OrderNegotiationPanel } from "@/components/order-negotiation-panel";
-import { stockLabels, stockStyles } from "@/components/product-card";
 import { toast } from "@/components/ui/toast";
 import { ordersApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { useCart, type CartLine } from "@/lib/cart-store";
 import { useCurrentUser } from "@/lib/current-user";
 import type { DeliveryDetails } from "@/data/order-workflow";
-import type { StockShortage as CartStockShortage } from "@/lib/stock-availability";
-import type { StockShortage as OrderStockShortage } from "@/lib/api/types";
+import type { StockShortage } from "@/lib/api/types";
 
 const formatPrice = (value: number) => `RWF ${Math.round(value).toLocaleString()}`;
 
@@ -31,7 +29,7 @@ const CartPage = () => {
   const [submitted, setSubmitted] = useState<{
     deliveryDetails: DeliveryDetails;
     orderId: string;
-    shortages: OrderStockShortage[];
+    shortages: StockShortage[];
   } | null>(null);
   const [placingOrder, setPlacingOrder] = useState(false);
   /** What's currently typed in a quantity box, kept separate from the committed value so a mid-edit "" or "3." doesn't get clobbered by the store's clamped/rounded number. */
@@ -60,19 +58,19 @@ const CartPage = () => {
   };
 
   /**
-   * A customer never sees exact on-hand numbers (doc 3.2 — that's staff-only),
-   * so there's no threshold to compare an ordered quantity against here. Any
-   * low/out-of-stock line is treated as needing negotiation, whatever the
-   * quantity.
+   * Tracks the quantity actually typed for each line (`exceedsStock`, from
+   * `cart.service.ts`'s per-line `availableAreaSqm`) rather than the
+   * product's general `stockStatus` badge — that stays fixed regardless of
+   * how much of it is in the cart, so it flagged every line as short even
+   * once the customer lowered the quantity to something well within stock.
    */
-  const shortages: CartStockShortage[] = cart.lines
-    .filter((line) => line.product.stockStatus !== "in_stock")
+  const shortages: StockShortage[] = cart.lines
+    .filter((line) => line.exceedsStock)
     .map((line) => ({
       productId: line.productId,
       productName: line.product.name,
-      requestedSqm: line.areaSqm,
-      availableSqm: 0,
-      status: line.product.stockStatus,
+      requestedAreaSqm: line.quantity.purchasedArea,
+      availableAreaSqm: line.product.availableAreaSqm ?? 0,
     }));
 
   const shortageFor = (productId: string) => shortages.find((shortage) => shortage.productId === productId);
@@ -291,17 +289,21 @@ const CartPage = () => {
                       </p>
                     </div>
                     {shortage && (
-                      <p
-                        className={`mt-3 flex items-start gap-2 rounded-lg border px-3 py-2.5 text-xs font-medium ${stockStyles[shortage.status]}`}
-                      >
+                      <p className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-medium text-amber-800">
                         <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                         <span>
-                          <span className="font-bold">{stockLabels[shortage.status]}.</span>{" "}
-                          Your requested quantity isn&apos;t fully available — chat with our stock team below to negotiate it.
+                          <span className="font-bold">
+                            The full {shortage.requestedAreaSqm} m² requested isn&apos;t available right now.
+                          </span>{" "}
+                          Lower the quantity, or chat with our stock team below to work out the rest.
                         </span>
                       </p>
                     )}
-                    <p className="mt-6 text-xl font-bold text-ink">
+                    <p className="mt-6 text-xs text-muted">
+                      {formatPrice(line.product.price)}
+                      <span className="ml-1 font-normal">/ sqm</span>
+                    </p>
+                    <p className="text-xl font-bold text-ink">
                       {formatPrice(line.totalPrice)}
                     </p>
                   </div>

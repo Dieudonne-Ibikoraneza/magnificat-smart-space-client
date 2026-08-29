@@ -12,6 +12,15 @@ export type CartLine = {
   product: Product;
   quantity: TileQuantity;
   totalPrice: number;
+  /**
+   * Whether *this line's actual quantity* exceeds stock — tracks `areaSqm`
+   * live, unlike `product.stockStatus` (a fixed badge on the product itself,
+   * true or not regardless of how much of it is in this line). `undefined`
+   * when `product.availableAreaSqm` isn't known yet (a line just added,
+   * before the next cart sync fills it in) — no shortage shown rather than a
+   * wrong one.
+   */
+  exceedsStock: boolean | undefined;
 };
 
 type CartState = {
@@ -41,7 +50,20 @@ const buildLine = (product: Product, areaSqm: number): CartLine => {
   // Priced by area, not by the box: `product.price` is per m², and the
   // total is billed on `purchasedArea` — the actual area shipped once
   // rounded up to whole pieces — mirroring the server (`cart.service.ts`).
-  return { productId: product.id, areaSqm, product, quantity, totalPrice: quantity.purchasedArea * product.price };
+  return {
+    productId: product.id,
+    areaSqm,
+    product,
+    quantity,
+    totalPrice: quantity.purchasedArea * product.price,
+    // Recomputed from the live `areaSqm` every time, so raising or lowering
+    // the quantity updates this instantly, client-side — no round trip, and
+    // no stale flag left over from whatever it was requested at before.
+    exceedsStock:
+      product.availableAreaSqm === undefined
+        ? undefined
+        : quantity.purchasedArea > product.availableAreaSqm,
+  };
 };
 
 type CachedLine = { productId: string; areaSqm: number; product: Product };
@@ -86,6 +108,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [generation, setGeneration] = useState(0);
   const syncTimers = useRef<Record<string, number>>({});
+  // Read inside `setQuantity` without making it depend on (and get
+  // re-memoized every time) `lines` itself.
+  const linesRef = useRef<CartLine[]>(lines);
+  useEffect(() => {
+    linesRef.current = lines;
+  }, [lines]);
 
   useEffect(() => {
     let active = true;
@@ -130,21 +158,27 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [generation]);
 
-  const syncUpsert = useCallback((productId: string, areaSqm: number) => {
+  const refresh = useCallback(() => setGeneration((value) => value + 1), []);
+
+  const syncUpsert = useCallback((productId: string, areaSqm: number, onSynced?: () => void) => {
     if (syncTimers.current[productId]) window.clearTimeout(syncTimers.current[productId]);
     syncTimers.current[productId] = window.setTimeout(() => {
       // Failures are never surfaced — the cart stays local-first even when
       // this fails; the next fresh mount's server reconcile is what
       // recovers it (or gives up and shows what's actually saved).
-      cartApi.upsertItem(productId, areaSqm).catch((cause) => {
-        console.error("Cart sync (upsert) failed:", cause);
-      });
+      cartApi
+        .upsertItem(productId, areaSqm)
+        .then(() => onSynced?.())
+        .catch((cause) => {
+          console.error("Cart sync (upsert) failed:", cause);
+        });
     }, SYNC_DEBOUNCE_MS);
   }, []);
 
   const setQuantity = useCallback(
     (product: Product, areaSqm: number) => {
       const clamped = Math.round(Math.max(0.01, areaSqm) * 100) / 100;
+      const isNewLine = !linesRef.current.some((line) => line.productId === product.id);
       setLines((current) => {
         const next = current.some((line) => line.productId === product.id)
           ? current.map((line) => (line.productId === product.id ? buildLine(product, clamped) : line))
@@ -152,9 +186,16 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         writeCache(next);
         return next;
       });
-      syncUpsert(product.id, clamped);
+      // A line added from anywhere other than the cart page itself (product
+      // detail, catalog, compare) carries a `Product` that never had
+      // `availableAreaSqm` on it (server-side, that field is cart-line-only —
+      // see `ApiProduct.availableAreaSqm`), so `exceedsStock` reads as
+      // `undefined` and the shortage banner silently never shows, however
+      // large the quantity. Once the debounced upsert lands, re-fetching the
+      // real cart view fills that field in for real.
+      syncUpsert(product.id, clamped, isNewLine ? refresh : undefined);
     },
-    [syncUpsert],
+    [syncUpsert, refresh],
   );
 
   const removeItem = useCallback((productId: string) => {
@@ -185,8 +226,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setLines([]);
     writeCache([]);
   }, []);
-
-  const refresh = useCallback(() => setGeneration((value) => value + 1), []);
 
   const count = lines.length;
   const total = lines.reduce((sum, line) => sum + line.totalPrice, 0);

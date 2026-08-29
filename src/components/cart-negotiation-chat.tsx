@@ -1,21 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, MessageCircle, Send, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, MessageCircle, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { cartNegotiationsApi } from "@/lib/api";
 import { useCurrentUser } from "@/lib/current-user";
-import type { ApiCartNegotiation, ApiCartNegotiationMessage } from "@/lib/api/types";
+import type { ApiCartNegotiation, ApiCartNegotiationMessage, StockShortage } from "@/lib/api/types";
 import { appendMessageOnce, useNegotiationThread } from "@/lib/negotiations-socket";
-import type { StockShortage } from "@/lib/stock-availability";
 
-const formatSqm = (value: number) => `${value} sqm`;
-
-/** Exact on-hand quantity, in the note staff see — see `getStockShortage`'s `availableSqm` field. */
+/** Exact on-hand quantity, in the note staff see. */
 const formatAvailabilityNote = (item: StockShortage) =>
-  item.availableSqm > 0 ? `${item.availableSqm} sqm available` : "Out of stock";
+  item.availableAreaSqm > 0 ? `${item.availableAreaSqm} m² available` : "Out of stock";
 
 /**
  * Cart-side counterpart to `StockNegotiationChat`, but real: no order exists
@@ -35,7 +32,28 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
   const [hydrated, setHydrated] = useState(false);
   const [draft, setDraft] = useState("");
   const [pendingIds, setPendingIds] = useState<string[]>([]);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
+  // Whether to auto-follow new messages to the bottom — true unless the
+  // customer has scrolled up to read earlier ones, so an incoming message
+  // never yanks them away from what they're reading.
+  const stickToBottomRef = useRef(true);
+
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+    stickToBottomRef.current = true;
+    setShowScrollButton(false);
+  };
+
+  const handleScroll = () => {
+    const el = listRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    stickToBottomRef.current = nearBottom;
+    setShowScrollButton(!nearBottom);
+  };
 
   // Rehydrate any existing thread on mount so a reload doesn't lose history —
   // "always there" for the customer as long as the underlying shortage is.
@@ -57,7 +75,7 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
 
   useEffect(() => {
     if (!open) return;
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
+    if (stickToBottomRef.current) scrollToBottom();
   }, [negotiation, open]);
 
   // Instant delivery once a thread exists — `appendMessageOnce` skips this
@@ -91,6 +109,7 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
       body,
       createdAt: new Date().toISOString(),
     };
+    stickToBottomRef.current = true;
     setPendingIds((current) => [...current, tempId]);
     setNegotiation((current) =>
       current
@@ -108,7 +127,7 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
     try {
       const alreadyKnown = (item: StockShortage) =>
         negotiation?.items.some(
-          (row) => row.productId === item.productId && Number(row.requestedAreaSqm) === item.requestedSqm,
+          (row) => row.productId === item.productId && Number(row.requestedAreaSqm) === item.requestedAreaSqm,
         ) ?? false;
       const newShortages = shortages.filter((item) => !alreadyKnown(item));
 
@@ -118,7 +137,7 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
           source.map((item) => ({
             productId: item.productId,
             productName: item.productName,
-            requestedAreaSqm: item.requestedSqm,
+            requestedAreaSqm: item.requestedAreaSqm,
             availabilityNote: formatAvailabilityNote(item),
           })),
           body,
@@ -154,7 +173,7 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
   return (
     <div className="fixed right-4 bottom-4 z-40 sm:right-6 sm:bottom-6">
       {open ? (
-        <div className="flex h-[min(28rem,calc(100dvh-6rem))] w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl bg-card shadow-2xl ring-1 ring-ink/10 duration-200 animate-in fade-in-0 slide-in-from-bottom-4">
+        <div className="relative flex h-[min(28rem,calc(100dvh-6rem))] w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl bg-card shadow-2xl ring-1 ring-ink/10 duration-200 animate-in fade-in-0 slide-in-from-bottom-4">
           <div className="flex items-center justify-between gap-3 bg-ink px-4 py-3 text-primary-foreground">
             <div className="flex min-w-0 items-center gap-2.5">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-ink">
@@ -175,11 +194,11 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
             </button>
           </div>
 
-          <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+          <div ref={listRef} onScroll={handleScroll} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
             {messages.length === 0 ? (
-              <p className="mx-auto w-fit max-w-[85%] rounded-lg bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-800">
+              <p className="mx-auto w-fit max-w-[85%] rounded-lg bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-800 break-words">
                 {shortages.length === 1
-                  ? `${shortages[0].productName}: you're requesting ${formatSqm(shortages[0].requestedSqm)}, more than we currently have. Send a message below to reach our stock team.`
+                  ? `${shortages[0].productName}: the full ${shortages[0].requestedAreaSqm} m² requested isn't available right now. Send a message below to reach our stock team.`
                   : `${shortages.length} items in your cart exceed what's currently in stock. Send a message below to reach our stock team.`}
               </p>
             ) : (
@@ -190,7 +209,7 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
                   <div
                     key={message.id}
                     className={cn(
-                      "w-fit max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm",
+                      "w-fit max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm break-words whitespace-pre-wrap",
                       pending && "opacity-60",
                       from === "user"
                         ? "ml-auto rounded-br-sm bg-primary text-ink"
@@ -205,6 +224,17 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
               })
             )}
           </div>
+
+          {showScrollButton && (
+            <button
+              type="button"
+              onClick={() => scrollToBottom()}
+              aria-label="Scroll to latest messages"
+              className="absolute right-4 bottom-[4.75rem] flex size-9 items-center justify-center rounded-full bg-ink text-white shadow-lg transition-transform hover:scale-105"
+            >
+              <ChevronDown className="size-4" />
+            </button>
+          )}
 
           <div className="flex items-center gap-2 border-t border-border p-3">
             <input
@@ -234,7 +264,10 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
       ) : (
         <Button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            stickToBottomRef.current = true;
+            setOpen(true);
+          }}
           aria-label="Open stock negotiation chat"
           className="relative size-14 shrink-0 rounded-full bg-ink text-primary shadow-lg hover:bg-ink/90"
         >

@@ -27,6 +27,8 @@ export type Product = {
   stockStatus: "in_stock" | "low_stock" | "out_of_stock";
   roomTypes: string[];
   suitableFor: "floor" | "wall" | "both";
+  /** Cart-line only — see `ApiProduct.availableAreaSqm`. Absent everywhere else. */
+  availableAreaSqm?: number;
 };
 
 /**

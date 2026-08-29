@@ -161,6 +161,14 @@ export type ApiProduct = {
   quantityOnHandSqm?: number;
   /** Same visibility as `quantityOnHandSqm` — the box/piece conversion of it. */
   onHandBreakdown?: { totalPieces: number; completeBoxes: number; remainingPieces: number };
+  /**
+   * Cart-line only (`GET /cart`) — not staff-gated like the two fields above.
+   * The same exact number this customer is shown anyway the moment they place
+   * the order (`CreatedOrder.shortages`), just surfaced a step earlier so the
+   * cart can flag *this specific requested quantity* against it live, without
+   * a round trip. Absent everywhere else (catalog, product detail, compare).
+   */
+  availableAreaSqm?: number;
   /** Present when the endpoint nests it (e.g. cart lines) — absent elsewhere, where `size` above already covers it. */
   collection?: { id: string; title: string; slug: string; size: string };
 };
@@ -209,6 +217,8 @@ export type ApiCartItem = {
   /** The same box/piece breakdown `calculateTileQuantity` gives everywhere else — computed server-side from `areaSqm`. */
   quantity: TileQuantity;
   totalPrice: number;
+  /** Whether `areaSqm` (once rounded to whole pieces) exceeds `product.availableAreaSqm` — server-computed, so this always tracks the actual saved quantity. */
+  exceedsStock: boolean;
 };
 
 /** `GET /cart`'s shape — note this is not `{id, userId, ...}`; the cart row itself is just `cartId`. */

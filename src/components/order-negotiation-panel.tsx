@@ -108,7 +108,7 @@ export const OrderNegotiationPanel = ({
           <p className="text-sm font-bold text-ink">Part of this order needs a chat with our stock team</p>
           <p className="text-xs text-muted">
             {shortages.length === 1
-              ? `${shortages[0].productName}: only ${shortages[0].availableAreaSqm} m² of the ${shortages[0].requestedAreaSqm} m² requested are on hand right now.`
+              ? `${shortages[0].productName}: the full ${shortages[0].requestedAreaSqm} m² requested isn't available right now.`
               : `${shortages.length} items exceed what's currently on hand.`}
           </p>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ClipboardCheck, Minus, Plus } from "lucide-react";
+import { ClipboardCheck, Coins, Minus, Plus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -49,20 +49,28 @@ export const AdjustStockDialog = ({
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState<string>(reasons[0]);
   const [note, setNote] = useState("");
+  // Only meaningful for stock coming in — feeds the moving weighted-average
+  // cost used for inventory valuation; a removal has no cost to record.
+  const [costPrice, setCostPrice] = useState("");
 
   const parsedAmount = Number(amount);
-  const valid = amount.trim() !== "" && Number.isFinite(parsedAmount) && parsedAmount > 0;
-  const changeSqm = valid ? (direction === "add" ? parsedAmount : -parsedAmount) : 0;
+  const amountValid = amount.trim() !== "" && Number.isFinite(parsedAmount) && parsedAmount > 0;
+  const parsedCostPrice = Number(costPrice);
+  const costPriceValid = costPrice.trim() === "" || (Number.isFinite(parsedCostPrice) && parsedCostPrice > 0);
+  const valid = amountValid && (direction === "remove" || costPriceValid);
+  const changeSqm = amountValid ? (direction === "add" ? parsedAmount : -parsedAmount) : 0;
   const nextStock = Math.max(0, Math.round((currentStockSqm + changeSqm) * 100) / 100);
 
   const handleSubmit = () => {
     if (!valid) return;
     onAdjust(nextStock);
+    const costNote = direction === "add" && costPrice.trim() !== "" ? ` at RWF ${parsedCostPrice.toLocaleString()}/sqm` : "";
     toast.success("Stock adjusted", {
-      description: `${productName}: ${changeSqm >= 0 ? "+" : ""}${changeSqm} sqm (${reason}) · Now ${nextStock.toLocaleString()} sqm on hand.`,
+      description: `${productName}: ${changeSqm >= 0 ? "+" : ""}${changeSqm} sqm${costNote} (${reason}) · Now ${nextStock.toLocaleString()} sqm on hand.`,
     });
     setOpen(false);
     setAmount("");
+    setCostPrice("");
     setNote("");
     setDirection("add");
   };
@@ -74,6 +82,7 @@ export const AdjustStockDialog = ({
         setOpen(next);
         if (next) {
           setAmount("");
+          setCostPrice("");
           setNote("");
           setDirection("add");
           setReason(reasons[0]);
@@ -106,7 +115,10 @@ export const AdjustStockDialog = ({
             </button>
             <button
               type="button"
-              onClick={() => setDirection("remove")}
+              onClick={() => {
+                setDirection("remove");
+                setCostPrice("");
+              }}
               className={cn(
                 "flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-sm font-bold transition-colors",
                 direction === "remove" ? "bg-primary text-ink" : "text-muted-foreground hover:bg-secondary",
@@ -128,6 +140,32 @@ export const AdjustStockDialog = ({
               placeholder="0"
             />
           </Field>
+
+          {direction === "add" && (
+            <Field>
+              <FieldLabel htmlFor="adjust-cost-price">Cost Price (RWF / sqm)</FieldLabel>
+              <div className="relative">
+                <Coins
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
+                  strokeWidth={1.5}
+                />
+                <Input
+                  id="adjust-cost-price"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={costPrice}
+                  onChange={(event) => setCostPrice(event.target.value)}
+                  placeholder="15000"
+                  className="pl-11"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                What we paid per m² for this batch — feeds the running average cost. Optional.
+              </p>
+            </Field>
+          )}
 
           <Field>
             <FieldLabel htmlFor="adjust-reason">Reason</FieldLabel>

@@ -9,6 +9,7 @@ import {
   Check,
   CheckCircle2,
   ClipboardCheck,
+  Coins,
   ImagePlus,
   Layers3,
   Ruler,
@@ -319,6 +320,7 @@ const RegisterProductPage = () => {
   const [price, setPrice] = useState("");
   const [boxCoverage, setBoxCoverage] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [costPrice, setCostPrice] = useState("");
   const [description, setDescription] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -363,6 +365,7 @@ const RegisterProductPage = () => {
     piecesPerBox !== null &&
     quantityValue !== null &&
     quantityValue >= 0 &&
+    (costPrice.trim() === "" || isPositiveNumber(costPrice)) &&
     isValidDescription(description) &&
     imageFile !== null;
 
@@ -626,6 +629,17 @@ const RegisterProductPage = () => {
                   />
                 </div>
               </Field>
+              <ValidatedInput
+                label="Cost Price (RWF / sqm)"
+                placeholder="15000"
+                type="number"
+                value={costPrice}
+                onChange={setCostPrice}
+                isValid={(value) => value.trim() === "" || isPositiveNumber(value)}
+                errorMessage="Enter a cost price greater than 0, or leave it blank."
+                hint="What we paid per m² for this opening stock — feeds inventory valuation. Optional."
+                icon={Coins}
+              />
               {status && (
                 <span
                   className={cn(

@@ -14,14 +14,17 @@ export type TileQuantity = TilePackaging & {
   purchasedArea: number;
 };
 
+/** Clears the odd floating-point trailing digit (e.g. 9.6 + 0.4 = 10.000000000000002) that plain arithmetic on areas is prone to, without rounding away genuine precision like 4.8 or 1.5. */
+const roundArea = (value: number) => Math.round(value * 1_000_000) / 1_000_000;
+
 export const calculateTileQuantity = (
   requiredArea: number,
   packaging: TilePackaging,
 ): TileQuantity => {
   const area = Math.max(0, Number.isFinite(requiredArea) ? requiredArea : 0);
   const completeBoxes = Math.floor(area / packaging.boxCoverage);
-  const boxArea = completeBoxes * packaging.boxCoverage;
-  const remainingArea = Math.max(0, area - boxArea);
+  const boxArea = roundArea(completeBoxes * packaging.boxCoverage);
+  const remainingArea = roundArea(Math.max(0, area - boxArea));
   const remainingPieces = Math.ceil(remainingArea / packaging.tileArea);
 
   return {
@@ -32,6 +35,6 @@ export const calculateTileQuantity = (
     remainingArea,
     remainingPieces,
     totalPieces: completeBoxes * packaging.piecesPerBox + remainingPieces,
-    purchasedArea: boxArea + remainingPieces * packaging.tileArea,
+    purchasedArea: roundArea(boxArea + remainingPieces * packaging.tileArea),
   };
 };

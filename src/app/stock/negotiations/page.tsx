@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
+  ChevronDown,
   ExternalLink,
   MessagesSquare,
   Search,
@@ -143,6 +144,28 @@ const StockNegotiationsPage = () => {
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
   const [pendingIds, setPendingIds] = useState<string[]>([]);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  // Whether to auto-follow new messages to the bottom — true unless staff
+  // has scrolled up to read earlier ones, so an incoming message never yanks
+  // them away from what they're reading.
+  const stickToBottomRef = useRef(true);
+
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+    stickToBottomRef.current = true;
+    setShowScrollButton(false);
+  };
+
+  const handleScroll = () => {
+    const el = listRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    stickToBottomRef.current = nearBottom;
+    setShowScrollButton(!nearBottom);
+  };
 
   const merged = useMemo(
     () =>
@@ -168,6 +191,18 @@ const StockNegotiationsPage = () => {
   }, [merged, search]);
 
   const selected = filtered.find((c) => c.id === selectedId) ?? null;
+
+  // Switching conversations jumps straight to the bottom, no animation.
+  useEffect(() => {
+    scrollToBottom("auto");
+  }, [selectedId]);
+
+  // A new message in the open thread — reply, socket echo, or the optimistic
+  // bubble `sendMessage` appends below — auto-scrolls only if staff is
+  // already following the bottom.
+  useEffect(() => {
+    if (stickToBottomRef.current) scrollToBottom();
+  }, [selected?.messages]);
 
   // A thread getting a new message elsewhere just needs its own messages
   // re-pulled (for reordering/preview) — never the whole inbox (list of
@@ -221,6 +256,7 @@ const StockNegotiationsPage = () => {
       body,
       createdAt: new Date().toISOString(),
     };
+    stickToBottomRef.current = true;
     setPendingIds((current) => [...current, tempId]);
     setOverrides((current) => ({
       ...current,
@@ -266,7 +302,7 @@ const StockNegotiationsPage = () => {
           <ApiEmptyState message="No negotiation threads yet — they open automatically when an order, or a cart, exceeds stock on hand." />
         )}
         {!loading && !error && merged.length > 0 && (
-          <div className="flex h-[min(44rem,calc(100dvh-14rem))] overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-black/5">
+          <div className="flex h-[calc(100dvh-10rem)] overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-black/5 sm:h-[calc(100dvh-11rem)] lg:h-[calc(100dvh-13rem)]">
             {/* Conversation list */}
             <aside
               className={cn(
@@ -348,7 +384,7 @@ const StockNegotiationsPage = () => {
             </aside>
 
             {/* Thread */}
-            <section className={cn("flex min-w-0 flex-1 flex-col", !selected && "hidden sm:flex")}>
+            <section className={cn("relative flex min-w-0 flex-1 flex-col", !selected && "hidden sm:flex")}>
               {!selected ? (
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
                   <span className="flex size-14 items-center justify-center rounded-full bg-secondary text-muted-foreground">
@@ -405,7 +441,11 @@ const StockNegotiationsPage = () => {
                     </div>
                   )}
 
-                  <div className="flex-1 space-y-3 overflow-y-auto bg-[#F9FAFB] px-4 py-4">
+                  <div
+                    ref={listRef}
+                    onScroll={handleScroll}
+                    className="flex-1 space-y-3 overflow-y-auto bg-[#F9FAFB] px-4 py-4"
+                  >
                     {selected.messages.map((message) => (
                       <div
                         key={message.id}
@@ -420,7 +460,7 @@ const StockNegotiationsPage = () => {
                         )}
                       >
                         {message.author === "SYSTEM" ? (
-                          <p className="max-w-[85%] rounded-lg bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-800">
+                          <p className="max-w-[85%] rounded-lg bg-amber-50 px-3 py-2 text-center text-xs font-medium break-words text-amber-800">
                             {message.body}
                           </p>
                         ) : (
@@ -432,7 +472,7 @@ const StockNegotiationsPage = () => {
                                 : "rounded-bl-sm bg-white text-ink",
                             )}
                           >
-                            <p className="whitespace-pre-wrap">{message.body}</p>
+                            <p className="break-words whitespace-pre-wrap">{message.body}</p>
                             <p
                               className={cn(
                                 "mt-1 text-right text-[10px]",
@@ -446,6 +486,17 @@ const StockNegotiationsPage = () => {
                       </div>
                     ))}
                   </div>
+
+                  {showScrollButton && (
+                    <button
+                      type="button"
+                      onClick={() => scrollToBottom()}
+                      aria-label="Scroll to latest messages"
+                      className="absolute right-4 bottom-[4.75rem] flex size-9 items-center justify-center rounded-full bg-ink text-white shadow-lg transition-transform hover:scale-105"
+                    >
+                      <ChevronDown className="size-4" />
+                    </button>
+                  )}
 
                   <div className="flex shrink-0 items-center gap-2 border-t border-border p-3">
                     <input
