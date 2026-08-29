@@ -16,25 +16,30 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
-import {
-  quotationStatusLabels,
-  type DeliveryDetails,
-  type OrderQuotation,
-} from "@/data/order-workflow";
+import { ordersApi } from "@/lib/api";
+import { ApiError } from "@/lib/api/client";
+import type { ApiOrderDelivery, QuotationStatus } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 const formatRWF = (value: number) => `RWF ${Math.round(value).toLocaleString("en-US")}`;
 
-const quotationStatusTone: Record<OrderQuotation["status"], string> = {
-  awaiting_review: "bg-amber-50 text-amber-700",
-  quotation_sent: "bg-blue-50 text-blue-700",
-  payment_submitted: "bg-violet-50 text-violet-700",
-  payment_verified: "bg-green-50 text-green-700",
+const quotationStatusTone: Record<QuotationStatus, string> = {
+  AWAITING_REVIEW: "bg-amber-50 text-amber-700",
+  QUOTATION_SENT: "bg-blue-50 text-blue-700",
+  PAYMENT_SUBMITTED: "bg-violet-50 text-violet-700",
+  PAYMENT_VERIFIED: "bg-green-50 text-green-700",
+};
+
+const quotationStatusLabels: Record<QuotationStatus, string> = {
+  AWAITING_REVIEW: "Awaiting Review",
+  QUOTATION_SENT: "Quotation Sent",
+  PAYMENT_SUBMITTED: "Payment Submitted",
+  PAYMENT_VERIFIED: "Payment Verified",
 };
 
 /**
  * Stock-manager-facing quotation workflow: review delivery details the customer
- * submitted, set a transport fee (0 allowed) to formalize + "send" the quotation,
+ * submitted, set a transport fee (0 allowed) to formalize + send the quotation,
  * then verify payment once the customer marks it as paid. `canManage` gates the
  * action controls — sales sees the same panel read-only, stock/admin can act on it.
  */
@@ -42,42 +47,63 @@ export const OrderQuotationPanel = ({
   orderId,
   subtotalValue,
   deliveryDetails,
-  quotation: initialQuotation,
+  quotationStatus,
+  transportFee,
+  transportFeeNote,
   canManage,
+  onUpdated,
 }: {
   orderId: string;
   subtotalValue: number;
-  deliveryDetails?: DeliveryDetails;
-  quotation: OrderQuotation;
+  deliveryDetails?: ApiOrderDelivery | null;
+  quotationStatus: QuotationStatus;
+  transportFee: number | null;
+  transportFeeNote?: string | null;
   canManage: boolean;
+  /** Called after a successful action so the parent can refetch the order. */
+  onUpdated: () => void;
 }) => {
-  const [quotation, setQuotation] = useState(initialQuotation);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [transportFee, setTransportFee] = useState(quotation.transportFee?.toString() ?? "0");
-  const [transportNote, setTransportNote] = useState(quotation.transportFeeNote ?? "");
+  const [transportFeeInput, setTransportFeeInput] = useState(transportFee?.toString() ?? "0");
+  const [transportNote, setTransportNote] = useState(transportFeeNote ?? "");
+  const [submitting, setSubmitting] = useState(false);
 
-  const feeValue = Number(transportFee);
-  const feeValid = transportFee.trim() !== "" && Number.isFinite(feeValue) && feeValue >= 0;
-  const grandTotal = subtotalValue + (quotation.transportFee ?? 0);
+  const feeValue = Number(transportFeeInput);
+  const feeValid = transportFeeInput.trim() !== "" && Number.isFinite(feeValue) && feeValue >= 0;
+  const grandTotal = subtotalValue + (transportFee ?? 0);
 
-  const handleSendQuotation = () => {
+  const handleSendQuotation = async () => {
     if (!feeValid) return;
-    setQuotation((current) => ({
-      ...current,
-      status: "quotation_sent",
-      transportFee: feeValue,
-      transportFeeNote: transportNote.trim() || undefined,
-      sentAt: "Just now",
-    }));
-    setDialogOpen(false);
-    toast.success("Quotation sent to customer", {
-      description: `Transport fee: ${formatRWF(feeValue)} · Total: ${formatRWF(subtotalValue + feeValue)}`,
-    });
+    setSubmitting(true);
+    try {
+      await ordersApi.sendQuotation(orderId, feeValue, transportNote.trim() || undefined);
+      setDialogOpen(false);
+      onUpdated();
+      toast.success("Quotation sent to customer", {
+        description: `Transport fee: ${formatRWF(feeValue)} · Total: ${formatRWF(subtotalValue + feeValue)}`,
+      });
+    } catch (cause) {
+      toast.error("Couldn't send quotation", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleVerifyPayment = () => {
-    setQuotation((current) => ({ ...current, status: "payment_verified", verifiedAt: "Just now" }));
-    toast.success("Payment verified", { description: `Order ${orderId} can now move to processing.` });
+  const handleVerifyPayment = async () => {
+    setSubmitting(true);
+    try {
+      await ordersApi.verifyPayment(orderId);
+      onUpdated();
+      toast.success("Payment verified", { description: `This order can now move to processing.` });
+    } catch (cause) {
+      toast.error("Couldn't verify payment", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -89,8 +115,8 @@ export const OrderQuotationPanel = ({
           </span>
           <h2 className="text-lg font-bold text-ink sm:text-xl">Quotation</h2>
         </div>
-        <span className={cn("shrink-0 rounded-md px-2.5 py-1 text-[11px] font-bold tracking-wide uppercase", quotationStatusTone[quotation.status])}>
-          {quotationStatusLabels[quotation.status]}
+        <span className={cn("shrink-0 rounded-md px-2.5 py-1 text-[11px] font-bold tracking-wide uppercase", quotationStatusTone[quotationStatus])}>
+          {quotationStatusLabels[quotationStatus]}
         </span>
       </div>
 
@@ -118,7 +144,7 @@ export const OrderQuotationPanel = ({
         <div className="flex items-center justify-between">
           <dt className="text-muted-foreground">Transport fee</dt>
           <dd className="font-data font-semibold text-ink">
-            {quotation.transportFee !== undefined ? formatRWF(quotation.transportFee) : "Not set yet"}
+            {transportFee !== null ? formatRWF(transportFee) : "Not set yet"}
           </dd>
         </div>
         <div className="flex items-center justify-between border-t border-border pt-2 text-base">
@@ -134,13 +160,13 @@ export const OrderQuotationPanel = ({
               render={
                 <Button
                   type="button"
-                  variant={quotation.status === "awaiting_review" ? "default" : "outline"}
+                  variant={quotationStatus === "AWAITING_REVIEW" ? "default" : "outline"}
                   className="h-11 w-full gap-2 text-sm font-bold"
                 />
               }
             >
               <Truck className="size-4" />
-              {quotation.status === "awaiting_review" ? "Add transport fee & send quotation" : "Edit transport fee"}
+              {quotationStatus === "AWAITING_REVIEW" ? "Add transport fee & send quotation" : "Edit transport fee"}
             </DialogTrigger>
             <DialogContent className="max-w-sm">
               <DialogHeader>
@@ -156,8 +182,8 @@ export const OrderQuotationPanel = ({
                     id="transport-fee"
                     type="number"
                     min={0}
-                    value={transportFee}
-                    onChange={(event) => setTransportFee(event.target.value)}
+                    value={transportFeeInput}
+                    onChange={(event) => setTransportFeeInput(event.target.value)}
                     placeholder="0"
                   />
                 </Field>
@@ -173,23 +199,23 @@ export const OrderQuotationPanel = ({
                 </Field>
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="h-10 px-5 text-sm font-bold">
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
                   Cancel
                 </Button>
-                <Button type="button" disabled={!feeValid} onClick={handleSendQuotation} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
-                  Send quotation
+                <Button type="button" disabled={!feeValid || submitting} onClick={() => void handleSendQuotation()} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
+                  {submitting ? "Sending…" : "Send quotation"}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
-          {quotation.status === "payment_submitted" && (
-            <Button type="button" onClick={handleVerifyPayment} className="h-11 w-full gap-2 text-sm font-bold">
-              <ShieldCheck className="size-4" /> Verify payment
+          {quotationStatus === "PAYMENT_SUBMITTED" && (
+            <Button type="button" onClick={() => void handleVerifyPayment()} disabled={submitting} className="h-11 w-full gap-2 text-sm font-bold">
+              <ShieldCheck className="size-4" /> {submitting ? "Verifying…" : "Verify payment"}
             </Button>
           )}
 
-          {quotation.status === "payment_verified" && (
+          {quotationStatus === "PAYMENT_VERIFIED" && (
             <p className="flex items-center justify-center gap-2 rounded-lg bg-green-50 py-2.5 text-sm font-semibold text-green-700">
               <ShieldCheck className="size-4" /> Payment verified
             </p>

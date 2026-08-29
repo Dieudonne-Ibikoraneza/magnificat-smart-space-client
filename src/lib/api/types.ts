@@ -318,6 +318,7 @@ export type ApiOrder = {
   statusEvents?: ApiOrderStatusEvent[];
   payments?: ApiPayment[];
   customer?: ApiUser;
+  createdBy?: { id: string; fullName: string };
   delivery?: ApiOrderDelivery | null;
 };
 
