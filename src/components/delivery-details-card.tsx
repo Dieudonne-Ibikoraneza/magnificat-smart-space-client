@@ -3,12 +3,56 @@
 import { useState } from "react";
 import { CalendarClock, MapPin, Pencil, Phone, StickyNote, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { DeliveryDetailsDialog } from "@/components/delivery-details-dialog";
+import { ordersApi } from "@/lib/api";
+import { ApiError } from "@/lib/api/client";
+import type { ApiOrderDelivery } from "@/lib/api/types";
 import type { DeliveryDetails } from "@/data/order-workflow";
 
+const toDeliveryDetails = (delivery: ApiOrderDelivery): DeliveryDetails => ({
+  contactName: delivery.contactName,
+  phone: delivery.phone,
+  address: delivery.address,
+  city: delivery.city,
+  preferredDate: delivery.preferredDate ?? undefined,
+  notes: delivery.notes ?? undefined,
+});
+
 /** Customer-facing delivery-details card: shows what's on file, or a prompt to add it. */
-export const DeliveryDetailsCard = ({ initial }: { initial?: DeliveryDetails }) => {
-  const [details, setDetails] = useState(initial);
+export const DeliveryDetailsCard = ({
+  orderId,
+  initial,
+  onSaved,
+}: {
+  orderId: string;
+  initial?: ApiOrderDelivery | null;
+  /** Called with the freshly-saved row, so the parent can update its own order state. */
+  onSaved: (delivery: ApiOrderDelivery) => void;
+}) => {
+  const [saving, setSaving] = useState(false);
+  const details = initial ? toDeliveryDetails(initial) : undefined;
+
+  const handleSubmit = async (values: DeliveryDetails) => {
+    setSaving(true);
+    try {
+      const saved = await ordersApi.saveDeliveryDetails(orderId, {
+        contactName: values.contactName,
+        phone: values.phone,
+        address: values.address,
+        city: values.city,
+        preferredDate: values.preferredDate || undefined,
+        notes: values.notes || undefined,
+      });
+      onSaved(saved);
+    } catch (cause) {
+      toast.error("Couldn't save delivery details", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <section className="rounded-2xl bg-white p-5 sm:p-6">
@@ -21,9 +65,9 @@ export const DeliveryDetailsCard = ({ initial }: { initial?: DeliveryDetails }) 
         </div>
         <DeliveryDetailsDialog
           initialValue={details}
-          onSubmit={setDetails}
+          onSubmit={(values) => void handleSubmit(values)}
           trigger={
-            <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-bold">
+            <Button type="button" variant="outline" size="sm" disabled={saving} className="h-8 gap-1.5 text-xs font-bold">
               <Pencil className="size-3.5" /> {details ? "Edit" : "Add"}
             </Button>
           }

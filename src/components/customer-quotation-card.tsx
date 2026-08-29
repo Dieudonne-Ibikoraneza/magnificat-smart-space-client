@@ -14,39 +14,62 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
-import {
-  paymentInstructions,
-  quotationStatusLabels,
-  type OrderQuotation,
-} from "@/data/order-workflow";
+import { ordersApi } from "@/lib/api";
+import { ApiError } from "@/lib/api/client";
+import { paymentInstructions } from "@/data/order-workflow";
+import type { QuotationStatus } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 const formatRWF = (value: number) => `RWF ${Math.round(value).toLocaleString("en-US")}`;
 
-const statusTone: Record<OrderQuotation["status"], string> = {
-  awaiting_review: "bg-amber-50 text-amber-700",
-  quotation_sent: "bg-blue-50 text-blue-700",
-  payment_submitted: "bg-violet-50 text-violet-700",
-  payment_verified: "bg-green-50 text-green-700",
+const statusTone: Record<QuotationStatus, string> = {
+  AWAITING_REVIEW: "bg-amber-50 text-amber-700",
+  QUOTATION_SENT: "bg-blue-50 text-blue-700",
+  PAYMENT_SUBMITTED: "bg-violet-50 text-violet-700",
+  PAYMENT_VERIFIED: "bg-green-50 text-green-700",
+};
+
+const statusLabels: Record<QuotationStatus, string> = {
+  AWAITING_REVIEW: "Awaiting Review",
+  QUOTATION_SENT: "Quotation Sent",
+  PAYMENT_SUBMITTED: "Payment Submitted",
+  PAYMENT_VERIFIED: "Payment Verified",
 };
 
 /** Customer-facing quotation + payment card shown on an account order detail page. */
 export const CustomerQuotationCard = ({
   orderId,
   subtotalValue,
-  quotation: initialQuotation,
+  quotationStatus,
+  transportFee,
+  onPaymentSubmitted,
 }: {
   orderId: string;
   subtotalValue: number;
-  quotation: OrderQuotation;
+  quotationStatus: QuotationStatus;
+  transportFee: number | null;
+  /** Called after the customer confirms they've paid, so the parent can refetch the order. */
+  onPaymentSubmitted: () => void;
 }) => {
-  const [quotation, setQuotation] = useState(initialQuotation);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const markPaymentDone = () => {
-    setQuotation((current) => ({ ...current, status: "payment_submitted", paymentSubmittedAt: "Just now" }));
-    setConfirmOpen(false);
-    toast.success("Payment marked as completed", { description: "Our team will verify it and confirm your order shortly." });
+  const markPaymentDone = async () => {
+    setSubmitting(true);
+    try {
+      await ordersApi.markPaymentSubmitted(orderId);
+      setConfirmOpen(false);
+      onPaymentSubmitted();
+      toast.success("Payment marked as completed", {
+        description: "Our team will verify it and confirm your order shortly.",
+      });
+    } catch (cause) {
+      toast.error("Couldn't record your payment", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -58,12 +81,12 @@ export const CustomerQuotationCard = ({
           </span>
           <h2 className="text-lg font-bold text-ink sm:text-xl">Quotation</h2>
         </div>
-        <span className={cn("shrink-0 rounded-md px-2.5 py-1 text-[11px] font-bold tracking-wide uppercase", statusTone[quotation.status])}>
-          {quotationStatusLabels[quotation.status]}
+        <span className={cn("shrink-0 rounded-md px-2.5 py-1 text-[11px] font-bold tracking-wide uppercase", statusTone[quotationStatus])}>
+          {statusLabels[quotationStatus]}
         </span>
       </div>
 
-      {quotation.status === "awaiting_review" ? (
+      {quotationStatus === "AWAITING_REVIEW" ? (
         <p className="mt-4 flex items-start gap-2 text-sm text-muted">
           <Clock className="mt-0.5 size-4 shrink-0" />
           Our stock team is reviewing your order. Once ready, we&apos;ll send you a full quotation here, including transport fees and payment details.
@@ -77,15 +100,15 @@ export const CustomerQuotationCard = ({
             </div>
             <div className="flex items-center justify-between">
               <dt className="text-muted">Transport fee</dt>
-              <dd className="font-data font-semibold text-ink">{formatRWF(quotation.transportFee ?? 0)}</dd>
+              <dd className="font-data font-semibold text-ink">{formatRWF(transportFee ?? 0)}</dd>
             </div>
             <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-base">
               <dt className="font-bold text-ink">Total due</dt>
-              <dd className="font-data font-bold text-ink">{formatRWF(subtotalValue + (quotation.transportFee ?? 0))}</dd>
+              <dd className="font-data font-bold text-ink">{formatRWF(subtotalValue + (transportFee ?? 0))}</dd>
             </div>
           </dl>
 
-          {quotation.status === "quotation_sent" && (
+          {quotationStatus === "QUOTATION_SENT" && (
             <>
               <div className="mt-5 space-y-2.5 rounded-xl border border-slate-100 bg-[#F9FAFB] p-4">
                 <p className="text-[11px] font-bold tracking-wider text-muted uppercase">Payment details</p>
@@ -123,15 +146,15 @@ export const CustomerQuotationCard = ({
                   <DialogHeader>
                     <DialogTitle>Confirm your payment</DialogTitle>
                     <DialogDescription>
-                      Let us know you&apos;ve sent {formatRWF(subtotalValue + (quotation.transportFee ?? 0))} for order #{orderId}. Our team will verify it and confirm your order.
+                      Let us know you&apos;ve sent {formatRWF(subtotalValue + (transportFee ?? 0))} for this order. Our team will verify it and confirm your order.
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setConfirmOpen(false)} className="h-10 px-5 text-sm font-bold">
+                    <Button type="button" variant="outline" onClick={() => setConfirmOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
                       Not yet
                     </Button>
-                    <Button type="button" onClick={markPaymentDone} className="h-10 px-5 text-sm font-bold">
-                      Yes, I&apos;ve paid
+                    <Button type="button" onClick={() => void markPaymentDone()} disabled={submitting} className="h-10 px-5 text-sm font-bold">
+                      {submitting ? "Please wait…" : "Yes, I've paid"}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -139,13 +162,13 @@ export const CustomerQuotationCard = ({
             </>
           )}
 
-          {quotation.status === "payment_submitted" && (
+          {quotationStatus === "PAYMENT_SUBMITTED" && (
             <p className="mt-5 flex items-center gap-2 rounded-lg bg-violet-50 px-4 py-3 text-sm font-medium text-violet-700">
               <Clock className="size-4 shrink-0" /> Payment submitted — pending verification by our team.
             </p>
           )}
 
-          {quotation.status === "payment_verified" && (
+          {quotationStatus === "PAYMENT_VERIFIED" && (
             <p className="mt-5 flex items-center gap-2 rounded-lg bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
               <CheckCircle2 className="size-4 shrink-0" /> Payment verified — your order is confirmed.
             </p>

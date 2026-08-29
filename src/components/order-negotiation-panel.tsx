@@ -17,16 +17,17 @@ const formatTime = (iso: string) =>
  * Inline (not floating) counterpart to `CartNegotiationChat`, for an order that
  * already exists — `orders.service.ts#create` opens this thread automatically
  * the moment part of an order exceeds what's on hand, with a SYSTEM message
- * explaining it. This lets the customer see that message and reply right away,
- * from the order-confirmation screen, without needing the full order-detail
- * page (still mock — see `app/account/orders/[id]/page.tsx`) to be wired up.
+ * explaining it. Used two places: right on the order-confirmation screen
+ * (`shortages` passed straight from the create response, before any message
+ * has necessarily loaded yet), and on the order-detail page (no `shortages`
+ * to hand it — it renders once it finds the thread already has messages).
  */
 export const OrderNegotiationPanel = ({
   orderId,
-  shortages,
+  shortages = [],
 }: {
   orderId: string;
-  shortages: StockShortage[];
+  shortages?: StockShortage[];
 }) => {
   const { user } = useCurrentUser();
   const [messages, setMessages] = useState<ApiOrderMessage[]>([]);
@@ -98,21 +99,32 @@ export const OrderNegotiationPanel = ({
     }
   };
 
+  // Nothing to show yet: no known shortage and (once loaded) no messages
+  // either — e.g. a perfectly normal order with no negotiation history.
+  if (!loading && shortages.length === 0 && messages.length === 0) return null;
+
   return (
     <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
-      <div className="flex items-center gap-3 border-b border-slate-100 bg-amber-50 px-5 py-4">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
-          <AlertTriangle className="size-4.5" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-ink">Part of this order needs a chat with our stock team</p>
-          <p className="text-xs text-muted">
-            {shortages.length === 1
-              ? `${shortages[0].productName}: the full ${shortages[0].requestedAreaSqm} m² requested isn't available right now.`
-              : `${shortages.length} items exceed what's currently on hand.`}
-          </p>
+      {shortages.length > 0 && (
+        <div className="flex items-center gap-3 border-b border-slate-100 bg-amber-50 px-5 py-4">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+            <AlertTriangle className="size-4.5" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-ink">Part of this order needs a chat with our stock team</p>
+            <p className="text-xs text-muted">
+              {shortages.length === 1
+                ? `${shortages[0].productName}: the full ${shortages[0].requestedAreaSqm} m² requested isn't available right now.`
+                : `${shortages.length} items exceed what's currently on hand.`}
+            </p>
+          </div>
         </div>
-      </div>
+      )}
+      {shortages.length === 0 && (
+        <div className="border-b border-slate-100 px-5 py-4">
+          <h2 className="text-sm font-bold text-ink">Chat with our stock team</h2>
+        </div>
+      )}
 
       <div ref={listRef} className="max-h-80 space-y-3 overflow-y-auto bg-[#F9FAFB] px-5 py-4">
         {loading ? (

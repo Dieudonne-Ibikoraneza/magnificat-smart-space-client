@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { notFound, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { use, useState, type FormEvent } from "react";
 import {
   ArrowLeft,
@@ -15,13 +15,16 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
-import { getAccountOrder } from "@/data/account-orders";
+import { ApiErrorState, ApiLoading } from "@/components/api-state";
+import { ordersApi, paymentsApi } from "@/lib/api";
+import { ApiError } from "@/lib/api/client";
+import { useApi } from "@/lib/api/use-api";
 import { groupDigitsInThrees, isValidRwandaMobileDigits } from "@/lib/validation";
 import { cn } from "@/lib/utils";
 
 type PaymentMethod = "momo" | "card";
 
-const formatRWF = (value: number) => `RWF ${Math.round(value).toLocaleString("en-US")}`;
+const formatRWF = (value: string | number) => `RWF ${Math.round(Number(value)).toLocaleString("en-US")}`;
 
 const methods: { id: PaymentMethod; label: string; hint: string; icon: typeof Smartphone }[] = [
   { id: "momo", label: "Mobile money (MoMo)", hint: "Approve the prompt on your phone", icon: Smartphone },
@@ -40,13 +43,16 @@ const formatExpiry = (value: string) => {
 /**
  * In-app payment for an order's quotation (doc 3.7: mobile money and bank card).
  * Sits alongside the manual "I've paid by MoMo code or bank transfer" path on
- * the order page — this is the flow that hands the payment to a provider.
+ * the order page. Card details never leave the browser — there's no client-side
+ * tokenizing SDK wired in yet (Stripe.js/Flutterwave inline, say), so a card
+ * "payment" sends an opaque placeholder token rather than the raw PAN/CVC;
+ * `payments.service.ts`'s card provider is itself still a simulated stub
+ * pending real processor credentials, same as MoMo's.
  */
 export default function OrderPaymentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const order = getAccountOrder(id);
-  if (!order) notFound();
+  const { data: order, loading, error, reload } = useApi(() => ordersApi.get(id), [id]);
 
   const [method, setMethod] = useState<PaymentMethod>("momo");
   const [momoDigits, setMomoDigits] = useState("");
@@ -57,9 +63,26 @@ export default function OrderPaymentPage({ params }: { params: Promise<{ id: str
   const [submitting, setSubmitting] = useState(false);
   const [paid, setPaid] = useState(false);
 
-  const transportFee = order.quotation.transportFee ?? 0;
-  const total = order.total + transportFee;
-  const quotationSent = order.quotation.status !== "awaiting_review";
+  if (loading) return <ApiLoading label="Loading order…" className="py-32" />;
+  if (error) {
+    if (error.toLowerCase().includes("not found") || error.toLowerCase().includes("access")) {
+      return (
+        <div className="mx-auto max-w-md py-24 text-center">
+          <h1 className="text-xl font-bold text-ink">Order not found</h1>
+          <Button nativeButton={false} render={<Link href="/account/orders" />} className="mt-6 h-11 gap-2 px-5">
+            Back to My Orders
+          </Button>
+        </div>
+      );
+    }
+    return <ApiErrorState message={error} onRetry={reload} className="my-16" />;
+  }
+  if (!order) return null;
+
+  const items = order.items ?? [];
+  const transportFee = order.transportFee ? Number(order.transportFee) : 0;
+  const total = order.total;
+  const quotationSent = order.quotationStatus !== "AWAITING_REVIEW";
 
   const cardDigits = cardNumber.replace(/\D/g, "");
   const valid =
@@ -70,14 +93,21 @@ export default function OrderPaymentPage({ params }: { params: Promise<{ id: str
         /^\d{2}\/\d{2}$/.test(expiry) &&
         /^\d{3,4}$/.test(cvc);
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!valid || submitting) return;
 
     setSubmitting(true);
-    // No backend wired yet: stand in for the provider round-trip so the flow reads end to end.
-    window.setTimeout(() => {
-      setSubmitting(false);
+    try {
+      if (method === "momo") {
+        await paymentsApi.initiate({ orderId: order.id, method: "MOMO", phone: `+250${momoDigits}` });
+      } else {
+        await paymentsApi.initiate({
+          orderId: order.id,
+          method: "CARD",
+          cardToken: `demo_${crypto.randomUUID()}`,
+        });
+      }
       setPaid(true);
       toast.success("Payment submitted", {
         description:
@@ -85,7 +115,13 @@ export default function OrderPaymentPage({ params }: { params: Promise<{ id: str
             ? "Approve the prompt on your phone to finish. We'll confirm once it settles."
             : "Your card payment is being processed. We'll confirm once it settles.",
       });
-    }, 1200);
+    } catch (cause) {
+      toast.error("Couldn't start the payment", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (paid) {
@@ -96,7 +132,7 @@ export default function OrderPaymentPage({ params }: { params: Promise<{ id: str
         </span>
         <h1 className="mt-6 text-2xl font-bold text-ink">Payment submitted</h1>
         <p className="mt-3 text-sm leading-6 text-muted">
-          We&apos;ve sent {formatRWF(total)} for order #{order.id} to{" "}
+          We&apos;ve sent {formatRWF(total)} for order #{order.orderNumber} to{" "}
           {method === "momo" ? "mobile money" : "your card issuer"}. Our team verifies every payment
           before confirming the order — you&apos;ll see the status update on the order page.
         </p>
@@ -127,10 +163,10 @@ export default function OrderPaymentPage({ params }: { params: Promise<{ id: str
         href={`/account/orders/${order.id}`}
         className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-muted transition-colors hover:text-ink"
       >
-        <ArrowLeft className="size-4" /> Back to order {order.id}
+        <ArrowLeft className="size-4" /> Back to order #{order.orderNumber}
       </Link>
 
-      <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">Pay for order {order.id}</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">Pay for order #{order.orderNumber}</h1>
       <p className="mt-2 text-sm text-muted">
         Payments are verified by our team before the order moves to fulfilment.
       </p>
@@ -142,7 +178,7 @@ export default function OrderPaymentPage({ params }: { params: Promise<{ id: str
         </p>
       ) : (
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_22rem] lg:items-start">
-          <form onSubmit={handleSubmit} className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
+          <form onSubmit={(event) => void handleSubmit(event)} className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
             <fieldset>
               <legend className="text-sm font-bold text-ink">Payment method</legend>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -266,8 +302,8 @@ export default function OrderPaymentPage({ params }: { params: Promise<{ id: str
             <h2 className="text-base font-bold text-ink">Order summary</h2>
             <dl className="mt-4 space-y-2.5 text-sm">
               <div className="flex items-center justify-between">
-                <dt className="text-muted">Items ({order.items.length})</dt>
-                <dd className="font-data font-semibold text-ink">{formatRWF(order.total)}</dd>
+                <dt className="text-muted">Items ({items.length})</dt>
+                <dd className="font-data font-semibold text-ink">{formatRWF(order.subtotal)}</dd>
               </div>
               <div className="flex items-center justify-between">
                 <dt className="text-muted">Transport fee</dt>
@@ -282,10 +318,10 @@ export default function OrderPaymentPage({ params }: { params: Promise<{ id: str
             </dl>
 
             <ul className="mt-5 space-y-2 border-t border-slate-100 pt-4 text-xs text-muted">
-              {order.items.map((item) => (
-                <li key={item.productId} className="flex items-start justify-between gap-3">
-                  <span className="min-w-0 truncate">{item.name}</span>
-                  <span className="shrink-0 font-data">{item.quantity}</span>
+              {items.map((item) => (
+                <li key={item.id} className="flex items-start justify-between gap-3">
+                  <span className="min-w-0 truncate">{item.product?.name ?? "Item"}</span>
+                  <span className="shrink-0 font-data">{Number(item.requiredAreaSqm)} m²</span>
                 </li>
               ))}
             </ul>
