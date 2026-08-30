@@ -57,7 +57,7 @@ import {
 import { toast } from "@/components/ui/toast";
 import { salesCustomers, type SalesCustomer } from "@/data/sales-customers";
 import type { Product } from "@/components/product-card";
-import { InventoryProductCard } from "@/app/stock/inventory/page";
+import { SelectableInventoryProductCard as InventoryProductCard } from "@/components/selectable-product-card";
 import { inventoryProducts } from "@/data/inventory";
 import { calculateTileQuantity } from "@/lib/tile-calculator";
 import {
@@ -680,6 +680,7 @@ const ProductStep = ({
               <div key={product.id}>
                 <InventoryProductCard
                   product={product as (typeof inventoryProducts)[number]}
+                  basePath="/stock/inventory"
                   selectable
                   selected={selected}
                   onToggle={() => onToggle(product.id)}

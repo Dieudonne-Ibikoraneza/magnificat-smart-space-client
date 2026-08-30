@@ -19,7 +19,7 @@ import { notFound } from "next/navigation";
 import { StockDetailHeader } from "@/app/stock/layout";
 import { getCollectionById } from "@/data/collections";
 import { inventoryProducts } from "@/data/inventory";
-import { InventoryProductCard as InventoryCard } from "@/app/stock/inventory/page";
+import { SelectableInventoryProductCard as InventoryCard } from "@/components/selectable-product-card";
 import type { InventoryProduct } from "@/data/inventory";
 import { getVisiblePages } from "@/lib/catalog-utils";
 import { cn } from "@/lib/utils";
@@ -335,7 +335,7 @@ export default function StockCollectionDetailsPage({
         {view === "grid" ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {pageItems.map(({ key, product }) => (
-              <InventoryCard key={key} product={product} />
+              <InventoryCard key={key} product={product} basePath="/stock/inventory" />
             ))}
           </div>
         ) : (

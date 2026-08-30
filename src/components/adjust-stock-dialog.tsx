@@ -23,6 +23,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
+import { productsApi } from "@/lib/api";
+import { ApiError } from "@/lib/api/client";
+import type { StockMovementType } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 type AdjustmentDirection = "add" | "remove";
@@ -36,13 +39,16 @@ const reasons = [
 
 /** Adjusts on-hand stock, tracked in sqm (the unit the business sells in). */
 export const AdjustStockDialog = ({
+  productId,
   productName,
   currentStockSqm,
-  onAdjust,
+  onAdjusted,
 }: {
+  productId: string;
   productName: string;
   currentStockSqm: number;
-  onAdjust: (nextStockSqm: number) => void;
+  /** Called after a successful adjustment so the parent can refetch the product. */
+  onAdjusted: () => void;
 }) => {
   const [open, setOpen] = useState(false);
   const [direction, setDirection] = useState<AdjustmentDirection>("add");
@@ -52,6 +58,7 @@ export const AdjustStockDialog = ({
   // Only meaningful for stock coming in — feeds the moving weighted-average
   // cost used for inventory valuation; a removal has no cost to record.
   const [costPrice, setCostPrice] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const parsedAmount = Number(amount);
   const amountValid = amount.trim() !== "" && Number.isFinite(parsedAmount) && parsedAmount > 0;
@@ -61,18 +68,35 @@ export const AdjustStockDialog = ({
   const changeSqm = amountValid ? (direction === "add" ? parsedAmount : -parsedAmount) : 0;
   const nextStock = Math.max(0, Math.round((currentStockSqm + changeSqm) * 100) / 100);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!valid) return;
-    onAdjust(nextStock);
-    const costNote = direction === "add" && costPrice.trim() !== "" ? ` at RWF ${parsedCostPrice.toLocaleString()}/sqm` : "";
-    toast.success("Stock adjusted", {
-      description: `${productName}: ${changeSqm >= 0 ? "+" : ""}${changeSqm} sqm${costNote} (${reason}) · Now ${nextStock.toLocaleString()} sqm on hand.`,
-    });
-    setOpen(false);
-    setAmount("");
-    setCostPrice("");
-    setNote("");
-    setDirection("add");
+    setSubmitting(true);
+    try {
+      const movementType: StockMovementType = direction === "add" ? "INBOUND" : "OUTBOUND";
+      await productsApi.adjustStock(productId, {
+        changeAreaSqm: changeSqm,
+        type: movementType,
+        reason,
+        reference: note.trim() || undefined,
+        costPrice: direction === "add" && costPrice.trim() !== "" ? parsedCostPrice : undefined,
+      });
+      onAdjusted();
+      const costNote = direction === "add" && costPrice.trim() !== "" ? ` at RWF ${parsedCostPrice.toLocaleString()}/sqm` : "";
+      toast.success("Stock adjusted", {
+        description: `${productName}: ${changeSqm >= 0 ? "+" : ""}${changeSqm} sqm${costNote} (${reason}) · Now ${nextStock.toLocaleString()} sqm on hand.`,
+      });
+      setOpen(false);
+      setAmount("");
+      setCostPrice("");
+      setNote("");
+      setDirection("add");
+    } catch (cause) {
+      toast.error("Couldn't adjust stock", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -202,11 +226,11 @@ export const AdjustStockDialog = ({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)} className="h-10 px-5 text-sm font-bold">
+          <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
             Cancel
           </Button>
-          <Button type="button" disabled={!valid} onClick={handleSubmit} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
-            Save adjustment
+          <Button type="button" disabled={!valid || submitting} onClick={() => void handleSubmit()} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
+            {submitting ? "Saving…" : "Save adjustment"}
           </Button>
         </DialogFooter>
       </DialogContent>

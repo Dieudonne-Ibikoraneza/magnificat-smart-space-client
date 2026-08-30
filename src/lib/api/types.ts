@@ -161,6 +161,10 @@ export type ApiProduct = {
   quantityOnHandSqm?: number;
   /** Same visibility as `quantityOnHandSqm` — the box/piece conversion of it. */
   onHandBreakdown?: { totalPieces: number; completeBoxes: number; remainingPieces: number };
+  /** Same staff-only visibility — the moving weighted-average cost per m², for inventory valuation. Never shown to clients. */
+  averageCostPrice?: number;
+  /** `quantityOnHandSqm * averageCostPrice` — same visibility as both. */
+  inventoryValue?: number;
   /**
    * Cart-line only (`GET /cart`) — not staff-gated like the two fields above.
    * The same exact number this customer is shown anyway the moment they place
