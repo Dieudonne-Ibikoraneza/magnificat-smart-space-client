@@ -11,6 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import PDFViewer from "@/components/pdf-viewer";
 import { toast } from "@/components/ui/toast";
 import { ordersApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
@@ -38,11 +39,14 @@ const statusLabels: Record<QuotationStatus, string> = {
  * There's no payment gateway wired in behind this system — the quotation PDF
  * itself carries the stock team's MoMo code and bank account, the customer
  * pays there directly, then tells us they've paid from right inside the
- * quotation dialog. It's rendered in an iframe rather than opened in a new
- * tab: some browsers are set to download PDFs instead of viewing them, which
- * would hand the customer a file instead of the document — an embedded
- * iframe always renders inline regardless of that setting. Opening it here
- * is also the server call that unlocks "Done, I've paid".
+ * quotation dialog.
+ *
+ * The PDF is rendered with the custom `PDFViewer` (pdf.js → canvas) rather
+ * than handed to the browser's native viewer, in either an iframe or a new
+ * tab: the native viewer renders unreliably (blank/broken) inside a dialog on
+ * mobile, and always ships its own download control that can't be removed —
+ * the custom viewer has no download action to begin with. Opening the
+ * document here is also the server call that unlocks "Done, I've paid".
  */
 export const CustomerQuotationCard = ({
   orderId,
@@ -166,7 +170,7 @@ export const CustomerQuotationCard = ({
               <DialogTrigger render={<Button type="button" variant="outline" className="mt-5 h-11 w-full gap-2 text-sm font-bold" />}>
                 <FileText className="size-4" /> View quotation & pay
               </DialogTrigger>
-              <DialogContent className="flex h-[85vh] max-w-3xl flex-col" showClose>
+              <DialogContent className="flex h-[calc(100dvh-1.5rem)] max-w-3xl flex-col sm:h-[85vh]" showClose>
                 <DialogHeader className="flex flex-row items-center justify-between gap-3 space-y-0 pr-8">
                   <div className="min-w-0">
                     <DialogTitle>Quotation</DialogTitle>
@@ -184,13 +188,13 @@ export const CustomerQuotationCard = ({
                   </Button>
                 </DialogHeader>
 
-                <div className="mt-4 flex-1 overflow-hidden rounded-lg border border-slate-100 bg-[#F9FAFB]">
+                <div className="mt-4 min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-100 bg-[#F9FAFB]">
                   {loadingPdf ? (
                     <div className="flex h-full items-center justify-center text-sm text-muted">Loading quotation…</div>
                   ) : pdfError ? (
                     <div className="flex h-full items-center justify-center px-6 text-center text-sm text-red-600">{pdfError}</div>
                   ) : pdfUrl ? (
-                    <iframe src={pdfUrl} title="Quotation" className="size-full" />
+                    <PDFViewer src={pdfUrl} fileName={`quotation-${orderId}.pdf`} className="rounded-lg" />
                   ) : null}
                 </div>
               </DialogContent>
