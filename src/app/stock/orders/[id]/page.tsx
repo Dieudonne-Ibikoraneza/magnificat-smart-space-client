@@ -21,7 +21,6 @@ import { StockDetailHeader } from "@/app/stock/layout";
 import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { OrderNegotiationPanel } from "@/components/order-negotiation-panel";
 import { OrderQuotationPanel } from "@/components/order-quotation-panel";
 import { OrderStatusControl } from "@/components/order-status-control";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
@@ -257,8 +256,6 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
               canManage={true}
               onUpdated={reload}
             />
-
-            <OrderNegotiationPanel orderId={order.id} />
 
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <div className="flex items-center gap-3">

@@ -19,14 +19,21 @@ const toDeliveryDetails = (delivery: ApiOrderDelivery): DeliveryDetails => ({
   notes: delivery.notes ?? undefined,
 });
 
-/** Customer-facing delivery-details card: shows what's on file, or a prompt to add it. */
+/**
+ * Customer-facing delivery-details card: shows what's on file, or a prompt to
+ * add it. `locked` disables editing once a quotation has gone out — the
+ * transport fee was costed against these exact details, so changing them
+ * afterwards would invalidate it without the stock team knowing.
+ */
 export const DeliveryDetailsCard = ({
   orderId,
   initial,
+  locked,
   onSaved,
 }: {
   orderId: string;
   initial?: ApiOrderDelivery | null;
+  locked?: boolean;
   /** Called with the freshly-saved row, so the parent can update its own order state. */
   onSaved: (delivery: ApiOrderDelivery) => void;
 }) => {
@@ -63,15 +70,19 @@ export const DeliveryDetailsCard = ({
           </span>
           <h2 className="text-lg font-bold text-ink sm:text-xl">Delivery Details</h2>
         </div>
-        <DeliveryDetailsDialog
-          initialValue={details}
-          onSubmit={(values) => void handleSubmit(values)}
-          trigger={
-            <Button type="button" variant="outline" size="sm" disabled={saving} className="h-8 gap-1.5 text-xs font-bold">
-              <Pencil className="size-3.5" /> {details ? "Edit" : "Add"}
-            </Button>
-          }
-        />
+        {locked ? (
+          <span className="text-xs font-medium text-muted">Locked</span>
+        ) : (
+          <DeliveryDetailsDialog
+            initialValue={details}
+            onSubmit={(values) => void handleSubmit(values)}
+            trigger={
+              <Button type="button" variant="outline" size="sm" disabled={saving} className="h-8 gap-1.5 text-xs font-bold">
+                <Pencil className="size-3.5" /> {details ? "Edit" : "Add"}
+              </Button>
+            }
+          />
+        )}
       </div>
 
       {details ? (
@@ -116,6 +127,8 @@ export const DeliveryDetailsCard = ({
             </div>
           )}
         </dl>
+      ) : locked ? (
+        <p className="mt-4 text-sm text-muted">No delivery details were added before the quotation was sent.</p>
       ) : (
         <p className="mt-4 text-sm text-muted">
           Add your delivery address and contact so the stock team can prepare an accurate quotation.

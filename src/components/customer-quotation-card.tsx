@@ -64,14 +64,26 @@ export const CustomerQuotationCard = ({
   const [submitting, setSubmitting] = useState(false);
 
   const viewQuotation = async () => {
+    // Open the tab synchronously, still inside the click's user-gesture —
+    // opening it after the `await` below loses that gesture and Chrome
+    // silently blocks the popup (no error, the tab just never appears).
+    // We fill in its location once the PDF blob is ready.
+    const newTab = window.open("", "_blank");
     setViewing(true);
     try {
       const blob = await ordersApi.viewQuotationPdf(orderId);
       const url = URL.createObjectURL(blob);
-      window.open(url, "_blank", "noopener,noreferrer");
+      if (newTab) {
+        newTab.location.href = url;
+      } else {
+        toast.error("Pop-up blocked", {
+          description: "Allow pop-ups for this site in your browser, then try again.",
+        });
+      }
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       if (!quotationViewedAt) onUpdated();
     } catch (cause) {
+      newTab?.close();
       toast.error("Couldn't open the quotation", {
         description: cause instanceof ApiError ? cause.message : "Please try again.",
       });

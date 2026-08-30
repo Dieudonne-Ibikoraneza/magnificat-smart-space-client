@@ -216,7 +216,12 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
           </section>
 
           <div className="space-y-5 sm:space-y-6">
-            <DeliveryDetailsCard orderId={order.id} initial={order.delivery} onSaved={reload} />
+            <DeliveryDetailsCard
+              orderId={order.id}
+              initial={order.delivery}
+              locked={order.quotationStatus !== "AWAITING_REVIEW"}
+              onSaved={reload}
+            />
 
             <CustomerQuotationCard
               orderId={order.id}
