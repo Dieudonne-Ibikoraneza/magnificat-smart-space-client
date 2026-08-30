@@ -149,13 +149,23 @@ export type ProductInput = {
   initialCostPrice?: number;
 };
 
+/** Body accepted by `POST /collections`; `PATCH` takes any subset of it. */
+export type CollectionInput = {
+  title: string;
+  size: string;
+  /** Area of a single tile of this size, in sqm — shared by every product in the collection. */
+  tileAreaSqm: number;
+  description?: string;
+  image?: string;
+  isActive?: boolean;
+};
+
 export const collectionsApi = {
   list: (query: { page?: number; limit?: number } = {}) =>
     api.get<Paginated<ApiCollection>>("/collections", { query }),
   get: (id: string) => api.get<ApiCollection>(`/collections/${id}`),
-  create: (body: { title: string; size: string; description?: string; image?: string }) =>
-    api.post<ApiCollection>("/collections", body),
-  update: (id: string, body: Partial<{ title: string; description: string; image: string; isActive: boolean }>) =>
+  create: (body: CollectionInput) => api.post<ApiCollection>("/collections", body),
+  update: (id: string, body: Partial<CollectionInput>) =>
     api.patch<ApiCollection>(`/collections/${id}`, body),
   remove: (id: string) => api.delete<void>(`/collections/${id}`),
 };

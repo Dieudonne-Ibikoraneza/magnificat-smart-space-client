@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useRef, useState } from "react";
 import { Bold, CheckCircle2, ImagePlus, Layers3, Ruler, Save, Tag, X } from "lucide-react";
 import { StockDetailHeader } from "@/app/stock/layout";
 import { Button } from "@/components/ui/button";
@@ -10,11 +10,23 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
+import { collectionsApi } from "@/lib/api";
+import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
 const isValidTitle = (value: string) => value.trim().length >= 2 && value.trim().length <= 80;
 const isValidSize = (value: string) => /^\d+(?:\.\d+)?\s*[×x]\s*\d+(?:\.\d+)?\s*cm$/i.test(value.trim());
 const isValidDescription = (value: string) => value.trim().length >= 10;
+const isPositiveNumber = (value: string) => value.trim() !== "" && Number(value) > 0;
+
+/** Derives a single tile's coverage area (m²) from a size like "50×50cm" — pre-fills the field, still user-editable. */
+const tileAreaFromSize = (size: string) => {
+  const match = size.match(/(\d+(?:\.\d+)?)\s*[×x]\s*(\d+(?:\.\d+)?)/i);
+  if (!match) return null;
+  const [, widthCm, heightCm] = match;
+  const area = (Number(widthCm) / 100) * (Number(heightCm) / 100);
+  return Math.round(area * 10000) / 10000;
+};
 
 type FieldProps = {
   label: string;
@@ -68,80 +80,44 @@ const ValidatedInput = ({ label, placeholder, value, onChange, isValid, errorMes
   );
 };
 
-const ImageDropzone = ({
-  previewUrl,
-  onSelect,
-  onClear,
-}: {
-  previewUrl: string | null;
-  onSelect: (file: File) => void;
-  onClear: () => void;
-}) => {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [dragging, setDragging] = useState(false);
-
-  const handleFile = (file: File | undefined) => {
-    if (!file || !file.type.startsWith("image/")) {
-      toast.error("Unsupported file", { description: "Please choose an image file (PNG, JPG, WEBP)." });
-      return;
-    }
-    onSelect(file);
-  };
-
-  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setDragging(false);
-    handleFile(event.dataTransfer.files?.[0]);
-  };
+/**
+ * Collections have no upload pipeline of their own (unlike products' private
+ * Supabase blob) — the schema just stores `image` as a plain URL, so this is
+ * a URL field with a live preview rather than a file dropzone.
+ */
+const ImageUrlField = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => {
+  const looksLikeUrl = /^https?:\/\//i.test(value.trim());
 
   return (
     <div>
-      {previewUrl ? (
+      {looksLikeUrl ? (
         <div className="relative aspect-4/3 w-full overflow-hidden rounded-xl bg-muted-background">
-          <Image src={previewUrl} alt="Collection preview" fill unoptimized className="object-cover" />
+          <Image src={value.trim()} alt="Collection preview" fill unoptimized className="object-cover" />
           <Button
             type="button"
             variant="secondary"
             size="icon-sm"
-            onClick={onClear}
-            aria-label="Remove image"
+            onClick={() => onChange("")}
+            aria-label="Clear image"
             className="absolute top-3 right-3 rounded-full bg-white/95 text-ink shadow-sm hover:bg-white"
           >
             <X className="size-4" />
           </Button>
         </div>
       ) : (
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => inputRef.current?.click()}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") inputRef.current?.click();
-          }}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={handleDrop}
-          className={cn(
-            "flex aspect-4/3 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed text-center transition-colors",
-            dragging ? "border-primary bg-primary/5" : "border-border bg-secondary/40 hover:bg-secondary/60",
-          )}
-        >
+        <div className="flex aspect-4/3 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-secondary/40 text-center">
           <span className="flex size-11 items-center justify-center rounded-full bg-white text-ink shadow-sm">
             <ImagePlus className="size-5" strokeWidth={1.8} />
           </span>
-          <p className="text-sm font-semibold text-ink">Click to upload or drag and drop</p>
-          <p className="text-xs text-muted-foreground">PNG, JPG or WEBP</p>
+          <p className="text-sm font-semibold text-ink">Paste an image URL below</p>
+          <p className="text-xs text-muted-foreground">Preview appears once it looks like a valid link.</p>
         </div>
       )}
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="sr-only"
-        onChange={(event: ChangeEvent<HTMLInputElement>) => handleFile(event.target.files?.[0])}
+      <Input
+        className="mt-3 h-11 text-sm"
+        placeholder="https://images.example.com/tile.jpg"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
       />
     </div>
   );
@@ -240,46 +216,59 @@ const BoldTextarea = ({
   );
 };
 
-const RegisterCollectionPage = () => {
+const StockRegisterCollectionPage = () => {
   const router = useRouter();
 
   const [title, setTitle] = useState("");
   const [size, setSize] = useState("");
+  const [tileAreaSqm, setTileAreaSqm] = useState("");
+  const [tileAreaTouched, setTileAreaTouched] = useState(false);
   const [description, setDescription] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [image, setImage] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const handleImageSelect = (file: File) => {
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
-  };
-
-  const clearImage = () => {
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
-    setImageFile(null);
-    setImagePreview(null);
+  const handleSizeChange = (value: string) => {
+    setSize(value);
+    if (!tileAreaTouched) {
+      const derived = tileAreaFromSize(value);
+      if (derived !== null) setTileAreaSqm(String(derived));
+    }
   };
 
   const formValid =
-    isValidTitle(title) && isValidSize(size) && isValidDescription(description) && imageFile !== null;
+    isValidTitle(title) &&
+    isValidSize(size) &&
+    isPositiveNumber(tileAreaSqm) &&
+    isValidDescription(description);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formValid) {
       toast.error("Check the highlighted fields", {
-        description: "All fields, including a cover image, are required to create a collection.",
+        description: "Title, tile size, tile area, and description are required to create a collection.",
       });
       return;
     }
 
     setSubmitting(true);
-    window.setTimeout(() => {
-      setSubmitting(false);
+    try {
+      await collectionsApi.create({
+        title: title.trim(),
+        size: size.trim(),
+        tileAreaSqm: Number(tileAreaSqm),
+        description: description.trim(),
+        image: image.trim() || undefined,
+      });
       toast.success("Collection created", {
         description: `${title.trim()} (${size.trim()}) was added to your collections.`,
       });
       router.push("/stock/collections");
-    }, 600);
+    } catch (cause) {
+      toast.error("Couldn't create collection", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -302,7 +291,7 @@ const RegisterCollectionPage = () => {
         className="space-y-5 sm:space-y-6"
         onSubmit={(event) => {
           event.preventDefault();
-          handleSubmit();
+          void handleSubmit();
         }}
       >
         <div className="grid items-start gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_1.4fr]">
@@ -310,7 +299,7 @@ const RegisterCollectionPage = () => {
             <h2 className="text-lg font-bold text-ink">Cover Image</h2>
             <p className="mt-1 text-sm text-muted-foreground">A clear, well-lit photo representing the collection.</p>
             <div className="mt-5">
-              <ImageDropzone previewUrl={imagePreview} onSelect={handleImageSelect} onClear={clearImage} />
+              <ImageUrlField value={image} onChange={setImage} />
             </div>
           </section>
 
@@ -333,12 +322,30 @@ const RegisterCollectionPage = () => {
                 label="Tile Size"
                 placeholder="50×50cm"
                 value={size}
-                onChange={setSize}
+                onChange={handleSizeChange}
                 isValid={isValidSize}
                 errorMessage="Use the format WIDTHxHEIGHTcm, e.g. 50×50cm."
                 hint="Shared by every product added to this collection."
                 icon={Ruler}
               />
+              <Field className="gap-1.5">
+                <FieldLabel className="text-sm font-medium text-ink">Tile Area (m²)</FieldLabel>
+                <Input
+                  className="h-11 text-sm"
+                  placeholder="0.25"
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={tileAreaSqm}
+                  onChange={(event) => {
+                    setTileAreaTouched(true);
+                    setTileAreaSqm(event.target.value);
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Auto-filled from the tile size — adjust only if it doesn&apos;t match.
+                </p>
+              </Field>
             </div>
 
             <div className="mt-6 flex items-center gap-2 rounded-xl border border-border bg-secondary/40 p-4">
@@ -379,4 +386,4 @@ const RegisterCollectionPage = () => {
   );
 };
 
-export default RegisterCollectionPage;
+export default StockRegisterCollectionPage;
