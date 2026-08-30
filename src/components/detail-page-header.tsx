@@ -138,7 +138,7 @@ export const DetailPageHeader = ({ breadcrumbs, title, onOpenMenu, actions, meta
       <DetailBreadcrumbTrail items={breadcrumbs} />
     </div>
 
-    <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
       <h1 className="text-2xl font-black text-ink sm:text-3xl lg:text-4xl">{title}</h1>
       {actions ? <div className="flex flex-wrap items-center gap-3">{actions}</div> : null}
     </div>

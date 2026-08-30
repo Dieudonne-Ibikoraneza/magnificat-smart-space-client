@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import {
   Bold,
   Boxes,
@@ -302,6 +302,7 @@ const BoldTextarea = ({
 
 const RegisterProductPage = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: collectionsData } = useApi(() => collectionsApi.list({ limit: 100 }));
   const collections = collectionsData?.items ?? [];
 
@@ -318,6 +319,13 @@ const RegisterProductPage = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const requestedCollectionId = searchParams.get("collectionId");
+    if (requestedCollectionId && collections.some((item) => item.id === requestedCollectionId)) {
+      setCollectionId(requestedCollectionId);
+    }
+  }, [searchParams, collections]);
 
   const toggleRoomType = (option: RoomType) => {
     setRoomTypes((current) =>

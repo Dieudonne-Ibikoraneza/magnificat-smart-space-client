@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { Bold, CheckCircle2, ImagePlus, Layers3, Ruler, Save, Tag, X } from "lucide-react";
 import { AdminDetailHeader } from "@/app/admin/layout";
 import { Button } from "@/components/ui/button";
@@ -80,24 +80,45 @@ const ValidatedInput = ({ label, placeholder, value, onChange, isValid, errorMes
   );
 };
 
-/**
- * Collections have no upload pipeline of their own (unlike products' private
- * Supabase blob) — the schema just stores `image` as a plain URL, so this is
- * a URL field with a live preview rather than a file dropzone.
- */
-const ImageUrlField = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => {
-  const looksLikeUrl = /^https?:\/\//i.test(value.trim());
+const ImageFileField = ({ file, onChange }: { file: File | null; onChange: (file: File | null) => void }) => {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+
+  const handleFile = (nextFile: File | undefined) => {
+    if (!nextFile || !nextFile.type.startsWith("image/")) {
+      toast.error("Unsupported file", { description: "Please choose an image file (PNG, JPG, WEBP)." });
+      return;
+    }
+    onChange(nextFile);
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragging(false);
+    handleFile(event.dataTransfer.files?.[0]);
+  };
 
   return (
     <div>
-      {looksLikeUrl ? (
+      {previewUrl ? (
         <div className="relative aspect-4/3 w-full overflow-hidden rounded-xl bg-muted-background">
-          <Image src={value.trim()} alt="Collection preview" fill unoptimized className="object-cover" />
+          <Image src={previewUrl} alt="Collection preview" fill unoptimized className="object-cover" />
           <Button
             type="button"
             variant="secondary"
             size="icon-sm"
-            onClick={() => onChange("")}
+            onClick={() => onChange(null)}
             aria-label="Clear image"
             className="absolute top-3 right-3 rounded-full bg-white/95 text-ink shadow-sm hover:bg-white"
           >
@@ -105,19 +126,37 @@ const ImageUrlField = ({ value, onChange }: { value: string; onChange: (value: s
           </Button>
         </div>
       ) : (
-        <div className="flex aspect-4/3 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-secondary/40 text-center">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => inputRef.current?.click()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") inputRef.current?.click();
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
+          className={cn(
+            "flex aspect-4/3 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed text-center transition-colors",
+            dragging ? "border-primary bg-primary/5" : "border-border bg-secondary/40 hover:bg-secondary/60",
+          )}
+        >
           <span className="flex size-11 items-center justify-center rounded-full bg-white text-ink shadow-sm">
             <ImagePlus className="size-5" strokeWidth={1.8} />
           </span>
-          <p className="text-sm font-semibold text-ink">Paste an image URL below</p>
-          <p className="text-xs text-muted-foreground">Preview appears once it looks like a valid link.</p>
+          <p className="text-sm font-semibold text-ink">Click to upload or drag and drop</p>
+          <p className="text-xs text-muted-foreground">PNG, JPG or WEBP · up to 10MB</p>
         </div>
       )}
-      <Input
-        className="mt-3 h-11 text-sm"
-        placeholder="https://images.example.com/tile.jpg"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="sr-only"
+        onChange={(event: ChangeEvent<HTMLInputElement>) => handleFile(event.target.files?.[0])}
       />
     </div>
   );
@@ -222,27 +261,25 @@ const RegisterCollectionPage = () => {
   const [title, setTitle] = useState("");
   const [size, setSize] = useState("");
   const [tileAreaSqm, setTileAreaSqm] = useState("");
-  const [tileAreaTouched, setTileAreaTouched] = useState(false);
   const [description, setDescription] = useState("");
-  const [image, setImage] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const handleSizeChange = (value: string) => {
     setSize(value);
-    if (!tileAreaTouched) {
-      const derived = tileAreaFromSize(value);
-      if (derived !== null) setTileAreaSqm(String(derived));
-    }
+    const derived = tileAreaFromSize(value);
+    setTileAreaSqm(derived === null ? "" : String(derived));
   };
 
   const formValid =
     isValidTitle(title) &&
     isValidSize(size) &&
     isPositiveNumber(tileAreaSqm) &&
-    isValidDescription(description);
+    isValidDescription(description) &&
+    imageFile !== null;
 
   const handleSubmit = async () => {
-    if (!formValid) {
+    if (!formValid || !imageFile) {
       toast.error("Check the highlighted fields", {
         description: "Title, tile size, tile area, and description are required to create a collection.",
       });
@@ -256,7 +293,7 @@ const RegisterCollectionPage = () => {
         size: size.trim(),
         tileAreaSqm: Number(tileAreaSqm),
         description: description.trim(),
-        image: image.trim() || undefined,
+        image: (await collectionsApi.uploadImage(imageFile)).path,
       });
       toast.success("Collection created", {
         description: `${title.trim()} (${size.trim()}) was added to your collections.`,
@@ -299,7 +336,7 @@ const RegisterCollectionPage = () => {
             <h2 className="text-lg font-bold text-ink">Cover Image</h2>
             <p className="mt-1 text-sm text-muted-foreground">A clear, well-lit photo representing the collection.</p>
             <div className="mt-5">
-              <ImageUrlField value={image} onChange={setImage} />
+              <ImageFileField file={imageFile} onChange={setImageFile} />
             </div>
           </section>
 
@@ -337,13 +374,12 @@ const RegisterCollectionPage = () => {
                   min={0}
                   step="any"
                   value={tileAreaSqm}
-                  onChange={(event) => {
-                    setTileAreaTouched(true);
-                    setTileAreaSqm(event.target.value);
-                  }}
+                  readOnly
+                  aria-readonly="true"
+                  title="Automatically calculated from tile size"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Auto-filled from the tile size — adjust only if it doesn&apos;t match.
+                  Automatically calculated from the tile size and cannot be edited.
                 </p>
               </Field>
             </div>

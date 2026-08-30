@@ -8,22 +8,21 @@ import {
   Clock,
   LayoutGrid,
   List,
+  PackageOpen,
+  Plus,
   Search,
-  Trash2,
 } from "lucide-react";
 import { notFound, useRouter } from "next/navigation";
 import { AdminDetailHeader } from "@/app/admin/layout";
 import { AdminInventoryProductCard } from "@/app/admin/inventory/page";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
-import { EditCollectionDialog } from "@/components/edit-collection-dialog";
+import { DeleteCollectionDialog, EditCollectionDialog } from "@/components/edit-collection-dialog";
 import { getVisiblePages } from "@/lib/catalog-utils";
 import { collectionsApi, productsApi } from "@/lib/api";
-import { ApiError } from "@/lib/api/client";
 import { useApi } from "@/lib/api/use-api";
 import type { StockStatus } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "@/components/ui/toast";
 import {
   Select,
   SelectContent,
@@ -120,20 +119,6 @@ export default function AdminCollectionDetailsPage({
     setCurrentPage(Math.min(Math.max(page, 1), totalPages));
   };
 
-  const handleDelete = async () => {
-    if (!collection) return;
-    if (!window.confirm(`Delete "${collection.title}"? This can't be undone.`)) return;
-    try {
-      await collectionsApi.remove(collection.id);
-      toast.success("Collection deleted", { description: `${collection.title} was removed.` });
-      router.push("/admin/collections");
-    } catch (cause) {
-      toast.error("Couldn't delete collection", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
-      });
-    }
-  };
-
   if (collectionLoading) return <ApiLoading label="Loading collection…" className="py-24" />;
   if (collectionError) return <ApiErrorState message={collectionError} className="my-16" />;
   if (!collection) notFound();
@@ -150,27 +135,21 @@ export default function AdminCollectionDetailsPage({
         actions={
           <>
             <EditCollectionDialog collection={collection} onUpdated={reloadCollection} />
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => void handleDelete()}
-              className="h-12 gap-2 font-bold uppercase px-4"
-            >
-              <Trash2 className="size-4 stroke-3" />
-              Delete Collection
-            </Button>
+            <DeleteCollectionDialog collection={collection} onDeleted={() => router.push("/admin/collections")} />
           </>
         }
         meta={
           <>
-            <p className="w-full max-w-2xl text-sm text-muted sm:text-base">{collection.description}</p>
-            <span className="rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-ink">
-              {products.length} Products
-            </span>
-            <span className="inline-flex items-center gap-1.5 text-xs text-muted sm:text-sm">
-              <Clock className="size-4" strokeWidth={2} aria-hidden="true" />
-              Last updated {timeAgo(collection.updatedAt)}
-            </span>
+            <p className="w-full max-w-2xl text-sm leading-6 text-muted sm:text-base">{collection.description}</p>
+            <div className="flex w-full items-center gap-3">
+              <span className="rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-ink">
+                {products.length} {products.length === 1 ? "Product" : "Products"}
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted sm:text-sm">
+                <Clock className="size-4" strokeWidth={2} aria-hidden="true" />
+                Last updated {timeAgo(collection.updatedAt)}
+              </span>
+            </div>
           </>
         }
       />
@@ -266,8 +245,26 @@ export default function AdminCollectionDetailsPage({
           <ApiLoading label="Loading products…" className="py-24" />
         ) : productsError ? (
           <ApiErrorState message={productsError} onRetry={reloadProducts} className="my-16" />
+        ) : totalResults === 0 && products.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#d8ded2] bg-white px-6 py-16 text-center shadow-sm sm:py-20">
+            <span className="flex size-16 items-center justify-center rounded-full bg-primary/15 text-ink">
+              <PackageOpen className="size-8" strokeWidth={1.6} />
+            </span>
+            <h2 className="mt-5 text-xl font-bold text-ink sm:text-2xl">This collection is ready for products</h2>
+            <p className="mt-2 max-w-md text-sm leading-6 text-muted sm:text-base">
+              No products have been added to this collection yet. Add the first product to start building its catalog.
+            </p>
+            <Button
+              nativeButton={false}
+              render={<Link href={`/admin/inventory/new?collectionId=${id}`} />}
+              className="mt-6 h-11 gap-2 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
+            >
+              <Plus className="size-4" />
+              Add Product
+            </Button>
+          </div>
         ) : totalResults === 0 ? (
-          <ApiEmptyState message="No products match your filters." className="py-16" />
+          <ApiEmptyState message="No products match the selected filters." className="py-16" />
         ) : view === "grid" ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {pageItems.map((product) => (

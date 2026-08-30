@@ -168,6 +168,14 @@ export const collectionsApi = {
   update: (id: string, body: Partial<CollectionInput>) =>
     api.patch<ApiCollection>(`/collections/${id}`, body),
   remove: (id: string) => api.delete<void>(`/collections/${id}`),
+  uploadImage: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiUpload<{ bucket: string; path: string; url: string; expiresIn: number; contentType: string; size: number }>(
+      "/collections/upload-image",
+      formData,
+    );
+  },
 };
 
 export const productsApi = {
