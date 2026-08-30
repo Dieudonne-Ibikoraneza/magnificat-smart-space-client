@@ -292,6 +292,9 @@ export const cartNegotiationsApi = {
   /** The calling customer's own thread, or `null` if they've never had one. */
   mine: () => api.get<ApiCartNegotiation | null>("/cart-negotiations/mine"),
 
+  /** Deletes the calling customer's own thread entirely — a fresh start, not an archive. */
+  clearMine: () => api.delete<{ cleared: boolean }>("/cart-negotiations/mine"),
+
   postMessage: (id: string, body: string) =>
     api.post<ApiCartNegotiationMessage>(`/cart-negotiations/${id}/messages`, { body }),
 

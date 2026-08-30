@@ -8,7 +8,7 @@ import { CartSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DeliveryDetailsDialog } from "@/components/delivery-details-dialog";
-import { CartNegotiationChat } from "@/components/cart-negotiation-chat";
+import { CartNegotiationChat, type CartLineSummary } from "@/components/cart-negotiation-chat";
 import { toast } from "@/components/ui/toast";
 import { ordersApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
@@ -78,6 +78,21 @@ const CartPage = () => {
     }));
 
   const shortageFor = (productId: string) => shortages.find((shortage) => shortage.productId === productId);
+
+  /** Every cart line, not just the short ones — what "Share my cart" sends the stock team. */
+  const cartNegotiationItems: CartLineSummary[] = cart.lines.map((line) => {
+    const availableAreaSqm = line.product.availableAreaSqm ?? 0;
+    return {
+      productId: line.productId,
+      productName: line.product.name,
+      requestedAreaSqm: line.quantity.purchasedArea,
+      availabilityNote: line.exceedsStock
+        ? availableAreaSqm > 0
+          ? `${availableAreaSqm} m² available`
+          : "Out of stock"
+        : "In stock",
+    };
+  });
 
   const handleOrderSubmit = async (deliveryDetails: DeliveryDetails) => {
     setPlacingOrder(true);
@@ -369,7 +384,11 @@ const CartPage = () => {
         </aside>
       </div>
 
-      <CartNegotiationChat shortages={shortages} refreshToken={negotiationRefreshToken} />
+      <CartNegotiationChat
+        shortages={shortages}
+        cartItems={cartNegotiationItems}
+        refreshToken={negotiationRefreshToken}
+      />
 
       <section id="quotation-print" aria-hidden="true" className="quotation-printable mx-auto max-w-4xl bg-white p-5 text-ink sm:p-10">
         <header className="flex items-start justify-between gap-8 border-b border-slate-200 pb-6">

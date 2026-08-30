@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, MessageCircle, Send, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, MessageCircle, Send, Share2, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { cartNegotiationsApi } from "@/lib/api";
+import { ApiError } from "@/lib/api/client";
 import { useCurrentUser } from "@/lib/current-user";
 import type { ApiCartNegotiation, ApiCartNegotiationMessage, StockShortage } from "@/lib/api/types";
 import { appendMessageOnce, useNegotiationThread } from "@/lib/negotiations-socket";
@@ -13,6 +15,14 @@ import { appendMessageOnce, useNegotiationThread } from "@/lib/negotiations-sock
 /** Exact on-hand quantity, in the note staff see. */
 const formatAvailabilityNote = (item: StockShortage) =>
   item.availableAreaSqm > 0 ? `${item.availableAreaSqm} m² available` : "Out of stock";
+
+/** The whole cart, one line per product — what "Share my cart" sends, unlike a shortage message which only ever covers the short lines. */
+export type CartLineSummary = {
+  productId: string;
+  productName: string;
+  requestedAreaSqm: number;
+  availabilityNote: string;
+};
 
 /**
  * Cart-side counterpart to `StockNegotiationChat`, but real: no order exists
@@ -27,9 +37,12 @@ const formatAvailabilityNote = (item: StockShortage) =>
  */
 export const CartNegotiationChat = ({
   shortages,
+  cartItems,
   refreshToken,
 }: {
   shortages: StockShortage[];
+  /** The customer's whole cart, one line per product — see "Share my cart" below. */
+  cartItems: CartLineSummary[];
   /** Bump this when a negotiation may have been opened server-side (see account/cart/page.tsx) to force a refetch. */
   refreshToken?: number;
 }) => {
@@ -40,6 +53,8 @@ export const CartNegotiationChat = ({
   const [draft, setDraft] = useState("");
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
   // Whether to auto-follow new messages to the bottom — true unless the
   // customer has scrolled up to read earlier ones, so an incoming message
@@ -189,6 +204,39 @@ export const CartNegotiationChat = ({
     }
   };
 
+  /** Pushes the whole current cart into the thread as a fresh update — unlike a typed message, which only reports newly-short lines, this always sends every line so staff see exactly what's in the cart right now. */
+  const shareCart = async () => {
+    if (cartItems.length === 0 || sharing) return;
+    setSharing(true);
+    stickToBottomRef.current = true;
+    try {
+      const updated = await cartNegotiationsApi.submit(cartItems, "Here's my current cart.");
+      setNegotiation(updated);
+    } catch (cause) {
+      toast.error("Couldn't share your cart", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  /** Deletes this thread outright — a fresh start, not an archive. */
+  const clearChat = async () => {
+    setClearing(true);
+    try {
+      await cartNegotiationsApi.clearMine();
+      setNegotiation(null);
+      toast.success("Chat cleared");
+    } catch (cause) {
+      toast.error("Couldn't clear the chat", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    } finally {
+      setClearing(false);
+    }
+  };
+
   const bubbleFrom = (message: ApiCartNegotiationMessage) =>
     message.author === "SYSTEM" ? "system" : message.author === "STAFF" ? "staff" : "user";
 
@@ -206,14 +254,43 @@ export const CartNegotiationChat = ({
                 <p className="truncate text-[11px] text-muted">Chat with the stock team</p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Minimize chat"
-              className="shrink-0 rounded-md p-1 text-white transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <X className="size-4" />
-            </button>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => void shareCart()}
+                disabled={sharing || cartItems.length === 0}
+                aria-label="Share my cart with the stock team"
+                title="Share my cart with the stock team"
+                className="rounded-md p-1 text-white transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
+              >
+                <Share2 className="size-4" />
+              </button>
+              <ConfirmDialog
+                trigger={
+                  <button
+                    type="button"
+                    disabled={clearing || messages.length === 0}
+                    aria-label="Clear chat"
+                    title="Clear chat"
+                    className="rounded-md p-1 text-white transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                }
+                title="Clear this chat?"
+                description="This deletes the whole conversation with our stock team — it can't be undone. You can always start a new one."
+                confirmLabel="Clear chat"
+                onConfirm={() => void clearChat()}
+              />
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Minimize chat"
+                className="rounded-md p-1 text-white transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
           </div>
 
           <div ref={listRef} onScroll={handleScroll} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
