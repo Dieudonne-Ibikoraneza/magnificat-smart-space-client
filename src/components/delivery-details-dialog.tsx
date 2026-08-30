@@ -16,7 +16,12 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
+import { PhoneField, RWANDA_PREFIX, toRwandaDigits } from "@/components/phone-field";
+import { useCurrentUser } from "@/lib/current-user";
+import { isValidRwandaMobileDigits } from "@/lib/validation";
 import type { DeliveryDetails } from "@/data/order-workflow";
+
+const fieldClassName = "h-11 text-sm";
 
 const emptyDetails: DeliveryDetails = {
   contactName: "",
@@ -36,13 +41,27 @@ export const DeliveryDetailsDialog = ({
   initialValue?: DeliveryDetails;
   onSubmit: (details: DeliveryDetails) => void;
 }) => {
+  const { user } = useCurrentUser();
+  // Defaults to the account's own name/phone (still freely editable — this
+  // order might ship to someone else) so the customer isn't retyping what
+  // we already have on file every time.
+  const defaultValue = (): DeliveryDetails =>
+    initialValue ?? { ...emptyDetails, contactName: user?.fullName ?? "", phone: user?.phone ?? "" };
+
   const [open, setOpen] = useState(false);
-  const [values, setValues] = useState<DeliveryDetails>(initialValue ?? emptyDetails);
+  const [values, setValues] = useState<DeliveryDetails>(defaultValue);
 
   const update = (key: keyof DeliveryDetails) => (event: { target: { value: string } }) =>
     setValues((current) => ({ ...current, [key]: event.target.value }));
 
-  const valid = values.contactName.trim() !== "" && values.phone.trim() !== "" && values.address.trim() !== "" && values.city.trim() !== "";
+  const phoneDigits = toRwandaDigits(values.phone);
+  const updatePhone = (digits: string) => setValues((current) => ({ ...current, phone: `${RWANDA_PREFIX}${digits}` }));
+
+  const valid =
+    values.contactName.trim() !== "" &&
+    isValidRwandaMobileDigits(phoneDigits) &&
+    values.address.trim() !== "" &&
+    values.city.trim() !== "";
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -57,11 +76,11 @@ export const DeliveryDetailsDialog = ({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (next) setValues(initialValue ?? emptyDetails);
+        if (next) setValues(defaultValue());
       }}
     >
       <DialogTrigger render={trigger} />
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <span className="flex size-10 items-center justify-center rounded-full bg-secondary text-ink">
             <Truck className="size-5" />
@@ -75,31 +94,28 @@ export const DeliveryDetailsDialog = ({
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field>
-              <FieldLabel htmlFor="delivery-contact-name">Contact name</FieldLabel>
-              <Input id="delivery-contact-name" required value={values.contactName} onChange={update("contactName")} placeholder="Full name" />
+              <FieldLabel htmlFor="delivery-contact-name" className="text-sm font-medium text-ink">Contact name</FieldLabel>
+              <Input id="delivery-contact-name" required value={values.contactName} onChange={update("contactName")} placeholder="Full name" className={fieldClassName} />
             </Field>
-            <Field>
-              <FieldLabel htmlFor="delivery-phone">Phone number</FieldLabel>
-              <Input id="delivery-phone" required value={values.phone} onChange={update("phone")} placeholder="+250 7xx xxx xxx" />
-            </Field>
+            <PhoneField value={phoneDigits} onChange={updatePhone} label="Phone number" />
           </div>
           <Field>
-            <FieldLabel htmlFor="delivery-address">Delivery address</FieldLabel>
-            <Input id="delivery-address" required value={values.address} onChange={update("address")} placeholder="Street, plot, neighborhood" />
+            <FieldLabel htmlFor="delivery-address" className="text-sm font-medium text-ink">Delivery address</FieldLabel>
+            <Input id="delivery-address" required value={values.address} onChange={update("address")} placeholder="Street, plot, neighborhood" className={fieldClassName} />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field>
-              <FieldLabel htmlFor="delivery-city">City</FieldLabel>
-              <Input id="delivery-city" required value={values.city} onChange={update("city")} placeholder="Kigali" />
+              <FieldLabel htmlFor="delivery-city" className="text-sm font-medium text-ink">City</FieldLabel>
+              <Input id="delivery-city" required value={values.city} onChange={update("city")} placeholder="Kigali" className={fieldClassName} />
             </Field>
             <Field>
-              <FieldLabel htmlFor="delivery-date">Preferred delivery date</FieldLabel>
-              <Input id="delivery-date" value={values.preferredDate ?? ""} onChange={update("preferredDate")} placeholder="e.g. Sep 5, 2026" />
+              <FieldLabel htmlFor="delivery-date" className="text-sm font-medium text-ink">Preferred delivery date</FieldLabel>
+              <Input id="delivery-date" value={values.preferredDate ?? ""} onChange={update("preferredDate")} placeholder="e.g. Sep 5, 2026" className={fieldClassName} />
             </Field>
           </div>
           <Field>
-            <FieldLabel htmlFor="delivery-notes">Notes (optional)</FieldLabel>
-            <Textarea id="delivery-notes" value={values.notes ?? ""} onChange={update("notes")} placeholder="Access instructions, site contact, etc." rows={3} />
+            <FieldLabel htmlFor="delivery-notes" className="text-sm font-medium text-ink">Notes (optional)</FieldLabel>
+            <Textarea id="delivery-notes" value={values.notes ?? ""} onChange={update("notes")} placeholder="Access instructions, site contact, etc." rows={3} className="text-sm" />
           </Field>
 
           <DialogFooter>

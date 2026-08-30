@@ -29,9 +29,8 @@ import { useApi } from "@/lib/api/use-api";
 import { roleHomePath } from "@/lib/auth-routes";
 import { useCart } from "@/lib/cart-store";
 import { useCurrentUser } from "@/lib/current-user";
-import { groupDigitsInThrees, isValidEmail, isValidFullName, isValidRwandaMobileDigits } from "@/lib/validation";
-
-const RWANDA_PREFIX = "+250";
+import { isValidEmail, isValidFullName, isValidRwandaMobileDigits } from "@/lib/validation";
+import { PhoneField, RWANDA_PREFIX } from "@/components/phone-field";
 
 /** Matches the server's default `OTP_RESEND_COOLDOWN_SECONDS` — see server/.env. */
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -141,54 +140,6 @@ const EmailField = ({
     errorMessage="Enter a valid email address."
   />
 );
-
-const PhoneField = ({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (digits: string) => void;
-}) => {
-  const [touched, setTouched] = useState(false);
-  const valid = isValidRwandaMobileDigits(value);
-  const showError = touched && value.length > 0 && !valid;
-
-  return (
-    <Field className="gap-1.5">
-      <FieldLabel className="text-sm font-medium text-ink">Phone Number</FieldLabel>
-      <div className="relative">
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute left-3.5 top-1/2 flex -translate-y-1/2 items-center gap-2 text-sm text-ink"
-        >
-          {RWANDA_PREFIX}
-          <span className="h-4 w-px bg-border" />
-        </span>
-        <Input
-          className={`${fieldClassName} pl-18.5 pr-10`}
-          placeholder="780 000 000"
-          type="tel"
-          inputMode="numeric"
-          autoComplete="tel-national"
-          value={groupDigitsInThrees(value)}
-          aria-invalid={showError}
-          onChange={(event) => onChange(event.target.value.replace(/\D/g, "").slice(0, 9))}
-          onBlur={() => setTouched(true)}
-        />
-        {valid && (
-          <CheckCircle2
-            aria-hidden="true"
-            className="absolute right-3.5 top-1/2 size-4.5 -translate-y-1/2 text-green-600"
-            strokeWidth={2}
-          />
-        )}
-      </div>
-      {showError && (
-        <p className="text-xs font-medium text-red-600">Enter a valid 9-digit phone number.</p>
-      )}
-    </Field>
-  );
-};
 
 const OtpFields = ({
   code,

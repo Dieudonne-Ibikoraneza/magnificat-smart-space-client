@@ -22,7 +22,7 @@ import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OrderQuotationPanel } from "@/components/order-quotation-panel";
-import { OrderStatusControl } from "@/components/order-status-control";
+import { OrderStatusBadge, OrderStatusControl } from "@/components/order-status-control";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import {
   Table,
@@ -69,7 +69,11 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
   const { id } = use(params);
   const { data: order, loading, error, reload } = useApi(() => ordersApi.get(id), [id]);
 
-  if (loading) return <ApiLoading label="Loading order…" className="py-32" />;
+  // Only the very first load has nothing to show yet — a background refetch
+  // (after updating status, sending a quotation, etc.) keeps the order on
+  // screen and updates it in place once the fresh data lands, instead of
+  // blanking the whole page back to a spinner.
+  if (loading && !order) return <ApiLoading label="Loading order…" className="py-32" />;
 
   if (error) {
     if (error.toLowerCase().includes("not found") || error.toLowerCase().includes("access")) {
@@ -120,22 +124,25 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
         ]}
         title={`Order #${order.orderNumber}`}
         actions={
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => window.print()}
-            className="h-auto gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase transition-transform duration-200 active:scale-95"
-          >
-            <Printer className="size-4" />
-            Print Invoice
-          </Button>
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => window.print()}
+              className="h-auto gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase transition-transform duration-200 active:scale-95"
+            >
+              <Printer className="size-4" />
+              Print Invoice
+            </Button>
+            <OrderStatusControl orderId={order.id} status={order.status} onUpdated={reload} />
+          </>
         }
         meta={
           <>
             {order.createdByType === "STAFF" && (
               <StaffCreatedIndicator createdByName={order.createdBy?.fullName ?? ""} />
             )}
-            <OrderStatusControl orderId={order.id} status={order.status} onUpdated={reload} />
+            <OrderStatusBadge status={order.status} />
             <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
               <Clock className="size-4" />
               Last updated {timeAgo(order.updatedAt)}
@@ -175,77 +182,77 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
         </div>
 
         <div className="mt-4 grid items-start gap-5 sm:gap-6 xl:grid-cols-[1.7fr_1fr]">
-          <section className="overflow-hidden rounded-2xl bg-card">
-            <div className="flex items-center justify-between gap-3 px-5 py-5 sm:px-6">
-              <h2 className="text-lg font-bold text-ink sm:text-2xl">Order Items</h2>
-              <Badge variant="secondary">{items.length} Items</Badge>
-            </div>
-
-            <div className="md:hidden">
-              <ul className="divide-y divide-[#E8E8E8]">
-                {items.map((item) => (
-                  <li key={item.id} className="px-5 py-4 font-data">
-                    <Link href={"/products/" + item.productId} className="flex items-center gap-3 font-semibold text-ink uppercase hover:underline">
-                      {item.product?.image && (
-                        <Image src={item.product.image} alt="" width={48} height={48} unoptimized className="size-12 shrink-0 rounded-sm object-cover" />
-                      )}
-                      <span>{item.product?.name ?? "Item"}</span>
-                    </Link>
-                    <div className="mt-2 flex items-center justify-between gap-3 text-sm">
-                      <span className="text-muted-foreground">
-                        {Number(item.requiredAreaSqm)} m² • {item.boxes} boxes{item.additionalPieces > 0 ? ` + ${item.additionalPieces} pcs` : ""} ({item.totalPieces} pcs) • {formatPrice(item.unitPrice)}
-                      </span>
-                      <span className="font-semibold text-ink">{formatPrice(item.totalPrice)}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Unit Price</TableHead>
-                    <TableHead>Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium text-ink uppercase">
-                        <Link href={"/products/" + item.productId} className="flex items-center gap-3 hover:underline">
-                          {item.product?.image && (
-                            <Image src={item.product.image} alt="" width={64} height={64} unoptimized className="size-16 shrink-0 rounded-sm object-cover" />
-                          )}
-                          <span>{item.product?.name ?? "Item"}</span>
-                        </Link>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-ink">
-                        <span className="block">{Number(item.requiredAreaSqm)} m²</span>
-                        <span className="mt-1 block text-xs text-muted-foreground">
-                          {item.boxes} boxes{item.additionalPieces > 0 ? ` + ${item.additionalPieces} pcs` : ""} ({item.totalPieces} pcs)
-                        </span>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-muted-foreground">{formatPrice(item.unitPrice)} / m²</TableCell>
-                      <TableCell className="whitespace-nowrap font-semibold text-ink">{formatPrice(item.totalPrice)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-3 bg-primary px-5 py-6 sm:justify-end sm:px-10">
-              <span className="font-data text-lg font-semibold text-primary-foreground sm:text-2xl">Total</span>
-              <span className="font-data text-xl font-bold text-primary-foreground sm:text-3xl">
-                {formatPrice(order.total)}
-              </span>
-            </div>
-          </section>
-
           <div className="space-y-5 sm:space-y-6">
+            <section className="overflow-hidden rounded-2xl bg-card">
+              <div className="flex items-center justify-between gap-3 px-5 py-5 sm:px-6">
+                <h2 className="text-lg font-bold text-ink sm:text-2xl">Order Items</h2>
+                <Badge variant="secondary">{items.length} Items</Badge>
+              </div>
+
+              <div className="md:hidden">
+                <ul className="divide-y divide-[#E8E8E8]">
+                  {items.map((item) => (
+                    <li key={item.id} className="px-5 py-4 font-data">
+                      <Link href={"/products/" + item.productId} className="flex items-center gap-3 font-semibold text-ink uppercase hover:underline">
+                        {item.product?.image && (
+                          <Image src={item.product.image} alt="" width={48} height={48} unoptimized className="size-12 shrink-0 rounded-sm object-cover" />
+                        )}
+                        <span>{item.product?.name ?? "Item"}</span>
+                      </Link>
+                      <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+                        <span className="text-muted-foreground">
+                          {Number(item.requiredAreaSqm)} m² • {item.boxes} boxes{item.additionalPieces > 0 ? ` + ${item.additionalPieces} pcs` : ""} ({item.totalPieces} pcs) • {formatPrice(item.unitPrice)}
+                        </span>
+                        <span className="font-semibold text-ink">{formatPrice(item.totalPrice)}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Unit Price</TableHead>
+                      <TableHead>Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium text-ink uppercase">
+                          <Link href={"/products/" + item.productId} className="flex items-center gap-3 hover:underline">
+                            {item.product?.image && (
+                              <Image src={item.product.image} alt="" width={64} height={64} unoptimized className="size-16 shrink-0 rounded-sm object-cover" />
+                            )}
+                            <span>{item.product?.name ?? "Item"}</span>
+                          </Link>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-ink">
+                          <span className="block">{Number(item.requiredAreaSqm)} m²</span>
+                          <span className="mt-1 block text-xs text-muted-foreground">
+                            {item.boxes} boxes{item.additionalPieces > 0 ? ` + ${item.additionalPieces} pcs` : ""} ({item.totalPieces} pcs)
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">{formatPrice(item.unitPrice)} / m²</TableCell>
+                        <TableCell className="whitespace-nowrap font-semibold text-ink">{formatPrice(item.totalPrice)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center gap-3 bg-primary px-5 py-6 sm:justify-end sm:px-10">
+                <span className="font-data text-lg font-semibold text-primary-foreground sm:text-2xl">Total</span>
+                <span className="font-data text-xl font-bold text-primary-foreground sm:text-3xl">
+                  {formatPrice(order.total)}
+                </span>
+              </div>
+            </section>
+
             <OrderQuotationPanel
               orderId={order.id}
               subtotalValue={Number(order.subtotal)}
@@ -256,7 +263,9 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
               canManage={true}
               onUpdated={reload}
             />
+          </div>
 
+          <div className="space-y-5 sm:space-y-6">
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <div className="flex items-center gap-3">
                 <span className="flex size-9 items-center justify-center rounded-lg bg-secondary text-ink">

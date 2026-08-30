@@ -155,59 +155,63 @@ export const OrderQuotationPanel = ({
 
       {canManage ? (
         <div className="mt-5 space-y-2.5">
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger
-              render={
-                <Button
-                  type="button"
-                  variant={quotationStatus === "AWAITING_REVIEW" ? "default" : "outline"}
-                  className="h-11 w-full gap-2 text-sm font-bold"
-                />
-              }
-            >
-              <Truck className="size-4" />
-              {quotationStatus === "AWAITING_REVIEW" ? "Add transport fee & send quotation" : "Edit transport fee"}
-            </DialogTrigger>
-            <DialogContent className="max-w-sm">
-              <DialogHeader>
-                <DialogTitle>Transport fee</DialogTitle>
-                <DialogDescription>
-                  Based on quantity and delivery distance discussed with the customer. Enter 0 for free transport.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="mt-5 space-y-4">
-                <Field>
-                  <FieldLabel htmlFor="transport-fee">Transport fee (RWF)</FieldLabel>
-                  <Input
-                    id="transport-fee"
-                    type="number"
-                    min={0}
-                    value={transportFeeInput}
-                    onChange={(event) => setTransportFeeInput(event.target.value)}
-                    placeholder="0"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="transport-note">Note (optional)</FieldLabel>
-                  <Textarea
-                    id="transport-note"
-                    rows={2}
-                    value={transportNote}
-                    onChange={(event) => setTransportNote(event.target.value)}
-                    placeholder="e.g. 2 truckloads, Kigali city delivery"
-                  />
-                </Field>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
-                  Cancel
-                </Button>
-                <Button type="button" disabled={!feeValid || submitting} onClick={() => void handleSendQuotation()} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
-                  {submitting ? "Sending…" : "Send quotation"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          {/* Once sent, the transport fee is final — no edit/delete path, on
+              purpose: the customer's quotation (and whatever they've already
+              paid against it) shouldn't shift under them after the fact. */}
+          {quotationStatus === "AWAITING_REVIEW" && (
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger render={<Button type="button" className="h-11 w-full gap-2 text-sm font-bold" />}>
+                <Truck className="size-4" />
+                Add transport fee & send quotation
+              </DialogTrigger>
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Transport fee</DialogTitle>
+                  <DialogDescription>
+                    Based on quantity and delivery distance discussed with the customer. Enter 0 for free transport.
+                    This can&apos;t be changed once the quotation is sent.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="mt-5 space-y-4">
+                  <Field>
+                    <FieldLabel htmlFor="transport-fee">Transport fee (RWF)</FieldLabel>
+                    <Input
+                      id="transport-fee"
+                      type="number"
+                      min={0}
+                      value={transportFeeInput}
+                      onChange={(event) => setTransportFeeInput(event.target.value)}
+                      placeholder="0"
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="transport-note">Note (optional)</FieldLabel>
+                    <Textarea
+                      id="transport-note"
+                      rows={2}
+                      value={transportNote}
+                      onChange={(event) => setTransportNote(event.target.value)}
+                      placeholder="e.g. 2 truckloads, Kigali city delivery"
+                    />
+                  </Field>
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
+                    Cancel
+                  </Button>
+                  <Button type="button" disabled={!feeValid || submitting} onClick={() => void handleSendQuotation()} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
+                    {submitting ? "Sending…" : "Send quotation"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+
+          {quotationStatus === "QUOTATION_SENT" && (
+            <p className="flex items-center justify-center gap-2 rounded-lg bg-blue-50 py-2.5 text-sm font-semibold text-blue-700">
+              <Truck className="size-4" /> Quotation sent — waiting for payment
+            </p>
+          )}
 
           {quotationStatus === "PAYMENT_SUBMITTED" && (
             <Button type="button" onClick={() => void handleVerifyPayment()} disabled={submitting} className="h-11 w-full gap-2 text-sm font-bold">

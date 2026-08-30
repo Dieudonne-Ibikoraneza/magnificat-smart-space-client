@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ArrowRight, RefreshCw } from "lucide-react";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,7 +54,12 @@ const statuses: OrderStatus[] = [
   "CANCELLED",
 ];
 
-/** Order status badge that doubles as the "Update Status" trigger — click it to change status. */
+/** Plain, read-only status badge — no click behavior. Pair with `OrderStatusControl` for the actual "Update Status" action, kept as its own button elsewhere in the header. */
+export const OrderStatusBadge = ({ status }: { status: OrderStatus }) => (
+  <Badge variant={statusVariant[status]}>{statusLabels[status]}</Badge>
+);
+
+/** The "Update Status" button + dialog — a separate control from `OrderStatusBadge`, which only ever displays the current status. */
 export const OrderStatusControl = ({
   orderId,
   status,
@@ -97,15 +102,29 @@ export const OrderStatusControl = ({
         }
       }}
     >
-      <DialogTrigger render={<button type="button" className="cursor-pointer" aria-label="Update order status" />}>
-        <Badge variant={statusVariant[status]} className="inline-flex items-center gap-1">
-          {statusLabels[status]}
-          <ChevronDown className="size-3" />
-        </Badge>
+      <DialogTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            // `outline` turns solid gray the instant the dialog opens (base
+            // button styling reacts to `aria-expanded`, meant for disclosure
+            // triggers like a Select) — wrong read here, where the backdrop
+            // already shows the dialog is open; this keeps it looking like a
+            // plain, un-pressed button the whole time, matching Print Invoice.
+            className="h-auto gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase transition-transform duration-200 aria-expanded:bg-white aria-expanded:text-ink active:scale-95"
+          />
+        }
+      >
+        <RefreshCw className="size-4" />
+        Update Status
       </DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Update order status</DialogTitle>
+          <span className="flex size-10 items-center justify-center rounded-full bg-secondary text-ink">
+            <RefreshCw className="size-5" />
+          </span>
+          <DialogTitle className="pt-3">Update order status</DialogTitle>
           <DialogDescription>Order #{orderId}</DialogDescription>
         </DialogHeader>
         <div className="mt-5 space-y-4">
@@ -113,12 +132,18 @@ export const OrderStatusControl = ({
             <FieldLabel htmlFor="order-status">Status</FieldLabel>
             <Select value={nextStatus} onValueChange={(value) => setNextStatus((value as OrderStatus) ?? nextStatus)}>
               <SelectTrigger id="order-status">
-                <SelectValue>{(value: string) => statusLabels[value as OrderStatus]}</SelectValue>
+                <SelectValue>
+                  {(value: string) => (
+                    <span className="flex items-center gap-2">
+                      <Badge variant={statusVariant[value as OrderStatus]}>{statusLabels[value as OrderStatus]}</Badge>
+                    </span>
+                  )}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {statuses.map((item) => (
                   <SelectItem key={item} value={item}>
-                    {statusLabels[item]}
+                    <Badge variant={statusVariant[item]}>{statusLabels[item]}</Badge>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -134,6 +159,13 @@ export const OrderStatusControl = ({
               placeholder="Reason for the change"
             />
           </Field>
+          {nextStatus !== status && (
+            <p className="flex items-center gap-2.5 rounded-lg bg-secondary/60 px-3 py-2.5 text-xs text-muted-foreground">
+              <Badge variant={statusVariant[status]}>{statusLabels[status]}</Badge>
+              <ArrowRight className="size-3.5 shrink-0" />
+              <Badge variant={statusVariant[nextStatus]}>{statusLabels[nextStatus]}</Badge>
+            </p>
+          )}
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
