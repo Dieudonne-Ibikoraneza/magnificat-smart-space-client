@@ -223,7 +223,8 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
               subtotalValue={Number(order.subtotal)}
               quotationStatus={order.quotationStatus}
               transportFee={order.transportFee ? Number(order.transportFee) : null}
-              onPaymentSubmitted={reload}
+              quotationViewedAt={order.quotationViewedAt}
+              onUpdated={reload}
             />
 
             <OrderNegotiationPanel orderId={order.id} />

@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
-import { CheckCircle2, Clock, CreditCard, FileText, Landmark, Smartphone } from "lucide-react";
+import { CheckCircle2, Clock, FileText, Landmark, Smartphone } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -36,30 +35,57 @@ const statusLabels: Record<QuotationStatus, string> = {
   PAYMENT_VERIFIED: "Payment Verified",
 };
 
-/** Customer-facing quotation + payment card shown on an account order detail page. */
+/**
+ * Customer-facing quotation + payment card shown on an account order detail page.
+ * There's no payment gateway wired in behind this system — the customer pays
+ * the stock team's MoMo code or bank account directly, then tells us they've
+ * paid. Opening the quotation PDF is required first (server-enforced): it's
+ * both how they see the transport fee formalized and the same call that
+ * unlocks "I've paid".
+ */
 export const CustomerQuotationCard = ({
   orderId,
   subtotalValue,
   quotationStatus,
   transportFee,
-  onPaymentSubmitted,
+  quotationViewedAt,
+  onUpdated,
 }: {
   orderId: string;
   subtotalValue: number;
   quotationStatus: QuotationStatus;
   transportFee: number | null;
-  /** Called after the customer confirms they've paid, so the parent can refetch the order. */
-  onPaymentSubmitted: () => void;
+  quotationViewedAt: string | null;
+  /** Called after opening the quotation or confirming payment, so the parent can refetch the order. */
+  onUpdated: () => void;
 }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [viewing, setViewing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const viewQuotation = async () => {
+    setViewing(true);
+    try {
+      const blob = await ordersApi.viewQuotationPdf(orderId);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      if (!quotationViewedAt) onUpdated();
+    } catch (cause) {
+      toast.error("Couldn't open the quotation", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    } finally {
+      setViewing(false);
+    }
+  };
 
   const markPaymentDone = async () => {
     setSubmitting(true);
     try {
       await ordersApi.markPaymentSubmitted(orderId);
       setConfirmOpen(false);
-      onPaymentSubmitted();
+      onUpdated();
       toast.success("Payment marked as completed", {
         description: "Our team will verify it and confirm your order shortly.",
       });
@@ -110,55 +136,65 @@ export const CustomerQuotationCard = ({
 
           {quotationStatus === "QUOTATION_SENT" && (
             <>
-              <div className="mt-5 space-y-2.5 rounded-xl border border-slate-100 bg-[#F9FAFB] p-4">
-                <p className="text-[11px] font-bold tracking-wider text-muted uppercase">Payment details</p>
-                <div className="flex items-start gap-3">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm"><Smartphone className="size-4 text-ink" /></span>
-                  <div className="text-sm">
-                    <p className="font-semibold text-ink">MoMo Pay</p>
-                    <p className="font-data text-ink">{paymentInstructions.momoCode}</p>
-                    <p className="text-xs text-muted">{paymentInstructions.momoName}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm"><Landmark className="size-4 text-ink" /></span>
-                  <div className="text-sm">
-                    <p className="font-semibold text-ink">Bank transfer</p>
-                    <p className="text-ink">{paymentInstructions.bankName} — <span className="font-data">{paymentInstructions.bankAccountNumber}</span></p>
-                    <p className="text-xs text-muted">{paymentInstructions.bankAccountName} · SWIFT {paymentInstructions.bankSwift}</p>
-                  </div>
-                </div>
-              </div>
-
               <Button
-                nativeButton={false}
-                render={<Link href={`/account/orders/${orderId}/pay`} />}
-                className="mt-4 h-11 w-full gap-2 text-sm font-bold"
+                type="button"
+                variant="outline"
+                onClick={() => void viewQuotation()}
+                disabled={viewing}
+                className="mt-5 h-11 w-full gap-2 text-sm font-bold"
               >
-                <CreditCard className="size-4" /> Pay online with MoMo or card
+                <FileText className="size-4" /> {viewing ? "Opening…" : "View quotation (PDF)"}
               </Button>
 
-              <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-                <DialogTrigger render={<Button type="button" variant="outline" className="mt-2.5 h-11 w-full gap-2 text-sm font-bold" />}>
-                  <CheckCircle2 className="size-4" /> I&apos;ve already paid by MoMo code or transfer
-                </DialogTrigger>
-                <DialogContent className="max-w-sm">
-                  <DialogHeader>
-                    <DialogTitle>Confirm your payment</DialogTitle>
-                    <DialogDescription>
-                      Let us know you&apos;ve sent {formatRWF(subtotalValue + (transportFee ?? 0))} for this order. Our team will verify it and confirm your order.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setConfirmOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
-                      Not yet
-                    </Button>
-                    <Button type="button" onClick={() => void markPaymentDone()} disabled={submitting} className="h-10 px-5 text-sm font-bold">
-                      {submitting ? "Please wait…" : "Yes, I've paid"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              {quotationViewedAt ? (
+                <>
+                  <div className="mt-4 space-y-2.5 rounded-xl border border-slate-100 bg-[#F9FAFB] p-4">
+                    <p className="text-[11px] font-bold tracking-wider text-muted uppercase">Payment details</p>
+                    <div className="flex items-start gap-3">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm"><Smartphone className="size-4 text-ink" /></span>
+                      <div className="text-sm">
+                        <p className="font-semibold text-ink">MoMo Pay</p>
+                        <p className="font-data text-ink">{paymentInstructions.momoCode}</p>
+                        <p className="text-xs text-muted">{paymentInstructions.momoName}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm"><Landmark className="size-4 text-ink" /></span>
+                      <div className="text-sm">
+                        <p className="font-semibold text-ink">Bank transfer</p>
+                        <p className="text-ink">{paymentInstructions.bankName} — <span className="font-data">{paymentInstructions.bankAccountNumber}</span></p>
+                        <p className="text-xs text-muted">{paymentInstructions.bankAccountName} · SWIFT {paymentInstructions.bankSwift}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+                    <DialogTrigger render={<Button type="button" className="mt-2.5 h-11 w-full gap-2 text-sm font-bold" />}>
+                      <CheckCircle2 className="size-4" /> I&apos;ve paid by MoMo code or bank transfer
+                    </DialogTrigger>
+                    <DialogContent className="max-w-sm">
+                      <DialogHeader>
+                        <DialogTitle>Confirm your payment</DialogTitle>
+                        <DialogDescription>
+                          Let us know you&apos;ve sent {formatRWF(subtotalValue + (transportFee ?? 0))} for this order. Our team will verify it and confirm your order.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setConfirmOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
+                          Not yet
+                        </Button>
+                        <Button type="button" onClick={() => void markPaymentDone()} disabled={submitting} className="h-10 px-5 text-sm font-bold">
+                          {submitting ? "Please wait…" : "Yes, I've paid"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </>
+              ) : (
+                <p className="mt-3 text-xs text-muted">
+                  Open the quotation above to see the MoMo and bank details, then come back here to confirm your payment.
+                </p>
+              )}
             </>
           )}
 

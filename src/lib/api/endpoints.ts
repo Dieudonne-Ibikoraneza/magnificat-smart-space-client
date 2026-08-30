@@ -1,4 +1,4 @@
-import { api, tokenStore } from "./client";
+import { api, fetchBlob, tokenStore } from "./client";
 import type {
   AnalyticsOverview,
   AnalyticsPeriod,
@@ -11,7 +11,6 @@ import type {
   ApiOrder,
   ApiOrderDelivery,
   ApiOrderMessage,
-  ApiPayment,
   ApiProduct,
   ApiRoom,
   ApiRoomDesign,
@@ -34,7 +33,6 @@ import type {
   OrderType,
   OtpSendResult,
   Paginated,
-  PaymentMethod,
   PlatformSettings,
   ProfilingQuestion,
   QuantityCalculation,
@@ -257,6 +255,14 @@ export const ordersApi = {
   sendQuotation: (id: string, transportFee: number, transportFeeNote?: string) =>
     api.post<ApiOrder>(`/orders/${id}/quotation`, { transportFee, transportFeeNote }),
 
+  /**
+   * Opens the quotation as a PDF (itemized breakdown + our MoMo/bank details —
+   * there's no payment gateway wired in, so the customer pays outside the
+   * system and marks it done). The customer's own first call here is also
+   * what unlocks `markPaymentSubmitted` below.
+   */
+  viewQuotationPdf: (id: string) => fetchBlob(`/orders/${id}/quotation`),
+
   markPaymentSubmitted: (id: string) => api.post<ApiOrder>(`/orders/${id}/quotation/payment-submitted`),
   verifyPayment: (id: string) => api.post<ApiOrder>(`/orders/${id}/quotation/verify`),
 
@@ -286,12 +292,6 @@ export const cartNegotiationsApi = {
   list: (query: { page?: number; limit?: number } = {}) =>
     api.get<Paginated<ApiCartNegotiation>>("/cart-negotiations", { query }),
   get: (id: string) => api.get<ApiCartNegotiation>(`/cart-negotiations/${id}`),
-};
-
-export const paymentsApi = {
-  initiate: (body: { orderId: string; method: PaymentMethod; phone?: string; cardToken?: string }) =>
-    api.post<ApiPayment>("/payments", body),
-  forOrder: (orderId: string) => api.get<ApiPayment[]>(`/payments/order/${orderId}`),
 };
 
 export const quotesApi = {

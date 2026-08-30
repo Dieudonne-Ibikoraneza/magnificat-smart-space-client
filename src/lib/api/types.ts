@@ -310,6 +310,8 @@ export type ApiOrder = {
   transportFee: string | null;
   transportFeeNote: string | null;
   quotationSentAt: string | null;
+  /** Set the first time the *customer* opens the quotation (`GET /orders/:id/quotation`) — unlocks marking payment as done. */
+  quotationViewedAt: string | null;
   paymentSubmittedAt: string | null;
   paymentVerifiedAt: string | null;
   createdAt: string;

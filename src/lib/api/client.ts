@@ -160,7 +160,7 @@ const refreshTokens = async (): Promise<boolean> => {
   return true;
 };
 
-const ensureRefreshed = () => {
+export const ensureRefreshed = () => {
   refreshInFlight ??= refreshTokens().finally(() => {
     refreshInFlight = null;
   });
@@ -210,6 +210,27 @@ export const apiRequest = async <T>(path: string, options: RequestOptions = {}):
   }
 
   return (body as ApiEnvelope<T> | undefined)?.data as T;
+};
+
+/**
+ * For the handful of endpoints that answer with a raw file instead of the
+ * usual `{ success, data }` envelope (the quotation PDF) — same auth/refresh
+ * handling as `apiRequest`, but resolves to a `Blob` rather than parsed JSON.
+ */
+export const fetchBlob = async (path: string): Promise<Blob> => {
+  let response = await send(path, {});
+
+  if (response.status === 401 && tokenStore.getRefreshToken()) {
+    const refreshed = await ensureRefreshed();
+    if (refreshed) response = await send(path, {});
+  }
+
+  if (!response.ok) {
+    const body = await parseBody(response);
+    throw new ApiError(response.status, errorMessageOf(body, response.statusText), body);
+  }
+
+  return response.blob();
 };
 
 export const api = {
