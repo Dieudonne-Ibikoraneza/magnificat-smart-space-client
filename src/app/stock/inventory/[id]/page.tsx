@@ -9,6 +9,7 @@ import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Button } from "@/components/ui/button";
 import { QuantityCalculator } from "@/components/quantity-calculator";
 import { StockLevelPanel } from "@/components/stock-level-panel";
+import { EditProductDialog } from "@/components/edit-product-dialog";
 import { DeleteProductButton } from "@/components/delete-product-button";
 import { productsApi } from "@/lib/api";
 import { toProduct, roomTypeLabels } from "@/lib/api/mappers";
@@ -111,12 +112,20 @@ const StockProductDetailsPage = ({ params }: StockProductDetailsProps) => {
                 {stockLabels[product.stockStatus]}
               </span>
             </div>
-            <p className="mt-6 pb-5 text-2xl font-bold text-ink">
+            <p className="mt-6 text-2xl font-bold text-ink">
               {product.price.toLocaleString("en-US")} RWF{" "}
               <span className="text-sm font-medium text-muted-foreground">
                 / sqm
               </span>
             </p>
+            <div className="mt-5 border-b border-slate-100 pb-6">
+              <StockLevelPanel
+                productId={product.id}
+                productName={product.name}
+                currentStockSqm={currentStock}
+                onAdjusted={reload}
+              />
+            </div>
             <div className="grid grid-cols-2 gap-5 py-6">
               <div>
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -190,22 +199,8 @@ const StockProductDetailsPage = ({ params }: StockProductDetailsProps) => {
             )}
           </section>
           <QuantityCalculator product={product} />
-          <StockLevelPanel
-            productId={product.id}
-            productName={product.name}
-            currentStockSqm={currentStock}
-            onAdjusted={reload}
-          />
           <div className="grid grid-cols-2 gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              disabled
-              title="Editing product details isn't available yet"
-              className="h-12 gap-2 border border-[#E8E8E8] text-sm font-semibold disabled:opacity-50"
-            >
-              Edit Details
-            </Button>
+            <EditProductDialog product={apiProduct} onUpdated={reload} />
             <DeleteProductButton productId={product.id} productName={product.name} redirectTo="/stock/inventory" />
           </div>
         </div>
