@@ -371,6 +371,18 @@ export type ApiCartNegotiation = {
   customer?: { id: string; fullName: string; email: string | null; phone: string | null };
 };
 
+/**
+ * `POST /orders` no longer creates an order at all for a customer's own cart
+ * when part of it exceeds stock on hand — it opens/continues their
+ * `ApiCartNegotiation` instead (seeded with the whole cart, not just the
+ * short lines, so staff have full context on the first message). Staff
+ * placing an order on a customer's behalf keep the old orderCreated: true
+ * path even with a shortage — see `OrdersService.create`.
+ */
+export type PlaceOrderResult =
+  | { orderCreated: true; order: CreatedOrder }
+  | { orderCreated: false; negotiation: ApiCartNegotiation };
+
 // --- Rooms & designs --------------------------------------------------------
 
 export type ApiRoom = {

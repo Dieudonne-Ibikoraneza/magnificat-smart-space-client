@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DeliveryDetailsDialog } from "@/components/delivery-details-dialog";
 import { CartNegotiationChat } from "@/components/cart-negotiation-chat";
-import { OrderNegotiationPanel } from "@/components/order-negotiation-panel";
 import { toast } from "@/components/ui/toast";
 import { ordersApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
@@ -26,12 +25,17 @@ const errorMessage = (cause: unknown, fallback: string) =>
 const CartPage = () => {
   const { user } = useCurrentUser();
   const cart = useCart();
+  // Note: this page's own order-creation call never comes back with a
+  // shortage anymore — a customer's over-stock cart is intercepted into a
+  // negotiation before any order exists (see handleOrderSubmit) — so this
+  // success screen only ever represents a clean, fully-covered order.
   const [submitted, setSubmitted] = useState<{
     deliveryDetails: DeliveryDetails;
     orderId: string;
-    shortages: StockShortage[];
   } | null>(null);
   const [placingOrder, setPlacingOrder] = useState(false);
+  /** Bumped when the server opens a negotiation behind the scenes (a blocked "Place Order" attempt), so CartNegotiationChat refetches and surfaces it. */
+  const [negotiationRefreshToken, setNegotiationRefreshToken] = useState(0);
   /** What's currently typed in a quantity box, kept separate from the committed value so a mid-edit "" or "3." doesn't get clobbered by the store's clamped/rounded number. */
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
@@ -78,10 +82,28 @@ const CartPage = () => {
   const handleOrderSubmit = async (deliveryDetails: DeliveryDetails) => {
     setPlacingOrder(true);
     try {
-      const order = await ordersApi.create({
+      const result = await ordersApi.create({
         type: "PURCHASE",
         items: cart.lines.map((line) => ({ productId: line.productId, areaSqm: line.areaSqm })),
       });
+
+      if (!result.orderCreated) {
+        // The cart's "Place Order" button is already disabled whenever a
+        // shortage shows locally, so this only fires on a stale snapshot or a
+        // concurrent order draining stock between page load and checkout. The
+        // server already opened the negotiation thread (seeded with the full
+        // cart) — refresh so the shortage banner/button catch up, and bump
+        // the chat so it picks up that thread and opens instead of the
+        // customer having to notice and click it themselves.
+        cart.refresh();
+        setNegotiationRefreshToken((token) => token + 1);
+        toast.warning("Stock changed just now", {
+          description: "Part of your cart is no longer available in full — we've opened a chat with our stock team below.",
+        });
+        return;
+      }
+
+      const order = result.order;
       await ordersApi.saveDeliveryDetails(order.id, {
         contactName: deliveryDetails.contactName,
         phone: deliveryDetails.phone,
@@ -91,16 +113,10 @@ const CartPage = () => {
         notes: deliveryDetails.notes || undefined,
       });
       cart.clear();
-      setSubmitted({ deliveryDetails, orderId: order.id, shortages: order.shortages });
-      if (order.shortages.length > 0) {
-        toast.warning("Order submitted — part of it needs a quick chat", {
-          description: "Some items exceed what's on hand right now. Reply below to work out the details with our stock team.",
-        });
-      } else {
-        toast.success("Order submitted", {
-          description: "Sent to our stock team for review. You'll find it under My Orders once it's confirmed.",
-        });
-      }
+      setSubmitted({ deliveryDetails, orderId: order.id });
+      toast.success("Order submitted", {
+        description: "Sent to our stock team for review. You'll find it under My Orders once it's confirmed.",
+      });
     } catch (cause) {
       toast.error("Couldn't place order", { description: errorMessage(cause, "Please try again.") });
     } finally {
@@ -125,9 +141,8 @@ const CartPage = () => {
           </span>
           <h1 className="mt-5 text-2xl font-bold text-ink">Order submitted</h1>
           <p className="mt-2 max-w-md text-sm text-muted">
-            {submitted.shortages.length > 0
-              ? "Thanks — your order has been sent to our stock team. Part of it exceeds what's on hand right now, so reply to the message below to work out the details."
-              : "Thanks — your order has been sent to our stock team for review. We'll prepare a full quotation, including transport fees and payment details, and notify you here once it's ready."}
+            Thanks — your order has been sent to our stock team for review. We&apos;ll prepare a full quotation,
+            including transport fees and payment details, and notify you here once it&apos;s ready.
           </p>
           <div className="mt-6 w-full max-w-sm rounded-2xl bg-[#F9FAFB] p-4 text-left text-sm">
             <p className="text-[11px] font-bold tracking-wider text-muted uppercase">Delivery to</p>
@@ -138,10 +153,6 @@ const CartPage = () => {
             View My Orders <ArrowRight className="size-4" />
           </Button>
         </div>
-
-        {submitted.shortages.length > 0 && (
-          <OrderNegotiationPanel orderId={submitted.orderId} shortages={submitted.shortages} />
-        )}
       </div>
     );
   }
@@ -358,7 +369,7 @@ const CartPage = () => {
         </aside>
       </div>
 
-      <CartNegotiationChat shortages={shortages} />
+      <CartNegotiationChat shortages={shortages} refreshToken={negotiationRefreshToken} />
 
       <section id="quotation-print" aria-hidden="true" className="quotation-printable mx-auto max-w-4xl bg-white p-5 text-ink sm:p-10">
         <header className="flex items-start justify-between gap-8 border-b border-slate-200 pb-6">

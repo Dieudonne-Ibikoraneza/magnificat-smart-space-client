@@ -25,7 +25,14 @@ const formatAvailabilityNote = (item: StockShortage) =>
  * The thread itself is never deleted though: the stock manager keeps it in
  * their inbox regardless, as a permanent record.
  */
-export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] }) => {
+export const CartNegotiationChat = ({
+  shortages,
+  refreshToken,
+}: {
+  shortages: StockShortage[];
+  /** Bump this when a negotiation may have been opened server-side (see account/cart/page.tsx) to force a refetch. */
+  refreshToken?: number;
+}) => {
   const { user } = useCurrentUser();
   const [open, setOpen] = useState(false);
   const [negotiation, setNegotiation] = useState<ApiCartNegotiation | null>(null);
@@ -38,6 +45,10 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
   // customer has scrolled up to read earlier ones, so an incoming message
   // never yanks them away from what they're reading.
   const stickToBottomRef = useRef(true);
+  // Tracks whether the *previous* render had a shortage, so the chat auto-opens
+  // exactly on a 0 -> >0 transition — once, not on every re-render while a
+  // shortage persists (which would fight a customer who deliberately closed it).
+  const hadShortageRef = useRef(false);
 
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
     const el = listRef.current;
@@ -57,6 +68,9 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
 
   // Rehydrate any existing thread on mount so a reload doesn't lose history —
   // "always there" for the customer as long as the underlying shortage is.
+  // Also re-runs whenever `refreshToken` bumps: a blocked "Place Order"
+  // attempt opens/continues this thread server-side, invisibly to this
+  // component's own state, so that's the signal to go fetch it.
   useEffect(() => {
     let active = true;
     cartNegotiationsApi
@@ -71,7 +85,15 @@ export const CartNegotiationChat = ({ shortages }: { shortages: StockShortage[] 
     return () => {
       active = false;
     };
-  }, []);
+  }, [refreshToken]);
+
+  // Auto-open the moment a shortage first appears, so the customer isn't
+  // left to notice the floating bubble themselves.
+  useEffect(() => {
+    const hasShortage = shortages.length > 0;
+    if (hasShortage && !hadShortageRef.current) setOpen(true);
+    hadShortageRef.current = hasShortage;
+  }, [shortages.length]);
 
   useEffect(() => {
     if (!open) return;

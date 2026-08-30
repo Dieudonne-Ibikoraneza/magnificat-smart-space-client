@@ -17,7 +17,6 @@ import type {
   ApiUser,
   AuthTokens,
   ChatSendResult,
-  CreatedOrder,
   CustomerAnalytics,
   CustomerDetail,
   CustomerSummary,
@@ -33,6 +32,7 @@ import type {
   OrderType,
   OtpSendResult,
   Paginated,
+  PlaceOrderResult,
   PlatformSettings,
   ProfilingQuestion,
   QuantityCalculation,
@@ -216,12 +216,19 @@ export const favoritesApi = {
 // --- Orders -----------------------------------------------------------------
 
 export const ordersApi = {
+  /**
+   * A customer's own cart that exceeds stock on hand never becomes an order —
+   * the response comes back as `{ orderCreated: false, negotiation }` instead,
+   * with their pre-order negotiation thread already opened/continued
+   * server-side. Staff placing on a customer's behalf still get
+   * `{ orderCreated: true, order }` even over a shortage.
+   */
   create: (body: {
     type: OrderType;
     items: { productId: string; areaSqm: number }[];
     customerId?: string;
     notes?: string;
-  }) => api.post<CreatedOrder>("/orders", body),
+  }) => api.post<PlaceOrderResult>("/orders", body),
 
   list: (
     query: {
