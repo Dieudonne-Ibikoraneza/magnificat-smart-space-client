@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { CheckCircle2, Clock, FileText, Landmark, Smartphone } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { CheckCircle2, Clock, FileText } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -15,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { ordersApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
-import { paymentInstructions } from "@/data/order-workflow";
 import type { QuotationStatus } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -37,58 +35,75 @@ const statusLabels: Record<QuotationStatus, string> = {
 
 /**
  * Customer-facing quotation + payment card shown on an account order detail page.
- * There's no payment gateway wired in behind this system — the customer pays
- * the stock team's MoMo code or bank account directly, then tells us they've
- * paid. Opening the quotation PDF is required first (server-enforced): it's
- * both how they see the transport fee formalized and the same call that
- * unlocks "I've paid".
+ * There's no payment gateway wired in behind this system — the quotation PDF
+ * itself carries the stock team's MoMo code and bank account, the customer
+ * pays there directly, then tells us they've paid from right inside the
+ * quotation dialog. It's rendered in an iframe rather than opened in a new
+ * tab: some browsers are set to download PDFs instead of viewing them, which
+ * would hand the customer a file instead of the document — an embedded
+ * iframe always renders inline regardless of that setting. Opening it here
+ * is also the server call that unlocks "Done, I've paid".
  */
 export const CustomerQuotationCard = ({
   orderId,
   subtotalValue,
   quotationStatus,
   transportFee,
-  quotationViewedAt,
   onUpdated,
 }: {
   orderId: string;
   subtotalValue: number;
   quotationStatus: QuotationStatus;
   transportFee: number | null;
-  quotationViewedAt: string | null;
   /** Called after opening the quotation or confirming payment, so the parent can refetch the order. */
   onUpdated: () => void;
 }) => {
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [viewing, setViewing] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [loadingPdf, setLoadingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const pdfUrlRef = useRef<string | null>(null);
 
-  const viewQuotation = async () => {
-    // Open the tab synchronously, still inside the click's user-gesture —
-    // opening it after the `await` below loses that gesture and Chrome
-    // silently blocks the popup (no error, the tab just never appears).
-    // We fill in its location once the PDF blob is ready.
-    const newTab = window.open("", "_blank");
-    setViewing(true);
-    try {
-      const blob = await ordersApi.viewQuotationPdf(orderId);
-      const url = URL.createObjectURL(blob);
-      if (newTab) {
-        newTab.location.href = url;
-      } else {
-        toast.error("Pop-up blocked", {
-          description: "Allow pop-ups for this site in your browser, then try again.",
-        });
-      }
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      if (!quotationViewedAt) onUpdated();
-    } catch (cause) {
-      newTab?.close();
-      toast.error("Couldn't open the quotation", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+  useEffect(() => {
+    if (!dialogOpen) return;
+    let cancelled = false;
+    ordersApi
+      .viewQuotationPdf(orderId)
+      .then((blob) => {
+        if (cancelled) return;
+        const url = URL.createObjectURL(blob);
+        pdfUrlRef.current = url;
+        setPdfUrl(url);
+        // No onUpdated() here: the parent page's useApi hook flips to its
+        // full loading state on every reload() (see account/orders/[id]/page.tsx),
+        // which would unmount this dialog mid-view. The server already
+        // recorded the view; the parent's quotationViewedAt catches up next
+        // time it actually reloads (e.g. after "Done, I've paid" below).
+      })
+      .catch((cause) => {
+        if (cancelled) return;
+        setPdfError(cause instanceof ApiError ? cause.message : "Couldn't open the quotation.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPdf(false);
       });
-    } finally {
-      setViewing(false);
+    return () => {
+      cancelled = true;
+    };
+  }, [dialogOpen, orderId]);
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setDialogOpen(open);
+    if (open) {
+      setLoadingPdf(true);
+      setPdfError(null);
+      setPdfUrl(null);
+    } else {
+      if (pdfUrlRef.current) URL.revokeObjectURL(pdfUrlRef.current);
+      pdfUrlRef.current = null;
+      setPdfUrl(null);
+      setPdfError(null);
     }
   };
 
@@ -96,7 +111,7 @@ export const CustomerQuotationCard = ({
     setSubmitting(true);
     try {
       await ordersApi.markPaymentSubmitted(orderId);
-      setConfirmOpen(false);
+      handleDialogOpenChange(false);
       onUpdated();
       toast.success("Payment marked as completed", {
         description: "Our team will verify it and confirm your order shortly.",
@@ -147,67 +162,39 @@ export const CustomerQuotationCard = ({
           </dl>
 
           {quotationStatus === "QUOTATION_SENT" && (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void viewQuotation()}
-                disabled={viewing}
-                className="mt-5 h-11 w-full gap-2 text-sm font-bold"
-              >
-                <FileText className="size-4" /> {viewing ? "Opening…" : "View quotation (PDF)"}
-              </Button>
-
-              {quotationViewedAt ? (
-                <>
-                  <div className="mt-4 space-y-2.5 rounded-xl border border-slate-100 bg-[#F9FAFB] p-4">
-                    <p className="text-[11px] font-bold tracking-wider text-muted uppercase">Payment details</p>
-                    <div className="flex items-start gap-3">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm"><Smartphone className="size-4 text-ink" /></span>
-                      <div className="text-sm">
-                        <p className="font-semibold text-ink">MoMo Pay</p>
-                        <p className="font-data text-ink">{paymentInstructions.momoCode}</p>
-                        <p className="text-xs text-muted">{paymentInstructions.momoName}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm"><Landmark className="size-4 text-ink" /></span>
-                      <div className="text-sm">
-                        <p className="font-semibold text-ink">Bank transfer</p>
-                        <p className="text-ink">{paymentInstructions.bankName} — <span className="font-data">{paymentInstructions.bankAccountNumber}</span></p>
-                        <p className="text-xs text-muted">{paymentInstructions.bankAccountName} · SWIFT {paymentInstructions.bankSwift}</p>
-                      </div>
-                    </div>
+            <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
+              <DialogTrigger render={<Button type="button" variant="outline" className="mt-5 h-11 w-full gap-2 text-sm font-bold" />}>
+                <FileText className="size-4" /> View quotation & pay
+              </DialogTrigger>
+              <DialogContent className="flex h-[85vh] max-w-3xl flex-col" showClose>
+                <DialogHeader className="flex flex-row items-center justify-between gap-3 space-y-0 pr-8">
+                  <div className="min-w-0">
+                    <DialogTitle>Quotation</DialogTitle>
+                    <DialogDescription className="truncate">
+                      Total due {formatRWF(subtotalValue + (transportFee ?? 0))} — MoMo and bank details are on the document below.
+                    </DialogDescription>
                   </div>
+                  <Button
+                    type="button"
+                    onClick={() => void markPaymentDone()}
+                    disabled={loadingPdf || !!pdfError || submitting}
+                    className="h-10 shrink-0 gap-1.5 px-4 text-xs font-bold whitespace-nowrap disabled:opacity-60"
+                  >
+                    <CheckCircle2 className="size-4" /> {submitting ? "Marking…" : "Done, I've paid"}
+                  </Button>
+                </DialogHeader>
 
-                  <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-                    <DialogTrigger render={<Button type="button" className="mt-2.5 h-11 w-full gap-2 text-sm font-bold" />}>
-                      <CheckCircle2 className="size-4" /> I&apos;ve paid by MoMo code or bank transfer
-                    </DialogTrigger>
-                    <DialogContent className="max-w-sm">
-                      <DialogHeader>
-                        <DialogTitle>Confirm your payment</DialogTitle>
-                        <DialogDescription>
-                          Let us know you&apos;ve sent {formatRWF(subtotalValue + (transportFee ?? 0))} for this order. Our team will verify it and confirm your order.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setConfirmOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
-                          Not yet
-                        </Button>
-                        <Button type="button" onClick={() => void markPaymentDone()} disabled={submitting} className="h-10 px-5 text-sm font-bold">
-                          {submitting ? "Please wait…" : "Yes, I've paid"}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </>
-              ) : (
-                <p className="mt-3 text-xs text-muted">
-                  Open the quotation above to see the MoMo and bank details, then come back here to confirm your payment.
-                </p>
-              )}
-            </>
+                <div className="mt-4 flex-1 overflow-hidden rounded-lg border border-slate-100 bg-[#F9FAFB]">
+                  {loadingPdf ? (
+                    <div className="flex h-full items-center justify-center text-sm text-muted">Loading quotation…</div>
+                  ) : pdfError ? (
+                    <div className="flex h-full items-center justify-center px-6 text-center text-sm text-red-600">{pdfError}</div>
+                  ) : pdfUrl ? (
+                    <iframe src={pdfUrl} title="Quotation" className="size-full" />
+                  ) : null}
+                </div>
+              </DialogContent>
+            </Dialog>
           )}
 
           {quotationStatus === "PAYMENT_SUBMITTED" && (

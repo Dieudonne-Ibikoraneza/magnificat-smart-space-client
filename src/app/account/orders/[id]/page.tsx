@@ -228,7 +228,6 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
               subtotalValue={Number(order.subtotal)}
               quotationStatus={order.quotationStatus}
               transportFee={order.transportFee ? Number(order.transportFee) : null}
-              quotationViewedAt={order.quotationViewedAt}
               onUpdated={reload}
             />
 
