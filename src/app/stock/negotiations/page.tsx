@@ -139,7 +139,10 @@ const loadConversations = async (): Promise<Conversation[]> => {
 const StockNegotiationsPage = () => {
   const { user } = useCurrentUser();
   const { data: conversations, loading, error, reload } = useApi(loadConversations);
-  const [overrides, setOverrides] = useState<Record<string, ThreadMessage[]>>({});
+  // `items` is only ever present for a cart thread and only set when a
+  // refetch (below) actually picked up a fresher snapshot — absent otherwise,
+  // so `merged` below falls back to the conversation's own last-known items.
+  const [overrides, setOverrides] = useState<Record<string, { messages: ThreadMessage[]; items?: ApiCartNegotiationItem[] }>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
@@ -169,9 +172,11 @@ const StockNegotiationsPage = () => {
 
   const merged = useMemo(
     () =>
-      (conversations ?? []).map((conversation) =>
-        overrides[conversation.id] ? { ...conversation, messages: overrides[conversation.id] } : conversation,
-      ),
+      (conversations ?? []).map((conversation) => {
+        const override = overrides[conversation.id];
+        if (!override) return conversation;
+        return { ...conversation, messages: override.messages, items: override.items ?? conversation.items };
+      }),
     [conversations, overrides],
   );
 
@@ -220,9 +225,19 @@ const StockNegotiationsPage = () => {
       reload();
       return;
     }
-    void (thread.kind === "order" ? ordersApi.listMessages(thread.id) : cartNegotiationsApi.get(thread.id))
-      .then((result) => (Array.isArray(result) ? result : result.messages))
-      .then((messages) => setOverrides((current) => ({ ...current, [thread.id]: messages })))
+    if (thread.kind === "order") {
+      void ordersApi
+        .listMessages(thread.id)
+        .then((messages) => setOverrides((current) => ({ ...current, [thread.id]: { messages } })))
+        .catch(() => undefined);
+      return;
+    }
+    // Cart threads: a full refetch, not just messages — `items` can change
+    // alongside a message (e.g. the customer hitting "Share my cart"), and
+    // there's no lighter endpoint that returns just the new ones.
+    void cartNegotiationsApi
+      .get(thread.id)
+      .then((full) => setOverrides((current) => ({ ...current, [thread.id]: { messages: full.messages, items: full.items } })))
       .catch(() => undefined);
   });
 
@@ -231,9 +246,20 @@ const StockNegotiationsPage = () => {
     selected ? { kind: selected.kind, id: selected.id } : null,
     (message: ThreadMessage) => {
       if (!selected) return;
+      if (selected.kind === "cart") {
+        // Items can change alongside a message (e.g. "Share my cart"), and
+        // the socket payload only ever carries the message itself — refetch
+        // the whole thread rather than just appending, so the chips beside it
+        // never go stale while staff is watching live.
+        void cartNegotiationsApi
+          .get(selected.id)
+          .then((full) => setOverrides((current) => ({ ...current, [selected.id]: { messages: full.messages, items: full.items } })))
+          .catch(() => undefined);
+        return;
+      }
       setOverrides((current) => ({
         ...current,
-        [selected.id]: appendMessageOnce(current[selected.id] ?? selected.messages, message),
+        [selected.id]: { messages: appendMessageOnce(current[selected.id]?.messages ?? selected.messages, message) },
       }));
     },
   );
@@ -260,7 +286,10 @@ const StockNegotiationsPage = () => {
     setPendingIds((current) => [...current, tempId]);
     setOverrides((current) => ({
       ...current,
-      [selectedId]: [...(current[selectedId] ?? baseMessages), optimisticMessage],
+      [selectedId]: {
+        messages: [...(current[selectedId]?.messages ?? baseMessages), optimisticMessage],
+        items: current[selectedId]?.items,
+      },
     }));
 
     try {
@@ -270,15 +299,21 @@ const StockNegotiationsPage = () => {
           : await cartNegotiationsApi.postMessage(selectedId, body);
       setOverrides((current) => ({
         ...current,
-        [selectedId]: appendMessageOnce(
-          (current[selectedId] ?? baseMessages).filter((existing) => existing.id !== tempId),
-          message,
-        ),
+        [selectedId]: {
+          messages: appendMessageOnce(
+            (current[selectedId]?.messages ?? baseMessages).filter((existing) => existing.id !== tempId),
+            message,
+          ),
+          items: current[selectedId]?.items,
+        },
       }));
     } catch (cause) {
       setOverrides((current) => ({
         ...current,
-        [selectedId]: (current[selectedId] ?? baseMessages).filter((existing) => existing.id !== tempId),
+        [selectedId]: {
+          messages: (current[selectedId]?.messages ?? baseMessages).filter((existing) => existing.id !== tempId),
+          items: current[selectedId]?.items,
+        },
       }));
       setDraft(body);
       toast.error("Message not sent", {

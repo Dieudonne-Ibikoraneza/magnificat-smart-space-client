@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, ArrowRight, CheckCircle2, ExternalLink, Plus, Minus, ShoppingCart, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { CartSkeleton } from "@/components/skeletons";
+import { stockLabels } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DeliveryDetailsDialog } from "@/components/delivery-details-dialog";
@@ -80,19 +81,16 @@ const CartPage = () => {
   const shortageFor = (productId: string) => shortages.find((shortage) => shortage.productId === productId);
 
   /** Every cart line, not just the short ones — what "Share my cart" sends the stock team. */
-  const cartNegotiationItems: CartLineSummary[] = cart.lines.map((line) => {
-    const availableAreaSqm = line.product.availableAreaSqm ?? 0;
-    return {
-      productId: line.productId,
-      productName: line.product.name,
-      requestedAreaSqm: line.quantity.purchasedArea,
-      availabilityNote: line.exceedsStock
-        ? availableAreaSqm > 0
-          ? `${availableAreaSqm} m² available`
-          : "Out of stock"
-        : "In stock",
-    };
-  });
+  // `stockLabels`, never the exact `availableAreaSqm` — that number is
+  // staff-only everywhere else in the app (doc 3.2) and a negotiation chat
+  // the customer can read is no exception, even though the cart response
+  // itself happens to carry the raw figure for the shortage check above.
+  const cartNegotiationItems: CartLineSummary[] = cart.lines.map((line) => ({
+    productId: line.productId,
+    productName: line.product.name,
+    requestedAreaSqm: line.quantity.purchasedArea,
+    availabilityNote: stockLabels[line.product.stockStatus],
+  }));
 
   const handleOrderSubmit = async (deliveryDetails: DeliveryDetails) => {
     setPlacingOrder(true);

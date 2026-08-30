@@ -13,9 +13,6 @@ import type { ApiCartNegotiation, ApiCartNegotiationMessage, StockShortage } fro
 import { appendMessageOnce, useNegotiationThread } from "@/lib/negotiations-socket";
 
 /** Exact on-hand quantity, in the note staff see. */
-const formatAvailabilityNote = (item: StockShortage) =>
-  item.availableAreaSqm > 0 ? `${item.availableAreaSqm} m² available` : "Out of stock";
-
 /** The whole cart, one line per product — what "Share my cart" sends, unlike a shortage message which only ever covers the short lines. */
 export type CartLineSummary = {
   productId: string;
@@ -169,16 +166,12 @@ export const CartNegotiationChat = ({
       const newShortages = shortages.filter((item) => !alreadyKnown(item));
 
       if (!negotiation || newShortages.length > 0) {
-        const source = negotiation ? newShortages : shortages;
-        const updated = await cartNegotiationsApi.submit(
-          source.map((item) => ({
-            productId: item.productId,
-            productName: item.productName,
-            requestedAreaSqm: item.requestedAreaSqm,
-            availabilityNote: formatAvailabilityNote(item),
-          })),
-          body,
-        );
+        const newProductIds = new Set((negotiation ? newShortages : shortages).map((item) => item.productId));
+        // Sourced from `cartItems` (already carrying the safe stockLabels
+        // note, not the exact figure) rather than rebuilding one from
+        // `StockShortage.availableAreaSqm` here.
+        const source = cartItems.filter((item) => newProductIds.has(item.productId));
+        const updated = await cartNegotiationsApi.submit(source, body);
         setNegotiation(updated);
       } else {
         const message = await cartNegotiationsApi.postMessage(negotiation.id, body);
