@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useLayoutEffect, useRef, useState } from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
 
@@ -30,52 +29,30 @@ function DialogContent({
   showClose = true,
   ...props
 }: DialogPrimitive.Popup.Props & { showClose?: boolean }) {
-  const popupRef = useRef<HTMLDivElement | null>(null);
-  // `items-center` alone clips the top of a popup taller than the viewport —
-  // a centered flex item that overflows its container scrolls from the
-  // middle out, so the start (the dialog's own header and close button) is
-  // the unreachable part. `align-items: safe center` is the CSS-only fix for
-  // that, but isn't reliably supported in the WebKit build these devices
-  // run — it silently falls back to plain `center`, clipping exactly as
-  // before. This measures the popup itself instead: centered whenever it
-  // fits the viewport (the common case — most dialogs are short), and
-  // top-aligned the moment it doesn't, so it's always scrollable from its
-  // own literal top all the way to the bottom. Re-checked on resize and
-  // whenever the popup's own size changes (e.g. content loading in).
-  const [overflowsViewport, setOverflowsViewport] = useState(false);
-
-  useLayoutEffect(() => {
-    const checkFit = () => {
-      const el = popupRef.current;
-      if (!el) return;
-      // 24px (mobile) / 32px (sm+) of viewport padding on top and bottom combined — see the Viewport's own p-3 sm:p-4 below.
-      const viewportPadding = window.innerWidth >= 640 ? 32 : 24;
-      setOverflowsViewport(el.getBoundingClientRect().height > window.innerHeight - viewportPadding);
-    };
-    checkFit();
-    window.addEventListener("resize", checkFit);
-    const observer = new ResizeObserver(checkFit);
-    if (popupRef.current) observer.observe(popupRef.current);
-    return () => {
-      window.removeEventListener("resize", checkFit);
-      observer.disconnect();
-    };
-  }, []);
-
   return (
     <DialogPrimitive.Portal>
       <DialogBackdrop />
-      <DialogPrimitive.Viewport
-        className={cn(
-          "fixed inset-0 z-50 flex justify-center overflow-y-auto p-3 sm:p-4",
-          overflowsViewport ? "items-start" : "items-center",
-        )}
-      >
+      {/*
+        Centering a viewport-level flex container used to clip the top of any
+        popup taller than the screen (a centered overflowing flex item scrolls
+        from the middle out, not from its own top) — `align-items: safe
+        center` is the CSS fix for that, but isn't reliably supported in the
+        WebKit build these devices run. Solved at the popup level instead
+        (below): its own `max-h` never lets it exceed the space this padding
+        leaves, so plain centering here is safe regardless of content length.
+      */}
+      <DialogPrimitive.Viewport className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-3 sm:p-4">
         <DialogPrimitive.Popup
-          ref={popupRef}
           data-slot="dialog-content"
           className={cn(
-            "relative w-full max-w-md rounded-2xl bg-card p-4 shadow-2xl ring-1 ring-ink/10 duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 sm:p-6",
+            // Capped to the viewport minus the same margin as the Viewport's
+            // own p-3/sm:p-4, so there's always visible breathing room above
+            // and below the card — never flush against the screen edges,
+            // however tall the content — and scrolls inside itself
+            // (`overflow-y-auto` here, not just on the outer Viewport) once
+            // it hits that cap, which is the part that actually behaves
+            // consistently on mobile Safari.
+            "relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-card p-4 shadow-2xl ring-1 ring-ink/10 duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 sm:max-h-[calc(100dvh-2rem)] sm:p-6",
             className,
           )}
           {...props}

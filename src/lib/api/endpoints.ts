@@ -1,4 +1,4 @@
-import { api, fetchBlob, tokenStore } from "./client";
+import { api, apiUpload, fetchBlob, tokenStore } from "./client";
 import type {
   AnalyticsOverview,
   AnalyticsPeriod,
@@ -167,6 +167,22 @@ export const productsApi = {
   /** Doc 3.3: area in, boxes/pieces and total price out. */
   calculateQuantity: (productId: string, areaSqm: number) =>
     api.post<QuantityCalculation>("/products/calculate-quantity", { productId, areaSqm }),
+
+  /**
+   * Uploads to a private Supabase Storage blob (admin/stock manager only) —
+   * `image` in the returned data is a short-lived signed URL good only for
+   * an immediate preview; submit `path`, not `image`, as the product's own
+   * `image` field when creating/updating it. The server resolves that path
+   * to a fresh signed URL on every read, since the one returned here expires.
+   */
+  uploadImage: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiUpload<{ bucket: string; path: string; url: string; expiresIn: number; contentType: string; size: number }>(
+      "/products/upload-image",
+      formData,
+    );
+  },
 
   create: (body: ProductInput) => api.post<ApiProduct>("/products", body),
   update: (id: string, body: Partial<ProductInput>) => api.patch<ApiProduct>(`/products/${id}`, body),

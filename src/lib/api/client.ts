@@ -213,6 +213,40 @@ export const apiRequest = async <T>(path: string, options: RequestOptions = {}):
 };
 
 /**
+ * For the one endpoint that takes a file rather than JSON (the product image
+ * upload) — same auth/refresh/envelope handling as `apiRequest`, but sends a
+ * `FormData` body with no `Content-Type` set, so the browser fills in the
+ * multipart boundary itself (setting it manually strips the boundary and the
+ * server can't parse the body at all).
+ */
+export const apiUpload = async <T>(path: string, formData: FormData): Promise<T> => {
+  const sendForm = () => {
+    const headers: Record<string, string> = {};
+    const accessToken = tokenStore.getAccessToken();
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+    return fetch(`${API_BASE_URL}${path}`, { method: "POST", headers, body: formData });
+  };
+
+  let response: Response;
+  try {
+    response = await sendForm();
+  } catch {
+    throw new ApiError(0, "Could not reach the server. Check your connection and try again.");
+  }
+
+  if (response.status === 401 && tokenStore.getRefreshToken()) {
+    const refreshed = await ensureRefreshed();
+    if (refreshed) response = await sendForm();
+  }
+
+  const body = await parseBody(response);
+  if (!response.ok) {
+    throw new ApiError(response.status, errorMessageOf(body, response.statusText), body);
+  }
+  return (body as ApiEnvelope<T> | undefined)?.data as T;
+};
+
+/**
  * For the handful of endpoints that answer with a raw file instead of the
  * usual `{ success, data }` envelope (the quotation PDF) — same auth/refresh
  * handling as `apiRequest`, but resolves to a `Blob` rather than parsed JSON.

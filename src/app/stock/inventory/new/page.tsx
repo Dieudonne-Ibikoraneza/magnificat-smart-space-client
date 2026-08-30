@@ -32,17 +32,19 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
-import { collections } from "@/data/collections";
+import { collectionsApi, productsApi } from "@/lib/api";
+import { ApiError } from "@/lib/api/client";
+import { roomTypeLabels } from "@/lib/api/mappers";
+import { useApi } from "@/lib/api/use-api";
+import type { RoomType, SuitableFor } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
-const finishes = ["Polished", "Matte", "Glossy", "Textured", "Honed"] as const;
-const materials = ["Porcelain", "Ceramic", "Marble", "Granite", "Terrazzo"] as const;
-const roomTypeOptions = ["Living Room (Saloon)", "Bathroom", "Kitchen", "Balcony", "Outdoor"] as const;
-const suitableForOptions = [
-  { value: "floor", label: "Floor" },
-  { value: "wall", label: "Wall" },
-  { value: "both", label: "Floor & Wall" },
-] as const;
+const roomTypeOptions = Object.keys(roomTypeLabels) as RoomType[];
+const suitableForOptions: { value: SuitableFor; label: string }[] = [
+  { value: "FLOOR", label: "Floor" },
+  { value: "WALL", label: "Wall" },
+  { value: "BOTH", label: "Floor & Wall" },
+];
 
 const LOW_STOCK_THRESHOLD = 10;
 
@@ -56,15 +58,6 @@ const isValidName = (value: string) => value.trim().length >= 2 && value.trim().
 const isValidSku = (value: string) => /^[A-Z0-9]{2,8}-[A-Z0-9]{2,8}-[A-Z0-9]{2,6}$/.test(value.trim());
 const isPositiveNumber = (value: string) => value.trim() !== "" && Number(value) > 0;
 const isValidDescription = (value: string) => value.trim().length >= 10;
-
-/** Derives a single tile's coverage area (m²) from a collection size like "50×50cm". */
-const tileAreaFromSize = (size: string) => {
-  const match = size.match(/(\d+(?:\.\d+)?)\s*[×x]\s*(\d+(?:\.\d+)?)/i);
-  if (!match) return null;
-  const [, widthCm, heightCm] = match;
-  const area = (Number(widthCm) / 100) * (Number(heightCm) / 100);
-  return Math.round(area * 10000) / 10000;
-};
 
 type FieldProps = {
   label: string;
@@ -200,7 +193,7 @@ const ImageDropzone = ({
             <ImagePlus className="size-5" strokeWidth={1.8} />
           </span>
           <p className="text-sm font-semibold text-ink">Click to upload or drag and drop</p>
-          <p className="text-xs text-muted-foreground">PNG, JPG or WEBP</p>
+          <p className="text-xs text-muted-foreground">PNG, JPG or WEBP · up to 10MB</p>
         </div>
       )}
       <input
@@ -309,14 +302,14 @@ const BoldTextarea = ({
 
 const RegisterProductPage = () => {
   const router = useRouter();
+  const { data: collectionsData } = useApi(() => collectionsApi.list({ limit: 100 }));
+  const collections = collectionsData?.items ?? [];
 
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
   const [collectionId, setCollectionId] = useState("");
-  const [suitableFor, setSuitableFor] = useState<(typeof suitableForOptions)[number]["value"]>("both");
-  const [roomTypes, setRoomTypes] = useState<string[]>([]);
-  const [finish, setFinish] = useState("");
-  const [material, setMaterial] = useState("");
+  const [suitableFor, setSuitableFor] = useState<SuitableFor>("BOTH");
+  const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
   const [price, setPrice] = useState("");
   const [boxCoverage, setBoxCoverage] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -326,7 +319,7 @@ const RegisterProductPage = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const toggleRoomType = (option: string) => {
+  const toggleRoomType = (option: RoomType) => {
     setRoomTypes((current) =>
       current.includes(option) ? current.filter((item) => item !== option) : [...current, option],
     );
@@ -344,7 +337,7 @@ const RegisterProductPage = () => {
   };
 
   const selectedCollection = collections.find((item) => item.id === collectionId) ?? null;
-  const tileArea = selectedCollection ? tileAreaFromSize(selectedCollection.size) : null;
+  const tileArea = selectedCollection ? Number(selectedCollection.tileAreaSqm) : null;
   const boxCoverageValue = boxCoverage.trim() === "" ? null : Number(boxCoverage);
   const piecesPerBox =
     tileArea && boxCoverageValue !== null && boxCoverageValue > 0
@@ -358,8 +351,6 @@ const RegisterProductPage = () => {
     isValidSku(sku) &&
     selectedCollection !== null &&
     roomTypes.length > 0 &&
-    finish !== "" &&
-    material !== "" &&
     isPositiveNumber(price) &&
     isPositiveNumber(boxCoverage) &&
     piecesPerBox !== null &&
@@ -369,8 +360,8 @@ const RegisterProductPage = () => {
     isValidDescription(description) &&
     imageFile !== null;
 
-  const handleSubmit = () => {
-    if (!formValid) {
+  const handleSubmit = async () => {
+    if (!formValid || !imageFile || !selectedCollection || piecesPerBox === null) {
       toast.error("Check the highlighted fields", {
         description: "All fields, including a product image, are required to register a product.",
       });
@@ -378,13 +369,33 @@ const RegisterProductPage = () => {
     }
 
     setSubmitting(true);
-    window.setTimeout(() => {
-      setSubmitting(false);
+    try {
+      const uploaded = await productsApi.uploadImage(imageFile);
+      await productsApi.create({
+        name: name.trim(),
+        sku: sku.trim().toUpperCase(),
+        collectionId: selectedCollection.id,
+        boxCoverageSqm: Number(boxCoverage),
+        piecesPerBox,
+        price: Number(price),
+        image: uploaded.path,
+        description: description.trim(),
+        suitableFor,
+        roomTypes,
+        initialAreaSqm: quantityValue ?? undefined,
+        initialCostPrice: costPrice.trim() !== "" ? Number(costPrice) : undefined,
+      });
       toast.success("Product registered", {
         description: `${name.trim()} (SKU ${sku.trim().toUpperCase()}) was added to the catalog.`,
       });
       router.push("/stock/inventory");
-    }, 600);
+    } catch (cause) {
+      toast.error("Couldn't register product", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -407,7 +418,7 @@ const RegisterProductPage = () => {
         className="space-y-5 sm:space-y-6"
         onSubmit={(event) => {
           event.preventDefault();
-          handleSubmit();
+          void handleSubmit();
         }}
       >
         <div className="grid items-start gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_1.4fr]">
@@ -470,39 +481,6 @@ const RegisterProductPage = () => {
               </div>
             )}
 
-            <div className="mt-5 grid gap-5 sm:grid-cols-2">
-              <Field className="gap-1.5">
-                <FieldLabel className="text-sm font-medium text-ink">Finish</FieldLabel>
-                <Select value={finish} onValueChange={(value) => setFinish(value ?? "")}>
-                  <SelectTrigger className="h-11 text-sm">
-                    <SelectValue>{(value) => value || "Select finish..."}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {finishes.map((item) => (
-                      <SelectItem key={item} value={item}>
-                        {item}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field className="gap-1.5">
-                <FieldLabel className="text-sm font-medium text-ink">Material</FieldLabel>
-                <Select value={material} onValueChange={(value) => setMaterial(value ?? "")}>
-                  <SelectTrigger className="h-11 text-sm">
-                    <SelectValue>{(value) => value || "Select material..."}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {materials.map((item) => (
-                      <SelectItem key={item} value={item}>
-                        {item}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-
             <div className="mt-6 border-t border-border pt-5">
               <FieldLabel className="text-sm font-medium text-ink">Suitable For</FieldLabel>
               <div className="mt-2.5 flex flex-wrap gap-2">
@@ -546,7 +524,7 @@ const RegisterProductPage = () => {
                       )}
                     >
                       {checked && <Check className="size-3.5" />}
-                      {option}
+                      {roomTypeLabels[option]}
                     </button>
                   );
                 })}
