@@ -391,11 +391,14 @@ export const ProductCatalog = ({
   products,
   breadcrumb,
   showFavorites = true,
+  showAddToCart = true,
   detailsBasePath = "/products",
 }: {
   products: Product[];
   breadcrumb?: ReactNode;
   showFavorites?: boolean;
+  /** Off for staff catalogs (e.g. sales) — a cart is a customer's own. */
+  showAddToCart?: boolean;
   detailsBasePath?: string;
 }) => {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -545,6 +548,7 @@ export const ProductCatalog = ({
                     product={product}
                     list={viewMode === "list"}
                     showFavorite={showFavorites}
+                    showAddToCart={showAddToCart}
                     detailsBasePath={detailsBasePath}
                   />
                 ))}

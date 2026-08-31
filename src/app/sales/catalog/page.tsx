@@ -26,7 +26,7 @@ const CatalogPage = () => {
         ) : products.length === 0 ? (
           <ApiEmptyState message="No products are available yet." className="my-16" />
         ) : (
-          <ProductCatalog products={products} showFavorites={false} detailsBasePath="/sales/catalog" />
+          <ProductCatalog products={products} showFavorites={false} showAddToCart={false} detailsBasePath="/sales/catalog" />
         )}
       </div>
     </>

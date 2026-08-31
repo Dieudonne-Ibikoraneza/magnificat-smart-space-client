@@ -1,3 +1,10 @@
+import { notFound } from "next/navigation";
+
+// Disabled — Shared Designs is commented out (nav item too, see
+// src/app/sales/layout.tsx) rather than deleted, so it's easy to bring
+// back later. Everything below the original page.
+
+/*
 "use client";
 
 import Image from "next/image";
@@ -16,7 +23,7 @@ const formatRWF = (value: number) => `RWF ${Math.round(value).toLocaleString("en
  * Designs customers shared with the sales team from the 3D visualizer (doc 3.5).
  * Each one already carries the room, the surfaces and the tiles chosen, so it
  * converts straight into a draft order without re-asking the customer.
- */
+ *//*
 export default function SalesDesignsPage() {
   const [search, setSearch] = useState("");
 
@@ -162,4 +169,9 @@ export default function SalesDesignsPage() {
       </div>
     </div>
   );
+}
+*/
+
+export default function SalesDesignsPage() {
+  notFound();
 }

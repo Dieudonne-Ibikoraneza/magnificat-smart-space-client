@@ -53,6 +53,7 @@ export const ProductCard = ({
   product,
   list = false,
   showFavorite = true,
+  showAddToCart = true,
   detailsBasePath = "/products",
   selectable = false,
   selected = false,
@@ -61,6 +62,8 @@ export const ProductCard = ({
   product: Product;
   list?: boolean;
   showFavorite?: boolean;
+  /** Off for staff catalogs (e.g. sales) — a cart is a customer's own, not something staff add to on their behalf. */
+  showAddToCart?: boolean;
   detailsBasePath?: string;
   selectable?: boolean;
   selected?: boolean;
@@ -171,17 +174,19 @@ export const ProductCard = ({
           </p>
           {!selectable && (
             <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                disabled={product.stockStatus === "out_of_stock"}
-                onClick={handleAddToCart}
-                className="size-11 rounded-full border border-slate-100 bg-muted-background text-ink hover:bg-primary hover:text-ink disabled:pointer-events-none disabled:opacity-50"
-                aria-label={`Add ${product.name} to cart`}
-              >
-                <ShoppingCart className="size-5" />
-              </Button>
+              {showAddToCart && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  disabled={product.stockStatus === "out_of_stock"}
+                  onClick={handleAddToCart}
+                  className="size-11 rounded-full border border-slate-100 bg-muted-background text-ink hover:bg-primary hover:text-ink disabled:pointer-events-none disabled:opacity-50"
+                  aria-label={`Add ${product.name} to cart`}
+                >
+                  <ShoppingCart className="size-5" />
+                </Button>
+              )}
               <Button
                 size="icon"
                 variant="ghost"

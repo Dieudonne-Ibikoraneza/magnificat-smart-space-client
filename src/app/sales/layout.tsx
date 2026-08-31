@@ -6,7 +6,7 @@ import {
   BriefcaseBusiness,
   LayoutGrid,
   ShoppingCart,
-  Sparkles,
+  // Sparkles, // used by the commented-out "Shared Designs" nav item below
   Users,
 } from "lucide-react";
 import { ApiLoading } from "@/components/api-state";
@@ -26,7 +26,7 @@ const navigation = [
   { label: "Customers", href: "/sales/customers", icon: Users },
   { label: "Orders", href: "/sales/orders", icon: ShoppingCart },
   { label: "Catalog", href: "/sales/catalog", icon: BriefcaseBusiness },
-  { label: "Shared Designs", href: "/sales/designs", icon: Sparkles },
+  // { label: "Shared Designs", href: "/sales/designs", icon: Sparkles },
   { label: "Account Settings", href: "/sales/settings", icon: BarChart3 },
 ] as const;
 
