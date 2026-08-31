@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, Suspense, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -15,25 +15,20 @@ import {
   Contact,
   Layers3,
   Mail,
-  MapPin,
   Package,
   Phone,
   Save,
   Search,
-  SlidersHorizontal,
   User,
   X,
 } from "lucide-react";
 import { SalesDetailHeader } from "@/app/sales/layout";
-import { FilterOptionsCard } from "@/components/product-catalog";
-import { StockNegotiationChat } from "@/components/stock-negotiation-chat";
+import { AdjustStockDialog } from "@/components/adjust-stock-dialog";
+import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
+import { SelectableProductCard } from "@/components/selectable-product-card";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
+  Badge,
+} from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -55,33 +50,41 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
-import { salesCustomers, type SalesCustomer } from "@/data/sales-customers";
-import { products } from "@/data/catalog";
-import { ProductCard, type Product } from "@/components/product-card";
+import { ordersApi, productsApi, usersApi } from "@/lib/api";
+import { ApiError } from "@/lib/api/client";
+import { useApi } from "@/lib/api/use-api";
+import type { ApiProduct, CustomerSummary, StockStatus, SuitableFor, UserStatus } from "@/lib/api/types";
 import { calculateTileQuantity } from "@/lib/tile-calculator";
-import {
-  EMPTY_FILTERS,
-  filterProducts,
-  getVisiblePages,
-  hasActiveFilters,
-  paginateProducts,
-  sortLabels,
-  sortProducts,
-  toggleFilterOption,
-  type CatalogFilters,
-  type SortOption,
-} from "@/lib/catalog-utils";
-import { getStockShortage, type StockShortage } from "@/lib/stock-availability";
-import { cn } from "@/lib/utils";
+import { getVisiblePages, sortLabels, type SortOption } from "@/lib/catalog-utils";
+import { formatCompactCurrency, formatRelativeTime, cn } from "@/lib/utils";
+
+const PRODUCT_PAGE_SIZE = 6;
+
+/** Stock managers and admins can adjust stock themselves; sales people can't — see `products.controller.ts` roles. */
+const CAN_ADJUST_STOCK = false;
 
 const isPositiveNumber = (value: string) => value.trim() !== "" && Number(value) > 0;
 const formatRWF = (value: number) => `RWF ${Math.round(value).toLocaleString("en-US")}`;
+
+const tilePackagingOf = (product: ApiProduct) => ({
+  tileArea: product.tileAreaSqm,
+  boxCoverage: Number(product.boxCoverageSqm),
+  piecesPerBox: product.piecesPerBox,
+});
+
+const availableStockOf = (product: ApiProduct) => product.quantityOnHandSqm ?? 0;
 
 type CustomerSort = "newest" | "name";
 
 const customerSortLabels: Record<CustomerSort, string> = {
   newest: "Joined: Newest",
   name: "Name: A - Z",
+};
+
+const customerStatusBadge: Record<UserStatus, "primary" | "muted" | "destructive"> = {
+  ACTIVE: "primary",
+  INACTIVE: "muted",
+  SUSPENDED: "destructive",
 };
 
 const steps = [
@@ -163,95 +166,7 @@ const OrderStepper = ({
   </div>
 );
 
-/** Search + sort + filters-toggle toolbar, styled after the public catalog's CatalogToolbar. */
-/** "Filters" trigger with its panel floating below it as a popover, instead of pushing page content down. */
-const FILTERS_MENU_ANIMATION_MS = 150;
-
-const FiltersMenu = ({
-  open,
-  onToggle,
-  onClose,
-  active,
-  panel,
-}: {
-  open: boolean;
-  onToggle: () => void;
-  onClose: () => void;
-  active: boolean;
-  panel: ReactNode;
-}) => {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [mounted, setMounted] = useState(open);
-  const [closing, setClosing] = useState(false);
-  const [prevOpen, setPrevOpen] = useState(open);
-
-  if (prevOpen !== open) {
-    setPrevOpen(open);
-    if (open) {
-      setMounted(true);
-      setClosing(false);
-    } else {
-      setClosing(true);
-    }
-  }
-
-  useEffect(() => {
-    if (!closing) return;
-    const timeout = window.setTimeout(() => {
-      setMounted(false);
-      setClosing(false);
-    }, FILTERS_MENU_ANIMATION_MS);
-    return () => window.clearTimeout(timeout);
-  }, [closing]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open, onClose]);
-
-  return (
-    <div ref={containerRef} className="relative">
-      <Button
-        type="button"
-        variant={open ? "default" : "outline"}
-        size="sm"
-        onClick={onToggle}
-        aria-expanded={open}
-        className={cn("relative h-9 gap-2 px-3 text-sm font-semibold", open && "bg-primary text-ink hover:bg-primary/90")}
-      >
-        <SlidersHorizontal className="size-4" />
-        Filters
-        {active && !open && <span className="absolute -top-1 -right-1 flex size-2.5 items-center justify-center rounded-full bg-primary ring-2 ring-card" />}
-      </Button>
-      {mounted && (
-        <div
-          className={cn(
-            "scrollbar-hide absolute top-full right-0 z-30 mt-2 max-h-[70vh] w-[min(22rem,calc(100vw-2.5rem))] origin-top-right overflow-y-auto rounded-2xl shadow-xl ring-1 ring-ink/10 duration-150",
-            closing ? "animate-out fade-out-0 zoom-out-95 slide-out-to-top-1" : "animate-in fade-in-0 zoom-in-95 slide-in-from-top-1",
-          )}
-        >
-          {panel}
-        </div>
-      )}
-    </div>
-  );
-};
-
+/** Search + sort toolbar, styled after the public catalog's CatalogToolbar. Filters for each step are simple pills/selects rendered just below it. */
 const StepToolbar = ({
   showingCount,
   totalCount,
@@ -259,11 +174,6 @@ const StepToolbar = ({
   sortValue,
   sortOptions,
   onSortChange,
-  filtersOpen,
-  onToggleFilters,
-  onCloseFilters,
-  filtersActive,
-  filtersPanel,
   searchOpen,
   searchVisible,
   onToggleSearch,
@@ -277,11 +187,6 @@ const StepToolbar = ({
   sortValue: string;
   sortOptions: { value: string; label: string }[];
   onSortChange: (value: string) => void;
-  filtersOpen: boolean;
-  onToggleFilters: () => void;
-  onCloseFilters: () => void;
-  filtersActive: boolean;
-  filtersPanel: ReactNode;
   searchOpen: boolean;
   searchVisible: boolean;
   onToggleSearch: () => void;
@@ -317,7 +222,6 @@ const StepToolbar = ({
           </Select>
         </div>
         <div className="flex items-center gap-2">
-          <FiltersMenu open={filtersOpen} onToggle={onToggleFilters} onClose={onCloseFilters} active={filtersActive} panel={filtersPanel} />
           <Button
             type="button"
             size="icon-xs"
@@ -367,103 +271,55 @@ const useSearchToggle = () => {
   return { searchOpen, searchVisible, toggleSearch };
 };
 
-const customerStatusOptions = ["Active", "Inactive"] as const;
-
-const CustomerFiltersCard = ({
-  status,
-  onToggle,
-  onReset,
-}: {
-  status: string[];
-  onToggle: (option: string) => void;
-  onReset: () => void;
-}) => (
-  <section className="rounded-2xl bg-white p-6 shadow-sm">
-    <div className="mb-3 flex items-center justify-between">
-      <h2 className="text-xl font-bold text-ink">Filters</h2>
-      <Button type="button" variant="link" className="h-auto p-0 text-sm text-amber" onClick={onReset} disabled={status.length === 0}>
-        Reset
-      </Button>
-    </div>
-    <Accordion multiple defaultValue={["Status"]}>
-      <AccordionItem value="Status">
-        <AccordionTrigger className="cursor-pointer py-4 text-sm font-semibold text-ink hover:no-underline">Status</AccordionTrigger>
-        <AccordionContent className="pb-4">
-          <div className="space-y-2.5">
-            {customerStatusOptions.map((option) => {
-              const checked = status.includes(option);
-              return (
-                <label key={option} className="flex cursor-pointer items-center gap-3 text-sm text-ink">
-                  <span
-                    className={cn(
-                      "flex size-5 items-center justify-center rounded border",
-                      checked ? "border-primary bg-primary" : "border-slate-200",
-                    )}
-                  >
-                    <Input type="checkbox" className="peer sr-only" checked={checked} onChange={() => onToggle(option)} />
-                    <Check className={cn("size-3.5", checked ? "text-ink" : "hidden")} />
-                  </span>
-                  {option}
-                </label>
-              );
-            })}
-          </div>
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
-  </section>
-);
-
 const customerSortOptions = [
   { value: "newest", label: customerSortLabels.newest },
   { value: "name", label: customerSortLabels.name },
 ];
 
 const CustomerStep = ({
-  selectedSlug,
+  customers,
+  loading,
+  error,
+  onRetry,
+  selectedId,
   onSelect,
 }: {
-  selectedSlug: string | null;
-  onSelect: (slug: string) => void;
+  customers: CustomerSummary[];
+  loading: boolean;
+  error: string | undefined;
+  onRetry: () => void;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
 }) => {
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<string[]>([]);
+  const [status, setStatus] = useState<"all" | UserStatus>("all");
   const [sort, setSort] = useState<CustomerSort>("newest");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const { searchOpen, searchVisible, toggleSearch } = useSearchToggle();
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const results = salesCustomers.filter(
+    const results = customers.filter(
       (customer) =>
-        (status.length === 0 || status.includes(customer.status)) &&
+        (status === "all" || customer.status === status) &&
         (normalizedQuery === "" ||
-          customer.name.toLowerCase().includes(normalizedQuery) ||
-          customer.email.toLowerCase().includes(normalizedQuery)),
+          customer.fullName.toLowerCase().includes(normalizedQuery) ||
+          (customer.email ?? "").toLowerCase().includes(normalizedQuery)),
     );
-    return sort === "name" ? [...results].sort((a, b) => a.name.localeCompare(b.name)) : results;
-  }, [query, status, sort]);
+    return sort === "name" ? [...results].sort((a, b) => a.fullName.localeCompare(b.fullName)) : results;
+  }, [customers, query, status, sort]);
+
+  if (loading) return <ApiLoading label="Loading customers…" className="py-24" />;
+  if (error) return <ApiErrorState message={error} onRetry={onRetry} className="my-16" />;
 
   return (
     <>
       <StepToolbar
         showingCount={filtered.length}
-        totalCount={salesCustomers.length}
+        totalCount={customers.length}
         resultsNoun="customers"
         sortValue={sort}
         sortOptions={customerSortOptions}
         onSortChange={(value) => setSort(value as CustomerSort)}
-        filtersOpen={filtersOpen}
-        onToggleFilters={() => setFiltersOpen((value) => !value)}
-        onCloseFilters={() => setFiltersOpen(false)}
-        filtersActive={status.length > 0}
-        filtersPanel={
-          <CustomerFiltersCard
-            status={status}
-            onToggle={(option) => setStatus((current) => (current.includes(option) ? current.filter((item) => item !== option) : [...current, option]))}
-            onReset={() => setStatus([])}
-          />
-        }
         searchOpen={searchOpen}
         searchVisible={searchVisible}
         onToggleSearch={toggleSearch}
@@ -472,26 +328,42 @@ const CustomerStep = ({
         searchPlaceholder="Search by customer name, email..."
       />
 
+      <div className="mb-5 flex flex-wrap gap-2">
+        {(["all", "ACTIVE", "INACTIVE"] as const).map((option) => (
+          <button
+            key={option}
+            type="button"
+            onClick={() => setStatus(option)}
+            className={cn(
+              "rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide transition-colors",
+              status === option ? "bg-primary text-ink" : "bg-card text-muted-foreground hover:bg-secondary",
+            )}
+          >
+            {option === "all" ? "All" : option === "ACTIVE" ? "Active" : "Inactive"}
+          </button>
+        ))}
+      </div>
+
       {filtered.length === 0 ? (
-        <p className="rounded-2xl bg-card p-10 text-center text-sm text-muted-foreground">No customers match your filters.</p>
+        <ApiEmptyState message="No customers match your filters." className="py-16" />
       ) : (
         <ul className="grid gap-4 sm:gap-5 md:grid-cols-2 2xl:grid-cols-3">
           {filtered.map((customer) => {
-            const selected = customer.slug === selectedSlug;
+            const selected = customer.id === selectedId;
             return (
-              <li key={customer.slug}>
+              <li key={customer.id}>
                 <button
                   type="button"
-                  onClick={() => onSelect(customer.slug)}
+                  onClick={() => onSelect(customer.id)}
                   className={cn(
                     "group flex w-full flex-col rounded-2xl border-2 bg-card p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-6",
                     selected ? "border-primary shadow-md" : "border-transparent",
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <h2 className="min-w-0 truncate text-xl font-bold text-ink">{customer.name}</h2>
+                    <h2 className="min-w-0 truncate text-xl font-bold text-ink">{customer.fullName}</h2>
                     <div className="flex shrink-0 items-center gap-2">
-                      <Badge variant={customer.status === "Active" ? "primary" : "warning"}>{customer.status}</Badge>
+                      <Badge variant={customerStatusBadge[customer.status]}>{customer.status}</Badge>
                       {selected && (
                         <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-ink">
                           <Check className="size-3.5" strokeWidth={3} />
@@ -503,17 +375,21 @@ const CustomerStep = ({
                     <div className="flex items-start justify-between gap-3">
                       <dt className="shrink-0 text-muted-foreground">Contact</dt>
                       <dd className="min-w-0 text-right text-ink">
-                        <span className="block truncate">{customer.email}</span>
-                        <span className="block whitespace-nowrap">{customer.phone}</span>
+                        <span className="block truncate">{customer.email ?? "—"}</span>
+                        <span className="block whitespace-nowrap">{customer.phone ?? "—"}</span>
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-3">
                       <dt className="text-muted-foreground">Last Order</dt>
-                      <dd className="whitespace-nowrap text-ink">{customer.lastOrder}</dd>
+                      <dd className="whitespace-nowrap text-ink">
+                        {customer.lastOrderAt ? formatRelativeTime(customer.lastOrderAt) : "No orders yet"}
+                      </dd>
                     </div>
                     <div className="flex items-center justify-between gap-3 border-t border-[#E5E7EB] pt-3">
                       <dt className="text-muted-foreground">Total Spend</dt>
-                      <dd className="text-xl font-semibold whitespace-nowrap text-ink">{customer.totalSpend}</dd>
+                      <dd className="text-xl font-semibold whitespace-nowrap text-ink">
+                        {formatCompactCurrency(customer.lifetimeSpend)}
+                      </dd>
                     </div>
                   </dl>
                 </button>
@@ -526,39 +402,50 @@ const CustomerStep = ({
   );
 };
 
-/** Compact live tile-quantity calculator shown under a selected product card. */
+/** Compact live tile-quantity calculator shown under a selected product card, capped to what's actually on hand. */
 const AreaCalculatorCard = ({
   product,
   value,
   onChange,
-  shortage,
+  onStockAdjusted,
 }: {
-  product: Product;
+  product: ApiProduct;
   value: string;
   onChange: (value: string) => void;
-  shortage?: StockShortage | null;
+  onStockAdjusted: () => void;
 }) => {
+  const available = availableStockOf(product);
   const valid = isPositiveNumber(value);
-  const calc = valid ? calculateTileQuantity(Number(value), product) : null;
+  const requested = valid ? Number(value) : 0;
+  const exceedsStock = valid && requested > available;
+  const calc = valid && !exceedsStock ? calculateTileQuantity(requested, tilePackagingOf(product)) : null;
 
   return (
     <div
-      className="mt-3 overflow-hidden rounded-xl border border-primary/40 bg-primary/10"
+      className={cn(
+        "mt-3 overflow-hidden rounded-xl border bg-primary/10",
+        exceedsStock ? "border-red-300 bg-red-50" : "border-primary/40",
+      )}
       onClick={(event) => event.stopPropagation()}
     >
-      <div className="flex items-center gap-2 border-b border-primary/20 px-4 py-2.5">
+      <div className={cn("flex items-center gap-2 border-b px-4 py-2.5", exceedsStock ? "border-red-200" : "border-primary/20")}>
         <Calculator className="size-4 text-ink" strokeWidth={2} />
         <span className="text-xs font-bold tracking-wide text-ink uppercase">Required Area</span>
+        <span className="ml-auto text-xs font-semibold text-muted-foreground">{available.toLocaleString()} sqm in stock</span>
       </div>
       <div className="p-4">
         <div className="relative">
           <Input
             type="number"
             min={0}
+            max={available > 0 ? available : undefined}
             placeholder="0"
             value={value}
             onChange={(event) => onChange(event.target.value)}
-            className="h-12 rounded-lg border-none bg-white pr-14 text-lg font-bold text-ink shadow-sm"
+            className={cn(
+              "h-12 rounded-lg border-none bg-white pr-14 text-lg font-bold text-ink shadow-sm",
+              exceedsStock && "ring-2 ring-red-400",
+            )}
           />
           <span className="absolute top-1/2 right-4 -translate-y-1/2 text-sm font-semibold text-muted-foreground">m²</span>
         </div>
@@ -575,14 +462,34 @@ const AreaCalculatorCard = ({
             )}
             <span className="ml-auto text-muted-foreground">{calc.totalPieces} pcs total</span>
           </div>
-        ) : (
+        ) : !exceedsStock ? (
           <p className="mt-3 text-xs text-muted-foreground">Enter the area to calculate boxes &amp; pieces.</p>
-        )}
-        {shortage && (
-          <p className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-xs font-medium text-amber-800">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-            Only {shortage.availableSqm > 0 ? `${shortage.availableSqm} sqm` : "none"} available — the stock negotiation chat has been opened below.
-          </p>
+        ) : null}
+        {exceedsStock && (
+          <div className="mt-3 space-y-2.5">
+            <p className="flex items-start gap-2 rounded-lg bg-red-100 px-3 py-2.5 text-xs font-medium text-red-800">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              Only {available > 0 ? `${available.toLocaleString()} sqm` : "none"} in stock — you can&apos;t order more than
+              that. To order more, adjust stock for this product first.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              {available > 0 && (
+                <Button type="button" variant="outline" size="sm" onClick={() => onChange(String(available))} className="h-8 text-xs font-bold">
+                  Use max available
+                </Button>
+              )}
+              {CAN_ADJUST_STOCK && (
+                <AdjustStockDialog
+                  productId={product.id}
+                  productName={product.name}
+                  currentStockSqm={available}
+                  onAdjusted={onStockAdjusted}
+                  renderTrigger={<Button type="button" variant="outline" size="sm" className="h-8 text-xs font-bold" />}
+                  triggerContent="Adjust Stock"
+                />
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -595,56 +502,85 @@ const productSortOptions = [
   { value: "high", label: sortLabels.high },
 ];
 
+const suitableForOptions: { value: "all" | SuitableFor; label: string }[] = [
+  { value: "all", label: "Suitable for" },
+  { value: "FLOOR", label: "Floor" },
+  { value: "WALL", label: "Wall" },
+  { value: "BOTH", label: "Floor & Wall" },
+];
+
+const statusOptions: { value: "all" | StockStatus; label: string }[] = [
+  { value: "all", label: "Status" },
+  { value: "in_stock", label: "In stock" },
+  { value: "low_stock", label: "Low stock" },
+  { value: "out_of_stock", label: "Out of stock" },
+];
+
 const ProductStep = ({
+  products,
+  loading,
+  error,
+  onRetry,
   selectedProducts,
   onToggle,
   onAreaChange,
-  shortages,
+  onStockAdjusted,
 }: {
+  products: ApiProduct[];
+  loading: boolean;
+  error: string | undefined;
+  onRetry: () => void;
   selectedProducts: Record<string, string>;
   onToggle: (id: string) => void;
   onAreaChange: (id: string, value: string) => void;
-  shortages: StockShortage[];
+  onStockAdjusted: () => void;
 }) => {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortOption>("newest");
-  const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [suitableFor, setSuitableFor] = useState<"all" | SuitableFor>("all");
+  const [status, setStatus] = useState<"all" | StockStatus>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const { searchOpen, searchVisible, toggleSearch } = useSearchToggle();
 
   const processed = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const searched = products.filter(
+    const filtered = products.filter(
       (product) =>
-        q === "" ||
-        product.name.toLowerCase().includes(q) ||
-        product.sku.toLowerCase().includes(q) ||
-        product.collection.toLowerCase().includes(q),
+        (q === "" || product.name.toLowerCase().includes(q) || product.sku.toLowerCase().includes(q)) &&
+        (suitableFor === "all" || product.suitableFor === suitableFor) &&
+        (status === "all" || product.stockStatus === status),
     );
-    return sortProducts(filterProducts(searched, filters), sort);
-  }, [query, filters, sort]);
+    return [...filtered].sort((a, b) => {
+      if (sort === "low") return Number(a.price) - Number(b.price);
+      if (sort === "high") return Number(b.price) - Number(a.price);
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [products, query, suitableFor, status, sort]);
 
-  const pagination = useMemo(() => paginateProducts(processed, currentPage), [processed, currentPage]);
-  const visiblePages = useMemo(() => getVisiblePages(pagination.currentPage, pagination.totalPages), [pagination.currentPage, pagination.totalPages]);
+  const totalPages = Math.max(1, Math.ceil(processed.length / PRODUCT_PAGE_SIZE));
+  const safePage = Math.min(Math.max(currentPage, 1), totalPages);
+  const pageItems = useMemo(
+    () => processed.slice((safePage - 1) * PRODUCT_PAGE_SIZE, safePage * PRODUCT_PAGE_SIZE),
+    [processed, safePage],
+  );
+  const visiblePages = useMemo(() => getVisiblePages(safePage, totalPages), [safePage, totalPages]);
 
-  const goToPage = (page: number) => setCurrentPage(Math.min(Math.max(page, 1), pagination.totalPages));
+  const goToPage = (page: number) => setCurrentPage(Math.min(Math.max(page, 1), totalPages));
+
+  if (loading) return <ApiLoading label="Loading products…" className="py-24" />;
+  if (error) return <ApiErrorState message={error} onRetry={onRetry} className="my-16" />;
 
   return (
     <>
       <StepToolbar
-        showingCount={pagination.items.length}
-        totalCount={pagination.totalResults}
+        showingCount={pageItems.length}
+        totalCount={processed.length}
         sortValue={sort}
         sortOptions={productSortOptions}
         onSortChange={(value) => {
           setSort(value as SortOption);
           setCurrentPage(1);
         }}
-        filtersOpen={filtersOpen}
-        onToggleFilters={() => setFiltersOpen((value) => !value)}
-        onCloseFilters={() => setFiltersOpen(false)}
-        filtersActive={hasActiveFilters(filters)}
         searchOpen={searchOpen}
         searchVisible={searchVisible}
         onToggleSearch={toggleSearch}
@@ -653,43 +589,63 @@ const ProductStep = ({
           setQuery(value);
           setCurrentPage(1);
         }}
-        filtersPanel={
-          <FilterOptionsCard
-            filters={filters}
-            onToggle={(group, option) => {
-              setFilters((current) => toggleFilterOption(current, group, option));
-              setCurrentPage(1);
-            }}
-            onReset={() => {
-              setFilters(EMPTY_FILTERS);
-              setCurrentPage(1);
-            }}
-          />
-        }
         searchPlaceholder="Search products, SKUs..."
       />
 
-      {pagination.items.length === 0 ? (
-        <p className="rounded-2xl bg-card p-10 text-center text-sm text-muted-foreground">No products match your filters.</p>
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:flex sm:items-center">
+        <Select
+          value={suitableFor}
+          onValueChange={(value) => {
+            setSuitableFor((value ?? "all") as "all" | SuitableFor);
+            setCurrentPage(1);
+          }}
+        >
+          <SelectTrigger className="h-10 min-w-0 bg-card sm:w-40">
+            <SelectValue>{(value) => suitableForOptions.find((option) => option.value === value)?.label}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {suitableForOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={status}
+          onValueChange={(value) => {
+            setStatus((value ?? "all") as "all" | StockStatus);
+            setCurrentPage(1);
+          }}
+        >
+          <SelectTrigger className="h-10 min-w-0 bg-card sm:w-36">
+            <SelectValue>{(value) => statusOptions.find((option) => option.value === value)?.label}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {statusOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {pageItems.length === 0 ? (
+        <ApiEmptyState message="No products match your filters." className="py-16" />
       ) : (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {pagination.items.map((product) => {
+          {pageItems.map((product) => {
             const selected = product.id in selectedProducts;
             return (
               <div key={product.id}>
-                <ProductCard
-                  product={product}
-                  showFavorite={false}
-                  selectable
-                  selected={selected}
-                  onToggle={() => onToggle(product.id)}
-                />
+                <SelectableProductCard product={product} selected={selected} onToggle={() => onToggle(product.id)} />
                 {selected && (
                   <AreaCalculatorCard
                     product={product}
                     value={selectedProducts[product.id] ?? ""}
                     onChange={(value) => onAreaChange(product.id, value)}
-                    shortage={shortages.find((shortage) => shortage.productId === product.id)}
+                    onStockAdjusted={onStockAdjusted}
                   />
                 )}
               </div>
@@ -698,7 +654,7 @@ const ProductStep = ({
         </div>
       )}
 
-      {pagination.totalPages > 1 && (
+      {totalPages > 1 && (
         <Pagination className="py-6">
           <PaginationContent className="gap-1 sm:gap-2">
             <PaginationItem>
@@ -706,7 +662,7 @@ const ProductStep = ({
                 href="#"
                 size="sm"
                 className="gap-1 text-ink hover:text-amber"
-                aria-disabled={pagination.currentPage === 1}
+                aria-disabled={safePage === 1}
                 onClick={(event) => {
                   event.preventDefault();
                   goToPage(1);
@@ -720,10 +676,10 @@ const ProductStep = ({
               <PaginationPrevious
                 href="#"
                 className="text-ink hover:text-amber"
-                aria-disabled={pagination.currentPage === 1}
+                aria-disabled={safePage === 1}
                 onClick={(event) => {
                   event.preventDefault();
-                  goToPage(pagination.currentPage - 1);
+                  goToPage(safePage - 1);
                 }}
               />
             </PaginationItem>
@@ -736,10 +692,10 @@ const ProductStep = ({
                 <PaginationItem key={page}>
                   <PaginationLink
                     href="#"
-                    isActive={pagination.currentPage === page}
+                    isActive={safePage === page}
                     size="icon-sm"
                     className={
-                      pagination.currentPage === page
+                      safePage === page
                         ? "border-ink bg-ink text-white hover:bg-ink hover:text-white"
                         : "text-ink hover:text-amber"
                     }
@@ -757,10 +713,10 @@ const ProductStep = ({
               <PaginationNext
                 href="#"
                 className="text-ink hover:text-amber"
-                aria-disabled={pagination.currentPage === pagination.totalPages}
+                aria-disabled={safePage === totalPages}
                 onClick={(event) => {
                   event.preventDefault();
-                  goToPage(pagination.currentPage + 1);
+                  goToPage(safePage + 1);
                 }}
               />
             </PaginationItem>
@@ -769,10 +725,10 @@ const ProductStep = ({
                 href="#"
                 size="sm"
                 className="gap-1 text-ink hover:text-amber"
-                aria-disabled={pagination.currentPage === pagination.totalPages}
+                aria-disabled={safePage === totalPages}
                 onClick={(event) => {
                   event.preventDefault();
-                  goToPage(pagination.totalPages);
+                  goToPage(totalPages);
                 }}
               >
                 <span className="hidden sm:inline">Last</span>
@@ -786,9 +742,9 @@ const ProductStep = ({
   );
 };
 
-type OrderLine = { product: Product; area: number; boxes: number; additionalPieces: number; pieces: number; lineTotal: number };
+type OrderLine = { product: ApiProduct; area: number; boxes: number; additionalPieces: number; pieces: number; lineTotal: number };
 
-const ReviewStep = ({ customer, items, grandTotal }: { customer: SalesCustomer; items: OrderLine[]; grandTotal: number }) => (
+const ReviewStep = ({ customer, items, grandTotal }: { customer: CustomerSummary; items: OrderLine[]; grandTotal: number }) => (
   <div className="grid items-start gap-5 sm:gap-6 xl:grid-cols-[1.7fr_1fr]">
     <section className="overflow-hidden rounded-2xl bg-card">
       <div className="flex items-center justify-between gap-3 px-5 py-5 sm:px-6">
@@ -811,7 +767,7 @@ const ReviewStep = ({ customer, items, grandTotal }: { customer: SalesCustomer; 
               </div>
               <div className="mt-2 flex items-center justify-between gap-3 text-sm">
                 <span className="text-muted-foreground">
-                  {area} sqm • {boxes} boxes{additionalPieces > 0 ? ` + ${additionalPieces} pcs` : ""} ({pieces} pcs) • {formatRWF(product.price)}
+                  {area} sqm • {boxes} boxes{additionalPieces > 0 ? ` + ${additionalPieces} pcs` : ""} ({pieces} pcs) • {formatRWF(Number(product.price))}
                 </span>
                 <span className="font-semibold text-ink">{formatRWF(lineTotal)}</span>
               </div>
@@ -847,7 +803,7 @@ const ReviewStep = ({ customer, items, grandTotal }: { customer: SalesCustomer; 
                     {boxes} boxes{additionalPieces > 0 ? ` + ${additionalPieces} pcs` : ""} ({pieces} pcs)
                   </span>
                 </TableCell>
-                <TableCell className="whitespace-nowrap text-muted-foreground">{formatRWF(product.price)}</TableCell>
+                <TableCell className="whitespace-nowrap text-muted-foreground">{formatRWF(Number(product.price))}</TableCell>
                 <TableCell className="whitespace-nowrap font-semibold text-ink">{formatRWF(lineTotal)}</TableCell>
               </TableRow>
             ))}
@@ -870,43 +826,26 @@ const ReviewStep = ({ customer, items, grandTotal }: { customer: SalesCustomer; 
       </div>
       <dl className="mt-5 space-y-5 text-sm">
         <div>
-          <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">Company</dt>
-          <dd className="mt-1 font-medium text-ink">{customer.name}</dd>
-        </div>
-        <div>
-          <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">Contact Person</dt>
+          <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">Customer</dt>
           <dd className="mt-2 flex items-center gap-3">
             <span className="flex size-9 items-center justify-center rounded-full bg-ink text-xs font-semibold text-card">
-              {customer.contactName.split(" ").map((part) => part[0]).join("")}
+              {customer.fullName.split(" ").map((part) => part[0]).join("").slice(0, 2)}
             </span>
-            <span className="text-ink">{customer.contactName}</span>
+            <span className="text-ink">{customer.fullName}</span>
           </dd>
         </div>
         <div className="flex items-start gap-3">
           <Mail className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
           <div className="min-w-0">
             <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">Email</dt>
-            <dd className="truncate text-ink">{customer.email}</dd>
+            <dd className="truncate text-ink">{customer.email ?? "—"}</dd>
           </div>
         </div>
         <div className="flex items-start gap-3">
           <Phone className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
           <div>
             <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">Phone</dt>
-            <dd className="text-ink">{customer.phone}</dd>
-          </div>
-        </div>
-        <div className="flex items-start gap-3">
-          <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-          <div>
-            <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">Delivery Address</dt>
-            <dd className="text-ink">
-              {customer.address.map((line) => (
-                <span key={line} className="block">
-                  {line}
-                </span>
-              ))}
-            </dd>
+            <dd className="text-ink">{customer.phone ?? "—"}</dd>
           </div>
         </div>
       </dl>
@@ -917,49 +856,73 @@ const ReviewStep = ({ customer, items, grandTotal }: { customer: SalesCustomer; 
 const CreateOrderWizard = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const preselectedSlug = searchParams.get("customer");
-  const hasValidPreselection = salesCustomers.some((customer) => customer.slug === preselectedSlug);
+  const preselectedId = searchParams.get("customer");
 
-  const [step, setStep] = useState(hasValidPreselection ? 2 : 1);
-  const [maxReachedStep, setMaxReachedStep] = useState(hasValidPreselection ? 2 : 1);
-  const [selectedCustomerSlug, setSelectedCustomerSlug] = useState<string | null>(
-    hasValidPreselection ? preselectedSlug : null,
-  );
+  const {
+    data: customersData,
+    loading: customersLoading,
+    error: customersError,
+    reload: reloadCustomers,
+  } = useApi(() => usersApi.listCustomers({ limit: 100 }));
+  const customers = useMemo(() => customersData?.items ?? [], [customersData]);
+  const hasValidPreselection = customers.some((customer) => customer.id === preselectedId);
+
+  const {
+    data: productsData,
+    loading: productsLoading,
+    error: productsError,
+    reload: reloadProducts,
+  } = useApi(() => productsApi.list({ limit: 100 }));
+  const products = useMemo(() => productsData?.items ?? [], [productsData]);
+
+  const [step, setStep] = useState(1);
+  const [maxReachedStep, setMaxReachedStep] = useState(1);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [preselectApplied, setPreselectApplied] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
-  const selectedCustomer = salesCustomers.find((customer) => customer.slug === selectedCustomerSlug) ?? null;
-  const selectedProductIds = Object.keys(selectedProducts);
-  const allAreasValid = selectedProductIds.length > 0 && selectedProductIds.every((id) => isPositiveNumber(selectedProducts[id]));
+  // A `?customer=` query param jumps straight to step 2, once the real
+  // customer list has loaded and confirmed that id actually exists.
+  // `preselectApplied` latches after the first load either way, so an
+  // absent/invalid id doesn't leave this re-checking on every render.
+  if (!preselectApplied && !customersLoading) {
+    setPreselectApplied(true);
+    if (hasValidPreselection) {
+      setSelectedCustomerId(preselectedId);
+      setStep(2);
+      setMaxReachedStep(2);
+    }
+  }
 
-  const shortages: StockShortage[] = useMemo(
-    () =>
-      selectedProductIds
-        .map((id) => {
-          const product = products.find((item) => item.id === id);
-          const area = Number(selectedProducts[id]);
-          return product && isPositiveNumber(selectedProducts[id]) ? getStockShortage(product, area) : null;
-        })
-        .filter((shortage): shortage is StockShortage => shortage !== null),
-    [selectedProductIds, selectedProducts],
-  );
+  const selectedCustomer = customers.find((customer) => customer.id === selectedCustomerId) ?? null;
+  const selectedProductIds = Object.keys(selectedProducts);
+
+  const isWithinStock = (id: string) => {
+    const product = products.find((item) => item.id === id);
+    const value = selectedProducts[id];
+    if (!product || !isPositiveNumber(value)) return false;
+    return Number(value) <= availableStockOf(product);
+  };
+
+  const allAreasValid = selectedProductIds.length > 0 && selectedProductIds.every(isWithinStock);
 
   const orderItems: OrderLine[] = useMemo(() => {
     if (step !== 3 || !allAreasValid) return [];
     return selectedProductIds.map((id) => {
-      const product = products.find((item) => item.id === id) as Product;
+      const product = products.find((item) => item.id === id) as ApiProduct;
       const area = Number(selectedProducts[id]);
-      const calc = calculateTileQuantity(area, product);
+      const calc = calculateTileQuantity(area, tilePackagingOf(product));
       return {
         product,
         area,
         boxes: calc.completeBoxes,
         additionalPieces: calc.remainingPieces,
         pieces: calc.totalPieces,
-        lineTotal: product.price * area,
+        lineTotal: Number(product.price) * area,
       };
     });
-  }, [step, allAreasValid, selectedProductIds, selectedProducts]);
+  }, [step, allAreasValid, selectedProductIds, selectedProducts, products]);
 
   const grandTotal = orderItems.reduce((sum, item) => sum + item.lineTotal, 0);
 
@@ -986,19 +949,38 @@ const CreateOrderWizard = () => {
     setSelectedProducts((current) => ({ ...current, [id]: value }));
   };
 
-  const handleCreateOrder = () => {
+  const handleCreateOrder = async () => {
     if (!selectedCustomer || !allAreasValid) return;
     setSubmitting(true);
-    window.setTimeout(() => {
-      setSubmitting(false);
-      toast.success("Order created", {
-        description: `${orderItems.length} product${orderItems.length === 1 ? "" : "s"} for ${selectedCustomer.name} · ${formatRWF(grandTotal)}`,
+    try {
+      const result = await ordersApi.create({
+        type: "PURCHASE",
+        customerId: selectedCustomer.id,
+        items: selectedProductIds.map((id) => ({ productId: id, areaSqm: Number(selectedProducts[id]) })),
       });
-      router.push("/sales/orders");
-    }, 700);
+      if (!result.orderCreated) {
+        // Shouldn't happen — every line was validated against on-hand stock
+        // before reaching this step — but stock can still move between then
+        // and now, so fall back to the negotiation the server already opened.
+        toast.error("Stock changed before this order went through", {
+          description: "A negotiation thread has been opened for this customer instead.",
+        });
+        return;
+      }
+      toast.success("Order created", {
+        description: `${orderItems.length} product${orderItems.length === 1 ? "" : "s"} for ${selectedCustomer.fullName} · ${formatRWF(grandTotal)}`,
+      });
+      router.push(`/sales/orders/${result.order.id}`);
+    } catch (cause) {
+      toast.error("Couldn't create order", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const canGoNext = step === 1 ? selectedCustomerSlug !== null : step === 2 ? allAreasValid : false;
+  const canGoNext = step === 1 ? selectedCustomerId !== null : step === 2 ? allAreasValid : false;
 
   return (
     <>
@@ -1019,9 +1001,27 @@ const CreateOrderWizard = () => {
       <div className="space-y-5 sm:space-y-6">
         <OrderStepper step={step} maxReachedStep={maxReachedStep} onStepClick={setStep} />
 
-        {step === 1 && <CustomerStep selectedSlug={selectedCustomerSlug} onSelect={setSelectedCustomerSlug} />}
+        {step === 1 && (
+          <CustomerStep
+            customers={customers}
+            loading={customersLoading}
+            error={customersError}
+            onRetry={reloadCustomers}
+            selectedId={selectedCustomerId}
+            onSelect={setSelectedCustomerId}
+          />
+        )}
         {step === 2 && (
-          <ProductStep selectedProducts={selectedProducts} onToggle={toggleProduct} onAreaChange={setProductArea} shortages={shortages} />
+          <ProductStep
+            products={products}
+            loading={productsLoading}
+            error={productsError}
+            onRetry={reloadProducts}
+            selectedProducts={selectedProducts}
+            onToggle={toggleProduct}
+            onAreaChange={setProductArea}
+            onStockAdjusted={reloadProducts}
+          />
         )}
         {step === 3 && selectedCustomer && <ReviewStep customer={selectedCustomer} items={orderItems} grandTotal={grandTotal} />}
 
@@ -1045,7 +1045,7 @@ const CreateOrderWizard = () => {
             <Button
               type="button"
               disabled={submitting || !allAreasValid}
-              onClick={handleCreateOrder}
+              onClick={() => void handleCreateOrder()}
               className="h-12 gap-2 px-6 text-sm font-bold disabled:opacity-60"
             >
               <Save className="size-4" />
@@ -1054,8 +1054,6 @@ const CreateOrderWizard = () => {
           )}
         </div>
       </div>
-
-      <StockNegotiationChat shortages={shortages} />
     </>
   );
 };
