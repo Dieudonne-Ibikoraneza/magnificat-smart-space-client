@@ -1,44 +1,48 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Eye, ListFilter, Search, ShoppingCart, UserPlus } from "lucide-react";
+import { Eye, ListFilter, Search, ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SalesPageHeader } from "@/app/sales/layout";
+import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { salesCustomers } from "@/data/sales-customers";
+import { usersApi } from "@/lib/api";
+import { useApi } from "@/lib/api/use-api";
+import type { UserStatus } from "@/lib/api/types";
+import { formatCompactCurrency, formatRelativeTime } from "@/lib/utils";
+
+const statusBadge: Record<UserStatus, "primary" | "muted" | "destructive"> = {
+  ACTIVE: "primary",
+  INACTIVE: "muted",
+  SUSPENDED: "destructive",
+};
 
 const CustomersPage = () => {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("all");
-  const [sort, setSort] = useState("newest");
+  const [status, setStatus] = useState<"all" | UserStatus>("all");
+  const [sort, setSort] = useState<"newest" | "name">("newest");
+
+  const { data, loading, error, reload } = useApi(() => usersApi.listCustomers({ limit: 100 }));
+  const customers = useMemo(() => data?.items ?? [], [data]);
 
   const results = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const filteredCustomers = salesCustomers.filter(
+    const filtered = customers.filter(
       (customer) =>
-        (status === "all" || customer.status.toLowerCase() === status) &&
+        (status === "all" || customer.status === status) &&
         (normalizedQuery === "" ||
-          customer.name.toLowerCase().includes(normalizedQuery) ||
-          customer.email.toLowerCase().includes(normalizedQuery)),
+          customer.fullName.toLowerCase().includes(normalizedQuery) ||
+          (customer.email ?? "").toLowerCase().includes(normalizedQuery)),
     );
-
-    return sort === "name"
-      ? [...filteredCustomers].sort((first, second) =>
-          first.name.localeCompare(second.name),
-        )
-      : filteredCustomers;
-  }, [query, sort, status]);
+    return sort === "name" ? [...filtered].sort((a, b) => a.fullName.localeCompare(b.fullName)) : filtered;
+  }, [customers, query, sort, status]);
 
   return (
     <>
-      <SalesPageHeader
-        title="Customers"
-        subtitle="Manage profiles, track history, and initiate orders."
-        action={{ label: "Add Customer", icon: UserPlus }}
-      />
+      <SalesPageHeader title="Customers" subtitle="Manage profiles, track history, and initiate orders." />
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
         <section className="rounded-2xl bg-card p-4 sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
@@ -49,38 +53,27 @@ const CustomersPage = () => {
             <div className="grid w-full min-w-0 grid-cols-2 gap-3 sm:min-w-[320px] sm:flex-1 lg:w-auto lg:flex-none lg:gap-5">
               <div className="min-w-0">
                 <span className="sr-only">Status</span>
-                <Select
-                  value={status}
-                  onValueChange={(value) => setStatus(value ?? "all")}
-                >
+                <Select value={status} onValueChange={(value) => setStatus((value ?? "all") as "all" | UserStatus)}>
                   <SelectTrigger className="h-10 w-full min-w-0 border-border bg-transparent text-sm font-medium">
                     <SelectValue className="min-w-0 truncate">
                       {(value) =>
-                        value === "active"
-                          ? "Status: Active"
-                          : value === "inactive"
-                            ? "Status: Inactive"
-                            : "Status: All"
+                        value === "all" ? "Status: All" : `Status: ${value === "ACTIVE" ? "Active" : value === "INACTIVE" ? "Inactive" : "Suspended"}`
                       }
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Status: All</SelectItem>
-                    <SelectItem value="active">Status: Active</SelectItem>
-                    <SelectItem value="inactive">Status: Inactive</SelectItem>
+                    <SelectItem value="ACTIVE">Status: Active</SelectItem>
+                    <SelectItem value="INACTIVE">Status: Inactive</SelectItem>
+                    <SelectItem value="SUSPENDED">Status: Suspended</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="min-w-0">
                 <span className="sr-only">Joined date</span>
-                <Select
-                  value={sort}
-                  onValueChange={(value) => setSort(value ?? "newest")}
-                >
+                <Select value={sort} onValueChange={(value) => setSort((value ?? "newest") as "newest" | "name")}>
                   <SelectTrigger className="h-10 w-full min-w-0 border-border bg-transparent text-sm font-medium">
-                    <SelectValue className="min-w-0 truncate">
-                      {(value) => value === "name" ? "Name: A - Z" : "Joined: Newest"}
-                    </SelectValue>
+                    <SelectValue className="min-w-0 truncate">{(value) => (value === "name" ? "Name: A - Z" : "Joined: Newest")}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="newest">Joined Date: Newest</SelectItem>
@@ -105,59 +98,47 @@ const CustomersPage = () => {
           </div>
         </section>
 
-        {results.length === 0 ? (
-          <p className="rounded-2xl bg-card p-10 text-center text-sm text-muted-foreground">
-            No customers match your filters.
-          </p>
+        {loading ? (
+          <ApiLoading label="Loading customers…" className="py-24" />
+        ) : error ? (
+          <ApiErrorState message={error} onRetry={reload} className="my-16" />
+        ) : results.length === 0 ? (
+          <ApiEmptyState message="No customers match your filters." className="py-16" />
         ) : (
           <ul className="grid gap-4 sm:gap-5 md:grid-cols-2 2xl:grid-cols-3">
             {results.map((customer) => (
               <li
-                key={customer.slug}
+                key={customer.id}
                 className="group flex flex-col rounded-2xl bg-card p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-6"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="min-w-0 truncate text-xl font-bold text-ink">
-                    {customer.name}
-                  </h2>
-                  <Badge
-                    variant={
-                      customer.status === "Active" ? "primary" : "warning"
-                    }
-                  >
-                    {customer.status}
-                  </Badge>
+                  <h2 className="min-w-0 truncate text-xl font-bold text-ink">{customer.fullName}</h2>
+                  <Badge variant={statusBadge[customer.status]}>{customer.status}</Badge>
                 </div>
                 <dl className="mt-5 space-y-3 border-t border-[#E5E7EB] pt-4 font-data text-sm">
                   <div className="flex items-start justify-between gap-3">
                     <dt className="shrink-0 text-muted-foreground">Contact</dt>
                     <dd className="min-w-0 text-right text-ink">
-                      <span className="block truncate">{customer.email}</span>
-                      <span className="block whitespace-nowrap">
-                        {customer.phone}
-                      </span>
+                      <span className="block truncate">{customer.email ?? "—"}</span>
+                      <span className="block whitespace-nowrap">{customer.phone ?? "—"}</span>
                     </dd>
                   </div>
                   <div className="flex items-center justify-between gap-3">
                     <dt className="text-muted-foreground">Last Order</dt>
                     <dd className="whitespace-nowrap text-ink">
-                      {customer.lastOrder}
+                      {customer.lastOrderAt ? formatRelativeTime(customer.lastOrderAt) : "No orders yet"}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between gap-3 border-t border-[#E5E7EB] pt-3">
                     <dt className="text-muted-foreground">Total Spend</dt>
-                    <dd className="font-semibold whitespace-nowrap text-ink text-xl">
-                      {customer.totalSpend}
-                    </dd>
+                    <dd className="text-xl font-semibold whitespace-nowrap text-ink">{formatCompactCurrency(customer.lifetimeSpend)}</dd>
                   </div>
                 </dl>
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() =>
-                      router.push("/sales/customers/" + customer.slug)
-                    }
+                    onClick={() => router.push(`/sales/customers/${customer.id}`)}
                     className="h-auto rounded-md py-2.5 text-xs font-bold tracking-wider bg-transparent text-ink uppercase transition-all hover:bg-secondary active:scale-95"
                   >
                     <Eye className="size-4" strokeWidth={1.9} />
@@ -166,7 +147,7 @@ const CustomersPage = () => {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => router.push(`/sales/orders/new?customer=${customer.slug}`)}
+                    onClick={() => router.push(`/sales/orders/new?customer=${customer.id}`)}
                     className="h-auto rounded-md border-border py-2.5 text-xs font-bold tracking-wider text-ink uppercase transition-all hover:border-primary bg-transparent hover:bg-primary active:scale-95"
                   >
                     <ShoppingCart className="size-4" strokeWidth={1.9} />
