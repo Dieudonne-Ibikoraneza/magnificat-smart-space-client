@@ -37,12 +37,15 @@ export const DeliveryDetailsDialog = ({
   initialValue,
   onSubmit,
   successDescription = "Attached to your order for the stock team to review.",
+  defaultOpen = false,
 }: {
   trigger: ReactElement;
   initialValue?: DeliveryDetails;
   onSubmit: (details: DeliveryDetails) => void;
   /** Customer-facing copy by default; staff callers (adding it on a customer's behalf) pass their own. */
   successDescription?: string;
+  /** Opens the dialog immediately on mount — e.g. right after a staff member creates an order, prompting for delivery details before they even look for the button. */
+  defaultOpen?: boolean;
 }) => {
   const { user } = useCurrentUser();
   // Defaults to the account's own name/phone (still freely editable — this
@@ -51,7 +54,7 @@ export const DeliveryDetailsDialog = ({
   const defaultValue = (): DeliveryDetails =>
     initialValue ?? { ...emptyDetails, contactName: user?.fullName ?? "", phone: user?.phone ?? "" };
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [values, setValues] = useState<DeliveryDetails>(defaultValue);
 
   const update = (key: keyof DeliveryDetails) => (event: { target: { value: string } }) =>

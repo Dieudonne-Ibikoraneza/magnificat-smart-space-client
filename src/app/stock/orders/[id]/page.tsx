@@ -1,8 +1,9 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Boxes,
   Building2,
@@ -67,6 +68,18 @@ const timeAgo = (iso: string) => {
 
 const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
   const { id } = use(params);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // Set by the "New Order" wizard right after it creates this order, so the
+  // delivery-details dialog opens immediately instead of needing a second
+  // click once staff land here. Consumed once, then stripped from the URL
+  // so a later reload of this same page doesn't keep reopening it.
+  const autoOpenDelivery = searchParams.get("addDelivery") === "1";
+  useEffect(() => {
+    if (autoOpenDelivery) router.replace(`/stock/orders/${id}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const { data: order, loading, error, reload } = useApi(() => ordersApi.get(id), [id]);
 
   // Only the very first load has nothing to show yet — a background refetch
@@ -260,9 +273,11 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
               customerName={order.customer?.fullName}
               customerPhone={order.customer?.phone}
               quotationStatus={order.quotationStatus}
+              orderCancelled={order.status === "CANCELLED"}
               transportFee={order.transportFee ? Number(order.transportFee) : null}
               transportFeeNote={order.transportFeeNote}
               canManage={true}
+              autoOpenDelivery={autoOpenDelivery}
               onUpdated={reload}
             />
           </div>

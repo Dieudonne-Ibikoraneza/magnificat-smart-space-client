@@ -998,7 +998,10 @@ const CreateOrderWizard = () => {
       // The draft's job is done — clear it so a later visit to "New Order"
       // starts blank instead of resuming an order that already exists.
       clearOrderDraft(ORDER_DRAFT_KEY);
-      router.push(`/sales/orders/${result.order.id}`);
+      // `addDelivery=1` opens the delivery-details dialog immediately on
+      // arrival, so adding it is one continuous flow instead of a separate
+      // trip back to this order later.
+      router.push(`/sales/orders/${result.order.id}?addDelivery=1`);
     } catch (cause) {
       toast.error("Couldn't create order", {
         description: cause instanceof ApiError ? cause.message : "Please try again.",

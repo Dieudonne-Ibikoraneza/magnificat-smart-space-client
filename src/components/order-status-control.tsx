@@ -75,6 +75,10 @@ export const OrderStatusControl = ({
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Cancelled is terminal — the server rejects any further status change on
+  // one (`orders.service.ts`), so there's nothing this control could do.
+  if (status === "CANCELLED") return null;
+
   const handleSave = async () => {
     setSubmitting(true);
     try {

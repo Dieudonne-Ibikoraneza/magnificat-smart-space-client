@@ -61,9 +61,11 @@ export const OrderQuotationPanel = ({
   customerName,
   customerPhone,
   quotationStatus,
+  orderCancelled,
   transportFee,
   transportFeeNote,
   canManage,
+  autoOpenDelivery,
   onUpdated,
 }: {
   orderId: string;
@@ -73,9 +75,13 @@ export const OrderQuotationPanel = ({
   customerName?: string;
   customerPhone?: string | null;
   quotationStatus: QuotationStatus;
+  /** Cancelled is terminal (enforced server-side too) — nothing here stays editable once it's true. */
+  orderCancelled: boolean;
   transportFee: number | null;
   transportFeeNote?: string | null;
   canManage: boolean;
+  /** Opens the "Add delivery details" dialog immediately — right after a staff member creates this order, so they add it as one continuous flow instead of a separate click later. */
+  autoOpenDelivery?: boolean;
   /** Called after a successful action so the parent can refetch the order. */
   onUpdated: () => void;
 }) => {
@@ -89,10 +95,11 @@ export const OrderQuotationPanel = ({
   const feeValid = transportFeeInput.trim() !== "" && Number.isFinite(feeValue) && feeValue >= 0;
   const grandTotal = subtotalValue + (transportFee ?? 0);
 
-  // The server enforces this same rule (`orders.service.ts`) — delivery
-  // details are locked the moment a quotation goes out, since the transport
-  // fee was costed against exactly this address.
-  const deliveryEditable = quotationStatus === "AWAITING_REVIEW";
+  // The server enforces both of these same rules (`orders.service.ts`):
+  // delivery details lock the moment a quotation goes out (the transport fee
+  // was costed against exactly this address), and everything locks once the
+  // order is cancelled.
+  const deliveryEditable = quotationStatus === "AWAITING_REVIEW" && !orderCancelled;
 
   const handleSaveDelivery = async (values: DeliveryDetails) => {
     setSavingDelivery(true);
@@ -177,6 +184,7 @@ export const OrderQuotationPanel = ({
               }
               onSubmit={(values) => void handleSaveDelivery(values)}
               successDescription="Saved to the order — ready for the quotation."
+              defaultOpen={autoOpenDelivery && !deliveryDetails}
               trigger={
                 <Button type="button" variant="outline" size="sm" disabled={savingDelivery} className="h-7 gap-1.5 text-[11px] font-bold">
                   <Pencil className="size-3.5" /> {deliveryDetails ? "Edit" : "Add"}
@@ -196,7 +204,11 @@ export const OrderQuotationPanel = ({
           </div>
         ) : (
           <p className="mt-2 text-sm text-muted-foreground">
-            {deliveryEditable ? "Not added yet — either the customer or your team can add it." : "No delivery details were added before the quotation was sent."}
+            {orderCancelled
+              ? "This order was cancelled before delivery details were added."
+              : deliveryEditable
+                ? "Not added yet — either the customer or your team can add it."
+                : "No delivery details were added before the quotation was sent."}
           </p>
         )}
       </div>
@@ -218,7 +230,11 @@ export const OrderQuotationPanel = ({
         </div>
       </dl>
 
-      {canManage ? (
+      {orderCancelled ? (
+        <p className="mt-5 rounded-lg bg-red-50 py-2.5 text-center text-sm font-medium text-red-700">
+          This order was cancelled — no further changes can be made.
+        </p>
+      ) : canManage ? (
         <div className="mt-5 space-y-2.5">
           {/* Once sent, the transport fee is final — no edit/delete path, on
               purpose: the customer's quotation (and whatever they've already
