@@ -9,6 +9,7 @@ import {
   Settings,
   ShoppingCart,
   Boxes,
+  User,
 } from "lucide-react";
 import { ApiLoading } from "@/components/api-state";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
@@ -26,6 +27,7 @@ const navigation = [
   },
   { label: "Inventory", href: "/stock/inventory", icon: ShelvingUnit },
   { label: "Orders", href: "/stock/orders", icon: ShoppingCart },
+  { label: "Customers", href: "/stock/customers", icon: User },
   { label: "Negotiations", href: "/stock/negotiations", icon: MessagesSquare },
   { label: "Collections", href: "/stock/collections", icon: Boxes },
   { label: "Reports", href: "/stock/reports", icon: FileText },

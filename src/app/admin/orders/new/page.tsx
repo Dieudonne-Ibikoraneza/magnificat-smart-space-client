@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, Suspense, useMemo, useState } from "react";
+import { Fragment, Suspense, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -56,9 +56,13 @@ import { useApi } from "@/lib/api/use-api";
 import type { ApiProduct, CustomerSummary, StockStatus, SuitableFor, UserStatus } from "@/lib/api/types";
 import { calculateTileQuantity } from "@/lib/tile-calculator";
 import { getVisiblePages, sortLabels, type SortOption } from "@/lib/catalog-utils";
+import { clearOrderDraft, readOrderDraft, writeOrderDraft } from "@/lib/order-draft-storage";
 import { formatCompactCurrency, formatRelativeTime, cn } from "@/lib/utils";
 
 const PRODUCT_PAGE_SIZE = 6;
+
+/** Distinct per role so a stock manager's draft never collides with a sales person's on the same browser. */
+const ORDER_DRAFT_KEY = "mss.order-draft.admin";
 
 /** Stock managers and admins can adjust stock themselves; sales people can't — see `products.controller.ts` roles. */
 const CAN_ADJUST_STOCK = true;
@@ -865,7 +869,6 @@ const CreateOrderWizard = () => {
     reload: reloadCustomers,
   } = useApi(() => usersApi.listCustomers({ limit: 100 }));
   const customers = useMemo(() => customersData?.items ?? [], [customersData]);
-  const hasValidPreselection = customers.some((customer) => customer.id === preselectedId);
 
   const {
     data: productsData,
@@ -878,22 +881,44 @@ const CreateOrderWizard = () => {
   const [step, setStep] = useState(1);
   const [maxReachedStep, setMaxReachedStep] = useState(1);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const [preselectApplied, setPreselectApplied] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
-  // A `?customer=` query param jumps straight to step 2, once the real
-  // customer list has loaded and confirmed that id actually exists.
-  // `preselectApplied` latches after the first load either way, so an
-  // absent/invalid id doesn't leave this re-checking on every render.
-  if (!preselectApplied && !customersLoading) {
-    setPreselectApplied(true);
-    if (hasValidPreselection) {
+  // Runs once, after the real customer list has loaded (needed to validate
+  // a `?customer=` id) — restores a saved draft, unless the URL explicitly
+  // points at a *different* customer, in which case that link wins and
+  // starts a fresh draft for them instead of resuming stale product picks.
+  if (!hydrated && !customersLoading) {
+    setHydrated(true);
+    const draft = readOrderDraft(ORDER_DRAFT_KEY);
+    const validPreselect = preselectedId !== null && customers.some((customer) => customer.id === preselectedId);
+
+    if (validPreselect && (!draft || draft.customerId !== preselectedId)) {
       setSelectedCustomerId(preselectedId);
       setStep(2);
       setMaxReachedStep(2);
+    } else if (draft) {
+      setSelectedCustomerId(draft.customerId);
+      setSelectedProducts(draft.selectedProducts);
+      setStep(draft.step);
+      setMaxReachedStep(draft.maxReachedStep);
     }
   }
+
+  // Persists every change once hydration has settled — never before, or
+  // this would immediately overwrite a just-restored draft with the blank
+  // initial state from the render before it.
+  useEffect(() => {
+    if (!hydrated) return;
+    writeOrderDraft(ORDER_DRAFT_KEY, {
+      customerId: selectedCustomerId,
+      selectedProducts,
+      step,
+      maxReachedStep,
+      savedAt: new Date().toISOString(),
+    });
+  }, [hydrated, selectedCustomerId, selectedProducts, step, maxReachedStep]);
 
   const selectedCustomer = customers.find((customer) => customer.id === selectedCustomerId) ?? null;
   const selectedProductIds = Object.keys(selectedProducts);
@@ -970,6 +995,9 @@ const CreateOrderWizard = () => {
       toast.success("Order created", {
         description: `${orderItems.length} product${orderItems.length === 1 ? "" : "s"} for ${selectedCustomer.fullName} · ${formatRWF(grandTotal)}`,
       });
+      // The draft's job is done — clear it so a later visit to "New Order"
+      // starts blank instead of resuming an order that already exists.
+      clearOrderDraft(ORDER_DRAFT_KEY);
       router.push(`/admin/orders/${result.order.id}`);
     } catch (cause) {
       toast.error("Couldn't create order", {
