@@ -530,6 +530,11 @@ export type FulfillmentQueue = {
   orders: ApiOrder[];
 };
 
+/**
+ * `ADMIN`/`DATA_ANALYST`/`STOCK_MANAGER` all get this same full shape.
+ * `SALES_PERSON` can reach `overview`/`sales` too (their own screens) with
+ * the same full figures — they're the only role limited to those two routes.
+ */
 export type AnalyticsOverview = {
   period: AnalyticsPeriod;
   totalSales: number;
@@ -562,14 +567,23 @@ export type CustomerAnalytics = {
   trend: { newCustomers: TrendPoint[] };
 };
 
+/**
+ * Period-scoped throughout — `totalSales`/`trend` are the sum/shape of the
+ * selected window (7/30/12), not a lifetime figure, so they track the
+ * period switcher and support the "vs last period" comparison.
+ */
 export type SalesAnalytics = {
   period: AnalyticsPeriod;
   totalSales: number;
+  previousTotalSales: number;
+  percentChangeVsLastPeriod: number;
   totalOrders: number;
   averageOrderValue: number;
+  repeatCustomers: number;
+  totalCustomers: number;
+  repeatPurchaseRate: number;
   byStatus: { status: OrderStatus; count: number; total: number }[];
   byCreator: { createdByType: OrderCreatorType; count: number; total: number }[];
-  byProjectType: { roomType: RoomType; revenue: number }[];
   bestSellingTiles: {
     productId: string;
     name: string;
@@ -578,7 +592,7 @@ export type SalesAnalytics = {
     pieces: number;
   }[];
   topPerformer: SalesAnalytics["bestSellingTiles"][number] | null;
-  revenueTrend: TrendPoint[];
+  trend: TrendPoint[];
 };
 
 export type JourneyAnalytics = {
@@ -596,12 +610,58 @@ export type JourneyAnalytics = {
   trend: TrendPoint[];
 };
 
-export type TileLeaderboards = {
-  mostViewed: { productId: string; name: string; count: number }[];
-  mostApplied: { productId: string; name: string; count: number }[];
-  mostCompared: { productId: string; name: string; count: number }[];
-  mostSaved: { productId: string; name: string; count: number }[];
-  mostPurchased: { productId: string; name: string; count: number }[];
+/** One journey-stage drill-down action, normalized regardless of which table it reads from. */
+export type JourneyStageAction = {
+  id: string;
+  userId: string | null;
+  type: string;
+  summary: string | null;
+  createdAt: string;
+  detail: unknown;
+};
+
+export type JourneyStageDetail = {
+  stage: JourneyStage;
+  period: AnalyticsPeriod;
+  userCount: number;
+  users: {
+    sessionId: string;
+    userId: string | null;
+    reachedAt: string;
+    metadata: unknown;
+    /** `null` for an anonymous session that never signed in. */
+    profile: {
+      id: string;
+      fullName: string;
+      email: string | null;
+      phone: string | null;
+      role: string;
+      status: string;
+    } | null;
+  }[];
+  actions: JourneyStageAction[];
+};
+
+/**
+ * The whole Tile Analytics page in one call: top-10 leaderboards, the
+ * platform-wide summary, and the paginated/searchable per-product table —
+ * all scoped to the same period.
+ */
+export type TileAnalytics = {
+  period: AnalyticsPeriod;
+  leaderboards: {
+    mostViewed: { productId: string; name: string; image: string | null; count: number }[];
+    mostApplied: { productId: string; name: string; image: string | null; count: number }[];
+    mostCompared: { productId: string; name: string; image: string | null; count: number }[];
+    mostSaved: { productId: string; name: string; image: string | null; count: number }[];
+    mostPurchased: { productId: string; name: string; image: string | null; count: number }[];
+  };
+  summary: {
+    averageSelectionRate: number;
+    averagePurchaseConversion: number;
+    totalViews: number;
+  };
+  table: Paginated<TilePerformanceRow>;
 };
 
 export type TilePerformanceRow = {
@@ -612,7 +672,7 @@ export type TilePerformanceRow = {
   collection: string;
   size: string;
   quantityOnHandSqm: number;
-  lowStockThreshold: number;
+  stockStatus: StockStatus;
   viewed: number;
   applied: number;
   compared: number;
@@ -622,24 +682,28 @@ export type TilePerformanceRow = {
   purchaseConversion: number;
 };
 
-export type TilePerformanceTable = Paginated<TilePerformanceRow> & {
-  summary: {
-    averageSelectionRate: number;
-    averagePurchaseConversion: number;
-    totalViews: number;
-  };
+export type TileRates = {
+  productId: string;
+  viewed: number;
+  applied: number;
+  purchased: number;
+  selectionRate: number;
+  purchaseConversion: number;
 };
 
-export type RecommendationPerformance = {
+/** The whole AI Analytics page in one call: acceptance/purchase-rate summary + per-product table. */
+export type TileRecommendations = {
   period: AnalyticsPeriod;
-  displayed: number;
-  accepted: number;
-  rejected: number;
-  purchased: number;
-  acceptanceRate: number;
-  purchaseRate: number;
-  averageMatchScore: number;
-  trend: TrendPoint[];
+  summary: {
+    displayed: number;
+    accepted: number;
+    purchased: number;
+    acceptanceRate: number;
+    purchaseRate: number;
+    averageMatchScore: number;
+    trend: TrendPoint[];
+  };
+  table: Paginated<RecommendationRow>;
 };
 
 export type RecommendationRow = {
@@ -650,15 +714,9 @@ export type RecommendationRow = {
   collection: string;
   size: string;
   quantityOnHandSqm: number;
-  lowStockThreshold: number;
+  stockStatus: StockStatus;
   displayed: number;
   accepted: number;
   acceptanceRate: number;
   averageMatchScore: number;
-};
-
-export type MarketingAnalysis = {
-  period: AnalyticsPeriod;
-  bySource: { source: HearAboutUs | null; count: number }[];
-  trend: TrendPoint[];
 };

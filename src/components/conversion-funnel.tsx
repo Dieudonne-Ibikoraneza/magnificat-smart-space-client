@@ -1,28 +1,72 @@
 import {
+  BadgeCheck,
   BarChart3,
-  Calculator,
-  Eye,
+  Handshake,
   LogIn,
+  Package,
   Repeat2,
-  Share2,
+  Ruler,
+  ShoppingCart,
   Sparkles,
-  UsersRound,
+  Eye,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { JourneyStage } from "@/lib/api/types";
 
-const funnel = [
-  ["System Open", "Sessions started", "5,240", "", LogIn],
-  ["Account Registration / Login", "", "4,892", "93% conversion", UsersRound],
-  ["Product Catalog Browsing", "", "4,520", "92% conversion", Eye],
-  ["Product Detail Views", "", "3,812", "84% conversion", Eye],
-  ["Calculator Usage", "", "2,450", "64% conversion", Calculator],
-  ["3D Room Visualizer Open", "", "1,945", "79% conversion", Sparkles],
-  ["Tile Design Applied", "", "1,420", "73% conversion", BarChart3],
-  ["Designs Saved / Shared", "", "1,105", "77% conversion", Share2],
-  ["Final Orders Placed", "", "842", "76% conversion", Repeat2],
-] as const;
+/** The backend's 10 `JourneyStage` values, in funnel order, with their display label/icon. */
+const STAGE_META: Record<JourneyStage, { title: string; icon: LucideIcon }> = {
+  OPENED_SYSTEM: { title: "System Open", icon: LogIn },
+  CREATED_ROOM: { title: "3D Room Created", icon: Sparkles },
+  ENTERED_DIMENSIONS: { title: "Dimensions Entered", icon: Ruler },
+  VIEWED_TILE: { title: "Tile Viewed", icon: Eye },
+  APPLIED_TILE: { title: "Tile Applied", icon: BarChart3 },
+  SAVED_DESIGN: { title: "Design Saved", icon: Package },
+  REQUESTED_QUOTATION: { title: "Quotation Requested", icon: BadgeCheck },
+  NEGOTIATED: { title: "Negotiated", icon: Handshake },
+  PLACED_ORDER: { title: "Order Placed", icon: ShoppingCart },
+  PURCHASED: { title: "Purchased", icon: Repeat2 },
+};
 
-export const ConversionFunnel = () => (
+export type ConversionFunnelStage = {
+  stage: JourneyStage;
+  customers: number;
+  /** Omit on the first stage — there's nothing to convert from. */
+  conversionFromPrevious?: number;
+};
+
+const mockFunnel: ConversionFunnelStage[] = [
+  { stage: "OPENED_SYSTEM", customers: 5240 },
+  { stage: "CREATED_ROOM", customers: 4892, conversionFromPrevious: 93 },
+  { stage: "ENTERED_DIMENSIONS", customers: 4520, conversionFromPrevious: 92 },
+  { stage: "VIEWED_TILE", customers: 3812, conversionFromPrevious: 84 },
+  { stage: "APPLIED_TILE", customers: 2450, conversionFromPrevious: 64 },
+  { stage: "SAVED_DESIGN", customers: 1945, conversionFromPrevious: 79 },
+  { stage: "REQUESTED_QUOTATION", customers: 1420, conversionFromPrevious: 73 },
+  { stage: "NEGOTIATED", customers: 1105, conversionFromPrevious: 77 },
+  { stage: "PLACED_ORDER", customers: 842, conversionFromPrevious: 76 },
+];
+
+/**
+ * Renders the given stages (from `GET /analytics/journey`) in funnel order.
+ * Falls back to placeholder data when no `stages` prop is passed, so
+ * screens not yet wired to the real endpoint still render something.
+ */
+export const ConversionFunnel = ({ stages = mockFunnel }: { stages?: ConversionFunnelStage[] }) => {
+  const funnel = stages.map(({ stage, customers, conversionFromPrevious }, index) => {
+    const meta = STAGE_META[stage];
+    return [
+      meta.title,
+      "",
+      customers.toLocaleString(),
+      index === 0 || conversionFromPrevious === undefined
+        ? ""
+        : `${conversionFromPrevious.toFixed(0)}% conversion`,
+      meta.icon,
+    ] as const;
+  });
+
+  return (
   <section className="rounded-[14px] bg-white p-6 shadow-sm sm:p-8">
     <h2 className="text-2xl font-extrabold text-ink">Conversion Funnel</h2>
     <p className="mt-1 text-sm text-muted">User progression through the digital catalog</p>
@@ -152,4 +196,5 @@ export const ConversionFunnel = () => (
       ))}
     </div>
   </section>
-);
+  );
+};
