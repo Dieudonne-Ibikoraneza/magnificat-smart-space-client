@@ -257,6 +257,8 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
               orderId={order.id}
               subtotalValue={Number(order.subtotal)}
               deliveryDetails={order.delivery}
+              customerName={order.customer?.fullName}
+              customerPhone={order.customer?.phone}
               quotationStatus={order.quotationStatus}
               transportFee={order.transportFee ? Number(order.transportFee) : null}
               transportFeeNote={order.transportFeeNote}

@@ -36,10 +36,13 @@ export const DeliveryDetailsDialog = ({
   trigger,
   initialValue,
   onSubmit,
+  successDescription = "Attached to your order for the stock team to review.",
 }: {
   trigger: ReactElement;
   initialValue?: DeliveryDetails;
   onSubmit: (details: DeliveryDetails) => void;
+  /** Customer-facing copy by default; staff callers (adding it on a customer's behalf) pass their own. */
+  successDescription?: string;
 }) => {
   const { user } = useCurrentUser();
   // Defaults to the account's own name/phone (still freely editable — this
@@ -68,7 +71,7 @@ export const DeliveryDetailsDialog = ({
     if (!valid) return;
     onSubmit(values);
     setOpen(false);
-    toast.success("Delivery details saved", { description: "Attached to your order for the stock team to review." });
+    toast.success("Delivery details saved", { description: successDescription });
   };
 
   return (

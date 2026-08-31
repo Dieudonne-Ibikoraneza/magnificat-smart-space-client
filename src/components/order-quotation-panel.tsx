@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CircleDollarSign, MapPin, ShieldCheck, Truck } from "lucide-react";
+import { CircleDollarSign, MapPin, Pencil, ShieldCheck, Truck } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { DeliveryDetailsDialog } from "@/components/delivery-details-dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +20,7 @@ import { toast } from "@/components/ui/toast";
 import { ordersApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import type { ApiOrderDelivery, QuotationStatus } from "@/lib/api/types";
+import type { DeliveryDetails } from "@/data/order-workflow";
 import { cn } from "@/lib/utils";
 
 const formatRWF = (value: number) => `RWF ${Math.round(value).toLocaleString("en-US")}`;
@@ -43,10 +45,21 @@ const quotationStatusLabels: Record<QuotationStatus, string> = {
  * then verify payment once the customer marks it as paid. `canManage` gates the
  * action controls — sales sees the same panel read-only, stock/admin can act on it.
  */
+const toDeliveryDetails = (delivery: ApiOrderDelivery): DeliveryDetails => ({
+  contactName: delivery.contactName,
+  phone: delivery.phone,
+  address: delivery.address,
+  city: delivery.city,
+  preferredDate: delivery.preferredDate ?? undefined,
+  notes: delivery.notes ?? undefined,
+});
+
 export const OrderQuotationPanel = ({
   orderId,
   subtotalValue,
   deliveryDetails,
+  customerName,
+  customerPhone,
   quotationStatus,
   transportFee,
   transportFeeNote,
@@ -56,6 +69,9 @@ export const OrderQuotationPanel = ({
   orderId: string;
   subtotalValue: number;
   deliveryDetails?: ApiOrderDelivery | null;
+  /** Pre-fills a fresh delivery-details form when staff add it on the customer's behalf. */
+  customerName?: string;
+  customerPhone?: string | null;
   quotationStatus: QuotationStatus;
   transportFee: number | null;
   transportFeeNote?: string | null;
@@ -67,10 +83,37 @@ export const OrderQuotationPanel = ({
   const [transportFeeInput, setTransportFeeInput] = useState(transportFee?.toString() ?? "0");
   const [transportNote, setTransportNote] = useState(transportFeeNote ?? "");
   const [submitting, setSubmitting] = useState(false);
+  const [savingDelivery, setSavingDelivery] = useState(false);
 
   const feeValue = Number(transportFeeInput);
   const feeValid = transportFeeInput.trim() !== "" && Number.isFinite(feeValue) && feeValue >= 0;
   const grandTotal = subtotalValue + (transportFee ?? 0);
+
+  // The server enforces this same rule (`orders.service.ts`) — delivery
+  // details are locked the moment a quotation goes out, since the transport
+  // fee was costed against exactly this address.
+  const deliveryEditable = quotationStatus === "AWAITING_REVIEW";
+
+  const handleSaveDelivery = async (values: DeliveryDetails) => {
+    setSavingDelivery(true);
+    try {
+      await ordersApi.saveDeliveryDetails(orderId, {
+        contactName: values.contactName,
+        phone: values.phone,
+        address: values.address,
+        city: values.city,
+        preferredDate: values.preferredDate || undefined,
+        notes: values.notes || undefined,
+      });
+      onUpdated();
+    } catch (cause) {
+      toast.error("Couldn't save delivery details", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    } finally {
+      setSavingDelivery(false);
+    }
+  };
 
   const handleSendQuotation = async () => {
     if (!feeValid) return;
@@ -121,8 +164,28 @@ export const OrderQuotationPanel = ({
       </div>
 
       <div className="mt-5 rounded-xl border border-border p-4">
-        <div className="flex items-center gap-2 text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
-          <MapPin className="size-3.5" /> Delivery details
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
+            <MapPin className="size-3.5" /> Delivery details
+          </div>
+          {deliveryEditable ? (
+            <DeliveryDetailsDialog
+              initialValue={
+                deliveryDetails
+                  ? toDeliveryDetails(deliveryDetails)
+                  : { contactName: customerName ?? "", phone: customerPhone ?? "", address: "", city: "", preferredDate: "", notes: "" }
+              }
+              onSubmit={(values) => void handleSaveDelivery(values)}
+              successDescription="Saved to the order — ready for the quotation."
+              trigger={
+                <Button type="button" variant="outline" size="sm" disabled={savingDelivery} className="h-7 gap-1.5 text-[11px] font-bold">
+                  <Pencil className="size-3.5" /> {deliveryDetails ? "Edit" : "Add"}
+                </Button>
+              }
+            />
+          ) : (
+            !deliveryDetails && <span className="text-[11px] font-medium text-muted-foreground">Locked</span>
+          )}
         </div>
         {deliveryDetails ? (
           <div className="mt-2 space-y-1 text-sm">
@@ -132,7 +195,9 @@ export const OrderQuotationPanel = ({
             {deliveryDetails.notes && <p className="text-muted-foreground">Note: {deliveryDetails.notes}</p>}
           </div>
         ) : (
-          <p className="mt-2 text-sm text-muted-foreground">Awaiting delivery details from the customer.</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {deliveryEditable ? "Not added yet — either the customer or your team can add it." : "No delivery details were added before the quotation was sent."}
+          </p>
         )}
       </div>
 
