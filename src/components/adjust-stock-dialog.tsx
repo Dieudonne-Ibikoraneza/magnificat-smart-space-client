@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactElement, type ReactNode } from "react";
 import { ClipboardCheck, Coins, Minus, Plus } from "lucide-react";
 import {
   Dialog,
@@ -43,12 +43,18 @@ export const AdjustStockDialog = ({
   productName,
   currentStockSqm,
   onAdjusted,
+  renderTrigger,
+  triggerContent,
 }: {
   productId: string;
   productName: string;
   currentStockSqm: number;
   /** Called after a successful adjustment so the parent can refetch the product. */
   onAdjusted: () => void;
+  /** Custom trigger element (e.g. a compact button) — defaults to a full-width primary button. */
+  renderTrigger?: ReactElement;
+  /** Custom trigger content — defaults to a "Adjust Stock" icon + label. */
+  triggerContent?: ReactNode;
 }) => {
   const [open, setOpen] = useState(false);
   const [direction, setDirection] = useState<AdjustmentDirection>("add");
@@ -113,9 +119,13 @@ export const AdjustStockDialog = ({
         }
       }}
     >
-      <DialogTrigger render={<Button type="button" className="h-13 w-full gap-2 rounded-lg text-sm font-bold" />}>
-        <ClipboardCheck className="size-5" />
-        Adjust Stock
+      <DialogTrigger render={renderTrigger ?? <Button type="button" className="h-13 w-full gap-2 rounded-lg text-sm font-bold" />}>
+        {triggerContent ?? (
+          <>
+            <ClipboardCheck className="size-5" />
+            Adjust Stock
+          </>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader>

@@ -25,9 +25,10 @@ import type {
   FulfillmentQueue,
   HearAboutUs,
   JourneyAnalytics,
+  JourneyStage,
+  JourneyStageDetail,
   Language,
   LowStockRow,
-  MarketingAnalysis,
   OrderStatus,
   OrderType,
   OtpSendResult,
@@ -36,8 +37,6 @@ import type {
   PlatformSettings,
   ProfilingQuestion,
   QuantityCalculation,
-  RecommendationPerformance,
-  RecommendationRow,
   Role,
   RoomType,
   SalesAnalytics,
@@ -46,8 +45,9 @@ import type {
   StockMovementType,
   StockSummary,
   SuitableFor,
-  TileLeaderboards,
-  TilePerformanceTable,
+  TileAnalytics,
+  TileRates,
+  TileRecommendations,
   UserStatus,
 } from "./types";
 
@@ -99,7 +99,10 @@ export const authApi = {
 
 export const usersApi = {
   me: () => api.get<ApiUser>("/users/me"),
-  updateMe: (body: { fullName?: string; phone?: string; language?: Language }) =>
+  // Phone isn't editable here — `UpdateProfileDto` only accepts `fullName`
+  // and `language`; changing a verified phone number is a staff-only action
+  // (`updateStaff`), not self-service.
+  updateMe: (body: { fullName?: string; language?: Language }) =>
     api.patch<ApiUser>("/users/me", body),
   closeMyAccount: () => api.delete<ApiUser>("/users/me"),
 
@@ -480,6 +483,16 @@ export const reportsApi = {
 
 // --- Analytics dashboards ---------------------------------------------------
 
+/**
+ * Structured around four domains (Customers, Sales, Tiles — incl. AI
+ * recommendation performance, since recs are about tiles — and Journey)
+ * plus a cross-domain `overview`, not one call per widget. `ADMIN` and
+ * `DATA_ANALYST` see every field on every route; `STOCK_MANAGER` gets the
+ * same shapes with revenue/order-value figures stripped (see the optional
+ * fields on the corresponding types); `SALES_PERSON` can reach `overview`
+ * and `sales` only, with the full (untrimmed) figures — their own job is
+ * selling. `CLIENT` can reach none of it.
+ */
 export const analyticsApi = {
   overview: (period: AnalyticsPeriod = "MONTHLY") =>
     api.get<AnalyticsOverview>("/analytics/overview", { query: { period } }),
@@ -487,24 +500,18 @@ export const analyticsApi = {
     api.get<CustomerAnalytics>("/analytics/customers", { query: { period } }),
   sales: (period: AnalyticsPeriod = "MONTHLY") =>
     api.get<SalesAnalytics>("/analytics/sales", { query: { period } }),
+
+  tiles: (query: { period?: AnalyticsPeriod; page?: number; limit?: number; search?: string } = {}) =>
+    api.get<TileAnalytics>("/analytics/tiles", { query }),
+  tileRates: (productId: string) => api.get<TileRates>(`/analytics/tiles/${productId}`),
+  tileRecommendations: (
+    query: { period?: AnalyticsPeriod; page?: number; limit?: number; search?: string } = {},
+  ) => api.get<TileRecommendations>("/analytics/tiles/recommendations", { query }),
+
   journey: (period: AnalyticsPeriod = "MONTHLY") =>
     api.get<JourneyAnalytics>("/analytics/journey", { query: { period } }),
-
-  tiles: () => api.get<TileLeaderboards>("/analytics/tiles"),
-  tilesTable: (query: { page?: number; limit?: number; search?: string } = {}) =>
-    api.get<TilePerformanceTable>("/analytics/tiles/table", { query }),
-  tileRates: (productId: string) =>
-    api.get<{ selectionRate: number; purchaseConversion: number }>(
-      `/analytics/tiles/${productId}/rates`,
-    ),
-
-  recommendations: (period: AnalyticsPeriod = "MONTHLY") =>
-    api.get<RecommendationPerformance>("/analytics/ai-recommendations", { query: { period } }),
-  recommendationsTable: (query: { page?: number; limit?: number; search?: string } = {}) =>
-    api.get<Paginated<RecommendationRow>>("/analytics/ai-recommendations/table", { query }),
-
-  marketing: (period: AnalyticsPeriod = "MONTHLY") =>
-    api.get<MarketingAnalysis>("/analytics/marketing", { query: { period } }),
+  journeyStageDetail: (stage: JourneyStage, period: AnalyticsPeriod = "MONTHLY") =>
+    api.get<JourneyStageDetail>(`/analytics/journey/${stage}`, { query: { period } }),
 };
 
 export const healthApi = {
