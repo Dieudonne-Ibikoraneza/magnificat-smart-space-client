@@ -49,13 +49,15 @@ const mockFunnel: ConversionFunnelStage[] = [
 
 /**
  * Renders the given stages (from `GET /analytics/journey`) in funnel order,
- * as an icon-circle + stepped bar row — the funnel style used
+ * as an icon-circle + proportional-width bar row — the funnel style used
  * everywhere except Customer Analytics (see `CustomerConversionFunnel` for
  * that page's simpler label + bar list, which matches its own design).
  * Falls back to placeholder data when no `stages` prop is passed, so
  * screens not yet wired to the real endpoint still render something.
  */
 export const ConversionFunnel = ({ stages = mockFunnel }: { stages?: ConversionFunnelStage[] }) => {
+  const maxCustomers = Math.max(1, ...stages.map((row) => row.customers));
+
   const funnel = stages.map(({ stage, customers, conversionFromPrevious }, index) => {
     const meta = STAGE_META[stage];
     return [
@@ -66,6 +68,10 @@ export const ConversionFunnel = ({ stages = mockFunnel }: { stages?: ConversionF
         ? ""
         : `${conversionFromPrevious.toFixed(0)}% conversion`,
       meta.icon,
+      // Bar width reads as an actual funnel — each stage's share of the
+      // widest (first) stage — floored so even a near-zero stage stays
+      // legible instead of collapsing to a sliver.
+      Math.max((customers / maxCustomers) * 100, 8),
     ] as const;
   });
 
@@ -136,12 +142,11 @@ export const ConversionFunnel = ({ stages = mockFunnel }: { stages?: ConversionF
       })}
     </div>
 
-    {/* sm and up: each stage steps inward while all bars share the same right edge. */}
+    {/* sm and up: bar width reflects each stage's real share of the top of the funnel. */}
     <div className="mt-7 hidden space-y-3 sm:block">
-      {funnel.map(([title, subtitle, count, conversion, Icon], index) => (
+      {funnel.map(([title, subtitle, count, conversion, Icon, widthPercent], index) => (
         <div
           key={title}
-          style={{ marginLeft: `${index * 16}px` }}
           className={cn(
             "group relative flex items-center gap-3 transition-all duration-300 ease-in-out will-change-transform",
             index > 0 && index < funnel.length - 1
@@ -164,8 +169,9 @@ export const ConversionFunnel = ({ stages = mockFunnel }: { stages?: ConversionF
             <Icon className="size-4" />
           </div>
           <div
+            style={{ width: `${widthPercent}%` }}
             className={cn(
-              "flex min-h-12 min-w-0 flex-1 items-center justify-between rounded-lg border p-4 transition-all duration-300 ease-in-out",
+              "flex min-h-12 min-w-0 items-center justify-between rounded-lg border p-4 transition-all duration-300 ease-in-out",
               index === funnel.length - 1
                 ? "border-ink bg-ink text-white"
                 : index === 0
