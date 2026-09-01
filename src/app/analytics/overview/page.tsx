@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Coins, CircleCheckBig, ExternalLink, Repeat2, UsersRound } from "lucide-react";
 import { AnalyticsPageHeader } from "@/app/analytics/layout";
 import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
@@ -27,35 +27,44 @@ const KpiSkeleton = () => (
   </article>
 );
 
+type RecommendationTrendPoint = { day: string; matchScore: number; acceptance: number };
+
 const RecommendationsTooltip = ({
   active,
   payload,
   label,
 }: {
   active?: boolean;
-  payload?: Array<{ value: number }>;
+  payload?: Array<{ name?: string; value: number }>;
   label?: string;
 }) => {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
       <p className="font-data text-xs font-semibold tracking-widest text-data-ink">{label}</p>
-      <p className="mt-1 font-data text-sm text-ink">{payload[0].value.toLocaleString()} shown</p>
+      <div className="mt-1 space-y-0.5 font-data text-sm text-ink">
+        {payload.map((entry) => (
+          <p key={entry.name}>
+            {entry.name === "acceptance" ? "Acceptance" : "Match Score"}: {entry.value.toFixed(0)}%
+          </p>
+        ))}
+      </div>
     </div>
   );
 };
 
-/** Recommendations displayed per bucket — `TileRecommendations.summary.trend` — the only real day-by-day series this endpoint has (no per-day acceptance/match-score breakdown exists). */
-const RecommendationsTrendChart = ({ data }: { data: { day: string; value: number }[] }) => (
+/** Match score vs acceptance rate, both real per-day series — `TileRecommendations.summary.{matchScoreTrend,acceptanceTrend}`. */
+const RecommendationsTrendChart = ({ data }: { data: RecommendationTrendPoint[] }) => (
   <div className="h-48 w-full font-data">
     <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data} barCategoryGap="30%" margin={{ top: 8, right: 4, left: 0, bottom: 24 }}>
+      <LineChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 24 }}>
         <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
         <XAxis dataKey="day" angle={-40} textAnchor="end" tickLine={false} axisLine={false} interval="preserveStartEnd" tick={ChartAxisTick} />
-        <YAxis tickLine={false} axisLine={false} width={28} allowDecimals={false} tick={ChartAxisTick} />
-        <Tooltip cursor={{ fill: "transparent" }} content={<RecommendationsTooltip />} />
-        <Bar dataKey="value" barSize="70%" radius={[2, 2, 0, 0]} fill="var(--primary)" animationDuration={700} />
-      </BarChart>
+        <YAxis tickLine={false} axisLine={false} width={32} domain={[0, 100]} tick={ChartAxisTick} />
+        <Tooltip cursor={{ stroke: "var(--border)" }} content={<RecommendationsTooltip />} />
+        <Line type="monotone" dataKey="matchScore" name="matchScore" stroke="#d1d5db" strokeWidth={2} dot={false} animationDuration={700} />
+        <Line type="monotone" dataKey="acceptance" name="acceptance" stroke="var(--primary)" strokeWidth={2.5} dot={false} animationDuration={700} />
+      </LineChart>
     </ResponsiveContainer>
   </div>
 );
@@ -69,7 +78,7 @@ const AiRecommendationsPanel = ({
   totalRecommendations: number;
   acceptanceRate: number;
   averageMatchScore: number;
-  trend: { day: string; value: number }[];
+  trend: RecommendationTrendPoint[];
 }) => (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
     <div className="flex items-center justify-between gap-3">
@@ -99,7 +108,17 @@ const AiRecommendationsPanel = ({
       {totalRecommendations === 0 ? (
         <ApiEmptyState message="No AI recommendations shown in this period yet." className="py-6" />
       ) : (
-        <RecommendationsTrendChart data={trend} />
+        <>
+          <RecommendationsTrendChart data={trend} />
+          <div className="mt-2 flex items-center justify-center gap-4 text-xs font-medium text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-[#d1d5db]" /> Match Score
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-primary" /> Acceptance
+            </span>
+          </div>
+        </>
       )}
     </div>
   </section>
@@ -209,7 +228,11 @@ const AnalyticsOverviewPage = () => {
               totalRecommendations={overview.totalRecommendations}
               acceptanceRate={overview.recommendationAcceptanceRate}
               averageMatchScore={overview.averageMatchScore}
-              trend={recommendations.summary.trend.map((point) => ({ day: point.label, value: point.value }))}
+              trend={recommendations.summary.matchScoreTrend.map((point, index) => ({
+                day: point.label,
+                matchScore: point.value,
+                acceptance: recommendations.summary.acceptanceTrend[index]?.value ?? 0,
+              }))}
             />
           )}
         </div>

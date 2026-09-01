@@ -703,6 +703,10 @@ export type TileRecommendations = {
     purchaseRate: number;
     averageMatchScore: number;
     trend: TrendPoint[];
+    /** Average match score per bucket — a 0–100 scale, same as `averageMatchScore`. */
+    matchScoreTrend: TrendPoint[];
+    /** Acceptance rate per bucket, 0–100. */
+    acceptanceTrend: TrendPoint[];
   };
   table: Paginated<RecommendationRow>;
 };
