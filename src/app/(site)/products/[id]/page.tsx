@@ -20,10 +20,11 @@ import { ProductDetailSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { QuantityCalculator } from "@/components/quantity-calculator";
-import { favoritesApi, productsApi, toProduct, tokenStore } from "@/lib/api";
+import { eventsApi, favoritesApi, productsApi, toProduct, tokenStore } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { useApi } from "@/lib/api/use-api";
 import { useCart } from "@/lib/cart-store";
+import { getSessionId } from "@/lib/session-id";
 import type { Product } from "@/components/product-card";
 import ProductNotFound from "./not-found";
 
@@ -51,6 +52,14 @@ const ProductDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => 
   const router = useRouter();
   const cart = useCart();
   const { data: apiProduct, loading, error, reload } = useApi(() => productsApi.get(id), [id]);
+
+  // Feeds "Top Viewed Tiles" / Tiles Analytics — fire-and-forget, anonymous-safe
+  // (see `events.controller.ts`), and only once the product actually resolves
+  // so a 404 or a mistyped id never counts as a view.
+  useEffect(() => {
+    if (!apiProduct) return;
+    void eventsApi.tile({ sessionId: getSessionId(), productId: apiProduct.id, type: "VIEWED" }).catch(() => undefined);
+  }, [apiProduct]);
 
   const [requiredArea, setRequiredArea] = useState("26");
   const [isFavorited, setIsFavorited] = useState(false);

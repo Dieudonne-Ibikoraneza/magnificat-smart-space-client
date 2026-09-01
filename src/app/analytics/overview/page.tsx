@@ -3,10 +3,12 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Coins, CircleCheckBig, ExternalLink, Repeat2, UsersRound } from "lucide-react";
 import { AnalyticsPageHeader } from "@/app/analytics/layout";
 import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
+import { ChartAxisTick } from "@/components/chart-axis-tick";
 import { ConversionFunnel, type ConversionFunnelStage } from "@/components/conversion-funnel";
 import { KpiCards, type KpiCardData } from "@/components/kpi-cards";
 import { RevenueTrendChart } from "@/components/revenue-trend-chart";
@@ -26,14 +28,49 @@ const KpiSkeleton = () => (
   </article>
 );
 
+const RecommendationsTooltip = ({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ value: number }>;
+  label?: string;
+}) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
+      <p className="font-data text-xs font-semibold tracking-widest text-data-ink">{label}</p>
+      <p className="mt-1 font-data text-sm text-ink">{payload[0].value.toLocaleString()} shown</p>
+    </div>
+  );
+};
+
+/** Recommendations displayed per bucket — `TileRecommendations.summary.trend` — the only real day-by-day series this endpoint has (no per-day acceptance/match-score breakdown exists). */
+const RecommendationsTrendChart = ({ data }: { data: { day: string; value: number }[] }) => (
+  <div className="h-48 w-full font-data">
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={data} barCategoryGap="30%" margin={{ top: 8, right: 4, left: 0, bottom: 24 }}>
+        <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
+        <XAxis dataKey="day" angle={-40} textAnchor="end" tickLine={false} axisLine={false} interval="preserveStartEnd" tick={ChartAxisTick} />
+        <YAxis tickLine={false} axisLine={false} width={28} allowDecimals={false} tick={ChartAxisTick} />
+        <Tooltip cursor={{ fill: "transparent" }} content={<RecommendationsTooltip />} />
+        <Bar dataKey="value" barSize="70%" radius={[2, 2, 0, 0]} fill="var(--primary)" animationDuration={700} />
+      </BarChart>
+    </ResponsiveContainer>
+  </div>
+);
+
 const AiRecommendationsPanel = ({
   totalRecommendations,
   acceptanceRate,
   averageMatchScore,
+  trend,
 }: {
   totalRecommendations: number;
   acceptanceRate: number;
   averageMatchScore: number;
+  trend: { day: string; value: number }[];
 }) => (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
     <div className="flex items-center justify-between gap-3">
@@ -45,19 +82,26 @@ const AiRecommendationsPanel = ({
         <ExternalLink className="size-3.5" /> View All
       </Link>
     </div>
-    <div className="mt-8 grid grid-cols-3 gap-4 sm:mt-10">
+    <div className="mt-6 grid grid-cols-3 gap-4">
       <div>
         <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">Recommendations</p>
-        <p className="mt-2 text-3xl font-black text-ink">{totalRecommendations.toLocaleString()}</p>
+        <p className="mt-2 text-2xl font-black text-ink">{totalRecommendations.toLocaleString()}</p>
       </div>
       <div>
         <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">Acceptance Rate</p>
-        <p className="mt-2 text-3xl font-black text-ink">{acceptanceRate.toFixed(0)}%</p>
+        <p className="mt-2 text-2xl font-black text-ink">{acceptanceRate.toFixed(0)}%</p>
       </div>
       <div>
         <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">Avg. Match Score</p>
-        <p className="mt-2 text-3xl font-black text-ink">{averageMatchScore.toFixed(0)}%</p>
+        <p className="mt-2 text-2xl font-black text-ink">{averageMatchScore.toFixed(0)}%</p>
       </div>
+    </div>
+    <div className="mt-6 border-t border-border pt-5">
+      {totalRecommendations === 0 ? (
+        <ApiEmptyState message="No AI recommendations shown in this period yet." className="py-6" />
+      ) : (
+        <RecommendationsTrendChart data={trend} />
+      )}
     </div>
   </section>
 );
@@ -71,6 +115,10 @@ const AnalyticsOverviewPage = () => {
     [range],
   );
   const { data: tiles, loading: tilesLoading } = useApi(() => analyticsApi.tiles({ period: range }), [range]);
+  const { data: recommendations, loading: recommendationsLoading } = useApi(
+    () => analyticsApi.tileRecommendations({ period: range }),
+    [range],
+  );
   const { data: customersData, loading: customersLoading } = useApi(() => usersApi.listCustomers({ limit: 100 }));
 
   const topTiles = useMemo(() => tiles?.leaderboards.mostViewed.slice(0, 3) ?? [], [tiles]);
@@ -150,7 +198,7 @@ const AnalyticsOverviewPage = () => {
             </div>
           </section>
 
-          {overviewLoading || !overview ? (
+          {overviewLoading || !overview || recommendationsLoading || !recommendations ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <Skeleton className="h-65 w-full sm:h-80" />
             </section>
@@ -159,6 +207,7 @@ const AnalyticsOverviewPage = () => {
               totalRecommendations={overview.totalRecommendations}
               acceptanceRate={overview.recommendationAcceptanceRate}
               averageMatchScore={overview.averageMatchScore}
+              trend={recommendations.summary.trend.map((point) => ({ day: point.label, value: point.value }))}
             />
           )}
         </div>
