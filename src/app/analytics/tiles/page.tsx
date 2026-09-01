@@ -10,8 +10,6 @@ import {
   Eye,
   Filter,
   Heart,
-  LayoutGrid,
-  List,
   MousePointerClick,
   ChartNoAxesColumn,
   MousePointerSquareDashed,
@@ -22,16 +20,10 @@ import {
 import { AnalyticsPageHeader } from "@/app/analytics/layout";
 import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
+import { FilterOptionsCard } from "@/components/product-catalog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -50,13 +42,61 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getVisiblePages } from "@/lib/catalog-utils";
+import {
+  availabilityFilterMap,
+  EMPTY_FILTERS,
+  getVisiblePages,
+  hasActiveFilters,
+  toggleFilterOption,
+  type CatalogFilters,
+  type FilterGroup,
+} from "@/lib/catalog-utils";
 import { cn, formatCompactNumber } from "@/lib/utils";
-import { analyticsApi } from "@/lib/api";
+import { analyticsApi, productsApi } from "@/lib/api";
+import { roomTypeLabels, suitableForLabels } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
 import type { TileAnalytics, TilePerformanceRow } from "@/lib/api/types";
 
+/** `TilePerformanceRow` plus the two catalog attributes only the product record carries — needed for the same Room type / Suitable for filters the storefront catalog uses. */
+type FilterableTile = TilePerformanceRow & {
+  roomTypes: string[];
+  suitableFor: "floor" | "wall" | "both";
+};
+
 const PAGE_SIZE = 10;
+
+const SUITABLE_FOR_OPTIONS = ["Floor", "Wall", "Floor & Wall"];
+const AVAILABILITY_OPTIONS = ["In Stock Ready", "Low Stock", "Out of Stock (Pre-order)"];
+
+/** Same four dimensions the storefront catalog filters on (`buildFilterGroups` in `catalog-utils`), adapted to a tile analytics row instead of a `Product`. */
+const buildTileFilterGroups = (items: FilterableTile[]): FilterGroup[] => [
+  { title: "Room type", options: Object.values(roomTypeLabels) },
+  { title: "Suitable for", options: SUITABLE_FOR_OPTIONS },
+  { title: "Size", options: Array.from(new Set(items.map((item) => item.size))).sort() },
+  { title: "Availability", options: AVAILABILITY_OPTIONS },
+];
+
+const matchesSuitableFor = (item: FilterableTile, selected: string[]) =>
+  selected.some((option) => {
+    if (option === "Floor") return item.suitableFor === "floor" || item.suitableFor === "both";
+    if (option === "Wall") return item.suitableFor === "wall" || item.suitableFor === "both";
+    if (option === "Floor & Wall") return item.suitableFor === "both";
+    return false;
+  });
+
+const filterTiles = (items: FilterableTile[], filters: CatalogFilters): FilterableTile[] =>
+  items.filter((item) => {
+    if (filters["Room type"].length > 0 && !filters["Room type"].some((room) => item.roomTypes.includes(room))) {
+      return false;
+    }
+    if (filters.Size.length > 0 && !filters.Size.includes(item.size)) return false;
+    if (filters.Availability.length > 0) {
+      const allowed = filters.Availability.map((label) => availabilityFilterMap[label]);
+      if (!allowed.includes(item.stockStatus)) return false;
+    }
+    if (filters["Suitable for"].length > 0 && !matchesSuitableFor(item, filters["Suitable for"])) return false;
+    return true;
+  });
 
 type TilesKpi = { label: string; value: string; sub: string; icon: typeof Eye };
 
@@ -484,7 +524,7 @@ const MostLikedProducts = ({ rows, loading }: { rows: TilePerformanceRow[]; load
   </section>
 );
 
-const TileCard = ({ product }: { product: TilePerformanceRow }) => {
+const TileCard = ({ product }: { product: FilterableTile }) => {
   const status = {
     in_stock: {
       label: "In stock",
@@ -577,20 +617,35 @@ const TileCardSkeleton = () => (
   </article>
 );
 
-const AllProducts = ({ rows, loading }: { rows: TilePerformanceRow[]; loading: boolean }) => {
-  const [view, setView] = useState<"grid" | "list">("grid");
+const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boolean }) => {
   const [query, setQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const filterGroups = useMemo(() => buildTileFilterGroups(rows), [rows]);
 
   const results = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return rows;
-    return rows.filter(
-      (product) =>
-        product.name.toLowerCase().includes(normalizedQuery) ||
-        product.sku.toLowerCase().includes(normalizedQuery),
-    );
-  }, [rows, query]);
+    const searched = normalizedQuery
+      ? rows.filter(
+          (product) =>
+            product.name.toLowerCase().includes(normalizedQuery) ||
+            product.sku.toLowerCase().includes(normalizedQuery),
+        )
+      : rows;
+    return filterTiles(searched, filters);
+  }, [rows, query, filters]);
+
+  const handleToggleFilter = (group: keyof CatalogFilters, option: string) => {
+    setFilters((current) => toggleFilterOption(current, group, option));
+    setCurrentPage(1);
+  };
+
+  const handleResetFilters = () => {
+    setFilters(EMPTY_FILTERS);
+    setCurrentPage(1);
+  };
 
   const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
   const safePage = Math.min(Math.max(currentPage, 1), totalPages);
@@ -624,79 +679,38 @@ const AllProducts = ({ rows, loading }: { rows: TilePerformanceRow[]; loading: b
             className="h-11 rounded-lg pl-11"
           />
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:flex sm:shrink-0">
-          <Select defaultValue="all">
-            <SelectTrigger className="h-11 w-full min-w-0 border-border sm:w-36">
-              <SelectValue>{() => "Category"}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="marble">Marble Series</SelectItem>
-              <SelectItem value="mosaic">Mosaic Series</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select defaultValue="all">
-            <SelectTrigger className="h-11 w-full min-w-0 border-border sm:w-32">
-              <SelectValue>{() => "Status"}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="in_stock">In stock</SelectItem>
-              <SelectItem value="low_stock">Low stock</SelectItem>
-              <SelectItem value="out_of_stock">Out of stock</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
         <div className="flex shrink-0 items-center gap-2">
           <Button
             type="button"
             variant="outline"
-            className="h-11 gap-2 border-border text-ink"
+            className={cn("h-11 gap-2 border-border text-ink", filtersOpen && "bg-muted-background")}
+            onClick={() => setFiltersOpen((open) => !open)}
+            aria-pressed={filtersOpen}
           >
             <Filter className="size-4" /> Filters
+            {hasActiveFilters(filters) && (
+              <span className="ml-0.5 inline-flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-ink">
+                {Object.values(filters).reduce((sum, group) => sum + group.length, 0)}
+              </span>
+            )}
           </Button>
-          <div className="flex items-center overflow-hidden rounded-lg border border-border">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setView("grid")}
-              aria-pressed={view === "grid"}
-              className={cn(
-                "h-11 rounded-none",
-                view === "grid"
-                  ? "bg-ink text-primary hover:bg-ink/90 hover:text-primary"
-                  : "text-ink",
-              )}
-            >
-              <LayoutGrid className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setView("list")}
-              aria-pressed={view === "list"}
-              className={cn(
-                "h-11 rounded-none",
-                view === "list"
-                  ? "bg-ink text-primary hover:bg-ink/90 hover:text-primary"
-                  : "text-ink",
-              )}
-            >
-              <List className="size-4" />
-            </Button>
-          </div>
         </div>
       </div>
 
+      {filtersOpen && (
+        <div className="mt-3 rounded-xl border border-[#E5E7EB] bg-card p-4 shadow-sm sm:p-5">
+          <FilterOptionsCard
+            bare
+            filters={filters}
+            onToggle={handleToggleFilter}
+            onReset={handleResetFilters}
+            groups={filterGroups}
+          />
+        </div>
+      )}
+
       {loading && rows.length === 0 ? (
-        <div
-          className={cn(
-            "mt-6 grid gap-5",
-            view === "grid" ? "sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1",
-          )}
-        >
+        <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (
             <TileCardSkeleton key={index} />
           ))}
@@ -706,12 +720,7 @@ const AllProducts = ({ rows, loading }: { rows: TilePerformanceRow[]; loading: b
           No products match your search.
         </p>
       ) : (
-        <div
-          className={cn(
-            "mt-6 grid gap-5",
-            view === "grid" ? "sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1",
-          )}
-        >
+        <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {pageItems.map((product) => (
             <TileCard key={product.productId} product={product} />
           ))}
@@ -818,8 +827,24 @@ const AnalyticsTilesPage = () => {
     () => analyticsApi.tiles({ period: range, limit: 100 }),
     [range],
   );
+  // Room type / suitable-for aren't part of the analytics row — fetched
+  // separately, purely to power the same catalog filters the storefront uses.
+  const { data: productsData } = useApi(() => productsApi.list({ limit: 100 }));
 
   const items = useMemo(() => tiles?.table.items ?? [], [tiles]);
+  const filterableItems = useMemo<FilterableTile[]>(() => {
+    const meta = new Map(
+      (productsData?.items ?? []).map((product) => [
+        product.id,
+        { roomTypes: product.roomTypes.map((roomType) => roomTypeLabels[roomType]), suitableFor: suitableForLabels[product.suitableFor] },
+      ]),
+    );
+    return items.map((item) => ({
+      ...item,
+      roomTypes: meta.get(item.productId)?.roomTypes ?? [],
+      suitableFor: meta.get(item.productId)?.suitableFor ?? "both",
+    }));
+  }, [items, productsData]);
   const mostViewedRows = useMemo(
     () => [...items].sort((a, b) => b.viewed - a.viewed).slice(0, 5),
     [items],
@@ -846,7 +871,7 @@ const AnalyticsTilesPage = () => {
             <InteractionOverview tiles={tiles} loading={loading} />
             <PerformanceMetrics rows={mostViewedRows} loading={loading} />
             <MostLikedProducts rows={mostLikedRows} loading={loading} />
-            <AllProducts rows={items} loading={loading} />
+            <AllProducts rows={filterableItems} loading={loading} />
           </>
         )}
       </div>
