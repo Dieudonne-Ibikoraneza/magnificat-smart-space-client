@@ -13,6 +13,7 @@ import {
 import { ApiLoading } from "@/components/api-state";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { PageHeader, type PageHeaderProps } from "@/components/page-header";
+import { DetailPageHeader, type DetailPageHeaderProps } from "@/components/detail-page-header";
 import { useRequireRole } from "@/lib/require-role";
 import { getInitials } from "@/lib/utils";
 
@@ -43,6 +44,11 @@ export const useAnalyticsMenu = () => {
 export const AnalyticsPageHeader = (props: Omit<PageHeaderProps, "onOpenMenu">) => {
   const { openMenu } = useAnalyticsMenu();
   return <PageHeader {...props} onOpenMenu={openMenu} />;
+};
+
+export const AnalyticsDetailHeader = (props: Omit<DetailPageHeaderProps, "onOpenMenu">) => {
+  const { openMenu } = useAnalyticsMenu();
+  return <DetailPageHeader {...props} onOpenMenu={openMenu} />;
 };
 
 const AnalyticsLayout = ({ children }: { children: React.ReactNode }) => {

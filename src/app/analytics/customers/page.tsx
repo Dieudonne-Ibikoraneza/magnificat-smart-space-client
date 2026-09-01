@@ -10,7 +10,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ListFilter, Repeat2, Search, UserRoundPlus, UsersRound } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, ListFilter, Repeat2, Search, UserRoundPlus, UsersRound } from "lucide-react";
 import { AnalyticsPageHeader } from "@/app/analytics/layout";
 import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
@@ -26,6 +27,8 @@ import { useApi } from "@/lib/api/use-api";
 import { hearAboutUsLabels, roomTypeLabels } from "@/lib/api/mappers";
 import type { UserStatus } from "@/lib/api/types";
 import { formatCompactCurrency, getInitials } from "@/lib/utils";
+
+const formatShortDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
 /** A tidy 5-tick 0..max axis scaled to whatever the real data actually is, instead of a fixed scale sized for mock numbers in the thousands. */
 const axisFor = (values: number[]) => {
@@ -149,12 +152,14 @@ const AnalyticsCustomersPage = () => {
       ]
     : [];
 
+  // Room types with zero real customers are dropped rather than plotted as
+  // empty bars — the enum has 8 values, but a young dataset rarely touches
+  // all of them, and an axis full of empty bars just reads as noise.
   const projectTypes: CategoryDatum[] = useMemo(
     () =>
-      (customerAnalytics?.projectTypes ?? []).map((row) => ({
-        category: roomTypeLabels[row.roomType],
-        value: row.customers,
-      })),
+      (customerAnalytics?.projectTypes ?? [])
+        .filter((row) => row.customers > 0)
+        .map((row) => ({ category: roomTypeLabels[row.roomType], value: row.customers })),
     [customerAnalytics],
   );
   const projectTypesAxis = axisFor(projectTypes.map((row) => row.value));
@@ -213,7 +218,7 @@ const AnalyticsCustomersPage = () => {
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <Skeleton className="h-65 w-full sm:h-80" />
             </section>
-          ) : projectTypes.every((row) => row.value === 0) ? (
+          ) : projectTypes.length === 0 ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <h2 className="text-lg font-bold text-ink">Project Types Distribution</h2>
               <p className="mt-1 text-sm text-muted-foreground">Number of customers vs. project type</p>
@@ -254,7 +259,7 @@ const AnalyticsCustomersPage = () => {
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <Skeleton className="h-65 w-full sm:h-80" />
             </section>
-          ) : acquisitionChannels.every((row) => row.value === 0) ? (
+          ) : acquisitionChannels.length === 0 ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <h2 className="text-lg font-bold text-ink">Acquisition Channel</h2>
               <p className="mt-1 text-sm text-muted-foreground">Customers by Source of Discovery</p>
@@ -371,6 +376,12 @@ const AnalyticsCustomersPage = () => {
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">Last Order</dt>
+                      <dd className="whitespace-nowrap font-data text-ink">
+                        {customer.lastOrderAt ? formatShortDate(customer.lastOrderAt) : "—"}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
                       <dt className="text-muted-foreground">Total Orders</dt>
                       <dd className="whitespace-nowrap font-data text-ink">{customer.orderCount}</dd>
                     </div>
@@ -381,6 +392,13 @@ const AnalyticsCustomersPage = () => {
                       </dd>
                     </div>
                   </dl>
+                  <Link
+                    href={`/analytics/customers/${customer.id}`}
+                    className="mt-5 flex items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-bold text-ink transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95"
+                  >
+                    View Details
+                    <ArrowRight className="size-4" />
+                  </Link>
                 </li>
               ))}
             </ul>
