@@ -152,14 +152,10 @@ const AnalyticsCustomersPage = () => {
       ]
     : [];
 
-  // Room types with zero real customers are dropped rather than plotted as
-  // empty bars — the enum has 8 values, but a young dataset rarely touches
-  // all of them, and an axis full of empty bars just reads as noise.
+  // Every room type shown, zero-count ones included — a consistent,
+  // complete axis rather than only whatever this dataset happens to have.
   const projectTypes: CategoryDatum[] = useMemo(
-    () =>
-      (customerAnalytics?.projectTypes ?? [])
-        .filter((row) => row.customers > 0)
-        .map((row) => ({ category: roomTypeLabels[row.roomType], value: row.customers })),
+    () => (customerAnalytics?.projectTypes ?? []).map((row) => ({ category: roomTypeLabels[row.roomType], value: row.customers })),
     [customerAnalytics],
   );
   const projectTypesAxis = axisFor(projectTypes.map((row) => row.value));
@@ -218,7 +214,7 @@ const AnalyticsCustomersPage = () => {
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <Skeleton className="h-65 w-full sm:h-80" />
             </section>
-          ) : projectTypes.length === 0 ? (
+          ) : projectTypes.every((row) => row.value === 0) ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <h2 className="text-lg font-bold text-ink">Project Types Distribution</h2>
               <p className="mt-1 text-sm text-muted-foreground">Number of customers vs. project type</p>
@@ -259,7 +255,7 @@ const AnalyticsCustomersPage = () => {
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <Skeleton className="h-65 w-full sm:h-80" />
             </section>
-          ) : acquisitionChannels.length === 0 ? (
+          ) : acquisitionChannels.every((row) => row.value === 0) ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <h2 className="text-lg font-bold text-ink">Acquisition Channel</h2>
               <p className="mt-1 text-sm text-muted-foreground">Customers by Source of Discovery</p>
