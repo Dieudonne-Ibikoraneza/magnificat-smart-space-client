@@ -25,6 +25,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -57,10 +64,38 @@ import { roomTypeLabels, suitableForLabels } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
 import type { TileAnalytics, TilePerformanceRow } from "@/lib/api/types";
 
-/** `TilePerformanceRow` plus the two catalog attributes only the product record carries — needed for the same Room type / Suitable for filters the storefront catalog uses. */
+/** `TilePerformanceRow` plus the catalog attributes only the product record carries — needed for the same Room type / Suitable for filters the storefront catalog uses, and for the card description. */
 type FilterableTile = TilePerformanceRow & {
   roomTypes: string[];
   suitableFor: "floor" | "wall" | "both";
+  description: string;
+};
+
+type TileSortOption = "viewed" | "saved" | "purchased" | "selectionRate" | "name";
+
+const tileSortLabels: Record<TileSortOption, string> = {
+  viewed: "Most Viewed",
+  saved: "Most Liked",
+  purchased: "Best Selling",
+  selectionRate: "Best Selection Rate",
+  name: "Name (A–Z)",
+};
+
+const sortTiles = (items: FilterableTile[], sortBy: TileSortOption): FilterableTile[] => {
+  const sorted = [...items];
+  switch (sortBy) {
+    case "saved":
+      return sorted.sort((a, b) => b.saved - a.saved);
+    case "purchased":
+      return sorted.sort((a, b) => b.purchased - a.purchased);
+    case "selectionRate":
+      return sorted.sort((a, b) => b.selectionRate - a.selectionRate);
+    case "name":
+      return sorted.sort((a, b) => a.name.localeCompare(b.name));
+    case "viewed":
+    default:
+      return sorted.sort((a, b) => b.viewed - a.viewed);
+  }
 };
 
 const PAGE_SIZE = 10;
@@ -587,6 +622,11 @@ const TileCard = ({ product }: { product: FilterableTile }) => {
           {product.name}
         </h2>
         <p className="text-sm leading-5 text-muted">{product.sku}</p>
+        {product.description ? (
+          <p className="mt-1 line-clamp-2 text-sm leading-5 text-muted-foreground">
+            {product.description}
+          </p>
+        ) : null}
         <div className="mt-auto flex items-center justify-between gap-3 pt-4 sm:pt-5">
           <p className="text-xl font-bold text-ink">
             {product.quantityOnHandSqm.toLocaleString()}{" "}
@@ -622,6 +662,7 @@ const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boole
   const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<TileSortOption>("viewed");
 
   const filterGroups = useMemo(() => buildTileFilterGroups(rows), [rows]);
 
@@ -634,8 +675,8 @@ const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boole
             product.sku.toLowerCase().includes(normalizedQuery),
         )
       : rows;
-    return filterTiles(searched, filters);
-  }, [rows, query, filters]);
+    return sortTiles(filterTiles(searched, filters), sortBy);
+  }, [rows, query, filters, sortBy]);
 
   const handleToggleFilter = (group: keyof CatalogFilters, option: string) => {
     setFilters((current) => toggleFilterOption(current, group, option));
@@ -666,7 +707,7 @@ const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boole
         {results.length.toLocaleString()} Products currently managed
       </p>
 
-      <div className="mt-5 flex flex-col gap-3 rounded-xl border border-[#E5E7EB] bg-card p-4 shadow-sm sm:flex-row sm:items-center">
+      <div className="relative mt-5 flex flex-col gap-3 rounded-xl border border-[#E5E7EB] bg-card p-4 shadow-sm sm:flex-row sm:items-center">
         <div className="relative min-w-0 flex-1">
           <Search className="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -678,6 +719,21 @@ const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boole
             placeholder="Search products, SKUs..."
             className="h-11 rounded-lg pl-11"
           />
+        </div>
+        <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
+          <span className="hidden sm:inline">Sort by:</span>
+          <Select value={sortBy} onValueChange={(value) => { setSortBy(value as TileSortOption); setCurrentPage(1); }}>
+            <SelectTrigger className="h-11 w-full min-w-0 border-border sm:w-44">
+              <SelectValue>{(value) => tileSortLabels[value as TileSortOption]}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(tileSortLabels) as TileSortOption[]).map((option) => (
+                <SelectItem key={option} value={option}>
+                  {tileSortLabels[option]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Button
@@ -695,19 +751,27 @@ const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boole
             )}
           </Button>
         </div>
-      </div>
 
-      {filtersOpen && (
-        <div className="mt-3 rounded-xl border border-[#E5E7EB] bg-card p-4 shadow-sm sm:p-5">
-          <FilterOptionsCard
-            bare
-            filters={filters}
-            onToggle={handleToggleFilter}
-            onReset={handleResetFilters}
-            groups={filterGroups}
-          />
-        </div>
-      )}
+        {filtersOpen && (
+          <>
+            <button
+              type="button"
+              aria-label="Close filters"
+              className="fixed inset-0 z-20 cursor-default"
+              onClick={() => setFiltersOpen(false)}
+            />
+            <div className="absolute top-full right-0 z-30 mt-2 max-h-[70vh] w-full max-w-sm overflow-y-auto rounded-xl border border-[#E5E7EB] bg-card p-4 shadow-[0_14px_32px_rgba(15,39,71,0.16)] sm:p-5">
+              <FilterOptionsCard
+                bare
+                filters={filters}
+                onToggle={handleToggleFilter}
+                onReset={handleResetFilters}
+                groups={filterGroups}
+              />
+            </div>
+          </>
+        )}
+      </div>
 
       {loading && rows.length === 0 ? (
         <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -827,8 +891,9 @@ const AnalyticsTilesPage = () => {
     () => analyticsApi.tiles({ period: range, limit: 100 }),
     [range],
   );
-  // Room type / suitable-for aren't part of the analytics row — fetched
-  // separately, purely to power the same catalog filters the storefront uses.
+  // Room type / suitable-for / description aren't part of the analytics row —
+  // fetched separately, purely to power the same catalog filters (and the
+  // card description) the storefront uses.
   const { data: productsData } = useApi(() => productsApi.list({ limit: 100 }));
 
   const items = useMemo(() => tiles?.table.items ?? [], [tiles]);
@@ -836,13 +901,18 @@ const AnalyticsTilesPage = () => {
     const meta = new Map(
       (productsData?.items ?? []).map((product) => [
         product.id,
-        { roomTypes: product.roomTypes.map((roomType) => roomTypeLabels[roomType]), suitableFor: suitableForLabels[product.suitableFor] },
+        {
+          roomTypes: product.roomTypes.map((roomType) => roomTypeLabels[roomType]),
+          suitableFor: suitableForLabels[product.suitableFor],
+          description: product.description ?? "",
+        },
       ]),
     );
     return items.map((item) => ({
       ...item,
       roomTypes: meta.get(item.productId)?.roomTypes ?? [],
       suitableFor: meta.get(item.productId)?.suitableFor ?? "both",
+      description: meta.get(item.productId)?.description ?? "",
     }));
   }, [items, productsData]);
   const mostViewedRows = useMemo(

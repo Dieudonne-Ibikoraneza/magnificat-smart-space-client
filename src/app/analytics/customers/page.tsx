@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CategoryBarChart, type CategoryDatum } from "@/components/category-bar-chart";
 import { ChartAxisTick } from "@/components/chart-axis-tick";
-import { ConversionFunnel, type ConversionFunnelStage } from "@/components/conversion-funnel";
+import { CustomerConversionFunnel, type ConversionFunnelStage } from "@/components/conversion-funnel";
 import { KpiCards, type KpiCardData } from "@/components/kpi-cards";
 import { Skeleton } from "@/components/ui/skeleton";
 import { analyticsApi, usersApi } from "@/lib/api";
@@ -248,7 +248,7 @@ const AnalyticsCustomersPage = () => {
               <Skeleton className="h-80 w-full" />
             </section>
           ) : (
-            <ConversionFunnel stages={funnelStages} />
+            <CustomerConversionFunnel stages={funnelStages} />
           )}
 
           {analyticsLoading || !customerAnalytics ? (
