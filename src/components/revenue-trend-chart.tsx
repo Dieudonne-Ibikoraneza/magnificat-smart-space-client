@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ChartAxisTick } from "@/components/chart-axis-tick";
-import { cn } from "@/lib/utils";
+import { cn, formatCompactNumber } from "@/lib/utils";
 
 const revenueDatasets = {
   WEEKLY: [
@@ -132,7 +132,7 @@ export const RevenueTrendChart = ({
               tickLine={false}
               axisLine={false}
               width={44}
-              tickFormatter={(value: number) => (value === 0 ? "0" : `${value / 1_000_000}M`)}
+              tickFormatter={(value: number) => (value === 0 ? "0" : formatCompactNumber(value))}
               tick={ChartAxisTick}
             />
             <Tooltip cursor={{ fill: "transparent" }} content={<RevenueTooltip />} />

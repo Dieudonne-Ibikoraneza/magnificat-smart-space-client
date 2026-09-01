@@ -179,28 +179,26 @@ const AnalyticsOverviewPage = () => {
         )}
 
         <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
-          <section className="rounded-2xl bg-card p-5 sm:p-6">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-bold text-ink">Sales Overview</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Revenue Performance</p>
-              </div>
-            </div>
-            <div className="mt-6 sm:mt-8">
-              {overviewLoading || !overview ? (
-                <Skeleton className="h-65 w-full sm:h-80" />
-              ) : overview.revenueTrend.length === 0 ? (
-                <ApiEmptyState message="No sales in this period yet." className="py-16" />
-              ) : (
-                <RevenueTrendChart
-                  title="Sales Overview"
-                  subtitle="Revenue Performance"
-                  range={range}
-                  data={overview.revenueTrend.map((point) => ({ day: point.label, value: point.value }))}
-                />
-              )}
-            </div>
-          </section>
+          {overviewLoading || !overview ? (
+            <section className="rounded-2xl bg-card p-5 sm:p-6">
+              <h2 className="text-lg font-bold text-ink">Sales Overview</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Revenue Performance</p>
+              <Skeleton className="mt-6 h-65 w-full sm:mt-8 sm:h-80" />
+            </section>
+          ) : overview.revenueTrend.length === 0 ? (
+            <section className="rounded-2xl bg-card p-5 sm:p-6">
+              <h2 className="text-lg font-bold text-ink">Sales Overview</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Revenue Performance</p>
+              <ApiEmptyState message="No sales in this period yet." className="py-16" />
+            </section>
+          ) : (
+            <RevenueTrendChart
+              title="Sales Overview"
+              subtitle="Revenue Performance"
+              range={range}
+              data={overview.revenueTrend.map((point) => ({ day: point.label, value: point.value }))}
+            />
+          )}
 
           {overviewLoading || !overview || recommendationsLoading || !recommendations ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
