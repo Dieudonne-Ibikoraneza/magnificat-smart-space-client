@@ -37,3 +37,13 @@ export const formatCompactCurrency = (amount: number, currency = "RWF") => {
   if (value >= 1_000) return `${sign}${currency} ${(value / 1_000).toFixed(1)}K`;
   return `${sign}${currency} ${value.toLocaleString("en-US")}`;
 };
+
+/** 12_400 -> "12.4K" — same compact scaling as `formatCompactCurrency`, for plain counts (views, etc.) with no currency prefix. */
+export const formatCompactNumber = (value: number) => {
+  const sign = value < 0 ? "-" : "";
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000_000) return `${sign}${(abs / 1_000_000_000).toFixed(1)}B`;
+  if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}${(abs / 1_000).toFixed(1)}K`;
+  return `${sign}${abs.toLocaleString("en-US")}`;
+};

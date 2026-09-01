@@ -106,8 +106,9 @@ export const usersApi = {
     api.patch<ApiUser>("/users/me", body),
   closeMyAccount: () => api.delete<ApiUser>("/users/me"),
 
-  listCustomers: (query: { page?: number; limit?: number; search?: string; status?: UserStatus } = {}) =>
-    api.get<Paginated<CustomerSummary>>("/users/customers", { query }),
+  listCustomers: (
+    query: { page?: number; limit?: number; search?: string; status?: UserStatus; sort?: "newest" | "spend" } = {},
+  ) => api.get<Paginated<CustomerSummary>>("/users/customers", { query }),
   getCustomer: (id: string) => api.get<CustomerDetail>(`/users/customers/${id}`),
 
   staffSummary: () => api.get<StaffSummary>("/users/staff/summary"),

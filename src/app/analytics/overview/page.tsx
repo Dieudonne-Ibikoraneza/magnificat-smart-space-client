@@ -15,10 +15,9 @@ import { RevenueTrendChart } from "@/components/revenue-trend-chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { analyticsApi, usersApi } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
-import { formatCompactCurrency } from "@/lib/utils";
+import { formatCompactCurrency, formatCompactNumber, getInitials } from "@/lib/utils";
 
-const getInitials = (name: string) =>
-  name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "?";
+const formatShortDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
 const KpiSkeleton = () => (
   <article className="rounded-2xl bg-card p-5 sm:p-6">
@@ -114,18 +113,23 @@ const AnalyticsOverviewPage = () => {
     () => analyticsApi.overview(range),
     [range],
   );
-  const { data: tiles, loading: tilesLoading } = useApi(() => analyticsApi.tiles({ period: range }), [range]);
+  // Fetches every product's stats for the period (well under the 100 cap)
+  // and ranks by `viewed` client-side — the `table` rows already carry
+  // collection/selectionRate, which the leaderboard alone doesn't.
+  const { data: tiles, loading: tilesLoading } = useApi(() => analyticsApi.tiles({ period: range, limit: 100 }), [range]);
   const { data: recommendations, loading: recommendationsLoading } = useApi(
     () => analyticsApi.tileRecommendations({ period: range }),
     [range],
   );
-  const { data: customersData, loading: customersLoading } = useApi(() => usersApi.listCustomers({ limit: 100 }));
+  // `sort: "spend"` ranks server-side, so this asks for exactly the 5 rows
+  // shown instead of over-fetching and sorting a page client-side.
+  const { data: customersData, loading: customersLoading } = useApi(() => usersApi.listCustomers({ sort: "spend", limit: 5 }));
 
-  const topTiles = useMemo(() => tiles?.leaderboards.mostViewed.slice(0, 3) ?? [], [tiles]);
-  const topCustomers = useMemo(
-    () => [...(customersData?.items ?? [])].sort((a, b) => b.lifetimeSpend - a.lifetimeSpend).slice(0, 4),
-    [customersData],
+  const topTiles = useMemo(
+    () => [...(tiles?.table.items ?? [])].sort((a, b) => b.viewed - a.viewed).slice(0, 5),
+    [tiles],
   );
+  const topCustomers = customersData?.items ?? [];
 
   const kpis: KpiCardData[] = overview
     ? [
@@ -244,9 +248,11 @@ const AnalyticsOverviewPage = () => {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-ink">{tile.name}</p>
+                        <p className="truncate text-xs text-muted-foreground">{tile.collection}</p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="text-sm font-semibold text-ink">{tile.count.toLocaleString()} views</p>
+                        <p className="text-sm font-semibold text-ink">{formatCompactNumber(tile.viewed)} views</p>
+                        <p className="mt-0.5 text-xs font-semibold text-green-600">{tile.selectionRate.toFixed(1)}% selection</p>
                       </div>
                     </Link>
                   </li>
@@ -287,7 +293,11 @@ const AnalyticsOverviewPage = () => {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-ink">{customer.fullName}</p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {customer.orderCount} Order{customer.orderCount === 1 ? "" : "s"}
+                          {customer.firstOrderAt && customer.lastOrderAt
+                            ? customer.firstOrderAt === customer.lastOrderAt
+                              ? formatShortDate(customer.firstOrderAt)
+                              : `${formatShortDate(customer.firstOrderAt)} – ${formatShortDate(customer.lastOrderAt)}`
+                            : "No orders yet"}
                         </p>
                       </div>
                       <span className="shrink-0 font-data text-sm font-semibold text-ink">

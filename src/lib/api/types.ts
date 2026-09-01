@@ -103,6 +103,7 @@ export type OtpSendResult = { message: string; expiresInSeconds: number };
 export type CustomerSummary = ApiUser & {
   orderCount: number;
   lifetimeSpend: number;
+  firstOrderAt: string | null;
   lastOrderAt: string | null;
 };
 
