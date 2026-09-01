@@ -65,6 +65,7 @@ export const OrderQuotationPanel = ({
   transportFee,
   transportFeeNote,
   canManage,
+  canEditDelivery = true,
   autoOpenDelivery,
   onUpdated,
 }: {
@@ -80,6 +81,8 @@ export const OrderQuotationPanel = ({
   transportFee: number | null;
   transportFeeNote?: string | null;
   canManage: boolean;
+  /** Off for a pure view-only surface (e.g. analytics) — every other role can add/edit delivery details regardless of `canManage`. */
+  canEditDelivery?: boolean;
   /** Opens the "Add delivery details" dialog immediately — right after a staff member creates this order, so they add it as one continuous flow instead of a separate click later. */
   autoOpenDelivery?: boolean;
   /** Called after a successful action so the parent can refetch the order. */
@@ -99,7 +102,7 @@ export const OrderQuotationPanel = ({
   // delivery details lock the moment a quotation goes out (the transport fee
   // was costed against exactly this address), and everything locks once the
   // order is cancelled.
-  const deliveryEditable = quotationStatus === "AWAITING_REVIEW" && !orderCancelled;
+  const deliveryEditable = canEditDelivery && quotationStatus === "AWAITING_REVIEW" && !orderCancelled;
 
   const handleSaveDelivery = async (values: DeliveryDetails) => {
     setSavingDelivery(true);
@@ -192,7 +195,7 @@ export const OrderQuotationPanel = ({
               }
             />
           ) : (
-            !deliveryDetails && <span className="text-[11px] font-medium text-muted-foreground">Locked</span>
+            canEditDelivery && !deliveryDetails && <span className="text-[11px] font-medium text-muted-foreground">Locked</span>
           )}
         </div>
         {deliveryDetails ? (
@@ -206,9 +209,11 @@ export const OrderQuotationPanel = ({
           <p className="mt-2 text-sm text-muted-foreground">
             {orderCancelled
               ? "This order was cancelled before delivery details were added."
-              : deliveryEditable
-                ? "Not added yet — either the customer or your team can add it."
-                : "No delivery details were added before the quotation was sent."}
+              : !canEditDelivery
+                ? "Not added yet."
+                : deliveryEditable
+                  ? "Not added yet — either the customer or your team can add it."
+                  : "No delivery details were added before the quotation was sent."}
           </p>
         )}
       </div>

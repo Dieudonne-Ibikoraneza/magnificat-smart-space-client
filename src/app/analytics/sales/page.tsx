@@ -270,10 +270,10 @@ const RecentOrders = ({ orders, loading, error, onRetry }: { orders: ApiOrder[];
                   </div>
                 </dl>
                 <Link
-                  href={`/analytics/customers/${order.customerId}`}
+                  href={`/analytics/orders/${order.id}`}
                   className="mt-5 flex items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-bold text-ink transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95"
                 >
-                  View Customer
+                  View Details
                   <ArrowRight className="size-4" />
                 </Link>
               </li>
