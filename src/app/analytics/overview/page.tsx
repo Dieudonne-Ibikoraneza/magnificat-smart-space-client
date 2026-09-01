@@ -1,251 +1,108 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Line, LineChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Coins, CircleCheckBig, ExternalLink, Repeat2, UsersRound } from "lucide-react";
 import { AnalyticsPageHeader } from "@/app/analytics/layout";
 import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
-import { ChartAxisTick } from "@/components/chart-axis-tick";
-import { ConversionFunnel } from "@/components/conversion-funnel";
+import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
+import { ConversionFunnel, type ConversionFunnelStage } from "@/components/conversion-funnel";
 import { KpiCards, type KpiCardData } from "@/components/kpi-cards";
 import { RevenueTrendChart } from "@/components/revenue-trend-chart";
-import { products } from "@/data/catalog";
-import { salesCustomers } from "@/data/sales-customers";
+import { Skeleton } from "@/components/ui/skeleton";
+import { analyticsApi, usersApi } from "@/lib/api";
+import { useApi } from "@/lib/api/use-api";
+import { formatCompactCurrency } from "@/lib/utils";
 
-const recommendationData = [
-  { day: "Mon", matchScore: 18, acceptance: 5 },
-  { day: "Tue", matchScore: 32, acceptance: 34 },
-  { day: "Wed", matchScore: 45, acceptance: 48 },
-  { day: "Thu", matchScore: 50, acceptance: 45 },
-  { day: "Fri", matchScore: 42, acceptance: 62 },
-  { day: "Sat", matchScore: 56, acceptance: 85 },
-  { day: "Sun", matchScore: 46, acceptance: 55 },
-];
+const getInitials = (name: string) =>
+  name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "?";
 
-const kpis: KpiCardData[] = [
-  { label: "Total Sales (RWF)", value: "128.5M", icon: Coins, trend: "+12%" },
-  { label: "Total Customers", value: "842", icon: UsersRound, trend: "+8.4%" },
-  { label: "Repeat Purchase Rate", value: "68%", icon: Repeat2, trend: "+5%" },
-  {
-    label: "Recommendation Acceptance Rate",
-    value: "82%",
-    icon: CircleCheckBig,
-    badge: { label: "Good", icon: CircleCheckBig },
-  },
-];
+const KpiSkeleton = () => (
+  <article className="rounded-2xl bg-card p-5 sm:p-6">
+    <Skeleton className="size-5" />
+    <Skeleton className="mt-6 h-3 w-24" />
+    <Skeleton className="mt-2 h-8 w-16" />
+  </article>
+);
 
-const topTiles = products.slice(0, 3).map((product, index) => ({
-  ...product,
-  views: "12.4K views",
-  selection: [12, 10.1, 9.2][index],
-}));
-
-const topCustomers = salesCustomers.slice(0, 4).map((customer) => ({
-  slug: customer.slug,
-  initials: customer.name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase(),
-  name: customer.name,
-  meta: `${customer.orders.length} Orders • Last ${customer.lastOrder}`,
-  amount: customer.lifetimeSpend,
-}));
-
-const RecommendationTooltip = ({
-  active,
-  payload,
-  label,
+const AiRecommendationsPanel = ({
+  totalRecommendations,
+  acceptanceRate,
+  averageMatchScore,
 }: {
-  active?: boolean;
-  payload?: Array<{ name?: string; value: number }>;
-  label?: string;
-}) => {
-  if (!active || !payload?.length) return null;
-
-  return (
-    <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
-      <p className="font-data text-xs font-semibold tracking-widest text-data-ink">
-        {label}
-      </p>
-      <div className="mt-1 space-y-0.5 font-data text-sm text-ink">
-        {payload.map((entry) => (
-          <p key={entry.name}>
-            {entry.name === "acceptance" ? "Acceptance" : "Match Score"}:{" "}
-            {entry.value}
-          </p>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const AiRecommendationChart = () => (
+  totalRecommendations: number;
+  acceptanceRate: number;
+  averageMatchScore: number;
+}) => (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
-    <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="flex items-center justify-between gap-3">
       <div>
-        <h2 className="text-lg font-bold text-ink">AI Recommendation</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          AI Recommendations match score vs acceptance rate
-        </p>
+        <h2 className="text-lg font-bold text-ink">AI Recommendations</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Tile-matching performance this period</p>
       </div>
-      <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-ink/60" /> Match Score
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-primary" /> Acceptance
-        </span>
-      </div>
-    </div>
-    <div className="mt-6 h-65 w-full font-data sm:mt-8 sm:h-80">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart
-          data={recommendationData}
-          margin={{ top: 8, right: 4, left: 0, bottom: 24 }}
-        >
-          <CartesianGrid
-            vertical={false}
-            strokeDasharray="4 4"
-            stroke="var(--border)"
-          />
-          <XAxis
-            dataKey="day"
-            tickLine={false}
-            axisLine={false}
-            tick={ChartAxisTick}
-          />
-          <YAxis
-            tickLine={false}
-            axisLine={false}
-            width={32}
-            domain={[0, 100]}
-            tick={ChartAxisTick}
-          />
-          <Tooltip
-            cursor={{ stroke: "var(--border)" }}
-            content={<RecommendationTooltip />}
-          />
-          <Line
-            type="monotone"
-            dataKey="matchScore"
-            name="matchScore"
-            stroke="#d1d5db"
-            strokeWidth={2}
-            dot={false}
-            animationDuration={700}
-          />
-          <Line
-            type="monotone"
-            dataKey="acceptance"
-            name="acceptance"
-            stroke="var(--primary)"
-            strokeWidth={2.5}
-            dot={false}
-            animationDuration={700}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  </section>
-);
-
-const TopPerformingTiles = () => (
-  <section className="rounded-2xl bg-card p-5 sm:p-6">
-    <div className="flex items-center justify-between gap-3">
-      <h2 className="text-lg font-bold text-ink">Top Performing Tiles</h2>
-      <Link
-        href="/analytics/tiles"
-        className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline"
-      >
+      <Link href="/analytics/ai" className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline">
         <ExternalLink className="size-3.5" /> View All
       </Link>
     </div>
-    <ul className="mt-4">
-      {topTiles.map((tile, index) => (
-        <li
-          key={tile.id}
-          className={index > 0 ? "border-t border-border" : undefined}
-        >
-          <div className="flex items-center gap-3 py-4">
-            <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-              <Image
-                src={tile.image}
-                alt={tile.name}
-                fill
-                unoptimized
-                className="object-cover"
-                sizes="56px"
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-ink">
-                {tile.name}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {tile.collection}
-              </p>
-            </div>
-            <div className="shrink-0 text-right">
-              <p className="text-sm font-semibold text-ink">{tile.views}</p>
-              <p className="mt-0.5 text-xs font-semibold text-green-600">
-                {tile.selection}% selection
-              </p>
-            </div>
-          </div>
-        </li>
-      ))}
-    </ul>
-  </section>
-);
-
-const TopCustomers = () => (
-  <section className="rounded-2xl bg-card p-5 sm:p-6">
-    <div className="flex items-center justify-between gap-3">
-      <h2 className="text-lg font-bold text-ink">Top Customers</h2>
-      <Link
-        href="/sales/customers"
-        className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline"
-      >
-        <ExternalLink className="size-3.5" /> View All
-      </Link>
+    <div className="mt-8 grid grid-cols-3 gap-4 sm:mt-10">
+      <div>
+        <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">Recommendations</p>
+        <p className="mt-2 text-3xl font-black text-ink">{totalRecommendations.toLocaleString()}</p>
+      </div>
+      <div>
+        <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">Acceptance Rate</p>
+        <p className="mt-2 text-3xl font-black text-ink">{acceptanceRate.toFixed(0)}%</p>
+      </div>
+      <div>
+        <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">Avg. Match Score</p>
+        <p className="mt-2 text-3xl font-black text-ink">{averageMatchScore.toFixed(0)}%</p>
+      </div>
     </div>
-    <ul className="mt-4">
-      {topCustomers.map((customer, index) => (
-        <li
-          key={customer.slug}
-          className={index > 0 ? "border-t border-border" : undefined}
-        >
-          <Link
-            href={`/sales/customers/${customer.slug}`}
-            className="flex items-center gap-3 py-4 transition-colors hover:bg-secondary/60"
-          >
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-semibold text-card">
-              {customer.initials}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-ink">
-                {customer.name}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {customer.meta}
-              </p>
-            </div>
-            <span className="shrink-0 font-data text-sm font-semibold text-ink">
-              {customer.amount}
-            </span>
-          </Link>
-        </li>
-      ))}
-    </ul>
   </section>
 );
 
 const AnalyticsOverviewPage = () => {
   const [period, setPeriod] = useState<AnalyticsPeriodDays>(7);
+  const range = periodToRange[period];
+
+  const { data: overview, loading: overviewLoading, error: overviewError, reload: reloadOverview } = useApi(
+    () => analyticsApi.overview(range),
+    [range],
+  );
+  const { data: tiles, loading: tilesLoading } = useApi(() => analyticsApi.tiles({ period: range }), [range]);
+  const { data: customersData, loading: customersLoading } = useApi(() => usersApi.listCustomers({ limit: 100 }));
+
+  const topTiles = useMemo(() => tiles?.leaderboards.mostViewed.slice(0, 3) ?? [], [tiles]);
+  const topCustomers = useMemo(
+    () => [...(customersData?.items ?? [])].sort((a, b) => b.lifetimeSpend - a.lifetimeSpend).slice(0, 4),
+    [customersData],
+  );
+
+  const kpis: KpiCardData[] = overview
+    ? [
+        { label: "Total Sales (RWF)", value: formatCompactCurrency(overview.totalSales), icon: Coins },
+        { label: "Total Customers", value: overview.totalCustomers.toLocaleString(), icon: UsersRound },
+        { label: "Repeat Purchase Rate", value: `${overview.repeatPurchaseRate.toFixed(0)}%`, icon: Repeat2 },
+        {
+          label: "Recommendation Acceptance Rate",
+          value: `${overview.recommendationAcceptanceRate.toFixed(0)}%`,
+          icon: CircleCheckBig,
+        },
+      ]
+    : [];
+
+  const funnelStages: ConversionFunnelStage[] = useMemo(() => {
+    if (!overview) return [];
+    return overview.funnel.map((row, index) => {
+      const previous = index === 0 ? null : overview.funnel[index - 1];
+      return {
+        stage: row.stage,
+        customers: row.customers,
+        conversionFromPrevious: previous ? (previous.customers > 0 ? Math.round((row.customers / previous.customers) * 100) : 0) : undefined,
+      };
+    });
+  }, [overview]);
 
   return (
     <>
@@ -256,20 +113,146 @@ const AnalyticsOverviewPage = () => {
         <AnalyticsPeriodSwitcher period={period} onChange={setPeriod} />
       </AnalyticsPageHeader>
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
-        <KpiCards items={kpis} />
+        {overviewError ? (
+          <ApiErrorState message={overviewError} onRetry={reloadOverview} className="my-8" />
+        ) : overviewLoading || !overview ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <KpiSkeleton />
+            <KpiSkeleton />
+            <KpiSkeleton />
+            <KpiSkeleton />
+          </div>
+        ) : (
+          <KpiCards items={kpis} />
+        )}
+
         <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
-          <RevenueTrendChart
-            title="Sales Overview"
-            subtitle="Revenue Performance"
-            range={periodToRange[period]}
-          />
-          <AiRecommendationChart />
+          <section className="rounded-2xl bg-card p-5 sm:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-ink">Sales Overview</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Revenue Performance</p>
+              </div>
+            </div>
+            <div className="mt-6 sm:mt-8">
+              {overviewLoading || !overview ? (
+                <Skeleton className="h-65 w-full sm:h-80" />
+              ) : overview.revenueTrend.length === 0 ? (
+                <ApiEmptyState message="No sales in this period yet." className="py-16" />
+              ) : (
+                <RevenueTrendChart
+                  title="Sales Overview"
+                  subtitle="Revenue Performance"
+                  range={range}
+                  data={overview.revenueTrend.map((point) => ({ day: point.label, value: point.value }))}
+                />
+              )}
+            </div>
+          </section>
+
+          {overviewLoading || !overview ? (
+            <section className="rounded-2xl bg-card p-5 sm:p-6">
+              <Skeleton className="h-65 w-full sm:h-80" />
+            </section>
+          ) : (
+            <AiRecommendationsPanel
+              totalRecommendations={overview.totalRecommendations}
+              acceptanceRate={overview.recommendationAcceptanceRate}
+              averageMatchScore={overview.averageMatchScore}
+            />
+          )}
         </div>
+
         <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
-          <TopPerformingTiles />
-          <TopCustomers />
+          <section className="rounded-2xl bg-card p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-bold text-ink">Top Viewed Tiles</h2>
+              <Link href="/analytics/tiles" className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline">
+                <ExternalLink className="size-3.5" /> View All
+              </Link>
+            </div>
+            {tilesLoading ? (
+              <div className="mt-4 space-y-4">
+                {[0, 1, 2].map((item) => (
+                  <div key={item} className="flex items-center gap-3">
+                    <Skeleton className="size-14 shrink-0 rounded-lg" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-3.5 w-2/3" />
+                      <Skeleton className="h-3 w-1/3" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : topTiles.length === 0 ? (
+              <ApiEmptyState message="No tile activity yet." className="py-10" />
+            ) : (
+              <ul className="mt-4">
+                {topTiles.map((tile, index) => (
+                  <li key={tile.productId} className={index > 0 ? "border-t border-border" : undefined}>
+                    <Link href="/analytics/tiles" className="flex items-center gap-3 py-4 transition-colors hover:bg-secondary/40">
+                      <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted-background">
+                        {tile.image && <Image src={tile.image} alt={tile.name} fill unoptimized className="object-cover" sizes="56px" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-ink">{tile.name}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-semibold text-ink">{tile.count.toLocaleString()} views</p>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="rounded-2xl bg-card p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-bold text-ink">Top Customers</h2>
+              <Link href="/analytics/customers" className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline">
+                <ExternalLink className="size-3.5" /> View All
+              </Link>
+            </div>
+            {customersLoading ? (
+              <div className="mt-4 space-y-4">
+                {[0, 1, 2].map((item) => (
+                  <div key={item} className="flex items-center gap-3">
+                    <Skeleton className="size-10 shrink-0 rounded-full" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-3.5 w-2/3" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : topCustomers.length === 0 ? (
+              <ApiEmptyState message="No customers yet." className="py-10" />
+            ) : (
+              <ul className="mt-4">
+                {topCustomers.map((customer, index) => (
+                  <li key={customer.id} className={index > 0 ? "border-t border-border" : undefined}>
+                    <div className="flex items-center gap-3 py-4">
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-semibold text-card">
+                        {getInitials(customer.fullName)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-ink">{customer.fullName}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {customer.orderCount} Order{customer.orderCount === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                      <span className="shrink-0 font-data text-sm font-semibold text-ink">
+                        {formatCompactCurrency(customer.lifetimeSpend)}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
-        <ConversionFunnel />
+
+        {overview && <ConversionFunnel stages={funnelStages} />}
       </div>
     </>
   );

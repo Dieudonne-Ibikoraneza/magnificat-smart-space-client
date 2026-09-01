@@ -69,15 +69,18 @@ export const RevenueTrendChart = ({
   title,
   subtitle,
   range: controlledRange,
+  data: realData,
 }: {
   title: string;
   subtitle: string;
   range?: keyof typeof revenueDatasets;
+  /** Real trend points, e.g. from `AnalyticsOverview.revenueTrend` — overrides the built-in sample data below. When passed, the internal WEEKLY/MONTHLY/YEARLY toggle also hides, since `range` (from the caller's own period switcher) already controls what was fetched. */
+  data?: { day: string; value: number }[];
 }) => {
   const [internalRange, setInternalRange] = useState<keyof typeof revenueDatasets>("WEEKLY");
   const [hovered, setHovered] = useState<number | null>(null);
   const range = controlledRange ?? internalRange;
-  const data = revenueDatasets[range];
+  const data = realData ?? revenueDatasets[range];
 
   return (
     <section className="rounded-2xl bg-card p-5 sm:p-6">
@@ -86,7 +89,7 @@ export const RevenueTrendChart = ({
           <h2 className="text-lg font-bold text-ink">{title}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
         </div>
-        {controlledRange === undefined && (
+        {controlledRange === undefined && realData === undefined && (
           <div className="flex h-9 items-center rounded-lg border border-border bg-background p-1">
             {(["WEEKLY", "MONTHLY", "YEARLY"] as const).map((item) => (
               <button
