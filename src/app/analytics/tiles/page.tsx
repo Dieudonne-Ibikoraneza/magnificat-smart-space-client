@@ -18,10 +18,10 @@ import {
   Search,
   ShoppingBasket,
   Wallet,
-  TrendingUp,
 } from "lucide-react";
 import { AnalyticsPageHeader } from "@/app/analytics/layout";
-import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays, type AnalyticsRange } from "@/components/analytics-period-switcher";
+import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
+import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,260 +49,249 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getVisiblePages } from "@/lib/catalog-utils";
-import { cn } from "@/lib/utils";
-import { inventoryProducts } from "@/data/inventory";
+import { cn, formatCompactNumber } from "@/lib/utils";
+import { analyticsApi } from "@/lib/api";
+import { useApi } from "@/lib/api/use-api";
+import type { TileAnalytics, TilePerformanceRow } from "@/lib/api/types";
 
 const PAGE_SIZE = 10;
-const TOTAL_PAGES = 103;
-const TOTAL_RESULTS = 842;
 
-type TilesKpi =
-  | { label: string; value: string; sub: string; icon: typeof Eye }
-  | { label: string; value: string; badge: string; icon: typeof Eye };
+type TilesKpi = { label: string; value: string; sub: string; icon: typeof Eye };
 
-const periodFactor: Record<AnalyticsRange, number> = { WEEKLY: 0.24, MONTHLY: 1, YEARLY: 11.8 };
-const baseInteractionCount = 12_400;
-const formatCompactCount = (value: number) =>
-  value >= 1_000 ? `${(value / 1_000).toFixed(1)}K` : value.toLocaleString("en-US");
-
-const getKpis = (range: AnalyticsRange): TilesKpi[] => {
-  const count = formatCompactCount(Math.round(baseInteractionCount * periodFactor[range]));
+const getKpis = (tiles: TileAnalytics): TilesKpi[] => {
+  const topViewed = tiles.leaderboards.mostViewed[0];
+  const topApplied = tiles.leaderboards.mostApplied[0];
+  const topPurchased = tiles.leaderboards.mostPurchased[0];
 
   return [
     {
       label: "Most Viewed",
-      value: "Calacatta Gold Polished",
-      sub: `${count} views`,
+      value: topViewed?.name ?? "No data yet",
+      sub: topViewed ? `${formatCompactNumber(topViewed.count)} views` : "0 views",
       icon: Eye,
     },
     {
       label: "Most Applied",
-      value: "Calacatta Gold Polished",
-      sub: `${count} applications`,
+      value: topApplied?.name ?? "No data yet",
+      sub: topApplied ? `${formatCompactNumber(topApplied.count)} applications` : "0 applications",
       icon: MousePointerSquareDashed,
     },
     {
       label: "Most Purchased",
-      value: "Calacatta Gold Polished",
-      sub: `${count} sales`,
+      value: topPurchased?.name ?? "No data yet",
+      sub: topPurchased ? `${formatCompactNumber(topPurchased.count)} sales` : "0 sales",
       icon: ShoppingBasket,
     },
     {
       label: "Avg. Selection Rate",
-      value: "18.4%",
-      badge: "12.4%",
+      value: `${tiles.summary.averageSelectionRate.toFixed(1)}%`,
+      sub: `${formatCompactNumber(tiles.summary.totalViews)} total views`,
       icon: MousePointerClick,
     },
-    { label: "Avg. Conversion", value: "12%", badge: "2.4%", icon: Wallet },
+    {
+      label: "Avg. Conversion",
+      value: `${tiles.summary.averagePurchaseConversion.toFixed(1)}%`,
+      sub: "Views to purchase",
+      icon: Wallet,
+    },
   ];
 };
 
-const mostViewedTiles = inventoryProducts.slice(0, 3).map((product, index) => ({
-  ...product,
-  selection: [12, 10.1, 9.2][index],
-}));
-
-const mostAppliedTiles = inventoryProducts
-  .slice(3, 6)
-  .map((product, index) => ({
-    ...product,
-    size3d: ["60x60cm", "30x60cm", "15x90cm"][index],
-    units: [420, 80, 92][index],
-  }));
-
-const performanceProducts = [
-  {
-    id: inventoryProducts[0].id,
-    name: "Calacatta Gold",
-    collection: "120x60cm Premium Slabs",
-    description: "A timeless Italian classic with bold gold veining.",
-    image: inventoryProducts[0].image,
-    sku: "SLB-CG-001",
-    currentStock: 1_240,
-    soldStock: 580,
-    soldStockLevel: "healthy" as const,
-  },
-  {
-    id: inventoryProducts[1].id,
-    name: "Nero Marquina",
-    collection: "80x80cm Luxury Black Series",
-    description: "Deep black marble with striking white lightning veins.",
-    image: inventoryProducts[1].image,
-    sku: "SLB-NM-042",
-    currentStock: 1_080,
-    soldStock: 45,
-    soldStockLevel: "low" as const,
-  },
-  {
-    id: inventoryProducts[2].id,
-    name: "Carrara White",
-    collection: "10x30cm Classic Subway Collection",
-    description: "Elegant and versatile tiles for modern kitchen backsplashes.",
-    image: inventoryProducts[2].image,
-    sku: "SUB-CW-105",
-    currentStock: 512,
-    soldStock: 14,
-    soldStockLevel: "critical" as const,
-  },
-  {
-    id: inventoryProducts[3].id,
-    name: "Ocean Hex Mosaic",
-    collection: "30x30cm Coastal Geometric Series",
-    description: "Vibrant teal and gold accents inspired by the sea.",
-    image: inventoryProducts[3].image,
-    sku: "MOS-OH-332",
-    currentStock: 480,
-    soldStock: 520,
-    soldStockLevel: "healthy" as const,
-  },
-];
-
-const stockLevelDot = {
-  healthy: "bg-green-500",
-  low: "bg-amber-500",
-  critical: "bg-red-500",
+const stockStatusMeta = {
+  in_stock: { label: "In stock", dot: "bg-green-500", text: "text-green-700" },
+  low_stock: { label: "Low stock", dot: "bg-amber-500", text: "text-amber-600" },
+  out_of_stock: { label: "Out of stock", dot: "bg-red-500", text: "text-red-600" },
 } as const;
 
-const stockLevelText = {
-  healthy: "text-ink",
-  low: "text-amber-600",
-  critical: "text-red-600",
-} as const;
+const KpiSkeleton = () => (
+  <article className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
+    <Skeleton className="size-5" />
+    <Skeleton className="mt-6 h-3 w-20" />
+    <Skeleton className="mt-2 h-6 w-32" />
+    <Skeleton className="mt-2 h-3 w-24" />
+  </article>
+);
 
-const filteredProducts = inventoryProducts.slice(0, PAGE_SIZE);
+const KpiCards = ({ tiles, loading }: { tiles: TileAnalytics | undefined; loading: boolean }) => {
+  if (loading && !tiles) {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <KpiSkeleton key={index} />
+        ))}
+      </div>
+    );
+  }
 
-const KpiCards = ({ kpis }: { kpis: TilesKpi[] }) => (
-  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-    {kpis.map((kpi) => {
-      const Icon = kpi.icon;
-      return (
-        <article
-          key={kpi.label}
-          className="flex flex-col rounded-2xl bg-card p-5 sm:p-6"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <Icon className="size-5 stroke-2 text-ink" />
-            {"badge" in kpi ? (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-[11px] font-bold text-green-700">
-                <MousePointerClick className="size-3" />
-                {kpi.badge}
-              </span>
-            ) : null}
-          </div>
-          <p className="mt-4 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-            {kpi.label}
-          </p>
-          <p className="mt-1 truncate text-xl font-black text-ink">
-            {kpi.value}
-          </p>
-          {"sub" in kpi ? (
+  if (!tiles) return null;
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {getKpis(tiles).map((kpi) => {
+        const Icon = kpi.icon;
+        return (
+          <article
+            key={kpi.label}
+            className="flex flex-col rounded-2xl bg-card p-5 sm:p-6"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <Icon className="size-5 stroke-2 text-ink" />
+            </div>
+            <p className="mt-4 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {kpi.label}
+            </p>
+            <p className="mt-1 truncate text-xl font-black text-ink">
+              {kpi.value}
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">{kpi.sub}</p>
-          ) : null}
-        </article>
-      );
-    })}
-  </div>
-);
-
-const InteractionOverview = () => (
-  <section>
-    <h2 className="text-lg font-bold text-ink">Interaction Overview</h2>
-    <p className="mt-1 text-sm text-muted-foreground">
-      Snapshot of most viewed and applied tiles.
-    </p>
-    <div className="mt-5 grid gap-5 sm:gap-6 xl:grid-cols-2">
-      <div className="rounded-2xl bg-card p-5 sm:p-6">
-        <h3 className="text-lg font-bold text-ink">Most Viewed Tiles</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Top picks based on viewer popularity
-        </p>
-        <ul className="mt-4">
-          {mostViewedTiles.map((tile, index) => (
-            <li
-              key={tile.id}
-              className={index > 0 ? "border-t border-border" : undefined}
-            >
-              <div className="flex items-center gap-3 py-4">
-                <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-                  <Image
-                    src={tile.image}
-                    alt={tile.displayName}
-                    fill
-                    unoptimized
-                    className="object-cover"
-                    sizes="56px"
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-ink">
-                    {tile.displayName}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    Marble Series
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="font-data text-sm font-semibold text-ink">
-                    12.4K views
-                  </p>
-                  <p className="mt-0.5 text-xs font-semibold text-green-600">
-                    {tile.selection}% selection
-                  </p>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className="rounded-2xl bg-card p-5 sm:p-6">
-        <h3 className="text-lg font-bold text-ink">Most Applied in 3D Rooms</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          By selection rate in rooms display.
-        </p>
-        <ul className="mt-4">
-          {mostAppliedTiles.map((tile, index) => (
-            <li
-              key={tile.id}
-              className={index > 0 ? "border-t border-border" : undefined}
-            >
-              <div className="flex items-center gap-3 py-4">
-                <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-                  <Image
-                    src={tile.image}
-                    alt={tile.displayName}
-                    fill
-                    unoptimized
-                    className="object-cover"
-                    sizes="56px"
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-ink">
-                    {tile.displayName}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    Marble Series . {tile.size3d}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="font-data text-sm font-semibold text-ink">
-                    12.4K Applications
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {tile.units} units
-                  </p>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
+          </article>
+        );
+      })}
     </div>
-  </section>
+  );
+};
+
+const TileListSkeleton = () => (
+  <ul className="mt-4">
+    {Array.from({ length: 3 }).map((_, index) => (
+      <li key={index} className={index > 0 ? "border-t border-border" : undefined}>
+        <div className="flex items-center gap-3 py-4">
+          <Skeleton className="size-14 shrink-0 rounded-lg" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-3.5 w-2/3" />
+            <Skeleton className="h-3 w-1/3" />
+          </div>
+        </div>
+      </li>
+    ))}
+  </ul>
 );
 
-const PerformanceMetrics = () => (
+const InteractionOverview = ({ tiles, loading }: { tiles: TileAnalytics | undefined; loading: boolean }) => {
+  const mostViewed = tiles?.leaderboards.mostViewed.slice(0, 3) ?? [];
+  const mostApplied = tiles?.leaderboards.mostApplied.slice(0, 3) ?? [];
+
+  return (
+    <section>
+      <h2 className="text-lg font-bold text-ink">Interaction Overview</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Snapshot of most viewed and applied tiles.
+      </p>
+      <div className="mt-5 grid gap-5 sm:gap-6 xl:grid-cols-2">
+        <div className="rounded-2xl bg-card p-5 sm:p-6">
+          <h3 className="text-lg font-bold text-ink">Most Viewed Tiles</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Top picks based on viewer popularity
+          </p>
+          {loading && !tiles ? (
+            <TileListSkeleton />
+          ) : mostViewed.length === 0 ? (
+            <ApiEmptyState message="No views recorded yet for this period." className="mt-4" />
+          ) : (
+            <ul className="mt-4">
+              {mostViewed.map((tile, index) => (
+                <li
+                  key={tile.productId}
+                  className={index > 0 ? "border-t border-border" : undefined}
+                >
+                  <Link
+                    href={`/analytics/tiles/${tile.productId}`}
+                    className="flex items-center gap-3 py-4"
+                  >
+                    <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted-background">
+                      {tile.image && (
+                        <Image
+                          src={tile.image}
+                          alt={tile.name}
+                          fill
+                          unoptimized
+                          className="object-cover"
+                          sizes="56px"
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-ink">
+                        {tile.name}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-data text-sm font-semibold text-ink">
+                        {formatCompactNumber(tile.count)} views
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="rounded-2xl bg-card p-5 sm:p-6">
+          <h3 className="text-lg font-bold text-ink">Most Applied in 3D Rooms</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            By selection rate in rooms display.
+          </p>
+          {loading && !tiles ? (
+            <TileListSkeleton />
+          ) : mostApplied.length === 0 ? (
+            <ApiEmptyState message="No room applications recorded yet for this period." className="mt-4" />
+          ) : (
+            <ul className="mt-4">
+              {mostApplied.map((tile, index) => (
+                <li
+                  key={tile.productId}
+                  className={index > 0 ? "border-t border-border" : undefined}
+                >
+                  <Link
+                    href={`/analytics/tiles/${tile.productId}`}
+                    className="flex items-center gap-3 py-4"
+                  >
+                    <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted-background">
+                      {tile.image && (
+                        <Image
+                          src={tile.image}
+                          alt={tile.name}
+                          fill
+                          unoptimized
+                          className="object-cover"
+                          sizes="56px"
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-ink">
+                        {tile.name}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-data text-sm font-semibold text-ink">
+                        {formatCompactNumber(tile.count)} Applications
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const TableRowSkeleton = ({ columns }: { columns: number }) => (
+  <TableRow>
+    {Array.from({ length: columns }).map((_, index) => (
+      <TableCell key={index}>
+        <Skeleton className="h-4 w-20" />
+      </TableCell>
+    ))}
+  </TableRow>
+);
+
+const PerformanceMetrics = ({ rows, loading }: { rows: TilePerformanceRow[]; loading: boolean }) => (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="text-lg font-bold text-ink">Performance Metrics</h2>
@@ -315,7 +304,7 @@ const PerformanceMetrics = () => (
             <TableHead>Product</TableHead>
             <TableHead>SKU / Code</TableHead>
             <TableHead>Current Stock</TableHead>
-            <TableHead>Sold Stock</TableHead>
+            <TableHead>Sold</TableHead>
             <TableHead>Views</TableHead>
             <TableHead>Applications</TableHead>
             <TableHead>Status</TableHead>
@@ -323,89 +312,86 @@ const PerformanceMetrics = () => (
           </TableRow>
         </TableHeader>
         <TableBody>
-          {performanceProducts.map((product) => (
-            <TableRow key={product.id}>
-              <TableCell className="min-w-64">
-                <div className="flex items-center gap-3">
-                  <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      fill
-                      unoptimized
-                      className="object-cover"
-                      sizes="48px"
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-ink">
-                      {product.name}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {product.collection}
-                    </p>
-                    <p className="mt-0.5 line-clamp-1 max-w-64 text-xs text-muted-foreground italic">
-                      {product.description}
-                    </p>
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell className="whitespace-nowrap font-data text-ink">
-                {product.sku}
-              </TableCell>
-              <TableCell className="whitespace-nowrap">
-                <span className="inline-flex items-center gap-1.5 font-data text-ink">
-                  <span className="size-2 rounded-full bg-green-500" />
-                  {product.currentStock.toLocaleString()} sqm
-                </span>
-              </TableCell>
-              <TableCell className="whitespace-nowrap">
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1.5 font-data",
-                    stockLevelText[product.soldStockLevel],
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "size-2 rounded-full",
-                      stockLevelDot[product.soldStockLevel],
-                    )}
-                  />
-                  {product.soldStock.toLocaleString()} sqm
-                </span>
-              </TableCell>
-              <TableCell className="whitespace-nowrap text-ink">
-                12.4K views
-                <span className="mt-0.5 block text-xs font-semibold text-green-600 flex gap-1">
-                  <TrendingUp className="size-4 stroke-2" /> 18% rate
-                </span>
-              </TableCell>
-              <TableCell className="whitespace-nowrap text-ink">
-                12.4K Apps.
-              </TableCell>
-              <TableCell className="whitespace-nowrap">
-                <span className="inline-flex items-center gap-1.5 text-green-700">
-                  <span className="size-2 rounded-full bg-green-500" /> In stock
-                </span>
-              </TableCell>
-              <TableCell>
-                <Link
-                  href={`/stock/inventory/${product.id}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold whitespace-nowrap text-ink hover:-translate-y-0.5 hover:shadow-md active:scale-95"
-                >
-                  View Details <ArrowUpRight className="size-3.5" />
-                </Link>
+          {loading && rows.length === 0 ? (
+            Array.from({ length: 5 }).map((_, index) => <TableRowSkeleton key={index} columns={8} />)
+          ) : rows.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={8}>
+                <ApiEmptyState message="No product activity recorded yet for this period." />
               </TableCell>
             </TableRow>
-          ))}
+          ) : (
+            rows.map((product) => {
+              const status = stockStatusMeta[product.stockStatus];
+              return (
+                <TableRow key={product.productId}>
+                  <TableCell className="min-w-64">
+                    <div className="flex items-center gap-3">
+                      <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted-background">
+                        <Image
+                          src={product.image}
+                          alt={product.name}
+                          fill
+                          unoptimized
+                          className="object-cover"
+                          sizes="48px"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-ink">
+                          {product.name}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {product.collection} • {product.size}
+                        </p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap font-data text-ink">
+                    {product.sku}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1.5 font-data text-ink">
+                      <span className={cn("size-2 rounded-full", status.dot)} />
+                      {product.quantityOnHandSqm.toLocaleString()} sqm
+                    </span>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap font-data text-ink">
+                    {product.purchased.toLocaleString()} pcs
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-ink">
+                    {formatCompactNumber(product.viewed)} views
+                    <span className="mt-0.5 block text-xs font-semibold text-green-600">
+                      {product.selectionRate.toFixed(1)}% selection
+                    </span>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-ink">
+                    {formatCompactNumber(product.applied)} Apps.
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <span className={cn("inline-flex items-center gap-1.5", status.text)}>
+                      <span className={cn("size-2 rounded-full", status.dot)} /> {status.label}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Link
+                      href={`/analytics/tiles/${product.productId}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold whitespace-nowrap text-ink hover:-translate-y-0.5 hover:shadow-md active:scale-95"
+                    >
+                      View Details <ArrowUpRight className="size-3.5" />
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              );
+            })
+          )}
         </TableBody>
       </Table>
     </div>
   </section>
 );
 
-const MostLikedProducts = () => (
+const MostLikedProducts = ({ rows, loading }: { rows: TilePerformanceRow[]; loading: boolean }) => (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="text-lg font-bold text-ink">Most Liked Products</h2>
@@ -425,74 +411,80 @@ const MostLikedProducts = () => (
           </TableRow>
         </TableHeader>
         <TableBody>
-          {performanceProducts.map((product) => (
-            <TableRow key={product.id}>
-              <TableCell className="min-w-64">
-                <div className="flex items-center gap-3">
-                  <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      fill
-                      unoptimized
-                      className="object-cover"
-                      sizes="48px"
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-ink">
-                      {product.name}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {product.collection}
-                    </p>
-                    <p className="mt-0.5 line-clamp-1 max-w-64 text-xs text-muted-foreground italic">
-                      {product.description}
-                    </p>
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell className="whitespace-nowrap font-data text-ink">
-                {product.sku}
-              </TableCell>
-              <TableCell className="whitespace-nowrap text-ink">
-                12.4K views
-                <span className="mt-0.5 block text-xs font-semibold text-green-600 flex gap-1">
-                  <TrendingUp className="size-4 stroke-2" /> 18% rate
-                </span>
-              </TableCell>
-              <TableCell className="whitespace-nowrap text-ink">
-                12.4K Apps.
-              </TableCell>
-              <TableCell className="whitespace-nowrap text-ink">
-                12.4K Likes
-              </TableCell>
-              <TableCell className="whitespace-nowrap">
-                <span className="inline-flex items-center gap-1.5 text-green-700">
-                  <span className="size-2 rounded-full bg-green-500" /> In stock
-                </span>
-              </TableCell>
-              <TableCell>
-                <Link
-                  href={`/stock/inventory/${product.id}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold whitespace-nowrap text-ink hover:-translate-y-0.5 hover:shadow-md active:scale-95"
-                >
-                  View Details <ArrowUpRight className="size-3.5" />
-                </Link>
+          {loading && rows.length === 0 ? (
+            Array.from({ length: 5 }).map((_, index) => <TableRowSkeleton key={index} columns={7} />)
+          ) : rows.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={7}>
+                <ApiEmptyState message="No saved tiles recorded yet for this period." />
               </TableCell>
             </TableRow>
-          ))}
+          ) : (
+            rows.map((product) => {
+              const status = stockStatusMeta[product.stockStatus];
+              return (
+                <TableRow key={product.productId}>
+                  <TableCell className="min-w-64">
+                    <div className="flex items-center gap-3">
+                      <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted-background">
+                        <Image
+                          src={product.image}
+                          alt={product.name}
+                          fill
+                          unoptimized
+                          className="object-cover"
+                          sizes="48px"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-ink">
+                          {product.name}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {product.collection} • {product.size}
+                        </p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap font-data text-ink">
+                    {product.sku}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-ink">
+                    {formatCompactNumber(product.viewed)} views
+                    <span className="mt-0.5 block text-xs font-semibold text-green-600">
+                      {product.selectionRate.toFixed(1)}% selection
+                    </span>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-ink">
+                    {formatCompactNumber(product.applied)} Apps.
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-ink">
+                    {formatCompactNumber(product.saved)} Likes
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <span className={cn("inline-flex items-center gap-1.5", status.text)}>
+                      <span className={cn("size-2 rounded-full", status.dot)} /> {status.label}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Link
+                      href={`/analytics/tiles/${product.productId}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold whitespace-nowrap text-ink hover:-translate-y-0.5 hover:shadow-md active:scale-95"
+                    >
+                      View Details <ArrowUpRight className="size-3.5" />
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              );
+            })
+          )}
         </TableBody>
       </Table>
     </div>
   </section>
 );
 
-const TileCard = ({
-  product,
-}: {
-  product: (typeof inventoryProducts)[number];
-}) => {
+const TileCard = ({ product }: { product: TilePerformanceRow }) => {
   const status = {
     in_stock: {
       label: "In stock",
@@ -516,7 +508,7 @@ const TileCard = ({
       <div className="relative aspect-square w-full shrink-0 overflow-hidden rounded-b-3xl bg-muted-background">
         <Image
           src={product.image}
-          alt={product.displayName}
+          alt={product.name}
           fill
           unoptimized
           className="object-cover transition-transform duration-700 group-hover:scale-105"
@@ -538,11 +530,11 @@ const TileCard = ({
                 className="size-4 shrink-0"
                 strokeWidth={2.25}
               />
-              <span className="truncate">{product.views} views</span>
+              <span className="truncate">{formatCompactNumber(product.viewed)} views</span>
             </span>
             <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-bold tracking-wide text-red-500 uppercase sm:text-[11px]">
               <Heart className="size-3.5" strokeWidth={2.5} />
-              {product.views} likes
+              {formatCompactNumber(product.saved)} likes
             </span>
           </div>
         </div>
@@ -552,19 +544,17 @@ const TileCard = ({
           {product.collection} • {product.size}
         </p>
         <h2 className="mb-1 text-base font-bold text-ink sm:text-xl">
-          {product.displayName}
+          {product.name}
         </h2>
-        <p className="line-clamp-2 min-h-10 text-sm leading-5 text-muted">
-          {product.description}
-        </p>
+        <p className="text-sm leading-5 text-muted">{product.sku}</p>
         <div className="mt-auto flex items-center justify-between gap-3 pt-4 sm:pt-5">
           <p className="text-xl font-bold text-ink">
-            {product.quantity.toLocaleString()}{" "}
+            {product.quantityOnHandSqm.toLocaleString()}{" "}
             <span className="text-sm font-medium text-muted">sqm</span>
           </p>
           <Link
-            href={`/stock/inventory/${product.id}`}
-            aria-label={`View ${product.displayName}`}
+            href={`/analytics/tiles/${product.productId}`}
+            aria-label={`View ${product.name}`}
             className="inline-flex size-11 items-center justify-center rounded-full border border-slate-100 bg-muted-background text-ink hover:bg-primary"
           >
             <ArrowUpRight className="size-5" />
@@ -575,34 +565,50 @@ const TileCard = ({
   );
 };
 
-const AllProducts = () => {
+const TileCardSkeleton = () => (
+  <article className="flex flex-col overflow-hidden rounded-3xl bg-white shadow-sm">
+    <Skeleton className="aspect-square w-full rounded-none" />
+    <div className="flex flex-1 flex-col gap-2 p-5 sm:p-6">
+      <Skeleton className="h-3 w-1/3" />
+      <Skeleton className="h-5 w-2/3" />
+      <Skeleton className="h-3 w-1/2" />
+      <Skeleton className="mt-4 h-6 w-1/3" />
+    </div>
+  </article>
+);
+
+const AllProducts = ({ rows, loading }: { rows: TilePerformanceRow[]; loading: boolean }) => {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [query, setQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const safePage = Math.min(Math.max(currentPage, 1), TOTAL_PAGES);
-  const showingStart = (safePage - 1) * PAGE_SIZE + 1;
-  const showingEnd = Math.min(safePage * PAGE_SIZE, TOTAL_RESULTS);
-  const visiblePages = useMemo(
-    () => getVisiblePages(safePage, TOTAL_PAGES),
-    [safePage],
-  );
-  const goToPage = (page: number) =>
-    setCurrentPage(Math.min(Math.max(page, 1), TOTAL_PAGES));
-
   const results = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return filteredProducts;
-    return filteredProducts.filter((product) =>
-      product.displayName.toLowerCase().includes(normalizedQuery),
+    if (!normalizedQuery) return rows;
+    return rows.filter(
+      (product) =>
+        product.name.toLowerCase().includes(normalizedQuery) ||
+        product.sku.toLowerCase().includes(normalizedQuery),
     );
-  }, [query]);
+  }, [rows, query]);
+
+  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const safePage = Math.min(Math.max(currentPage, 1), totalPages);
+  const showingStart = results.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const showingEnd = Math.min(safePage * PAGE_SIZE, results.length);
+  const visiblePages = useMemo(
+    () => getVisiblePages(safePage, totalPages),
+    [safePage, totalPages],
+  );
+  const goToPage = (page: number) =>
+    setCurrentPage(Math.min(Math.max(page, 1), totalPages));
+  const pageItems = results.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
     <section>
       <h2 className="text-lg font-bold text-ink">All Products</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        {TOTAL_RESULTS.toLocaleString()} Products currently managed
+        {results.length.toLocaleString()} Products currently managed
       </p>
 
       <div className="mt-5 flex flex-col gap-3 rounded-xl border border-[#E5E7EB] bg-card p-4 shadow-sm sm:flex-row sm:items-center">
@@ -610,7 +616,10 @@ const AllProducts = () => {
           <Search className="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Search products, SKUs..."
             className="h-11 rounded-lg pl-11"
           />
@@ -681,7 +690,18 @@ const AllProducts = () => {
         </div>
       </div>
 
-      {results.length === 0 ? (
+      {loading && rows.length === 0 ? (
+        <div
+          className={cn(
+            "mt-6 grid gap-5",
+            view === "grid" ? "sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1",
+          )}
+        >
+          {Array.from({ length: 6 }).map((_, index) => (
+            <TileCardSkeleton key={index} />
+          ))}
+        </div>
+      ) : pageItems.length === 0 ? (
         <p className="mt-6 rounded-2xl bg-card p-10 text-center text-sm text-muted-foreground">
           No products match your search.
         </p>
@@ -692,8 +712,8 @@ const AllProducts = () => {
             view === "grid" ? "sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1",
           )}
         >
-          {results.map((product) => (
-            <TileCard key={product.id} product={product} />
+          {pageItems.map((product) => (
+            <TileCard key={product.productId} product={product} />
           ))}
         </div>
       )}
@@ -701,7 +721,7 @@ const AllProducts = () => {
       <footer className="mt-8 flex flex-col gap-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <p>
           Showing {showingStart} to {showingEnd} of{" "}
-          {TOTAL_RESULTS.toLocaleString()} results
+          {results.length.toLocaleString()} results
         </p>
         <Pagination className="mx-0 w-auto justify-start py-0 sm:justify-end">
           <PaginationContent className="gap-1 sm:gap-2">
@@ -761,7 +781,7 @@ const AllProducts = () => {
               <PaginationNext
                 href="#"
                 className="text-ink hover:text-amber aria-disabled:pointer-events-none aria-disabled:opacity-40"
-                aria-disabled={safePage === TOTAL_PAGES}
+                aria-disabled={safePage === totalPages}
                 onClick={(event) => {
                   event.preventDefault();
                   goToPage(safePage + 1);
@@ -773,10 +793,10 @@ const AllProducts = () => {
                 href="#"
                 size="sm"
                 className="gap-1 text-ink hover:text-amber aria-disabled:pointer-events-none aria-disabled:opacity-40"
-                aria-disabled={safePage === TOTAL_PAGES}
+                aria-disabled={safePage === totalPages}
                 onClick={(event) => {
                   event.preventDefault();
-                  goToPage(TOTAL_PAGES);
+                  goToPage(totalPages);
                 }}
               >
                 <span className="hidden sm:inline">Last</span>
@@ -792,6 +812,22 @@ const AllProducts = () => {
 
 const AnalyticsTilesPage = () => {
   const [period, setPeriod] = useState<AnalyticsPeriodDays>(30);
+  const range = periodToRange[period];
+
+  const { data: tiles, loading, error, reload } = useApi(
+    () => analyticsApi.tiles({ period: range, limit: 100 }),
+    [range],
+  );
+
+  const items = useMemo(() => tiles?.table.items ?? [], [tiles]);
+  const mostViewedRows = useMemo(
+    () => [...items].sort((a, b) => b.viewed - a.viewed).slice(0, 5),
+    [items],
+  );
+  const mostLikedRows = useMemo(
+    () => [...items].sort((a, b) => b.saved - a.saved).slice(0, 5),
+    [items],
+  );
 
   return (
     <>
@@ -802,11 +838,17 @@ const AnalyticsTilesPage = () => {
         <AnalyticsPeriodSwitcher period={period} onChange={setPeriod} />
       </AnalyticsPageHeader>
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
-        <KpiCards kpis={getKpis(periodToRange[period])} />
-        <InteractionOverview />
-        <PerformanceMetrics />
-        <MostLikedProducts />
-        <AllProducts />
+        {error ? (
+          <ApiErrorState message={error} onRetry={reload} />
+        ) : (
+          <>
+            <KpiCards tiles={tiles} loading={loading} />
+            <InteractionOverview tiles={tiles} loading={loading} />
+            <PerformanceMetrics rows={mostViewedRows} loading={loading} />
+            <MostLikedProducts rows={mostLikedRows} loading={loading} />
+            <AllProducts rows={items} loading={loading} />
+          </>
+        )}
       </div>
     </>
   );
