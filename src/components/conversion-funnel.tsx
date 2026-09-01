@@ -14,8 +14,8 @@ import {
 import { cn } from "@/lib/utils";
 import type { JourneyStage } from "@/lib/api/types";
 
-/** The backend's 10 `JourneyStage` values, in funnel order, with their display label/icon. */
-const STAGE_META: Record<JourneyStage, { title: string; icon: LucideIcon }> = {
+/** The backend's 10 `JourneyStage` values, in funnel order, with their display label/icon — shared with Journey Analytics so stage names read the same everywhere. */
+export const JOURNEY_STAGE_META: Record<JourneyStage, { title: string; icon: LucideIcon }> = {
   OPENED_SYSTEM: { title: "System Open", icon: LogIn },
   CREATED_ROOM: { title: "3D Room Created", icon: Sparkles },
   ENTERED_DIMENSIONS: { title: "Dimensions Entered", icon: Ruler },
@@ -59,7 +59,7 @@ export const ConversionFunnel = ({ stages = mockFunnel }: { stages?: ConversionF
   const maxCustomers = Math.max(1, ...stages.map((row) => row.customers));
 
   const funnel = stages.map(({ stage, customers, conversionFromPrevious }, index) => {
-    const meta = STAGE_META[stage];
+    const meta = JOURNEY_STAGE_META[stage];
     return [
       meta.title,
       "",
@@ -223,7 +223,7 @@ export const CustomerConversionFunnel = ({ stages = mockFunnel }: { stages?: Con
           const widthPercent = Math.max((customers / maxCustomers) * 100, 4);
           return (
             <div key={stage} className="flex items-center justify-between gap-3 font-data text-sm">
-              <p className="w-32 shrink-0 text-right font-data font-medium text-ink sm:w-40">{STAGE_META[stage].title}</p>
+              <p className="w-32 shrink-0 text-right font-data font-medium text-ink sm:w-40">{JOURNEY_STAGE_META[stage].title}</p>
               <div className="min-w-8 flex-1">
                 <div className="h-6 bg-chart-blue transition-all duration-500" style={{ width: `${widthPercent}%` }} />
               </div>
