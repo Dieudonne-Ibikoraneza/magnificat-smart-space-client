@@ -565,7 +565,12 @@ export type CustomerAnalytics = {
   repeatPurchaseRate: number;
   byHeardAboutUs: { source: HearAboutUs | null; count: number }[];
   projectTypes: { roomType: RoomType; customers: number; revenue: number }[];
-  trend: { newCustomers: TrendPoint[] };
+  trend: {
+    /** New signups per bucket. */
+    newCustomers: TrendPoint[];
+    /** Orders per bucket, split by whether each was the placing customer's first order ever or a later (repeat) one. */
+    ordersByCustomerType: { new: TrendPoint[]; repeat: TrendPoint[] };
+  };
 };
 
 /**

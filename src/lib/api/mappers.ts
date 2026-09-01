@@ -1,6 +1,6 @@
 import type { Product } from "@/components/product-card";
 import type { Collection } from "@/data/collections";
-import type { ApiCollection, ApiProduct, RoomType, SuitableFor } from "./types";
+import type { ApiCollection, ApiProduct, HearAboutUs, RoomType, SuitableFor } from "./types";
 
 /**
  * Translation layer between the API's shapes and the ones the UI already
@@ -27,6 +27,15 @@ const roomTypeByLabel = new Map<string, RoomType>(
 );
 
 export const toRoomType = (label: string): RoomType | undefined => roomTypeByLabel.get(label);
+
+/** Display labels for the "how did you hear about us" enum — used on Customer Analytics' acquisition-channel chart. */
+export const hearAboutUsLabels: Record<HearAboutUs, string> = {
+  SOCIAL_MEDIA: "Social Media",
+  REFERRAL: "Referral",
+  ADVERTISEMENT: "Advertisement",
+  SEARCH_ENGINE: "Search Engine",
+  OTHER: "Other",
+};
 
 export const suitableForLabels: Record<SuitableFor, Product["suitableFor"]> = {
   FLOOR: "floor",

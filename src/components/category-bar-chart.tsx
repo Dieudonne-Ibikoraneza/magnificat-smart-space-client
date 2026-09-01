@@ -70,10 +70,13 @@ export const CategoryBarChart = ({
     <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
     <div className="mt-6 h-65 w-full font-data sm:mt-8 sm:h-80">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} barCategoryGap="30%" margin={{ top: 8, right: 4, left: 0, bottom: 8 }}>
+        <BarChart data={data} barCategoryGap="30%" margin={{ top: 8, right: 4, left: 0, bottom: 24 }}>
           <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
           <XAxis
             dataKey="category"
+            interval={0}
+            angle={-40}
+            textAnchor="end"
             tickLine={false}
             axisLine={false}
             tick={ChartAxisTick}
