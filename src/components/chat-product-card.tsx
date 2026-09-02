@@ -4,21 +4,41 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, Heart, Loader2, ShoppingCart } from "lucide-react";
+import { ArrowUpRight, Loader2, ShoppingCart, ThumbsDown, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { useCart } from "@/lib/cart-store";
-import { productsApi, tokenStore } from "@/lib/api";
+import { chatbotApi, productsApi, tokenStore } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { toProduct } from "@/lib/api/mappers";
-import type { ChatRecommendation } from "@/lib/api/types";
+import type { ChatRecommendation, RecommendationDecision } from "@/lib/api/types";
 
 type ChatProductCardProps = { product: ChatRecommendation };
 
 export const ChatProductCard = ({ product }: ChatProductCardProps) => {
   const [adding, setAdding] = useState(false);
+  const [decision, setDecision] = useState<RecommendationDecision>("PENDING");
+  const [decidingTo, setDecidingTo] = useState<RecommendationDecision | null>(null);
   const cart = useCart();
   const router = useRouter();
+
+  /** Click again on an already-set reaction to undo it (back to "no response"); otherwise switch to it. */
+  const handleDecide = async (next: "ACCEPTED" | "REJECTED") => {
+    const target: RecommendationDecision = decision === next ? "PENDING" : next;
+    const previous = decision;
+    setDecision(target);
+    setDecidingTo(target);
+    try {
+      await chatbotApi.setRecommendationDecision(product.recommendationId, target);
+    } catch (cause) {
+      setDecision(previous);
+      toast.error("Couldn't save your feedback", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    } finally {
+      setDecidingTo(null);
+    }
+  };
 
   /**
    * The recommendation only carries a compact view of the product — real
@@ -64,15 +84,36 @@ export const ChatProductCard = ({ product }: ChatProductCardProps) => {
         <span className="absolute left-2 top-2 inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold text-ink shadow-sm">
           {Math.round(product.matchScore)}% Match
         </span>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label={`Save ${product.name}`}
-          className="absolute right-2 top-2 size-8 rounded-full border-white/80 bg-white/90 p-0 text-muted hover:bg-white"
-        >
-          <Heart className="size-4" />
-        </Button>
+        <div className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-white/90 p-1 shadow-sm">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={decidingTo !== null}
+            onClick={() => void handleDecide("ACCEPTED")}
+            aria-pressed={decision === "ACCEPTED"}
+            aria-label={`Like ${product.name}`}
+            className={`size-6 rounded-full p-0 hover:bg-primary/20 ${
+              decision === "ACCEPTED" ? "bg-primary text-ink" : "text-muted"
+            }`}
+          >
+            <ThumbsUp className="size-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={decidingTo !== null}
+            onClick={() => void handleDecide("REJECTED")}
+            aria-pressed={decision === "REJECTED"}
+            aria-label={`Dislike ${product.name}`}
+            className={`size-6 rounded-full p-0 hover:bg-destructive/20 ${
+              decision === "REJECTED" ? "bg-destructive text-white" : "text-muted"
+            }`}
+          >
+            <ThumbsDown className="size-3.5" />
+          </Button>
+        </div>
       </div>
       <div className="p-3">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-[#d5c19f]">

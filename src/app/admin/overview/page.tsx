@@ -32,6 +32,7 @@ import {
   ShoppingBasket,
   Sparkles,
   ThumbsDown,
+  ThumbsUp,
   Truck,
   XCircle,
   Minus,
@@ -669,7 +670,7 @@ const AiRecommendations = ({ summary, loading }: { summary: AiSummaryLike | unde
   const pending = summary ? Math.max(summary.displayed - summary.accepted - summary.rejected, 0) : 0;
   const sentiments = summary
     ? [
-        { label: `${Math.round(pct(summary.accepted, summary.displayed))}%`, value: pct(summary.accepted, summary.displayed), icon: ShieldCheck, bar: "bg-blue-500", chip: "bg-blue-100 text-blue-600" },
+        { label: `${Math.round(pct(summary.accepted, summary.displayed))}%`, value: pct(summary.accepted, summary.displayed), icon: ThumbsUp, bar: "bg-blue-500", chip: "bg-blue-100 text-blue-600" },
         { label: `${Math.round(pct(pending, summary.displayed))}%`, value: pct(pending, summary.displayed), icon: Minus, bar: "bg-muted-foreground/40", chip: "bg-muted-background text-muted-foreground" },
         { label: `${Math.round(pct(summary.rejected, summary.displayed))}%`, value: pct(summary.rejected, summary.displayed), icon: ThumbsDown, bar: "bg-red-500", chip: "bg-red-100 text-red-600" },
       ]

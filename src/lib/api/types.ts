@@ -416,8 +416,13 @@ export type ApiRoomDesign = {
 
 // --- Chatbot ----------------------------------------------------------------
 
+/** PENDING = no response yet, ACCEPTED = liked, REJECTED = disliked. */
+export type RecommendationDecision = "PENDING" | "ACCEPTED" | "REJECTED";
+
 export type ChatRecommendation = {
   id: string;
+  /** The specific `Recommendation` row this pick was persisted as — target this, not `id`, when recording a like/dislike (the same product can be recommended more than once in a conversation). */
+  recommendationId: string;
   name: string;
   image: string;
   price: number;

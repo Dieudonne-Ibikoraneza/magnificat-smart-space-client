@@ -37,6 +37,7 @@ import type {
   PlatformSettings,
   ProfilingQuestion,
   QuantityCalculation,
+  RecommendationDecision,
   Role,
   RoomType,
   SalesAnalytics,
@@ -400,6 +401,12 @@ export const chatbotApi = {
 
   videoPreview: (body: { conversationId: string; roomVideoUrl: string; productIds: string[] }) =>
     api.post<{ id: string; status: string; outputUrl: string | null }>("/chatbot/preview/video", body),
+
+  /** Customer feedback on one recommendation — liked, disliked, or cleared back to "no response". */
+  setRecommendationDecision: (recommendationId: string, decision: RecommendationDecision) =>
+    api.patch<{ id: string; decision: RecommendationDecision }>(`/chatbot/recommendations/${recommendationId}`, {
+      decision,
+    }),
 
   knowledgeBase: () => api.get<ApiKnowledgeBaseEntry[]>("/chatbot/knowledge-base"),
   createKnowledgeBaseEntry: (body: {

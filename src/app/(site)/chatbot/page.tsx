@@ -51,7 +51,7 @@ type ChatMessage = {
 const MAX_ATTACHMENT_MB = 25;
 
 const initialMessages: ChatMessage[] = [
-  { id: "welcome", sender: "bot", text: "Welcome to Magnificat Smart Space! I am your AI Design Assistant. Let's narrow down your requirements. To give you the best recommendations, tell me: what room are you building/tiling?" },
+  { id: "welcome", sender: "bot", text: "Welcome to Magnificat Smart Space! I am your AI Design Assistant. Let's narrow down your requirements so I can give you the best recommendations — I'll ask a few quick questions to get started." },
 ];
 
 const makeId = () => `${Date.now()}-${Math.random()}`;

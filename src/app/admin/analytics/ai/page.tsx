@@ -13,8 +13,9 @@ import {
   Search,
   BadgeCheck,
   Smile,
-  Clock3,
+  Minus,
   ThumbsDown,
+  ThumbsUp,
   TrendingUpDown,
   BroomSparkles,
 } from "lucide-react";
@@ -205,14 +206,14 @@ const KpiCards = ({ summary, loading }: { summary: TileRecommendations["summary"
     {
       label: `${summary.displayed ? Math.round((summary.accepted / summary.displayed) * 100) : 0}%`,
       value: summary.displayed ? (summary.accepted / summary.displayed) * 100 : 0,
-      icon: BadgeCheck,
+      icon: ThumbsUp,
       bar: "bg-blue-500",
       chip: "bg-blue-100 text-blue-600",
     },
     {
       label: `${summary.displayed ? Math.round((pending / summary.displayed) * 100) : 0}%`,
       value: summary.displayed ? (pending / summary.displayed) * 100 : 0,
-      icon: Clock3,
+      icon: Minus,
       bar: "bg-muted-foreground/40",
       chip: "bg-muted-background text-muted-foreground",
     },
