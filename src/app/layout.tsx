@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { CartProvider } from "@/lib/cart-store";
 import { CurrentUserProvider } from "@/lib/current-user";
 import { Toaster } from "@/components/ui/toast";
+import { GlobalQuotationDialog } from "@/components/global-quotation-dialog";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
@@ -20,6 +21,7 @@ const RootLayout = ({ children }: LayoutProps<"/">) => {
       <body className="flex min-h-full min-w-0 flex-col overflow-x-hidden">
         <CurrentUserProvider>
           <CartProvider>{children}</CartProvider>
+          <GlobalQuotationDialog />
         </CurrentUserProvider>
         <Toaster />
       </body>

@@ -37,6 +37,7 @@ import type {
   PlatformSettings,
   ProfilingQuestion,
   QuantityCalculation,
+  QuotationStatus,
   RecommendationDecision,
   Role,
   RoomType,
@@ -275,7 +276,7 @@ export const ordersApi = {
       page?: number;
       limit?: number;
       status?: OrderStatus;
-      quotationStatus?: string;
+      quotationStatus?: QuotationStatus;
       createdByType?: "CUSTOMER" | "STAFF";
       customerId?: string;
     } = {},
