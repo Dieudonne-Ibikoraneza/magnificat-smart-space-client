@@ -40,6 +40,7 @@ type OrderDetailPageProps = { params: Promise<{ id: string }> };
 const ACTIVE_STEPS: OrderStatus[] = ["PENDING", "PROCESSING", "READY_FOR_DISPATCH", "SHIPPED", "DELIVERED"];
 
 const stepLabels: Record<OrderStatus, string> = {
+  WAITLISTED: "Waitlisted",
   PENDING: "Order Placed",
   PROCESSING: "Processing",
   READY_FOR_DISPATCH: "Ready for Dispatch",

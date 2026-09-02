@@ -46,6 +46,7 @@ type AccountOrderDetailsProps = { params: Promise<{ id: string }> };
 const ACTIVE_STEPS: OrderStatus[] = ["PENDING", "PROCESSING", "READY_FOR_DISPATCH", "SHIPPED", "DELIVERED"];
 
 const stepLabels: Record<OrderStatus, string> = {
+  WAITLISTED: "Waitlisted",
   PENDING: "Order Placed",
   PROCESSING: "Processing",
   READY_FOR_DISPATCH: "Ready for Dispatch",
@@ -55,6 +56,7 @@ const stepLabels: Record<OrderStatus, string> = {
 };
 
 const statusVariant: Record<OrderStatus, "outline" | "secondary" | "warning" | "primary" | "muted" | "destructive"> = {
+  WAITLISTED: "warning",
   PENDING: "outline",
   PROCESSING: "secondary",
   READY_FOR_DISPATCH: "warning",
@@ -144,6 +146,16 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
       </header>
 
       <div className="mt-6 space-y-5 sm:space-y-6">
+        {order.status === "WAITLISTED" && (
+          <div className="rounded-2xl bg-[#fef3c7] p-5 text-sm text-[#92400e] sm:p-6">
+            <p className="font-bold">Waitlisted — part of this order isn&apos;t in stock right now</p>
+            <p className="mt-1">
+              We&apos;ve accepted this order; no action is needed from you yet. We&apos;ll email you the
+              moment there&apos;s enough stock, and you&apos;ll then have a short window to complete payment.
+            </p>
+          </div>
+        )}
+
         <div className="grid gap-4 sm:grid-cols-3 sm:gap-5">
           {[
             { icon: Wallet, label: "Total Amount", value: formatPrice(order.total), note: null },

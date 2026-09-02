@@ -22,6 +22,7 @@ import {
   Clock3,
   Download,
   Eye,
+  Hourglass,
   MousePointerClick,
   MousePointerSquareDashed,
   ShoppingBag,
@@ -67,6 +68,7 @@ const rangeToPeriod: Record<"7D" | "30D" | "3M" | "12M", AnalyticsPeriod> = {
 };
 
 const orderStatusMeta: Record<OrderStatus, { icon: typeof Clock3; tone: string }> = {
+  WAITLISTED: { icon: Hourglass, tone: "bg-amber-50 text-amber-600" },
   PENDING: { icon: Clock3, tone: "bg-slate-100 text-ink" },
   PROCESSING: { icon: Clock3, tone: "bg-amber-50 text-amber-600" },
   READY_FOR_DISPATCH: { icon: PackageCheck, tone: "bg-blue-50 text-blue-600" },

@@ -33,6 +33,7 @@ type DateFilter = "all" | "30" | "90" | "year";
 const formatPrice = (value: string | number) => `RWF ${Math.round(Number(value)).toLocaleString()}`;
 
 const statusLabels: Record<OrderStatus, string> = {
+  WAITLISTED: "Waitlisted",
   PENDING: "Pending",
   PROCESSING: "Processing",
   READY_FOR_DISPATCH: "Ready for Dispatch",
@@ -42,6 +43,7 @@ const statusLabels: Record<OrderStatus, string> = {
 };
 
 const statusStyles: Record<OrderStatus, string> = {
+  WAITLISTED: "bg-[#fef3c7] text-[#92400e]",
   PENDING: "bg-secondary text-ink",
   PROCESSING: "bg-primary text-ink",
   READY_FOR_DISPATCH: "bg-[#fef3c7] text-[#92400e]",

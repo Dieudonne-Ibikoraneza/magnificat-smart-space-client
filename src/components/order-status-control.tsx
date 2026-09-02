@@ -28,6 +28,7 @@ import { ApiError } from "@/lib/api/client";
 import type { OrderStatus } from "@/lib/api/types";
 
 const statusLabels: Record<OrderStatus, string> = {
+  WAITLISTED: "Waitlisted",
   PENDING: "Pending",
   PROCESSING: "Processing",
   READY_FOR_DISPATCH: "Ready for Dispatch",
@@ -37,6 +38,7 @@ const statusLabels: Record<OrderStatus, string> = {
 };
 
 const statusVariant: Record<OrderStatus, NonNullable<BadgeProps["variant"]>> = {
+  WAITLISTED: "warning",
   PENDING: "outline",
   PROCESSING: "secondary",
   READY_FOR_DISPATCH: "warning",
@@ -53,6 +55,10 @@ const statuses: OrderStatus[] = [
   "DELIVERED",
   "CANCELLED",
 ];
+
+/** A waitlisted order only ever leaves that status automatically (once stock covers it) or by being cancelled outright — see `orders.service.ts#updateStatus`. */
+const selectableStatuses = (current: OrderStatus): OrderStatus[] =>
+  current === "WAITLISTED" ? ["WAITLISTED", "CANCELLED"] : statuses;
 
 /** Plain, read-only status badge — no click behavior. Pair with `OrderStatusControl` for the actual "Update Status" action, kept as its own button elsewhere in the header. */
 export const OrderStatusBadge = ({ status }: { status: OrderStatus }) => (
@@ -145,7 +151,7 @@ export const OrderStatusControl = ({
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {statuses.map((item) => (
+                {selectableStatuses(status).map((item) => (
                   <SelectItem key={item} value={item}>
                     <Badge variant={statusVariant[item]}>{statusLabels[item]}</Badge>
                   </SelectItem>

@@ -13,6 +13,8 @@ import {
   X,
 } from "lucide-react";
 import { AdminPageHeader } from "@/app/admin/layout";
+import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,7 +33,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { salesOrders, type SalesOrderStatus } from "@/data/sales-orders";
+import { ordersApi } from "@/lib/api";
+import { useApi } from "@/lib/api/use-api";
+import type { ApiOrderItem, OrderStatus } from "@/lib/api/types";
 import type { BadgeProps } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +51,26 @@ const dateFilterLabels: Record<DateFilter, string> = {
   last30: "Date: Last 30 Days",
   month: "Date: This Month",
   custom: "Date: Custom",
+};
+
+const statusLabels: Record<OrderStatus, string> = {
+  WAITLISTED: "Waitlisted",
+  PENDING: "Pending",
+  PROCESSING: "Processing",
+  READY_FOR_DISPATCH: "Ready for Dispatch",
+  SHIPPED: "Shipped",
+  DELIVERED: "Delivered",
+  CANCELLED: "Cancelled",
+};
+
+const statusVariant: Record<OrderStatus, NonNullable<BadgeProps["variant"]>> = {
+  WAITLISTED: "warning",
+  PENDING: "outline",
+  PROCESSING: "secondary",
+  READY_FOR_DISPATCH: "warning",
+  SHIPPED: "primary",
+  DELIVERED: "muted",
+  CANCELLED: "destructive",
 };
 
 const isSameDay = (a: Date, b: Date) =>
@@ -97,22 +121,13 @@ const matchesDateFilter = (
   return true;
 };
 
-const getOrderStatusVariant = (
-  status: SalesOrderStatus,
-): NonNullable<BadgeProps["variant"]> =>
-  (
-    ({
-      Processing: "secondary",
-      Shipped: "primary",
-      Delivered: "muted",
-    }) as const
-  )[status];
+const totalSqm = (items: ApiOrderItem[]) =>
+  items.reduce((total, item) => total + Number(item.requiredAreaSqm), 0);
 
-const totalSqm = (items: { quantity: string }[]) =>
-  items.reduce(
-    (total, item) => total + Number(item.quantity.replace(/[^0-9.]/g, "")),
-    0,
-  );
+const formatPrice = (value: string | number) => `RWF ${Math.round(Number(value)).toLocaleString("en-US")}`;
+
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
 const SEARCH_MENU_ANIMATION_MS = 200;
 
@@ -211,6 +226,35 @@ const OrderSearchMenu = ({
   );
 };
 
+const OrdersPageSkeleton = () => (
+  <div className="space-y-5 sm:space-y-6" aria-label="Loading orders" role="status">
+    <div className="rounded-2xl bg-card p-4 sm:p-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <Skeleton className="h-5 w-24" />
+        <Skeleton className="h-10 w-32 rounded-full" />
+        <Skeleton className="h-10 w-32 rounded-full" />
+        <Skeleton className="h-10 w-32 rounded-full" />
+        <Skeleton className="ml-auto h-5 w-28" />
+        <Skeleton className="size-9 rounded-lg" />
+        <Skeleton className="size-9 rounded-full" />
+      </div>
+    </div>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div key={index} className="rounded-2xl bg-card p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-2"><Skeleton className="h-3 w-20" /><Skeleton className="h-5 w-36" /></div>
+            <Skeleton className="h-6 w-20 rounded-full" />
+          </div>
+          <Skeleton className="my-4 h-px w-full" />
+          <div className="space-y-4"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-4/5" /></div>
+          <Skeleton className="mt-5 h-11 w-full rounded-lg" />
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
 const OrdersPage = () => {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -220,29 +264,32 @@ const OrdersPage = () => {
   const [sort, setSort] = useState<OrderSort>("newest");
   const [view, setView] = useState<"grid" | "list">("grid");
 
+  const { data, loading, error, reload } = useApi(() => ordersApi.list({ limit: 100 }), []);
+  const orders = useMemo(() => data?.items ?? [], [data]);
+
   const results = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const filteredOrders = salesOrders.filter(
+    const filteredOrders = orders.filter(
       (order) =>
-        (status === "all" || order.status.toLowerCase() === status) &&
-        matchesDateFilter(new Date(order.date), dateFilter, customDate) &&
+        (status === "all" || order.status === status) &&
+        matchesDateFilter(new Date(order.createdAt), dateFilter, customDate) &&
         (normalizedQuery === "" ||
-          order.id.toLowerCase().includes(normalizedQuery) ||
-          order.customerName.toLowerCase().includes(normalizedQuery)),
+          order.orderNumber.toLowerCase().includes(normalizedQuery) ||
+          (order.customer?.fullName ?? "").toLowerCase().includes(normalizedQuery)),
     );
 
     return [...filteredOrders].sort((first, second) => {
       if (sort === "newest")
-        return new Date(second.date).getTime() - new Date(first.date).getTime();
+        return new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime();
       if (sort === "oldest")
-        return new Date(first.date).getTime() - new Date(second.date).getTime();
-      const firstAmount = Number(first.amount.replace(/[^0-9]/g, ""));
-      const secondAmount = Number(second.amount.replace(/[^0-9]/g, ""));
+        return new Date(first.createdAt).getTime() - new Date(second.createdAt).getTime();
+      const firstAmount = Number(first.total);
+      const secondAmount = Number(second.total);
       return sort === "amount-high"
         ? secondAmount - firstAmount
         : firstAmount - secondAmount;
     });
-  }, [query, sort, status, dateFilter, customDate]);
+  }, [orders, query, sort, status, dateFilter, customDate]);
 
   return (
     <>
@@ -274,15 +321,15 @@ const OrdersPage = () => {
                 <SelectTrigger className="h-10 w-auto min-w-[130px] border-border bg-transparent text-sm font-medium">
                   <SelectValue className="truncate">
                     {(value) =>
-                      value === "all" ? "Status: All" : "Status: " + value
+                      value === "all" ? "Status: All" : "Status: " + statusLabels[value as OrderStatus]
                     }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Status: All</SelectItem>
-                  <SelectItem value="processing">Status: Processing</SelectItem>
-                  <SelectItem value="shipped">Status: Shipped</SelectItem>
-                  <SelectItem value="delivered">Status: Delivered</SelectItem>
+                  {(Object.keys(statusLabels) as OrderStatus[]).map((value) => (
+                    <SelectItem key={value} value={value}>Status: {statusLabels[value]}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select
@@ -392,10 +439,12 @@ const OrdersPage = () => {
           </div>
         </section>
 
-        {results.length === 0 ? (
-          <p className="rounded-2xl bg-card p-10 text-center text-sm text-muted-foreground">
-            No orders match your filters.
-          </p>
+        {loading ? (
+          <OrdersPageSkeleton />
+        ) : error ? (
+          <ApiErrorState message={error} onRetry={reload} className="my-16" />
+        ) : results.length === 0 ? (
+          <ApiEmptyState message="No orders match your filters." className="py-16" />
         ) : view === "grid" ? (
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {results.map((order) => (
@@ -407,17 +456,17 @@ const OrdersPage = () => {
                         #{order.id}
                       </p>
                       <h2 className="mt-1 truncate text-base font-bold text-ink">
-                        {order.customerName}
+                        {order.customer?.fullName ?? "Unknown customer"}
                       </h2>
                     </div>
                     <div className="flex items-center gap-2">
-                      {order.createdByType === "staff" && (
+                      {order.createdByType === "STAFF" && (
                         <StaffCreatedIndicator
-                          createdByName={order.createdByName}
+                          createdByName={order.createdBy?.fullName ?? "Staff"}
                         />
                       )}
-                      <Badge variant={getOrderStatusVariant(order.status)}>
-                        {order.status}
+                      <Badge variant={statusVariant[order.status]}>
+                        {statusLabels[order.status]}
                       </Badge>
                     </div>
                   </div>
@@ -426,20 +475,20 @@ const OrdersPage = () => {
                     <div className="flex items-center justify-between gap-3">
                       <dt className="text-muted-foreground">Summary</dt>
                       <dd className="text-right font-semibold text-ink">
-                        {order.items.length} Products
+                        {(order.items ?? []).length} Products
                         <span className="block text-xs font-normal text-muted-foreground">
-                          {totalSqm(order.items).toLocaleString("en-US")} sqm
+                          {totalSqm(order.items ?? []).toLocaleString("en-US")} sqm
                           total
                         </span>
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-3">
                       <dt className="text-muted-foreground">Order Date</dt>
-                      <dd className="font-semibold text-ink">{order.date}</dd>
+                      <dd className="font-semibold text-ink">{formatDate(order.createdAt)}</dd>
                     </div>
                     <div className="flex items-center justify-between gap-3">
                       <dt className="text-muted-foreground">Total Spend</dt>
-                      <dd className="font-semibold text-ink">{order.amount}</dd>
+                      <dd className="font-semibold text-ink">{formatPrice(order.total)}</dd>
                     </div>
                   </dl>
                   <Button
@@ -468,23 +517,23 @@ const OrdersPage = () => {
                       <p className="text-sm font-semibold text-ink">
                         {order.id}
                       </p>
-                      <p className="text-sm text-ink">{order.customerName}</p>
+                      <p className="text-sm text-ink">{order.customer?.fullName ?? "Unknown customer"}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {order.date}
+                        {formatDate(order.createdAt)}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <p className="text-sm font-semibold text-ink">
-                        {order.amount}
+                        {formatPrice(order.total)}
                       </p>
                       <div className="flex items-center gap-2">
-                        {order.createdByType === "staff" && (
+                        {order.createdByType === "STAFF" && (
                           <StaffCreatedIndicator
-                            createdByName={order.createdByName}
+                            createdByName={order.createdBy?.fullName ?? "Staff"}
                           />
                         )}
-                        <Badge variant={getOrderStatusVariant(order.status)}>
-                          {order.status}
+                        <Badge variant={statusVariant[order.status]}>
+                          {statusLabels[order.status]}
                         </Badge>
                       </div>
                     </div>
@@ -521,22 +570,22 @@ const OrdersPage = () => {
                       <TableCell className="font-semibold">
                         {order.id}
                       </TableCell>
-                      <TableCell>{order.customerName}</TableCell>
+                      <TableCell>{order.customer?.fullName ?? "Unknown customer"}</TableCell>
                       <TableCell className="whitespace-nowrap">
-                        {order.date}
+                        {formatDate(order.createdAt)}
                       </TableCell>
                       <TableCell className="whitespace-nowrap font-semibold">
-                        {order.amount}
+                        {formatPrice(order.total)}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap items-center gap-2">
-                          {order.createdByType === "staff" && (
+                          {order.createdByType === "STAFF" && (
                             <StaffCreatedIndicator
-                              createdByName={order.createdByName}
+                              createdByName={order.createdBy?.fullName ?? "Staff"}
                             />
                           )}
-                          <Badge variant={getOrderStatusVariant(order.status)}>
-                            {order.status}
+                          <Badge variant={statusVariant[order.status]}>
+                            {statusLabels[order.status]}
                           </Badge>
                         </div>
                       </TableCell>

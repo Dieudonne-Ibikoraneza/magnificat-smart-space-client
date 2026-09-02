@@ -40,6 +40,7 @@ export type StockStatus = "in_stock" | "low_stock" | "out_of_stock";
 export type OrderType = "PURCHASE" | "BOOKING";
 export type OrderCreatorType = "CUSTOMER" | "STAFF";
 export type OrderStatus =
+  | "WAITLISTED"
   | "PENDING"
   | "PROCESSING"
   | "READY_FOR_DISPATCH"
@@ -319,6 +320,10 @@ export type ApiOrder = {
   quotationViewedAt: string | null;
   paymentSubmittedAt: string | null;
   paymentVerifiedAt: string | null;
+  /** Set while PENDING (this order's items count against `Product.reservedAreaSqm`) — the deadline to complete payment before it's auto-cancelled and released. Null once committed, cancelled, or paid, and while WAITLISTED (nothing is held yet). */
+  reservationExpiresAt: string | null;
+  /** Set the moment a WAITLISTED order is promoted to PENDING (enough stock finally covers it) — never touched again after that. */
+  waitlistPromotedAt: string | null;
   createdAt: string;
   updatedAt: string;
   items?: ApiOrderItem[];

@@ -53,6 +53,7 @@ const dateFilterLabels: Record<DateFilter, string> = {
 };
 
 const statusLabels: Record<OrderStatus, string> = {
+  WAITLISTED: "Waitlisted",
   PENDING: "Pending",
   PROCESSING: "Processing",
   READY_FOR_DISPATCH: "Ready for Dispatch",
@@ -62,6 +63,7 @@ const statusLabels: Record<OrderStatus, string> = {
 };
 
 const statusVariant: Record<OrderStatus, NonNullable<BadgeProps["variant"]>> = {
+  WAITLISTED: "warning",
   PENDING: "outline",
   PROCESSING: "secondary",
   READY_FOR_DISPATCH: "warning",
