@@ -6,9 +6,12 @@ import {
   ChevronDown,
   CornerDownRight,
   ImagePlus,
+  Minus,
   Paperclip,
   Send,
   Sparkles,
+  ThumbsDown,
+  ThumbsUp,
   UserRound,
   Video,
   X,
@@ -22,7 +25,7 @@ import { chatbotApi, settingsApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { roomTypeLabels } from "@/lib/api/mappers";
 import { getSessionId } from "@/lib/session-id";
-import type { ChatRecommendation, ProfilingQuestion, RoomType } from "@/lib/api/types";
+import type { ChatRecommendation, ProfilingQuestion, RecommendationDecision, RoomType } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -92,6 +95,12 @@ export default function ChatbotPage() {
   const [selectedRoomType, setSelectedRoomType] = useState<RoomType | null>(null);
   const [conditionalsAppended, setConditionalsAppended] = useState(false);
   const [phase, setPhase] = useState<"profiling" | "chatting">("profiling");
+
+  // Customer feedback on a whole batch of recommendations (one bot turn), not
+  // per card — "did these three picks work for you overall?" Keyed by the
+  // bot message id so each recommendation turn keeps its own reaction.
+  const [batchDecisions, setBatchDecisions] = useState<Record<string, RecommendationDecision>>({});
+  const [decidingMessageId, setDecidingMessageId] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -228,6 +237,34 @@ export default function ChatbotPage() {
       ]);
     } finally {
       setIsTyping(false);
+    }
+  };
+
+  /**
+   * One reaction for the whole batch of picks in a bot turn, not per card —
+   * clicking the already-active choice undoes it back to "no response".
+   * Applies the same decision to every recommendation in that turn so the
+   * customer only has to answer once for the three products shown together.
+   */
+  const decideBatch = async (message: ChatMessage, next: "ACCEPTED" | "REJECTED") => {
+    const recommendationIds = message.products?.map((product) => product.recommendationId) ?? [];
+    if (recommendationIds.length === 0) return;
+
+    const previous = batchDecisions[message.id] ?? "PENDING";
+    const target: RecommendationDecision = previous === next ? "PENDING" : next;
+    setBatchDecisions((current) => ({ ...current, [message.id]: target }));
+    setDecidingMessageId(message.id);
+    try {
+      await Promise.all(
+        recommendationIds.map((recommendationId) => chatbotApi.setRecommendationDecision(recommendationId, target)),
+      );
+    } catch (cause) {
+      setBatchDecisions((current) => ({ ...current, [message.id]: previous }));
+      toast.error("Couldn't save your feedback", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    } finally {
+      setDecidingMessageId(null);
     }
   };
 
@@ -471,6 +508,51 @@ export default function ChatbotPage() {
                             </li>
                           ))}
                         </ul>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-sm sm:p-5">
+                        <p className="text-xs font-bold text-ink sm:text-sm">Did these recommendations help?</p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={decidingMessageId === message.id}
+                            onClick={() => void decideBatch(message, "ACCEPTED")}
+                            aria-pressed={batchDecisions[message.id] === "ACCEPTED"}
+                            className={cn(
+                              "h-9 gap-1.5 rounded-full border-slate-200 px-3.5 text-xs font-bold",
+                              batchDecisions[message.id] === "ACCEPTED"
+                                ? "border-primary bg-primary text-ink"
+                                : "text-muted hover:text-ink",
+                            )}
+                          >
+                            <ThumbsUp className="size-3.5" /> Like
+                          </Button>
+                          <span
+                            className={cn(
+                              "flex h-9 items-center gap-1.5 rounded-full px-3.5 text-xs font-bold",
+                              !batchDecisions[message.id] || batchDecisions[message.id] === "PENDING"
+                                ? "bg-muted-background text-muted-foreground"
+                                : "text-slate-300",
+                            )}
+                          >
+                            <Minus className="size-3.5" /> No response
+                          </span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={decidingMessageId === message.id}
+                            onClick={() => void decideBatch(message, "REJECTED")}
+                            aria-pressed={batchDecisions[message.id] === "REJECTED"}
+                            className={cn(
+                              "h-9 gap-1.5 rounded-full border-slate-200 px-3.5 text-xs font-bold",
+                              batchDecisions[message.id] === "REJECTED"
+                                ? "border-destructive bg-destructive text-white"
+                                : "text-muted hover:text-ink",
+                            )}
+                          >
+                            <ThumbsDown className="size-3.5" /> Dislike
+                          </Button>
+                        </div>
                       </div>
                     </>
                   )}
