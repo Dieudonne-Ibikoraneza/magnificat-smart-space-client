@@ -247,7 +247,8 @@ export const cartApi = {
 };
 
 export const favoritesApi = {
-  list: () => api.get<{ id: string; productId: string; product: ApiProduct }[]>("/favorites"),
+  list: () =>
+    api.get<{ id: string; productId: string; createdAt: string; product: ApiProduct }[]>("/favorites"),
   add: (productId: string) => api.post<{ id: string }>("/favorites", { productId }),
   remove: (productId: string) => api.delete<void>(`/favorites/${productId}`),
 };
