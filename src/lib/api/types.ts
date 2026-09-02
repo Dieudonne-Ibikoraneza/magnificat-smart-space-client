@@ -703,6 +703,7 @@ export type TileRecommendations = {
   summary: {
     displayed: number;
     accepted: number;
+    rejected: number;
     purchased: number;
     acceptanceRate: number;
     purchaseRate: number;

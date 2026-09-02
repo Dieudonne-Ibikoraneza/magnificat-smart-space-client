@@ -71,28 +71,53 @@ type FilterableTile = TilePerformanceRow & {
   description: string;
 };
 
-type TileSortOption = "viewed" | "saved" | "purchased" | "selectionRate" | "name";
+type TileSortOption =
+  | "viewed_desc"
+  | "viewed_asc"
+  | "saved_desc"
+  | "saved_asc"
+  | "purchased_desc"
+  | "purchased_asc"
+  | "selectionRate_desc"
+  | "selectionRate_asc"
+  | "name_asc"
+  | "name_desc";
 
 const tileSortLabels: Record<TileSortOption, string> = {
-  viewed: "Most Viewed",
-  saved: "Most Liked",
-  purchased: "Best Selling",
-  selectionRate: "Best Selection Rate",
-  name: "Name (A–Z)",
+  viewed_desc: "Most Viewed",
+  viewed_asc: "Least Viewed",
+  saved_desc: "Most Liked",
+  saved_asc: "Least Liked",
+  purchased_desc: "Best Selling",
+  purchased_asc: "Least Selling",
+  selectionRate_desc: "Best Selection Rate",
+  selectionRate_asc: "Worst Selection Rate",
+  name_asc: "Name (A–Z)",
+  name_desc: "Name (Z–A)",
 };
 
 const sortTiles = (items: FilterableTile[], sortBy: TileSortOption): FilterableTile[] => {
   const sorted = [...items];
   switch (sortBy) {
-    case "saved":
+    case "viewed_asc":
+      return sorted.sort((a, b) => a.viewed - b.viewed);
+    case "saved_desc":
       return sorted.sort((a, b) => b.saved - a.saved);
-    case "purchased":
+    case "saved_asc":
+      return sorted.sort((a, b) => a.saved - b.saved);
+    case "purchased_desc":
       return sorted.sort((a, b) => b.purchased - a.purchased);
-    case "selectionRate":
+    case "purchased_asc":
+      return sorted.sort((a, b) => a.purchased - b.purchased);
+    case "selectionRate_desc":
       return sorted.sort((a, b) => b.selectionRate - a.selectionRate);
-    case "name":
+    case "selectionRate_asc":
+      return sorted.sort((a, b) => a.selectionRate - b.selectionRate);
+    case "name_asc":
       return sorted.sort((a, b) => a.name.localeCompare(b.name));
-    case "viewed":
+    case "name_desc":
+      return sorted.sort((a, b) => b.name.localeCompare(a.name));
+    case "viewed_desc":
     default:
       return sorted.sort((a, b) => b.viewed - a.viewed);
   }
@@ -662,7 +687,7 @@ const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boole
   const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<TileSortOption>("viewed");
+  const [sortBy, setSortBy] = useState<TileSortOption>("viewed_desc");
 
   const filterGroups = useMemo(() => buildTileFilterGroups(rows), [rows]);
 
@@ -723,7 +748,7 @@ const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boole
         <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
           <span className="hidden sm:inline">Sort by:</span>
           <Select value={sortBy} onValueChange={(value) => { setSortBy(value as TileSortOption); setCurrentPage(1); }}>
-            <SelectTrigger className="h-11 w-full min-w-0 border-border sm:w-44">
+            <SelectTrigger className="h-11 w-full min-w-0 border-border sm:w-52">
               <SelectValue>{(value) => tileSortLabels[value as TileSortOption]}</SelectValue>
             </SelectTrigger>
             <SelectContent>
