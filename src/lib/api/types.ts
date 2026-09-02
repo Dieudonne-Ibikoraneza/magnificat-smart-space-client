@@ -462,6 +462,7 @@ export type PlatformSettings = Record<string, unknown> & {
   "notifications.lowStockAlerts": boolean;
   "notifications.orderUpdates": boolean;
   "notifications.systemNotifications": boolean;
+  "stock.lowStockThreshold": number;
   "payment.momoCode": string;
   "payment.momoName": string;
   "payment.bankName": string;
