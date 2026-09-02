@@ -2,9 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { ChatProduct } from "@/data/chat";
+import type { ChatRecommendation } from "@/lib/api/types";
 
-type ChatProductCardProps = { product: ChatProduct };
+type ChatProductCardProps = { product: ChatRecommendation };
 
 export const ChatProductCard = ({ product }: ChatProductCardProps) => (
   <article className="overflow-hidden rounded-xl bg-white shadow-sm">
@@ -28,7 +28,7 @@ export const ChatProductCard = ({ product }: ChatProductCardProps) => (
     </div>
     <div className="p-3">
       <p className="text-[10px] font-semibold uppercase tracking-wide text-[#d5c19f]">
-        Floor Tile · 60×60cm
+        {product.collection} · {product.size}
       </p>
       <h3 className="mt-1 truncate text-xs font-bold text-ink">
         {product.name}

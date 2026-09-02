@@ -6,7 +6,6 @@ import {
   ChevronDown,
   CornerDownRight,
   ImagePlus,
-  Loader2,
   Paperclip,
   Send,
   UserRound,
@@ -17,14 +16,19 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { ChatProductCard } from "@/components/chat-product-card";
-import { followUps, recommendedProducts, roomOptions, type ChatProduct } from "@/data/chat";
+import { followUps, roomOptions } from "@/data/chat";
+import { chatbotApi } from "@/lib/api";
+import { ApiError } from "@/lib/api/client";
+import { getSessionId } from "@/lib/session-id";
+import type { ChatRecommendation } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 /**
- * A photo or video of the customer's own room, attached to a message. The doc
- * (3.6) asks the assistant to generate a preview of the room styled with the
- * selected tiles, and to accept a client-submitted video and return a version
- * with the design applied — both start from an attachment like this.
+ * A photo or video of the customer's own room, attached to a message. The
+ * doc (3.6) asks the assistant to generate a styled preview from this, but
+ * that model isn't wired up in this environment yet (no real image/video
+ * provider, and no public upload endpoint to even get the file a URL) — see
+ * `sendAttachment` below, which is honest about that instead of faking it.
  */
 type ChatAttachment = {
   kind: "image" | "video";
@@ -37,22 +41,12 @@ type ChatMessage = {
   id: string;
   sender: "bot" | "user";
   text: string;
-  products?: ChatProduct[];
+  products?: ChatRecommendation[];
   attachment?: ChatAttachment;
-  /** Set while the room preview for `attachment` is still rendering. */
-  renderingPreview?: boolean;
   isNew?: boolean;
 };
 
 const MAX_ATTACHMENT_MB = 25;
-
-type ConversationStep = "room" | "size" | "wall" | "furniture" | "complete";
-
-const botPrompts = {
-  size: "What is the room size / area to cover? (please enter in m², or tell me length × width)",
-  wall: "What color is your wall paint? (e.g., white, cream, light gray, beige, blue, etc.)",
-  furniture: "What is your preferred furniture color? (e.g., brown/wood, black, white, beige, gray)",
-};
 
 const initialMessages: ChatMessage[] = [
   { id: "welcome", sender: "bot", text: "Welcome to Magnificat Smart Space! I am your AI Design Assistant. Let's narrow down your requirements. To give you the best recommendations, tell me: what room are you building/tiling?" },
@@ -64,7 +58,7 @@ const MESSAGE_COUNT_THRESHOLD = 1000;
 
 export default function ChatbotPage() {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
-  const [step, setStep] = useState<ConversationStep>("room");
+  const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -75,6 +69,8 @@ export default function ChatbotPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   /** Every object URL handed out, so none leak when the page unmounts. */
   const objectUrlsRef = useRef<string[]>([]);
+
+  const hasUserMessage = messages.some((message) => message.sender === "user");
 
   useEffect(
     () => () => {
@@ -120,19 +116,52 @@ export default function ChatbotPage() {
     scrollArea.scrollTo({ top: scrollArea.scrollHeight, behavior: "smooth" });
   };
 
-  const addBotReply = (text: string, products?: ChatProduct[]) => {
+  const resetInput = () => {
+    setInput("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "56px";
+      textareaRef.current.style.overflowY = "hidden";
+    }
+  };
+
+  /** The real round-trip: persists the turn, asks the AI provider for a reply, and returns real catalog picks (never invented ones). */
+  const sendToAssistant = async (content: string) => {
+    setMessages((current) => [...current, { id: makeId(), sender: "user", text: content, isNew: true }]);
     setIsTyping(true);
-    window.setTimeout(() => {
-      setMessages((current) => [...current, { id: makeId(), sender: "bot", text, products, isNew: true }]);
+    try {
+      const result = await chatbotApi.sendMessage({
+        sessionId: getSessionId(),
+        content,
+        conversationId,
+        language: "EN",
+      });
+      setConversationId(result.conversation.id);
+      setMessages((current) => [
+        ...current,
+        {
+          id: result.message.id,
+          sender: "bot",
+          text: result.message.content,
+          products: result.products.length ? result.products : undefined,
+          isNew: true,
+        },
+      ]);
+    } catch (cause) {
+      toast.error("Couldn't reach the assistant", {
+        description: cause instanceof ApiError ? cause.message : "Please check your connection and try again.",
+      });
+      setMessages((current) => [
+        ...current,
+        { id: makeId(), sender: "bot", text: "Sorry, something went wrong on my end — please try that again.", isNew: true },
+      ]);
+    } finally {
       setIsTyping(false);
-    }, 650);
+    }
   };
 
   const chooseRoom = (room: string) => {
-    if (step !== "room" || isTyping) return;
-    setMessages((current) => [...current, { id: makeId(), sender: "user", text: room, isNew: true }]);
-    setStep("size");
-    addBotReply(botPrompts.size);
+    if (hasUserMessage || isTyping) return;
+    void sendToAssistant(`I'm designing a ${room.toLowerCase()}. What tiles do you recommend?`);
   };
 
   const pickAttachment = (event: ChangeEvent<HTMLInputElement>) => {
@@ -159,14 +188,18 @@ export default function ChatbotPage() {
   const clearAttachment = () => setAttachment(null);
 
   /**
-   * Sends the attached room photo/video with the message and stands in for the
-   * image/video model round-trip, which replies with the styled preview.
+   * Styled photo/video previews (doc 3.6) need a real image/video generation
+   * model and somewhere to upload the file to first — neither exists in this
+   * environment yet (see the media providers, both still stubs). Rather than
+   * fake a "rendering your preview" animation over the customer's own photo,
+   * this shows their attachment (that part is real) and says plainly that
+   * the styled-preview feature isn't available yet, steering them back to
+   * the real, working part of the assistant.
    */
   const sendAttachment = (media: ChatAttachment, text: string) => {
-    const messageId = makeId();
     setMessages((current) => [
       ...current,
-      { id: messageId, sender: "user", text, attachment: media, isNew: true },
+      { id: makeId(), sender: "user", text, attachment: media, isNew: true },
     ]);
     setAttachment(null);
     setIsTyping(true);
@@ -178,12 +211,7 @@ export default function ChatbotPage() {
         {
           id: makeId(),
           sender: "bot",
-          text:
-            media.kind === "image"
-              ? "Working on a preview of your room with these tiles applied — this takes a moment."
-              : "Got your video. I'm applying the selected design to the footage — this takes a little longer than a photo.",
-          attachment: media,
-          renderingPreview: true,
+          text: "Styled photo and video previews aren't available yet in this environment — but tell me the room, size, and colors and I can recommend real tiles from our catalog right now.",
           isNew: true,
         },
       ]);
@@ -195,11 +223,7 @@ export default function ChatbotPage() {
     const answer = input.trim();
 
     if (attachment && !isTyping) {
-      setInput("");
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "56px";
-        textareaRef.current.style.overflowY = "hidden";
-      }
+      resetInput();
       sendAttachment(
         attachment,
         answer ||
@@ -210,25 +234,9 @@ export default function ChatbotPage() {
       return;
     }
 
-    if (!answer || answer.length > MAX_MESSAGE_LENGTH || isTyping || step === "room") return;
-    setInput("");
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "56px";
-      textareaRef.current.style.overflowY = "hidden";
-    }
-    setMessages((current) => [...current, { id: makeId(), sender: "user", text: answer, isNew: true }]);
-    if (step === "size") {
-      setStep("wall");
-      addBotReply(botPrompts.wall);
-    } else if (step === "wall") {
-      setStep("furniture");
-      addBotReply(botPrompts.furniture);
-    } else if (step === "furniture") {
-      setStep("complete");
-      addBotReply("Yes! You need tiles with anti-slip properties and weather resistance. I suggest our Heavy-duty wood effect slabs engineered specifically for exterior use.", recommendedProducts);
-    } else {
-      addBotReply("Thanks for the additional detail. I can use that to refine your tile recommendations. You can also choose one of the follow-up questions below.");
-    }
+    if (!answer || answer.length > MAX_MESSAGE_LENGTH || isTyping) return;
+    resetInput();
+    void sendToAssistant(answer);
   };
 
   const handleInputKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -252,8 +260,7 @@ export default function ChatbotPage() {
     if (isTyping) return;
     const followUp = followUps.find((item) => item.id === followUpId);
     if (!followUp) return;
-    setMessages((current) => [...current, { id: makeId(), sender: "user", text: followUp.text, isNew: true }]);
-    addBotReply(followUp.response, followUp.products);
+    void sendToAssistant(followUp.text);
   };
 
   const showFollowUps = messages.some((message) => message.products?.length);
@@ -296,11 +303,7 @@ export default function ChatbotPage() {
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={message.attachment.url}
-                            alt={
-                              message.renderingPreview
-                                ? "Preview of your room being generated"
-                                : `Your room: ${message.attachment.name}`
-                            }
+                            alt={`Your room: ${message.attachment.name}`}
                             className="max-h-64 w-full object-cover"
                           />
                         ) : (
@@ -310,12 +313,6 @@ export default function ChatbotPage() {
                             className="max-h-64 w-full object-cover"
                             aria-label={`Your room video: ${message.attachment.name}`}
                           />
-                        )}
-                        {message.renderingPreview && (
-                          <figcaption className="flex items-center gap-2 px-3 py-2 text-[11px] font-medium text-slate-600">
-                            <Loader2 className="size-3 animate-spin" />
-                            Rendering your styled preview…
-                          </figcaption>
                         )}
                       </figure>
                     )}
@@ -336,7 +333,7 @@ export default function ChatbotPage() {
               </div>
             ))}
 
-            {step === "room" && !isTyping && (
+            {!hasUserMessage && !isTyping && (
               <div className="ml-12 grid max-w-xl grid-cols-2 gap-2 sm:grid-cols-4">
                 {roomOptions.map((room) => (
                   <Button
@@ -447,7 +444,7 @@ export default function ChatbotPage() {
             value={input}
             onChange={(event) => handleInputChange(event.target.value)}
             onKeyDown={handleInputKeyDown}
-            disabled={(step === "room" && !attachment) || isTyping}
+            disabled={isTyping}
             rows={1}
             placeholder={attachment ? "Add a note about your room (optional)…" : "Type your message here..."}
             className="h-14 min-h-14 max-h-35 overflow-y-hidden rounded-xl bg-white px-3 py-3.5 pr-26 text-sm leading-normal"
@@ -467,11 +464,7 @@ export default function ChatbotPage() {
             type="submit"
             size="icon"
             aria-label="Send message"
-            disabled={
-              isTyping ||
-              input.length > MAX_MESSAGE_LENGTH ||
-              (attachment ? false : !input.trim() || step === "room")
-            }
+            disabled={isTyping || input.length > MAX_MESSAGE_LENGTH || (attachment ? false : !input.trim())}
             className="absolute bottom-3 right-3 top-auto size-9 rounded-full bg-slate-200 text-ink hover:bg-primary"
           >
             <Send className="size-4" />
@@ -484,8 +477,8 @@ export default function ChatbotPage() {
           )}
         >
           <p className={showCharacterCount ? "hidden sm:flex" : ""}>
-            Press Enter to submit · Shift + Enter for a new line · Attach a room photo or video for a
-            styled preview
+            Press Enter to submit · Shift + Enter for a new line · Attach a room photo or video to
+            share with the assistant
           </p>
           {showCharacterCount && (
             <p className={input.length > MAX_MESSAGE_LENGTH ? "font-semibold text-red-500" : ""}>

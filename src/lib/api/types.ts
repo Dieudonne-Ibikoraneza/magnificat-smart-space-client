@@ -422,6 +422,8 @@ export type ChatRecommendation = {
   image: string;
   price: number;
   link: string;
+  collection: string;
+  size: string;
 };
 
 export type ChatSendResult = {
