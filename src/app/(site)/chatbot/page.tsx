@@ -8,6 +8,7 @@ import {
   ImagePlus,
   Paperclip,
   Send,
+  Sparkles,
   UserRound,
   Video,
   X,
@@ -282,11 +283,6 @@ export default function ChatbotPage() {
     });
   };
 
-  const chooseRoom = (room: string) => {
-    if (isTyping) return;
-    answerCurrentQuestion(room);
-  };
-
   const pickAttachment = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -390,8 +386,6 @@ export default function ChatbotPage() {
     void sendToAssistant(followUp.text);
   };
 
-  const currentQuestion = phase === "profiling" ? activeQueue[profilingIndex] : undefined;
-  const showRoomButtons = !!currentQuestion && !isTyping && isRoomQuestion(currentQuestion);
   const showFollowUps = messages.some((message) => message.products?.length);
   const showCharacterCount = input.length > MESSAGE_COUNT_THRESHOLD;
 
@@ -452,31 +446,37 @@ export default function ChatbotPage() {
                     </span>
                   )}
                   {message.products && (
-                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                      {message.products.map((product) => (
-                        <ChatProductCard key={product.id} product={product} />
-                      ))}
-                    </div>
+                    <>
+                      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        {message.products.map((product) => (
+                          <ChatProductCard key={product.id} product={product} />
+                        ))}
+                      </div>
+                      <div className="mt-3 rounded-xl bg-white p-4 shadow-sm sm:p-5">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="size-4 text-amber" />
+                          <h4 className="text-xs font-bold tracking-wide text-ink uppercase sm:text-sm">
+                            Why these picks
+                          </h4>
+                        </div>
+                        <ul className="mt-3 space-y-3">
+                          {message.products.map((product) => (
+                            <li key={product.id} className="flex items-start gap-3">
+                              <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-ink">
+                                {Math.round(product.matchScore)}%
+                              </span>
+                              <p className="text-xs leading-5 text-slate-600 sm:text-[13px]">
+                                <span className="font-bold text-ink">{product.name}</span> — {product.reason}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
             ))}
-
-            {showRoomButtons && (
-              <div className="ml-12 grid max-w-xl grid-cols-2 gap-2 sm:grid-cols-4">
-                {Object.values(roomTypeLabels).map((room) => (
-                  <Button
-                    key={room}
-                    type="button"
-                    variant="outline"
-                    onClick={() => chooseRoom(room)}
-                    className="h-11 px-3 text-xs font-medium text-ink transition-colors hover:bg-primary hover:text-ink sm:text-sm"
-                  >
-                    {room}
-                  </Button>
-                ))}
-              </div>
-            )}
 
             {isTyping && (
               <div className="flex items-center gap-3">

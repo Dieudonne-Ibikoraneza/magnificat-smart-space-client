@@ -81,11 +81,6 @@ export const ChatProductCard = ({ product }: ChatProductCardProps) => {
         <h3 className="mt-1 truncate text-xs font-bold text-ink">
           {product.name}
         </h3>
-        {product.reason && (
-          <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-muted" title={product.reason}>
-            {product.reason}
-          </p>
-        )}
         <p className="mt-2 text-base font-bold text-ink">
           RWF {product.price.toLocaleString()}{" "}
           <span className="ml-1 text-[11px] font-medium text-muted">/ sqm</span>
