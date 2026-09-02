@@ -16,11 +16,12 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { ChatProductCard } from "@/components/chat-product-card";
-import { followUps, roomOptions } from "@/data/chat";
-import { chatbotApi } from "@/lib/api";
+import { followUps } from "@/data/chat";
+import { chatbotApi, settingsApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
+import { roomTypeLabels } from "@/lib/api/mappers";
 import { getSessionId } from "@/lib/session-id";
-import type { ChatRecommendation } from "@/lib/api/types";
+import type { ChatRecommendation, ProfilingQuestion, RoomType } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -56,21 +57,47 @@ const makeId = () => `${Date.now()}-${Math.random()}`;
 const MAX_MESSAGE_LENGTH = 2000;
 const MESSAGE_COUNT_THRESHOLD = 1000;
 
+/** Whether this admin-configured question is the one asking which room the customer is designing for — the only one shown with quick-select buttons instead of (as well as) free text. */
+const isRoomQuestion = (question: ProfilingQuestion) => /room/i.test(question.text);
+
+/** "Living Room (Saloon)" -> "living room" — matches a typed answer against the label even with the parenthetical aside stripped. */
+const coreRoomLabel = (label: string) => label.replace(/\s*\(.*?\)\s*/g, "").trim().toLowerCase();
+
+const findRoomTypeFromAnswer = (answer: string): RoomType | undefined => {
+  const normalized = answer.trim().toLowerCase();
+  return (Object.keys(roomTypeLabels) as RoomType[]).find((key) => {
+    const core = coreRoomLabel(roomTypeLabels[key]);
+    return normalized === core || normalized.includes(core);
+  });
+};
+
 export default function ChatbotPage() {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+  const [isTyping, setIsTyping] = useState(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
+
+  // The pre-recommendation questionnaire (doc 3.10: admin-configured
+  // profiling questions) — asked once, in order, before the assistant is
+  // allowed to recommend anything. `activeQueue` starts as every
+  // always-asked question and grows once the room is known to also include
+  // that room's conditional-only questions.
+  const [allQuestions, setAllQuestions] = useState<ProfilingQuestion[]>([]);
+  const [activeQueue, setActiveQueue] = useState<ProfilingQuestion[]>([]);
+  const [profilingIndex, setProfilingIndex] = useState(0);
+  const [profilingAnswers, setProfilingAnswers] = useState<{ question: string; answer: string }[]>([]);
+  const [selectedRoomType, setSelectedRoomType] = useState<RoomType | null>(null);
+  const [conditionalsAppended, setConditionalsAppended] = useState(false);
+  const [phase, setPhase] = useState<"profiling" | "chatting">("profiling");
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   /** Every object URL handed out, so none leak when the page unmounts. */
   const objectUrlsRef = useRef<string[]>([]);
-
-  const hasUserMessage = messages.some((message) => message.sender === "user");
 
   useEffect(
     () => () => {
@@ -124,9 +151,53 @@ export default function ChatbotPage() {
     }
   };
 
+  const revealBotMessage = (text: string) => {
+    setIsTyping(true);
+    window.setTimeout(() => {
+      setIsTyping(false);
+      setMessages((current) => [...current, { id: makeId(), sender: "bot", text, isNew: true }]);
+    }, 500);
+  };
+
+  // Load the real admin-configured profiling questions and kick off the
+  // questionnaire — if none are configured (or the fetch fails), skip
+  // straight to free-form chat rather than blocking the page on it.
+  useEffect(() => {
+    let active = true;
+
+    (async () => {
+      try {
+        const questions = await settingsApi.profilingQuestions({ language: "EN" });
+        if (!active) return;
+        const always = questions
+          .filter((question) => !question.roomType)
+          .sort((a, b) => a.position - b.position);
+        setAllQuestions(questions);
+        if (always.length === 0) {
+          setPhase("chatting");
+          setIsTyping(false);
+          return;
+        }
+        setActiveQueue(always);
+        revealBotMessage(always[0].text);
+      } catch {
+        if (active) {
+          setPhase("chatting");
+          setIsTyping(false);
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   /** The real round-trip: persists the turn, asks the AI provider for a reply, and returns real catalog picks (never invented ones). */
-  const sendToAssistant = async (content: string) => {
-    setMessages((current) => [...current, { id: makeId(), sender: "user", text: content, isNew: true }]);
+  const sendToAssistant = async (content: string, options?: { showUserBubble?: boolean }) => {
+    if (options?.showUserBubble ?? true) {
+      setMessages((current) => [...current, { id: makeId(), sender: "user", text: content, isNew: true }]);
+    }
     setIsTyping(true);
     try {
       const result = await chatbotApi.sendMessage({
@@ -159,9 +230,61 @@ export default function ChatbotPage() {
     }
   };
 
+  /**
+   * Records the answer to the current profiling question, then either asks
+   * the next one, extends the queue with that room's conditional questions
+   * once the room is known, or — once every applicable question has been
+   * answered — hands everything collected to the real assistant in one turn
+   * so it recommends with full context instead of guessing from one line.
+   */
+  const answerCurrentQuestion = (answerText: string) => {
+    const question = activeQueue[profilingIndex];
+    if (!question || isTyping) return;
+
+    setMessages((current) => [...current, { id: makeId(), sender: "user", text: answerText, isNew: true }]);
+    const updatedAnswers = [...profilingAnswers, { question: question.text, answer: answerText }];
+    setProfilingAnswers(updatedAnswers);
+
+    let roomType = selectedRoomType;
+    if (!roomType && isRoomQuestion(question)) {
+      const found = findRoomTypeFromAnswer(answerText);
+      if (found) {
+        roomType = found;
+        setSelectedRoomType(found);
+      }
+    }
+
+    const nextIndex = profilingIndex + 1;
+    if (nextIndex < activeQueue.length) {
+      setProfilingIndex(nextIndex);
+      revealBotMessage(activeQueue[nextIndex].text);
+      return;
+    }
+
+    if (roomType && !conditionalsAppended) {
+      const conditionals = allQuestions
+        .filter((item) => item.roomType === roomType)
+        .sort((a, b) => a.position - b.position);
+      setConditionalsAppended(true);
+      if (conditionals.length > 0) {
+        const newQueue = [...activeQueue, ...conditionals];
+        setActiveQueue(newQueue);
+        setProfilingIndex(nextIndex);
+        revealBotMessage(newQueue[nextIndex].text);
+        return;
+      }
+    }
+
+    setPhase("chatting");
+    const summary = updatedAnswers.map((entry) => `${entry.question} ${entry.answer}`).join(" ");
+    void sendToAssistant(`${summary} Based on this, please recommend tiles now.`.slice(0, MAX_MESSAGE_LENGTH), {
+      showUserBubble: false,
+    });
+  };
+
   const chooseRoom = (room: string) => {
-    if (hasUserMessage || isTyping) return;
-    void sendToAssistant(`I'm designing a ${room.toLowerCase()}. What tiles do you recommend?`);
+    if (isTyping) return;
+    answerCurrentQuestion(room);
   };
 
   const pickAttachment = (event: ChangeEvent<HTMLInputElement>) => {
@@ -236,7 +359,11 @@ export default function ChatbotPage() {
 
     if (!answer || answer.length > MAX_MESSAGE_LENGTH || isTyping) return;
     resetInput();
-    void sendToAssistant(answer);
+    if (phase === "profiling") {
+      answerCurrentQuestion(answer);
+    } else {
+      void sendToAssistant(answer);
+    }
   };
 
   const handleInputKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -263,6 +390,8 @@ export default function ChatbotPage() {
     void sendToAssistant(followUp.text);
   };
 
+  const currentQuestion = phase === "profiling" ? activeQueue[profilingIndex] : undefined;
+  const showRoomButtons = !!currentQuestion && !isTyping && isRoomQuestion(currentQuestion);
   const showFollowUps = messages.some((message) => message.products?.length);
   const showCharacterCount = input.length > MESSAGE_COUNT_THRESHOLD;
 
@@ -333,9 +462,9 @@ export default function ChatbotPage() {
               </div>
             ))}
 
-            {!hasUserMessage && !isTyping && (
+            {showRoomButtons && (
               <div className="ml-12 grid max-w-xl grid-cols-2 gap-2 sm:grid-cols-4">
-                {roomOptions.map((room) => (
+                {Object.values(roomTypeLabels).map((room) => (
                   <Button
                     key={room}
                     type="button"

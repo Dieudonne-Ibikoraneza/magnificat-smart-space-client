@@ -424,6 +424,10 @@ export type ChatRecommendation = {
   link: string;
   collection: string;
   size: string;
+  /** 0-100 — how well the assistant judged this pick fits what the customer described. */
+  matchScore: number;
+  /** One concise sentence explaining why the assistant picked this product. */
+  reason: string;
 };
 
 export type ChatSendResult = {
