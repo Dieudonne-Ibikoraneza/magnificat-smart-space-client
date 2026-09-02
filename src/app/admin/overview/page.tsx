@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -30,194 +30,52 @@ import {
   Repeat,
   ShieldCheck,
   ShoppingBasket,
-  ShoppingCart,
   Sparkles,
   ThumbsDown,
-  ThumbsUp,
+  Truck,
+  XCircle,
   Minus,
   Smile,
   Trash2,
-  TrendingDown,
   TrendingUp,
   Wallet,
   UsersRound,
-  Coins
+  Coins,
 } from "lucide-react";
 import { AdminPageHeader } from "@/app/admin/layout";
-import { Badge } from "@/components/ui/badge";
+import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
+import { OrderStatusBadge } from "@/components/order-status-control";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import { ChartAxisTick } from "@/components/chart-axis-tick";
-import { cn } from "@/lib/utils";
-import { salesOrders } from "@/data/sales-orders";
-import { inventoryProducts } from "@/data/inventory";
+import { Skeleton } from "@/components/ui/skeleton";
+import { JOURNEY_STAGE_META } from "@/components/conversion-funnel";
+import { cn, formatCompactCurrency, formatCompactNumber } from "@/lib/utils";
+import { analyticsApi, ordersApi, productsApi } from "@/lib/api";
+import { useApi } from "@/lib/api/use-api";
+import type { AnalyticsPeriod, ApiProduct, OrderStatus, TilePerformanceRow } from "@/lib/api/types";
 
-const salesTrendDatasets = {
-  "7D": [
-    { day: "Mon", value: 12_400_000 },
-    { day: "Tue", value: 15_100_000 },
-    { day: "Wed", value: 14_200_000 },
-    { day: "Thu", value: 18_600_000 },
-    { day: "Fri", value: 21_300_000 },
-    { day: "Sat", value: 19_800_000 },
-    { day: "Sun", value: 17_400_000 },
-  ],
-  "30D": [
-    { day: "Mar 01", value: 12_400_000 },
-    { day: "Mar 08", value: 24_800_000 },
-    { day: "Mar 15", value: 30_100_000 },
-    { day: "Mar 22", value: 30_600_000 },
-    { day: "Mar 30", value: 31_200_000 },
-  ],
-  "3M": [
-    { day: "Jan", value: 62_000_000 },
-    { day: "Feb", value: 78_500_000 },
-    { day: "Mar", value: 92_300_000 },
-  ],
-  "12M": [
-    { day: "Jan", value: 42_000_000 },
-    { day: "Mar", value: 51_000_000 },
-    { day: "May", value: 58_000_000 },
-    { day: "Jul", value: 66_500_000 },
-    { day: "Sep", value: 73_000_000 },
-    { day: "Nov", value: 81_000_000 },
-  ],
-} as const;
+const pct = (numerator: number, denominator: number) =>
+  denominator > 0 ? (numerator / denominator) * 100 : 0;
 
-const kpis = [
-  {
-    label: "Total Sales (RWF)",
-    value: "128.5M",
-    trend: "+12%",
-    icon: Wallet,
-  },
-  {
-    label: "Total Orders",
-    value: "1,029",
-    badge: "2.4%",
-    icon: ShoppingBasket,
-  },
-  {
-    label: "Total Customers",
-    value: "12,450",
-    trend: "+8.4%",
-    icon: UsersRound,
-  },
-  {
-    label: "Repeat Customers",
-    value: "3,120",
-    trend: "-1.5%",
-    icon: Repeat,
-  },
-  {
-    label: "Inventory",
-    value: "8K / 142K",
-    warning: "14 Low Stock",
-    icon: ShoppingBag,
-  },
-  {
-    label: "Avg. Conversion",
-    value: "12%",
-    badge: "2.4%",
-    icon: Coins,
-  },
-] as const;
+/** The chart's own 7D/30D/3M/12M granularity mapped onto the backend's three real period buckets — "3M" has no distinct bucket of its own, so it shows the same 30-day figures as "30D" rather than inventing a fourth series. */
+const rangeToPeriod: Record<"7D" | "30D" | "3M" | "12M", AnalyticsPeriod> = {
+  "7D": "WEEKLY",
+  "30D": "MONTHLY",
+  "3M": "MONTHLY",
+  "12M": "YEARLY",
+};
 
-const needsAttention = [
-  { label: "Out of Stock", count: 3, icon: Box, tone: "bg-red-50 text-red-600" },
-  { label: "Low Stock", count: 14, icon: AlertTriangle, tone: "bg-amber-50 text-amber-600" },
-  { label: "Pending Orders", count: 27, icon: Clock3, tone: "bg-slate-100 text-ink" },
-];
+const orderStatusMeta: Record<OrderStatus, { icon: typeof Clock3; tone: string }> = {
+  PENDING: { icon: Clock3, tone: "bg-slate-100 text-ink" },
+  PROCESSING: { icon: Clock3, tone: "bg-amber-50 text-amber-600" },
+  READY_FOR_DISPATCH: { icon: PackageCheck, tone: "bg-blue-50 text-blue-600" },
+  SHIPPED: { icon: Truck, tone: "bg-blue-50 text-blue-600" },
+  DELIVERED: { icon: PackageCheck, tone: "bg-green-50 text-green-600" },
+  CANCELLED: { icon: XCircle, tone: "bg-red-50 text-red-600" },
+};
 
-const journeySteps = [
-  { label: "Opened App", value: "12.4k", sub: "100% Volume", conversion: null },
-  { label: "Created Room", value: "7.4k", sub: null, conversion: "60%" },
-  { label: "Viewed Tile", value: "6.3k", sub: null, conversion: "85%" },
-  { label: "Applied Tile", value: "4.4k", sub: null, conversion: "70%" },
-  { label: "Saved/Shared", value: "1.7k", sub: null, conversion: "40%" },
-  { label: "Purchased", value: "595", sub: "4.8% Final Conv.", conversion: "34%" },
-];
-
-const tilePerformance = [
-  { label: "Most Viewed", value: "Calacatta Gold Polished", sub: "12.4K views", icon: Eye },
-  { label: "Most Applied", value: "Calacatta Gold Polished", sub: "12.4K applications", icon: MousePointerSquareDashed },
-  { label: "Most Purchased", value: "Calacatta Gold Polished", sub: "12.4K sales", icon: ShoppingBasket },
-  { label: "Avg. Selection Rate", value: "18.4%", badge: "12.4%", icon: MousePointerClick },
-  { label: "Avg. Conversion", value: "12%", badge: "2.4%", icon: Wallet },
-] as const;
-
-const inventoryOverview = [
-  { label: "Total Inventory Value", value: "$1.24M", badge: "2.4%", icon: Wallet },
-  { label: "Active Products", value: "842", icon: PackageCheck },
-  { label: "Pending Fulfillments", value: "28", icon: Clock3 },
-  { label: "Low Stock Items", value: "12", icon: AlertTriangle, warn: true },
-] as const;
-
-const urgentItems = [
-  {
-    id: "urgent-1",
-    name: "Nero Marquina",
-    collection: "80x80cm Luxury Black Series",
-    description: "Deep black marble with striking white lightning veins.",
-    image: inventoryProducts[1].image,
-    sku: "SLB-NM-042",
-    size: "80x80cm",
-    currentStock: 45,
-    stockLevel: "low" as const,
-    unitPrice: "52,000",
-    lastUpdated: "Oct 23, 2026",
-  },
-  {
-    id: "urgent-2",
-    name: "Carrara White",
-    collection: "10x30cm Classic Subway Collection",
-    description: "Elegant and versatile tiles for modern kitchen backsplashes.",
-    image: inventoryProducts[2].image,
-    sku: "SUB-CW-105",
-    size: "10x30cm",
-    currentStock: 0,
-    stockLevel: "critical" as const,
-    unitPrice: "12,500",
-    lastUpdated: "Oct 20, 2026",
-  },
-];
-
-const stockDot = { low: "bg-amber-500", critical: "bg-red-500" } as const;
-const stockText = { low: "text-amber-600", critical: "text-red-600" } as const;
-
-const recentOrders = salesOrders.slice(0, 3).map((order) => ({
-  ...order,
-  itemCount: order.items.length,
-}));
-
-const orderStatusIcon = {
-  Processing: { icon: Clock3, tone: "bg-amber-50 text-amber-600" },
-  Shipped: { icon: ShoppingCart, tone: "bg-blue-50 text-blue-600" },
-  Delivered: { icon: PackageCheck, tone: "bg-green-50 text-green-600" },
-} as const;
-
-const orderStatusBadgeVariant = {
-  Processing: "warning",
-  Shipped: "primary",
-  Delivered: "muted",
-} as const;
-
-const orderStatusLabel = {
-  Processing: "Pending",
-  Shipped: "Shipped",
-  Delivered: "Delivered",
-} as const;
-
-const aiKpis = [
-  { label: "Total Recommendations", value: "1,220,291", change: "12.4%", icon: Sparkles },
-  { label: "Acceptance Rate", value: "33.3%", change: "4.2%", icon: ShieldCheck },
-  { label: "Avg. Match Score", value: "89.2%", change: "2.4%", icon: TrendingUp },
-] as const;
-
-const sentiments = [
-  { label: "72%", value: 72, icon: ThumbsUp, bar: "bg-blue-500", chip: "bg-blue-100 text-blue-600" },
-  { label: "20%", value: 20, icon: Minus, bar: "bg-muted-foreground/40", chip: "bg-muted-background text-muted-foreground" },
-  { label: "8%", value: 8, icon: ThumbsDown, bar: "bg-red-500", chip: "bg-red-100 text-red-600" },
-];
+const stockDot = { low_stock: "bg-amber-500", out_of_stock: "bg-red-500" } as const;
+const stockText = { low_stock: "text-amber-600", out_of_stock: "text-red-600" } as const;
 
 const HeaderActions = () => (
   <div className="flex shrink-0 items-center gap-2">
@@ -236,52 +94,77 @@ const HeaderActions = () => (
   </div>
 );
 
-const KpiCards = () => (
-  <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
-    {kpis.map((kpi) => {
-      const Icon = kpi.icon;
-      const isNegative = "trend" in kpi && kpi.trend?.startsWith("-");
+const KpiSkeleton = () => (
+  <article className="flex h-full flex-col rounded-2xl bg-card p-4 sm:p-5">
+    <Skeleton className="size-5" />
+    <div className="mt-3 flex flex-1 flex-col justify-end gap-2">
+      <Skeleton className="h-3 w-20" />
+      <Skeleton className="h-6 w-16" />
+    </div>
+  </article>
+);
 
-      return (
-        <article key={kpi.label} className="flex h-full flex-col rounded-2xl bg-card p-4 sm:p-5">
-          <div className="flex items-start justify-between gap-2">
-            <Icon className="size-5 stroke-2 text-ink" />
-            {"badge" in kpi ? (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-[10px] font-bold text-green-700">
-                <TrendingUp className="size-3" />
-                {kpi.badge}
-              </span>
-            ) : "warning" in kpi ? (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold whitespace-nowrap text-amber-600">
-                <AlertTriangle className="size-3" />
-                {kpi.warning}
-              </span>
-            ) : null}
-          </div>
-          <div className="mt-3 flex flex-1 flex-col justify-end">
-            <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
-              {kpi.label}
-            </p>
-            <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-              <p className="text-2xl font-black text-ink">{kpi.value}</p>
-              {"trend" in kpi && kpi.trend ? (
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-0.5 text-xs font-bold",
-                    isNegative ? "text-amber-600" : "text-green-600",
-                  )}
-                >
-                  {isNegative ? <TrendingDown className="size-3 stroke-3" /> : <TrendingUp className="size-3 stroke-3" />}
-                  {kpi.trend}
+const KpiCards = ({ overview, loading }: { overview: AnalyticsOverviewLike | undefined; loading: boolean }) => {
+  if (loading && !overview) {
+    return (
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <KpiSkeleton key={index} />
+        ))}
+      </div>
+    );
+  }
+
+  if (!overview) return null;
+
+  const opened = overview.funnel.find((row) => row.stage === "OPENED_SYSTEM")?.customers ?? 0;
+  const purchased = overview.funnel.find((row) => row.stage === "PURCHASED")?.customers ?? 0;
+  const avgConversion = pct(purchased, opened);
+
+  const kpis = [
+    { label: "Total Sales (RWF)", value: formatCompactNumber(overview.totalSales), icon: Wallet },
+    { label: "Total Orders", value: overview.totalOrders.toLocaleString(), icon: ShoppingBasket },
+    { label: "Total Customers", value: overview.totalCustomers.toLocaleString(), icon: UsersRound },
+    { label: "Repeat Customers", value: overview.repeatCustomers.toLocaleString(), icon: Repeat },
+    {
+      label: "Inventory",
+      value: `${overview.activeProducts.toLocaleString()} Products`,
+      warning: overview.lowStockItems > 0 ? `${overview.lowStockItems} Low Stock` : undefined,
+      icon: ShoppingBag,
+    },
+    { label: "Avg. Conversion", value: `${avgConversion.toFixed(1)}%`, icon: Coins },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+      {kpis.map((kpi) => {
+        const Icon = kpi.icon;
+
+        return (
+          <article key={kpi.label} className="flex h-full flex-col rounded-2xl bg-card p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-2">
+              <Icon className="size-5 stroke-2 text-ink" />
+              {kpi.warning ? (
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold whitespace-nowrap text-amber-600">
+                  <AlertTriangle className="size-3" />
+                  {kpi.warning}
                 </span>
               ) : null}
             </div>
-          </div>
-        </article>
-      );
-    })}
-  </div>
-);
+            <div className="mt-3 flex flex-1 flex-col justify-end">
+              <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
+                {kpi.label}
+              </p>
+              <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <p className="text-2xl font-black text-ink">{kpi.value}</p>
+              </div>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+};
 
 const SalesOverviewTooltip = ({
   active,
@@ -303,11 +186,13 @@ const SalesOverviewTooltip = ({
 };
 
 const SalesOverview = () => {
-  const [range, setRange] = useState<keyof typeof salesTrendDatasets>("30D");
-  const data = salesTrendDatasets[range];
-  const totalSales = data.reduce((sum, point) => sum + point.value, 0);
-  const totalOrders = 1_202;
-  const averageOrder = Math.round(totalSales / totalOrders);
+  const [range, setRange] = useState<"7D" | "30D" | "3M" | "12M">("30D");
+  const { data: overview, loading } = useApi(
+    () => analyticsApi.overview(rangeToPeriod[range]),
+    [range],
+  );
+
+  const data = (overview?.revenueTrend ?? []).map((point) => ({ day: point.label, value: point.value }));
 
   return (
     <section className="grid gap-5 rounded-2xl bg-card p-5 sm:gap-6 sm:p-6 xl:grid-cols-[1fr_260px]">
@@ -315,7 +200,7 @@ const SalesOverview = () => {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <h2 className="text-lg font-bold text-ink">Sales Overview</h2>
           <div className="flex h-9 items-center rounded-lg border border-border bg-background p-1">
-            {(Object.keys(salesTrendDatasets) as (keyof typeof salesTrendDatasets)[]).map((item) => (
+            {(["7D", "30D", "3M", "12M"] as const).map((item) => (
               <button
                 type="button"
                 key={item}
@@ -332,255 +217,379 @@ const SalesOverview = () => {
           </div>
         </div>
         <div className="mt-6 h-65 w-full font-data sm:mt-8 sm:h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={[...data]} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="admin-sales-gradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--ink)" stopOpacity={0.18} />
-                  <stop offset="100%" stopColor="var(--ink)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
-              <XAxis dataKey="day" tickLine={false} axisLine={false} tick={ChartAxisTick} />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                width={40}
-                tickFormatter={(value: number) => (value === 0 ? "0" : `${value / 1_000_000}M`)}
-                tick={ChartAxisTick}
-              />
-              <Tooltip content={<SalesOverviewTooltip />} />
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="var(--ink)"
-                strokeWidth={2.5}
-                fill="url(#admin-sales-gradient)"
-                animationDuration={700}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {loading && !overview ? (
+            <Skeleton className="size-full" />
+          ) : data.length === 0 ? (
+            <ApiEmptyState message="No revenue recorded yet for this range." className="h-full" />
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="admin-sales-gradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--ink)" stopOpacity={0.18} />
+                    <stop offset="100%" stopColor="var(--ink)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
+                <XAxis dataKey="day" tickLine={false} axisLine={false} tick={ChartAxisTick} />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  width={40}
+                  tickFormatter={(value: number) => (value === 0 ? "0" : `${value / 1_000_000}M`)}
+                  tick={ChartAxisTick}
+                />
+                <Tooltip content={<SalesOverviewTooltip />} />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="var(--ink)"
+                  strokeWidth={2.5}
+                  fill="url(#admin-sales-gradient)"
+                  animationDuration={700}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 xl:grid-cols-1">
         <div className="rounded-xl border border-border p-4">
           <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">Total Sales</p>
-          <p className="mt-1 text-xl font-black text-ink">RWF 2.3M</p>
+          <p className="mt-1 text-xl font-black text-ink">
+            {overview ? formatCompactCurrency(overview.totalSales) : "—"}
+          </p>
         </div>
         <div className="rounded-xl border border-border p-4">
           <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">Average Order</p>
-          <p className="mt-1 text-xl font-black text-ink">RWF {averageOrder.toLocaleString()}</p>
+          <p className="mt-1 text-xl font-black text-ink">
+            {overview ? formatCompactCurrency(overview.averageOrderValue) : "—"}
+          </p>
         </div>
         <div className="rounded-xl border border-border p-4">
           <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">Total Orders</p>
-          <p className="mt-1 text-xl font-black text-ink">{totalOrders.toLocaleString()}</p>
+          <p className="mt-1 text-xl font-black text-ink">{overview ? overview.totalOrders.toLocaleString() : "—"}</p>
         </div>
       </div>
     </section>
   );
 };
 
-const NeedsAttention = () => (
-  <section className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
-    <div className="flex items-center gap-2">
-      <AlertTriangle className="size-4 text-amber-500" />
-      <h2 className="text-base font-bold text-ink">Needs Attention</h2>
-    </div>
-    <ul className="mt-4 flex-1 space-y-2">
-      {needsAttention.map((item) => {
-        const Icon = item.icon;
-        return (
-          <li key={item.label} className="flex items-center gap-3 rounded-xl border border-border p-3">
-            <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", item.tone)}>
-              <Icon className="size-4" />
-            </span>
-            <p className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{item.label}</p>
-            <span className="shrink-0 rounded-md bg-background px-2 py-1 text-sm font-bold text-ink">
-              {item.count}
-            </span>
-          </li>
-        );
-      })}
-    </ul>
-  </section>
+const NeedsAttention = ({ overview, loading }: { overview: AnalyticsOverviewLike | undefined; loading: boolean }) => {
+  const items = overview
+    ? [
+        { label: "Out of Stock", count: overview.outOfStockItems, icon: Box, tone: "bg-red-50 text-red-600" },
+        { label: "Low Stock", count: overview.lowStockItems, icon: AlertTriangle, tone: "bg-amber-50 text-amber-600" },
+        { label: "Pending Orders", count: overview.pendingOrders, icon: Clock3, tone: "bg-slate-100 text-ink" },
+      ]
+    : [];
+
+  return (
+    <section className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="size-4 text-amber-500" />
+        <h2 className="text-base font-bold text-ink">Needs Attention</h2>
+      </div>
+      <ul className="mt-4 flex-1 space-y-2">
+        {loading && !overview
+          ? Array.from({ length: 3 }).map((_, index) => (
+              <li key={index} className="flex items-center gap-3 rounded-xl border border-border p-3">
+                <Skeleton className="size-9 rounded-full" />
+                <Skeleton className="h-4 flex-1" />
+              </li>
+            ))
+          : items.map((item) => {
+              const Icon = item.icon;
+              return (
+                <li key={item.label} className="flex items-center gap-3 rounded-xl border border-border p-3">
+                  <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", item.tone)}>
+                    <Icon className="size-4" />
+                  </span>
+                  <p className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{item.label}</p>
+                  <span className="shrink-0 rounded-md bg-background px-2 py-1 text-sm font-bold text-ink">
+                    {item.count}
+                  </span>
+                </li>
+              );
+            })}
+      </ul>
+    </section>
+  );
+};
+
+const FunnelCardSkeleton = () => (
+  <div className="h-40 w-[168px] shrink-0 rounded-2xl border border-border bg-card p-5">
+    <Skeleton className="h-3 w-16" />
+    <Skeleton className="mt-16 h-8 w-16" />
+    <Skeleton className="mt-1 h-3 w-14" />
+  </div>
 );
 
-const CustomerJourneyFunnel = () => (
+const CustomerJourneyFunnel = ({
+  stages,
+  loading,
+}: {
+  stages: { stage: string; customers: number; conversionFromPrevious: number }[];
+  loading: boolean;
+}) => (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
     <h2 className="text-lg font-bold text-ink">Customer Journey Funnel</h2>
     <p className="mt-1 text-sm text-muted-foreground">Conversion rates through the spatial planning flow.</p>
     <div className="scrollbar-hide mt-6 flex gap-6 overflow-x-auto px-2 pb-2">
-      {journeySteps.map((step, index) => {
-        const isFirst = index === 0;
-        const isLast = index === journeySteps.length - 1;
+      {loading && stages.length === 0
+        ? Array.from({ length: 6 }).map((_, index) => <FunnelCardSkeleton key={index} />)
+        : stages.map((step, index) => {
+            const isFirst = index === 0;
+            const isLast = index === stages.length - 1;
+            const meta = JOURNEY_STAGE_META[step.stage as keyof typeof JOURNEY_STAGE_META];
 
-        return (
-          <div key={step.label} className="relative flex shrink-0">
-            <div
-              className={cn(
-                "flex h-40 w-[168px] shrink-0 flex-col justify-between rounded-2xl border bg-card p-5 text-left transition-all duration-200",
-                isLast ? "border-primary bg-primary/5" : "border-border",
-              )}
-            >
-              <p className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
-                {step.label}
-              </p>
-              <div>
-                <p className="text-3xl font-black text-ink">{step.value}</p>
-                {step.sub ? (
-                  <p className="mt-1 text-xs font-medium text-ink/60">{step.sub}</p>
-                ) : !isFirst ? (
-                  <p className="mt-1 text-xs font-medium text-ink/60">
-                    {step.conversion} conversion
+            return (
+              <div key={step.stage} className="relative flex shrink-0">
+                <div
+                  className={cn(
+                    "flex h-40 w-[168px] shrink-0 flex-col justify-between rounded-2xl border bg-card p-5 text-left transition-all duration-200",
+                    isLast ? "border-primary bg-primary/5" : "border-border",
+                  )}
+                >
+                  <p className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
+                    {meta.title}
                   </p>
-                ) : null}
-              </div>
-            </div>
-            {!isLast && (
-              <span
-                className={cn(
-                  "absolute top-1/2 right-0 z-10 inline-flex size-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm",
-                  isLast ? "border-primary" : "border-border",
+                  <div>
+                    <p className="text-3xl font-black text-ink">{formatCompactNumber(step.customers)}</p>
+                    {isFirst ? (
+                      <p className="mt-1 text-xs font-medium text-ink/60">100% Volume</p>
+                    ) : (
+                      <p className="mt-1 text-xs font-medium text-ink/60">
+                        {step.conversionFromPrevious.toFixed(0)}% conversion
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {!isLast && (
+                  <span
+                    className={cn(
+                      "absolute top-1/2 right-0 z-10 inline-flex size-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm",
+                      isLast ? "border-primary" : "border-border",
+                    )}
+                  >
+                    <ArrowRight className="size-4" />
+                  </span>
                 )}
-              >
-                <ArrowRight className="size-4" />
-              </span>
-            )}
-          </div>
-        );
-      })}
+              </div>
+            );
+          })}
     </div>
   </section>
 );
 
-const TilePerformance = () => (
-  <section>
-    <h2 className="text-lg font-bold text-ink">Tile Performance</h2>
-    <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-      {tilePerformance.map((item) => {
-        const Icon = item.icon;
-        return (
-          <article key={item.label} className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
-            <div className="flex items-start justify-between gap-3">
-              <Icon className="size-5 stroke-2 text-ink" />
-              {"badge" in item ? (
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-[11px] font-bold text-green-700">
-                  <TrendingUp className="size-3" />
-                  {item.badge}
-                </span>
-              ) : null}
-            </div>
-            <p className="mt-4 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-              {item.label}
-            </p>
-            <p className="mt-1 truncate text-xl font-black text-ink">{item.value}</p>
-            {"sub" in item ? <p className="mt-1 text-xs text-muted-foreground">{item.sub}</p> : null}
-          </article>
-        );
-      })}
-    </div>
-  </section>
-);
+const TilePerformance = ({
+  leaderboards,
+  summary,
+  loading,
+}: {
+  leaderboards: TileLeaderboardsLike | undefined;
+  summary: { averageSelectionRate: number; averagePurchaseConversion: number } | undefined;
+  loading: boolean;
+}) => {
+  if (loading && !leaderboards) {
+    return (
+      <section>
+        <h2 className="text-lg font-bold text-ink">Tile Performance</h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <KpiSkeleton key={index} />
+          ))}
+        </div>
+      </section>
+    );
+  }
 
-const InventoryOverview = () => (
-  <section>
-    <h2 className="text-lg font-bold text-ink">Inventory Overview</h2>
-    <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {inventoryOverview.map((item) => {
-        const Icon = item.icon;
-        return (
-          <article key={item.label} className="flex h-full flex-col rounded-2xl bg-card p-5 sm:p-6">
-            <div className="flex items-start justify-between gap-3">
-              <Icon className={cn("size-5 stroke-2", "warn" in item && item.warn ? "text-amber-500" : "text-ink")} />
-              {"badge" in item ? (
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-[11px] font-bold text-green-700">
-                  <TrendingUp className="size-3" />
-                  {item.badge}
-                </span>
-              ) : null}
-            </div>
-            <div className="mt-4 flex flex-1 flex-col justify-end">
-              <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+  const topViewed = leaderboards?.mostViewed[0];
+  const topApplied = leaderboards?.mostApplied[0];
+  const topPurchased = leaderboards?.mostPurchased[0];
+
+  const items = [
+    { label: "Most Viewed", value: topViewed?.name ?? "No data yet", sub: topViewed ? `${formatCompactNumber(topViewed.count)} views` : "0 views", icon: Eye },
+    { label: "Most Applied", value: topApplied?.name ?? "No data yet", sub: topApplied ? `${formatCompactNumber(topApplied.count)} applications` : "0 applications", icon: MousePointerSquareDashed },
+    { label: "Most Purchased", value: topPurchased?.name ?? "No data yet", sub: topPurchased ? `${formatCompactNumber(topPurchased.count)} sales` : "0 sales", icon: ShoppingBasket },
+    { label: "Avg. Selection Rate", value: `${(summary?.averageSelectionRate ?? 0).toFixed(1)}%`, sub: null, icon: MousePointerClick },
+    { label: "Avg. Conversion", value: `${(summary?.averagePurchaseConversion ?? 0).toFixed(1)}%`, sub: null, icon: Wallet },
+  ];
+
+  return (
+    <section>
+      <h2 className="text-lg font-bold text-ink">Tile Performance</h2>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {items.map((item) => {
+          const Icon = item.icon;
+          return (
+            <article key={item.label} className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <Icon className="size-5 stroke-2 text-ink" />
+              </div>
+              <p className="mt-4 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
                 {item.label}
               </p>
-              <p className={cn("mt-1 text-3xl font-black", "warn" in item && item.warn ? "text-amber-600" : "text-ink")}>
-                {item.value}
-              </p>
-            </div>
-          </article>
-        );
-      })}
-    </div>
-
-    <div className="mt-5 rounded-2xl bg-card p-5 sm:p-6">
-      <h3 className="text-base font-bold text-ink">Urgent Items</h3>
-      <div className="mt-4 -mx-5 overflow-x-auto px-5 sm:-mx-6 sm:px-6">
-        <table className="w-full min-w-[820px] border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-              <th className="pb-3 pr-4 font-bold">Product</th>
-              <th className="pb-3 pr-4 font-bold">SKU / Code</th>
-              <th className="pb-3 pr-4 font-bold">Size / Format</th>
-              <th className="pb-3 pr-4 font-bold">Current Stock</th>
-              <th className="pb-3 pr-4 font-bold">Unit Price (RWF)</th>
-              <th className="pb-3 pr-4 font-bold">Last Updated</th>
-              <th className="pb-3 pr-4 font-bold">Analytics</th>
-              <th className="pb-3 font-bold">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {urgentItems.map((item) => (
-              <tr key={item.id} className="border-b border-border last:border-0">
-                <td className="py-3 pr-4">
-                  <div className="flex items-center gap-3">
-                    <div className="relative size-11 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-                      <Image src={item.image} alt={item.name} fill unoptimized className="object-cover" sizes="44px" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-ink">{item.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">{item.collection}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="py-3 pr-4 font-data whitespace-nowrap text-ink">{item.sku}</td>
-                <td className="py-3 pr-4 whitespace-nowrap text-ink">{item.size}</td>
-                <td className="py-3 pr-4 whitespace-nowrap">
-                  <span className={cn("inline-flex items-center gap-1.5 font-data", stockText[item.stockLevel])}>
-                    <span className={cn("size-2 rounded-full", stockDot[item.stockLevel])} />
-                    {item.currentStock} pcs
-                  </span>
-                </td>
-                <td className="py-3 pr-4 font-data whitespace-nowrap text-ink">{item.unitPrice}</td>
-                <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">{item.lastUpdated}</td>
-                <td className="py-3 pr-4 whitespace-nowrap text-ink">
-                  12.4K views
-                  <span className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-green-600">
-                    <TrendingUp className="size-3.5 stroke-2" /> 18% rate
-                  </span>
-                </td>
-                <td className="py-3">
-                  <div className="flex items-center gap-1">
-                    <Link href={`/admin/inventory/${item.id}`} aria-label={`View ${item.name}`} className="rounded-md p-1.5 text-ink hover:bg-secondary">
-                      <Eye className="size-4" />
-                    </Link>
-                    <Link href={`/admin/inventory/${item.id}`} aria-label={`Edit ${item.name}`} className="rounded-md p-1.5 text-ink hover:bg-secondary">
-                      <Pencil className="size-4" />
-                    </Link>
-                    <button type="button" aria-label={`Delete ${item.name}`} className="rounded-md p-1.5 text-red-600 hover:bg-red-50">
-                      <Trash2 className="size-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              <p className="mt-1 truncate text-xl font-black text-ink">{item.value}</p>
+              {item.sub ? <p className="mt-1 text-xs text-muted-foreground">{item.sub}</p> : null}
+            </article>
+          );
+        })}
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
-const RecentOrders = () => (
+const InventoryOverview = ({
+  overview,
+  urgentItems,
+  viewsByProductId,
+  loading,
+  error,
+  onRetry,
+}: {
+  overview: AnalyticsOverviewLike | undefined;
+  urgentItems: ApiProduct[];
+  viewsByProductId: Map<string, TilePerformanceRow>;
+  loading: boolean;
+  error: string | undefined;
+  onRetry: () => void;
+}) => {
+  const inventoryOverview = overview
+    ? [
+        { label: "Total Inventory Value", value: formatCompactCurrency(overview.totalInventoryValue), icon: Wallet },
+        { label: "Active Products", value: overview.activeProducts.toLocaleString(), icon: PackageCheck },
+        { label: "Pending Fulfillments", value: overview.pendingOrders.toLocaleString(), icon: Clock3 },
+        { label: "Low Stock Items", value: overview.lowStockItems.toLocaleString(), icon: AlertTriangle, warn: true },
+      ]
+    : [];
+
+  return (
+    <section>
+      <h2 className="text-lg font-bold text-ink">Inventory Overview</h2>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {loading && !overview
+          ? Array.from({ length: 4 }).map((_, index) => <KpiSkeleton key={index} />)
+          : inventoryOverview.map((item) => {
+              const Icon = item.icon;
+              return (
+                <article key={item.label} className="flex h-full flex-col rounded-2xl bg-card p-5 sm:p-6">
+                  <div className="flex items-start justify-between gap-3">
+                    <Icon className={cn("size-5 stroke-2", item.warn ? "text-amber-500" : "text-ink")} />
+                  </div>
+                  <div className="mt-4 flex flex-1 flex-col justify-end">
+                    <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+                      {item.label}
+                    </p>
+                    <p className={cn("mt-1 text-3xl font-black", item.warn ? "text-amber-600" : "text-ink")}>
+                      {item.value}
+                    </p>
+                  </div>
+                </article>
+              );
+            })}
+      </div>
+
+      <div className="mt-5 rounded-2xl bg-card p-5 sm:p-6">
+        <h3 className="text-base font-bold text-ink">Urgent Items</h3>
+        {error ? (
+          <ApiErrorState message={error} onRetry={onRetry} className="mt-4" />
+        ) : !loading && urgentItems.length === 0 ? (
+          <ApiEmptyState message="No low or out-of-stock products right now." className="mt-4" />
+        ) : (
+          <div className="mt-4 -mx-5 overflow-x-auto px-5 sm:-mx-6 sm:px-6">
+            <table className="w-full min-w-[820px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+                  <th className="pb-3 pr-4 font-bold">Product</th>
+                  <th className="pb-3 pr-4 font-bold">SKU / Code</th>
+                  <th className="pb-3 pr-4 font-bold">Size / Format</th>
+                  <th className="pb-3 pr-4 font-bold">Current Stock</th>
+                  <th className="pb-3 pr-4 font-bold">Unit Price (RWF)</th>
+                  <th className="pb-3 pr-4 font-bold">Last Updated</th>
+                  <th className="pb-3 pr-4 font-bold">Analytics</th>
+                  <th className="pb-3 font-bold">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && urgentItems.length === 0
+                  ? Array.from({ length: 2 }).map((_, index) => (
+                      <tr key={index} className="border-b border-border last:border-0">
+                        <td colSpan={8} className="py-3">
+                          <Skeleton className="h-11 w-full" />
+                        </td>
+                      </tr>
+                    ))
+                  : urgentItems.map((item) => {
+                      const level = item.stockStatus === "out_of_stock" ? "out_of_stock" : "low_stock";
+                      const tile = viewsByProductId.get(item.id);
+                      return (
+                        <tr key={item.id} className="border-b border-border last:border-0">
+                          <td className="py-3 pr-4">
+                            <div className="flex items-center gap-3">
+                              <div className="relative size-11 shrink-0 overflow-hidden rounded-lg bg-muted-background">
+                                <Image src={item.image} alt={item.name} fill unoptimized className="object-cover" sizes="44px" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold text-ink">{item.name}</p>
+                                <p className="truncate text-xs text-muted-foreground">{item.size}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 pr-4 font-data whitespace-nowrap text-ink">{item.sku}</td>
+                          <td className="py-3 pr-4 whitespace-nowrap text-ink">{item.size}</td>
+                          <td className="py-3 pr-4 whitespace-nowrap">
+                            <span className={cn("inline-flex items-center gap-1.5 font-data", stockText[level])}>
+                              <span className={cn("size-2 rounded-full", stockDot[level])} />
+                              {(item.quantityOnHandSqm ?? 0).toLocaleString()} sqm
+                            </span>
+                          </td>
+                          <td className="py-3 pr-4 font-data whitespace-nowrap text-ink">{Number(item.price).toLocaleString()}</td>
+                          <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">
+                            {new Date(item.updatedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                          </td>
+                          <td className="py-3 pr-4 whitespace-nowrap text-ink">
+                            {formatCompactNumber(tile?.viewed ?? 0)} views
+                            <span className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-green-600">
+                              <TrendingUp className="size-3.5 stroke-2" /> {(tile?.selectionRate ?? 0).toFixed(1)}% rate
+                            </span>
+                          </td>
+                          <td className="py-3">
+                            <div className="flex items-center gap-1">
+                              <Link href={`/admin/inventory/${item.id}`} aria-label={`View ${item.name}`} className="rounded-md p-1.5 text-ink hover:bg-secondary">
+                                <Eye className="size-4" />
+                              </Link>
+                              <Link href={`/admin/inventory/${item.id}`} aria-label={`Edit ${item.name}`} className="rounded-md p-1.5 text-ink hover:bg-secondary">
+                                <Pencil className="size-4" />
+                              </Link>
+                              <button type="button" aria-label={`Delete ${item.name}`} className="rounded-md p-1.5 text-red-600 hover:bg-red-50">
+                                <Trash2 className="size-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+};
+
+const RecentOrders = ({
+  orders,
+  loading,
+  error,
+  onRetry,
+}: {
+  orders: RecentOrderLike[];
+  loading: boolean;
+  error: string | undefined;
+  onRetry: () => void;
+}) => (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
     <div className="flex items-center justify-between gap-3">
       <div>
@@ -595,128 +604,267 @@ const RecentOrders = () => (
         <ChevronRight className="size-4 transition-transform group-hover:translate-x-1" />
       </Link>
     </div>
-    <ul className="mt-4 divide-y divide-border">
-      {recentOrders.map((order) => {
-        const { icon: StatusIcon, tone } = orderStatusIcon[order.status];
-        return (
-          <li key={order.id} className="py-4 first:pt-0 last:pb-0">
-            <div className="flex items-start gap-3">
-              <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-lg", tone)}>
-                <StatusIcon className="size-4" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="truncate text-sm font-semibold text-ink">{order.id}</p>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {order.createdByType === "staff" && (
-                      <StaffCreatedIndicator createdByName={order.createdByName} />
-                    )}
-                    <Badge variant={orderStatusBadgeVariant[order.status]}>
-                      {orderStatusLabel[order.status]}
-                    </Badge>
+    {error ? (
+      <ApiErrorState message={error} onRetry={onRetry} className="mt-4" />
+    ) : !loading && orders.length === 0 ? (
+      <ApiEmptyState message="No orders yet." className="mt-4" />
+    ) : (
+      <ul className="mt-4 divide-y divide-border">
+        {loading && orders.length === 0
+          ? Array.from({ length: 3 }).map((_, index) => (
+              <li key={index} className="py-4 first:pt-0 last:pb-0">
+                <div className="flex items-start gap-3">
+                  <Skeleton className="size-10 rounded-lg" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-3 w-1/2" />
                   </div>
                 </div>
-                <p className="truncate text-sm text-muted-foreground">
-                  {order.customerName} • {order.itemCount} Items
-                </p>
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Clock3 className="size-3.5" /> {order.date}
-                  </span>
-                  <Link
-                    href={`/admin/orders/${order.id}`}
-                    className="text-xs font-semibold text-ink hover:underline"
-                  >
-                    View Details →
-                  </Link>
+              </li>
+            ))
+          : orders.map((order) => {
+              const { icon: StatusIcon, tone } = orderStatusMeta[order.status];
+              return (
+                <li key={order.id} className="py-4 first:pt-0 last:pb-0">
+                  <div className="flex items-start gap-3">
+                    <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-lg", tone)}>
+                      <StatusIcon className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="truncate text-sm font-semibold text-ink">{order.orderNumber}</p>
+                        <div className="flex shrink-0 items-center gap-2">
+                          {order.createdByType === "STAFF" && (
+                            <StaffCreatedIndicator createdByName={order.createdBy?.fullName ?? ""} />
+                          )}
+                          <OrderStatusBadge status={order.status} />
+                        </div>
+                      </div>
+                      <p className="truncate text-sm text-muted-foreground">
+                        {order.customer?.fullName ?? "Unknown customer"} • {order.items?.length ?? 0} Items
+                      </p>
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Clock3 className="size-3.5" />
+                          {new Date(order.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                        </span>
+                        <Link
+                          href={`/admin/orders/${order.id}`}
+                          className="text-xs font-semibold text-ink hover:underline"
+                        >
+                          View Details →
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+      </ul>
+    )}
+  </section>
+);
+
+const AiRecommendations = ({ summary, loading }: { summary: AiSummaryLike | undefined; loading: boolean }) => {
+  const pending = summary ? Math.max(summary.displayed - summary.accepted - summary.rejected, 0) : 0;
+  const sentiments = summary
+    ? [
+        { label: `${Math.round(pct(summary.accepted, summary.displayed))}%`, value: pct(summary.accepted, summary.displayed), icon: ShieldCheck, bar: "bg-blue-500", chip: "bg-blue-100 text-blue-600" },
+        { label: `${Math.round(pct(pending, summary.displayed))}%`, value: pct(pending, summary.displayed), icon: Minus, bar: "bg-muted-foreground/40", chip: "bg-muted-background text-muted-foreground" },
+        { label: `${Math.round(pct(summary.rejected, summary.displayed))}%`, value: pct(summary.rejected, summary.displayed), icon: ThumbsDown, bar: "bg-red-500", chip: "bg-red-100 text-red-600" },
+      ]
+    : [];
+
+  const aiKpis = summary
+    ? [
+        { label: "Total Recommendations", value: formatCompactNumber(summary.displayed), icon: Sparkles },
+        { label: "Acceptance Rate", value: `${summary.acceptanceRate.toFixed(1)}%`, icon: ShieldCheck },
+        { label: "Avg. Match Score", value: `${summary.averageMatchScore.toFixed(1)}%`, icon: TrendingUp },
+      ]
+    : [];
+
+  return (
+    <section className="rounded-2xl bg-card p-5 sm:p-6">
+      <div className="flex items-center gap-2">
+        <Bot className="size-5 text-ink" />
+        <h2 className="text-lg font-bold text-ink">AI Recommendations</h2>
+      </div>
+
+      <div className="mt-5 rounded-xl border border-border p-4">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+            Recommendation Outcomes
+          </p>
+          <Smile className="size-5 shrink-0 stroke-2 text-ink" />
+        </div>
+        <div className="mt-4 space-y-2.5">
+          {loading && !summary
+            ? Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-6 w-full" />)
+            : sentiments.map((sentiment, index) => {
+                const Icon = sentiment.icon;
+                return (
+                  <div key={index} className="flex items-center gap-2.5">
+                    <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full", sentiment.chip)}>
+                      <Icon className="size-3.5" />
+                    </span>
+                    <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted-background">
+                      <div className={cn("h-full rounded-full", sentiment.bar)} style={{ width: `${sentiment.value}%` }} />
+                    </div>
+                    <span className="w-9 shrink-0 text-right text-xs font-bold text-ink">{sentiment.label}</span>
+                  </div>
+                );
+              })}
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {loading && !summary
+          ? Array.from({ length: 3 }).map((_, index) => (
+              <article key={index} className="flex h-full flex-col rounded-xl border border-border p-4">
+                <Skeleton className="size-5" />
+                <div className="mt-3 space-y-2">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-6 w-14" />
                 </div>
-              </div>
-            </div>
-          </li>
-        );
-      })}
-    </ul>
-  </section>
-);
-
-const AiRecommendations = () => (
-  <section className="rounded-2xl bg-card p-5 sm:p-6">
-    <div className="flex items-center gap-2">
-      <Bot className="size-5 text-ink" />
-      <h2 className="text-lg font-bold text-ink">AI Recommendations</h2>
-    </div>
-
-    <div className="mt-5 rounded-xl border border-border p-4">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-          Feedback Sentiment
-        </p>
-        <Smile className="size-5 shrink-0 stroke-2 text-ink" />
+              </article>
+            ))
+          : aiKpis.map((kpi) => {
+              const Icon = kpi.icon;
+              return (
+                <article key={kpi.label} className="flex h-full flex-col rounded-xl border border-border p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <Icon className="size-5 stroke-2 text-ink" />
+                  </div>
+                  <div className="mt-3 flex flex-1 flex-col justify-end">
+                    <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">{kpi.label}</p>
+                    <p className="mt-1 text-xl font-black text-ink">{kpi.value}</p>
+                  </div>
+                </article>
+              );
+            })}
       </div>
-      <div className="mt-4 space-y-2.5">
-        {sentiments.map((sentiment) => {
-          const Icon = sentiment.icon;
-          return (
-            <div key={sentiment.label} className="flex items-center gap-2.5">
-              <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full", sentiment.chip)}>
-                <Icon className="size-3.5" />
-              </span>
-              <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted-background">
-                <div className={cn("h-full rounded-full", sentiment.bar)} style={{ width: `${sentiment.value}%` }} />
-              </div>
-              <span className="w-9 shrink-0 text-right text-xs font-bold text-ink">{sentiment.label}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    </section>
+  );
+};
 
-    <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-      {aiKpis.map((kpi) => {
-        const Icon = kpi.icon;
-        return (
-          <article key={kpi.label} className="flex h-full flex-col rounded-xl border border-border p-4">
-            <div className="flex items-start justify-between gap-2">
-              <Icon className="size-5 stroke-2 text-ink" />
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-ink">
-                <TrendingUp className="size-3" />
-                {kpi.change}
-              </span>
-            </div>
-            <div className="mt-3 flex flex-1 flex-col justify-end">
-              <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">{kpi.label}</p>
-              <p className="mt-1 text-xl font-black text-ink">{kpi.value}</p>
-            </div>
-          </article>
-        );
-      })}
-    </div>
-  </section>
-);
+type AnalyticsOverviewLike = {
+  totalSales: number;
+  totalOrders: number;
+  totalCustomers: number;
+  repeatCustomers: number;
+  activeProducts: number;
+  lowStockItems: number;
+  outOfStockItems: number;
+  pendingOrders: number;
+  totalInventoryValue: number;
+  averageOrderValue: number;
+  revenueTrend: { label: string; value: number }[];
+  funnel: { stage: string; customers: number }[];
+};
+type TileLeaderboardsLike = {
+  mostViewed: { productId: string; name: string; image: string | null; count: number }[];
+  mostApplied: { productId: string; name: string; image: string | null; count: number }[];
+  mostPurchased: { productId: string; name: string; image: string | null; count: number }[];
+};
+type AiSummaryLike = { displayed: number; accepted: number; rejected: number; acceptanceRate: number; averageMatchScore: number };
+type RecentOrderLike = {
+  id: string;
+  orderNumber: string;
+  status: OrderStatus;
+  createdAt: string;
+  createdByType: "CUSTOMER" | "STAFF";
+  createdBy?: { fullName: string };
+  customer?: { fullName: string };
+  items?: unknown[];
+};
 
-const AdminDashboardPage = () => (
-  <>
-    <AdminPageHeader
-      title="System Overview"
-      subtitle="Real-time status and operational metrics for Magnificat Smart Space infrastructure"
-    >
-      <HeaderActions />
-    </AdminPageHeader>
-    <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
-      <KpiCards />
-      <div className="grid gap-5 sm:gap-6 xl:grid-cols-[1fr_320px]">
-        <SalesOverview />
-        <NeedsAttention />
+const AdminDashboardPage = () => {
+  const { data: overview, loading: overviewLoading, error: overviewError, reload: reloadOverview } = useApi(
+    () => analyticsApi.overview("MONTHLY"),
+  );
+  const { data: journey, loading: journeyLoading } = useApi(() => analyticsApi.journey("MONTHLY"));
+  const { data: tiles, loading: tilesLoading } = useApi(() => analyticsApi.tiles({ period: "MONTHLY", limit: 100 }));
+  const { data: recommendations, loading: recommendationsLoading } = useApi(
+    () => analyticsApi.tileRecommendations({ period: "MONTHLY", limit: 1 }),
+  );
+  const {
+    data: productsData,
+    loading: productsLoading,
+    error: productsError,
+    reload: reloadProducts,
+  } = useApi(() => productsApi.list({ limit: 100 }));
+  const {
+    data: ordersData,
+    loading: ordersLoading,
+    error: ordersError,
+    reload: reloadOrders,
+  } = useApi(() => ordersApi.list({ limit: 3 }));
+
+  const viewsByProductId = useMemo(
+    () => new Map((tiles?.table.items ?? []).map((row) => [row.productId, row])),
+    [tiles],
+  );
+
+  const urgentItems = useMemo(() => {
+    const items = (productsData?.items ?? []).filter((product) => product.stockStatus !== "in_stock");
+    return [...items]
+      .sort((a, b) => {
+        if (a.stockStatus !== b.stockStatus) return a.stockStatus === "out_of_stock" ? -1 : 1;
+        return (a.quantityOnHandSqm ?? 0) - (b.quantityOnHandSqm ?? 0);
+      })
+      .slice(0, 5);
+  }, [productsData]);
+
+  if (overviewError) {
+    return (
+      <>
+        <AdminPageHeader
+          title="System Overview"
+          subtitle="Real-time status and operational metrics for Magnificat Smart Space infrastructure"
+        >
+          <HeaderActions />
+        </AdminPageHeader>
+        <ApiErrorState message={overviewError} onRetry={reloadOverview} className="mt-8" />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <AdminPageHeader
+        title="System Overview"
+        subtitle="Real-time status and operational metrics for Magnificat Smart Space infrastructure"
+      >
+        <HeaderActions />
+      </AdminPageHeader>
+      <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
+        <KpiCards overview={overview} loading={overviewLoading} />
+        <div className="grid gap-5 sm:gap-6 xl:grid-cols-[1fr_320px]">
+          <SalesOverview />
+          <NeedsAttention overview={overview} loading={overviewLoading} />
+        </div>
+        <CustomerJourneyFunnel stages={journey?.stages ?? []} loading={journeyLoading} />
+        <TilePerformance leaderboards={tiles?.leaderboards} summary={tiles?.summary} loading={tilesLoading} />
+        <InventoryOverview
+          overview={overview}
+          urgentItems={urgentItems}
+          viewsByProductId={viewsByProductId}
+          loading={overviewLoading || productsLoading}
+          error={productsError}
+          onRetry={reloadProducts}
+        />
+        <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
+          <RecentOrders
+            orders={ordersData?.items ?? []}
+            loading={ordersLoading}
+            error={ordersError}
+            onRetry={reloadOrders}
+          />
+          <AiRecommendations summary={recommendations?.summary} loading={recommendationsLoading} />
+        </div>
       </div>
-      <CustomerJourneyFunnel />
-      <TilePerformance />
-      <InventoryOverview />
-      <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
-        <RecentOrders />
-        <AiRecommendations />
-      </div>
-    </div>
-  </>
-);
+    </>
+  );
+};
 
 export default AdminDashboardPage;

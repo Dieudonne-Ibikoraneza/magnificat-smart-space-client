@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import {
   CartesianGrid,
   Line,
@@ -11,93 +10,43 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  ArrowRight,
-  ListFilter,
-  Repeat2,
-  Search,
-  UserRoundPlus,
-  UsersRound,
-} from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, ListFilter, Repeat2, Search, UserRoundPlus, UsersRound } from "lucide-react";
 import { AdminPageHeader } from "@/app/admin/layout";
-import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays, type AnalyticsRange } from "@/components/analytics-period-switcher";
+import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
+import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CategoryBarChart } from "@/components/category-bar-chart";
+import { CategoryBarChart, type CategoryDatum } from "@/components/category-bar-chart";
 import { ChartAxisTick } from "@/components/chart-axis-tick";
+import { CustomerConversionFunnel, type ConversionFunnelStage } from "@/components/conversion-funnel";
 import { KpiCards, type KpiCardData } from "@/components/kpi-cards";
-import { salesCustomers } from "@/data/sales-customers";
+import { Skeleton } from "@/components/ui/skeleton";
+import { analyticsApi, usersApi } from "@/lib/api";
+import { useApi } from "@/lib/api/use-api";
+import { hearAboutUsLabels, roomTypeLabels } from "@/lib/api/mappers";
+import type { UserStatus } from "@/lib/api/types";
+import { formatCompactCurrency, getInitials } from "@/lib/utils";
 
-const kpis: KpiCardData[] = [
-  { label: "Total Customers", value: "12,450", icon: UsersRound, trend: "+8.4%" },
-  { label: "New Customers", value: "842", icon: UserRoundPlus, trend: "+12%" },
-  { label: "Repeat Customers", value: "3,120", icon: Repeat2, trend: "-1.5%" },
-  { label: "Repeat Purchase Rate", value: "25.1%", icon: Repeat2, trend: "+0.8%" },
-];
+const formatShortDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
-const projectTypes = [
-  { category: "Living Room", value: 4_200 },
-  { category: "Bathroom", value: 9_500 },
-  { category: "Kitchen", value: 7_029 },
-  { category: "Bedroom", value: 8_500 },
-];
-
-const customerTrendDatasets: Record<AnalyticsRange, { month: string; newCustomers: number; repeatCustomers: number }[]> = {
-  WEEKLY: [
-    { month: "Mon", newCustomers: 8, repeatCustomers: 5 },
-    { month: "Tue", newCustomers: 12, repeatCustomers: 7 },
-    { month: "Wed", newCustomers: 15, repeatCustomers: 10 },
-    { month: "Thu", newCustomers: 11, repeatCustomers: 9 },
-    { month: "Fri", newCustomers: 18, repeatCustomers: 13 },
-    { month: "Sat", newCustomers: 24, repeatCustomers: 17 },
-    { month: "Sun", newCustomers: 16, repeatCustomers: 12 },
-  ],
-  MONTHLY: [
-    { month: "Oct 01", newCustomers: 22, repeatCustomers: 14 },
-    { month: "Oct 05", newCustomers: 28, repeatCustomers: 18 },
-    { month: "Oct 10", newCustomers: 35, repeatCustomers: 23 },
-    { month: "Oct 15", newCustomers: 31, repeatCustomers: 27 },
-    { month: "Oct 20", newCustomers: 40, repeatCustomers: 29 },
-    { month: "Oct 25", newCustomers: 38, repeatCustomers: 31 },
-    { month: "Oct 30", newCustomers: 42, repeatCustomers: 33 },
-    { month: "Nov 05", newCustomers: 36, repeatCustomers: 30 },
-    { month: "Nov 10", newCustomers: 48, repeatCustomers: 36 },
-    { month: "Nov 15", newCustomers: 55, repeatCustomers: 41 },
-    { month: "Nov 20", newCustomers: 45, repeatCustomers: 38 },
-  ],
-  YEARLY: [
-    { month: "Jan", newCustomers: 20, repeatCustomers: 12 },
-    { month: "Feb", newCustomers: 35, repeatCustomers: 22 },
-    { month: "Mar", newCustomers: 48, repeatCustomers: 30 },
-    { month: "Apr", newCustomers: 42, repeatCustomers: 45 },
-    { month: "May", newCustomers: 55, repeatCustomers: 38 },
-    { month: "Jun", newCustomers: 62, repeatCustomers: 44 },
-    { month: "Jul", newCustomers: 58, repeatCustomers: 40 },
-    { month: "Aug", newCustomers: 70, repeatCustomers: 48 },
-    { month: "Sep", newCustomers: 85, repeatCustomers: 52 },
-    { month: "Oct", newCustomers: 78, repeatCustomers: 58 },
-    { month: "Nov", newCustomers: 65, repeatCustomers: 50 },
-    { month: "Dec", newCustomers: 60, repeatCustomers: 46 },
-  ],
+/** A tidy 5-tick 0..max axis scaled to whatever the real data actually is, instead of a fixed scale sized for mock numbers in the thousands. */
+const axisFor = (values: number[]) => {
+  const max = Math.max(1, ...values);
+  const step = Math.max(1, Math.ceil(max / 4));
+  const domainMax = step * 4;
+  return { yTicks: [0, step, step * 2, step * 3, domainMax], yDomainMax: domainMax };
 };
 
-const journeyDropOff = [
-  { label: "System Opened", value: 18_800, conversion: "" },
-  { label: "Browse Products", value: 8_300, conversion: "45%" },
-  { label: "Room Created", value: 7_900, conversion: "91%" },
-  { label: "Dimensions Entered", value: 7_808, conversion: "96%" },
-  { label: "Tile Applied", value: 7_800, conversion: "99.7%" },
-  { label: "Design Saved/Shared", value: 1_004, conversion: "12.12%" },
-  { label: "Quotation Generation", value: 100, conversion: "10.04%" },
-  { label: "Order Placed", value: 14, conversion: "14%" },
-];
+const KpiSkeleton = () => (
+  <article className="rounded-2xl bg-card p-5 sm:p-6">
+    <Skeleton className="size-5" />
+    <Skeleton className="mt-6 h-3 w-24" />
+    <Skeleton className="mt-2 h-8 w-16" />
+  </article>
+);
 
-const acquisitionChannels = [
-  { category: "Social Media", value: 5_200 },
-  { category: "Search Engine", value: 9_500 },
-  { category: "Referral", value: 7_029 },
-  { category: "Other", value: 8_300 },
-];
+type CustomerTrendPoint = { day: string; newCustomers: number; repeatCustomers: number };
 
 const CustomerTrendTooltip = ({
   active,
@@ -124,18 +73,19 @@ const CustomerTrendTooltip = ({
   );
 };
 
-const trendSubtitle: Record<AnalyticsRange, string> = {
-  WEEKLY: "7-day comparison",
-  MONTHLY: "30-day comparison",
-  YEARLY: "12-month comparison",
+const trendSubtitle: Record<AnalyticsPeriodDays, string> = {
+  7: "7-day comparison",
+  30: "30-day comparison",
+  12: "12-month comparison",
 };
 
-const CustomerTrendChart = ({ range }: { range: AnalyticsRange }) => (
+/** Orders per bucket, split by first-time vs. repeat customer — `CustomerAnalytics.trend.ordersByCustomerType`. */
+const CustomerTrendChart = ({ period, data }: { period: AnalyticsPeriodDays; data: CustomerTrendPoint[] }) => (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h2 className="text-lg font-bold text-ink">New vs. Repeat Customers Over Time</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{trendSubtitle[range]}</p>
+        <h2 className="text-lg font-bold text-ink">New vs. Repeat Customer Orders</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{trendSubtitle[period]}</p>
       </div>
       <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
         <span className="flex items-center gap-1.5">
@@ -148,21 +98,10 @@ const CustomerTrendChart = ({ range }: { range: AnalyticsRange }) => (
     </div>
     <div className="mt-6 h-65 w-full font-data sm:mt-8 sm:h-80">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={customerTrendDatasets[range]} margin={{ top: 8, right: 4, left: 0, bottom: 8 }}>
+        <LineChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 8 }}>
           <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
-          <XAxis
-            dataKey="month"
-            tickLine={false}
-            axisLine={false}
-            tick={ChartAxisTick}
-          />
-          <YAxis
-            tickLine={false}
-            axisLine={false}
-            width={32}
-            domain={[0, 100]}
-            tick={ChartAxisTick}
-          />
+          <XAxis dataKey="day" tickLine={false} axisLine={false} tick={ChartAxisTick} />
+          <YAxis tickLine={false} axisLine={false} width={32} allowDecimals={false} tick={ChartAxisTick} />
           <Tooltip cursor={{ stroke: "var(--border)" }} content={<CustomerTrendTooltip />} />
           <Line type="monotone" dataKey="newCustomers" name="newCustomers" stroke="#d1d5db" strokeWidth={2} dot={false} animationDuration={700} />
           <Line type="monotone" dataKey="repeatCustomers" name="repeatCustomers" stroke="var(--primary)" strokeWidth={2.5} dot={false} animationDuration={700} />
@@ -172,176 +111,84 @@ const CustomerTrendChart = ({ range }: { range: AnalyticsRange }) => (
   </section>
 );
 
-const JourneyDropOff = () => {
-  const maxValue = Math.max(...journeyDropOff.map((step) => step.value));
-
-  return (
-    <section className="rounded-2xl bg-card p-5 sm:p-6">
-      <h2 className="text-lg font-bold text-ink">Customer Journey Drop-Off</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Funnel analysis across key stages</p>
-      <div className="mt-7 space-y-4">
-        {journeyDropOff.map((step) => {
-          const widthPercent = Math.max((step.value / maxValue) * 100, 4);
-
-          return (
-            <div key={step.label} className="flex items-center font-data gap-3 text-sm justify-between">
-              <p className="w-32 shrink-0 text-right font-data font-medium text-ink sm:w-40">
-                {step.label}
-              </p>
-              <div className="min-w-8 flex-1">
-                <div
-                  className="h-6 bg-chart-blue transition-all duration-500"
-                  style={{ width: `${widthPercent}%` }}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <p className="shrink-0 text-right text-lg font-extrabold text-ink">
-                  {step.value.toLocaleString()}
-                </p>
-                <p className="shrink-0 text-right text-xs font-black text-green-600">
-                  {step.conversion}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-};
-
-const CustomersDirectory = () => {
-  const [status, setStatus] = useState("all");
-  const [sort, setSort] = useState("spend-desc");
-  const [query, setQuery] = useState("");
-
-  const results = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const filtered = salesCustomers.filter(
-      (customer) =>
-        (status === "all" || customer.status.toLowerCase() === status) &&
-        (normalizedQuery === "" ||
-          customer.name.toLowerCase().includes(normalizedQuery) ||
-          customer.email.toLowerCase().includes(normalizedQuery)),
-    );
-
-    return sort === "name" ? [...filtered].sort((a, b) => a.name.localeCompare(b.name)) : filtered;
-  }, [query, sort, status]);
-
-  return (
-    <section>
-      <h2 className="text-lg font-bold text-ink">Customers</h2>
-      <p className="mt-1 text-sm text-muted-foreground">View and filter system registered customers</p>
-
-      <div className="mt-5 rounded-2xl bg-card p-4 sm:p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-          <div className="flex shrink-0 items-center gap-2 text-sm font-medium text-ink">
-            <ListFilter className="size-5 shrink-0" strokeWidth={1.8} />
-            <span>Filter by:</span>
-          </div>
-          <div className="grid w-full min-w-0 grid-cols-2 gap-3 sm:min-w-[320px] sm:flex-1 lg:w-auto lg:flex-none lg:gap-5">
-            <div className="min-w-0">
-              <span className="sr-only">Status</span>
-              <Select value={status} onValueChange={(value) => setStatus(value ?? "all")}>
-                <SelectTrigger className="h-10 w-full min-w-0 border-border bg-transparent text-sm font-medium">
-                  <SelectValue className="min-w-0 truncate">
-                    {(value) =>
-                      value === "active" ? "Status: Active" : value === "inactive" ? "Status: Inactive" : "Status: All"
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Status: All</SelectItem>
-                  <SelectItem value="active">Status: Active</SelectItem>
-                  <SelectItem value="inactive">Status: Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-0">
-              <span className="sr-only">Total spend</span>
-              <Select value={sort} onValueChange={(value) => setSort(value ?? "spend-desc")}>
-                <SelectTrigger className="h-10 w-full min-w-0 border-border bg-transparent text-sm font-medium">
-                  <SelectValue className="min-w-0 truncate">
-                    {(value) => (value === "name" ? "Name: A - Z" : "Total Spend: Highest")}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="spend-desc">Total Spend: Highest</SelectItem>
-                  <SelectItem value="name">Name: A - Z</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="relative flex-1 lg:mx-2">
-            <Search className="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by customer name, email..."
-              aria-label="Search customers"
-              className="w-full rounded-full border border-border bg-[#F9FAFB] py-3 pr-4 pl-11 text-sm text-ink outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/40"
-            />
-          </div>
-          <p className="shrink-0 text-xs font-semibold tracking-wider text-muted-foreground uppercase lg:hidden xl:inline">
-            Showing {results.length} result{results.length === 1 ? "" : "s"}
-          </p>
-        </div>
-      </div>
-
-      {results.length === 0 ? (
-        <p className="mt-5 rounded-2xl bg-card p-10 text-center text-sm text-muted-foreground">
-          No customers match your filters.
-        </p>
-      ) : (
-        <ul className="mt-5 grid gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {results.map((customer) => (
-            <li key={customer.slug} className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="min-w-0 truncate text-xl font-bold text-ink">{customer.name}</h3>
-                <Badge variant={customer.status === "Active" ? "primary" : "warning"}>
-                  {customer.status}
-                </Badge>
-              </div>
-              <dl className="mt-5 space-y-3 border-t border-[#E5E7EB] pt-4 text-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <dt className="shrink-0 text-muted-foreground">Contact</dt>
-                  <dd className="min-w-0 text-right font-data text-ink">
-                    <span className="block truncate">{customer.email}</span>
-                    <span className="block whitespace-nowrap">{customer.phone}</span>
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">Last Order</dt>
-                  <dd className="whitespace-nowrap font-data text-ink">{customer.lastOrder}</dd>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">Total Orders</dt>
-                  <dd className="whitespace-nowrap font-data text-ink">15</dd>
-                </div>
-                <div className="flex items-center justify-between gap-3 border-t border-[#E5E7EB] pt-3">
-                  <dt className="text-muted-foreground">Total Spend</dt>
-                  <dd className="font-data text-xl font-semibold whitespace-nowrap text-ink">
-                    {customer.totalSpend}
-                  </dd>
-                </div>
-              </dl>
-              <Link
-                href={`/admin/customers/${customer.slug}`}
-                className="mt-5 flex items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-bold text-ink transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95"
-              >
-                View Details
-                <ArrowRight className="size-4" />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-};
-
 const AdminAnalyticsCustomersPage = () => {
   const [period, setPeriod] = useState<AnalyticsPeriodDays>(7);
+  const range = periodToRange[period];
+
+  const { data: customerAnalytics, loading: analyticsLoading, error: analyticsError, reload: reloadAnalytics } = useApi(
+    () => analyticsApi.customers(range),
+    [range],
+  );
+  const { data: journey, loading: journeyLoading } = useApi(() => analyticsApi.journey(range), [range]);
+  const { data: customersData, loading: customersLoading, error: customersError, reload: reloadCustomers } = useApi(
+    () => usersApi.listCustomers({ limit: 100 }),
+  );
+
+  const [status, setStatus] = useState<"all" | UserStatus>("all");
+  const [sort, setSort] = useState<"spend" | "name">("spend");
+  const [query, setQuery] = useState("");
+
+  const directoryResults = useMemo(() => {
+    const customers = customersData?.items ?? [];
+    const normalizedQuery = query.trim().toLowerCase();
+    const filtered = customers.filter(
+      (customer) =>
+        (status === "all" || customer.status === status) &&
+        (normalizedQuery === "" ||
+          customer.fullName.toLowerCase().includes(normalizedQuery) ||
+          (customer.email ?? "").toLowerCase().includes(normalizedQuery)),
+    );
+    return sort === "name"
+      ? [...filtered].sort((a, b) => a.fullName.localeCompare(b.fullName))
+      : [...filtered].sort((a, b) => b.lifetimeSpend - a.lifetimeSpend);
+  }, [customersData, query, sort, status]);
+
+  const kpis: KpiCardData[] = customerAnalytics
+    ? [
+        { label: "Total Customers", value: customerAnalytics.totalCustomers.toLocaleString(), icon: UsersRound },
+        { label: "New Customers", value: customerAnalytics.newCustomers.toLocaleString(), icon: UserRoundPlus },
+        { label: "Repeat Customers", value: customerAnalytics.repeatCustomerCount.toLocaleString(), icon: Repeat2 },
+        { label: "Repeat Purchase Rate", value: `${customerAnalytics.repeatPurchaseRate.toFixed(1)}%`, icon: Repeat2 },
+      ]
+    : [];
+
+  // Every room type shown, zero-count ones included — a consistent,
+  // complete axis rather than only whatever this dataset happens to have.
+  const projectTypes: CategoryDatum[] = useMemo(
+    () => (customerAnalytics?.projectTypes ?? []).map((row) => ({ category: roomTypeLabels[row.roomType], value: row.customers })),
+    [customerAnalytics],
+  );
+  const projectTypesAxis = axisFor(projectTypes.map((row) => row.value));
+
+  const acquisitionChannels: CategoryDatum[] = useMemo(
+    () =>
+      (customerAnalytics?.byHeardAboutUs ?? []).map((row) => ({
+        category: row.source ? hearAboutUsLabels[row.source] : "Not specified",
+        value: row.count,
+      })),
+    [customerAnalytics],
+  );
+  const acquisitionAxis = axisFor(acquisitionChannels.map((row) => row.value));
+
+  const customerTrendData: CustomerTrendPoint[] = useMemo(() => {
+    if (!customerAnalytics) return [];
+    const { new: newOrders, repeat: repeatOrders } = customerAnalytics.trend.ordersByCustomerType;
+    return newOrders.map((point, index) => ({
+      day: point.label,
+      newCustomers: point.value,
+      repeatCustomers: repeatOrders[index]?.value ?? 0,
+    }));
+  }, [customerAnalytics]);
+
+  const funnelStages: ConversionFunnelStage[] = useMemo(
+    () =>
+      (journey?.stages ?? []).map((row, index) => ({
+        stage: row.stage,
+        customers: row.customers,
+        conversionFromPrevious: index === 0 ? undefined : row.conversionFromPrevious,
+      })),
+    [journey],
+  );
 
   return (
     <>
@@ -349,35 +196,210 @@ const AdminAnalyticsCustomersPage = () => {
         <AnalyticsPeriodSwitcher period={period} onChange={setPeriod} />
       </AdminPageHeader>
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
-        <KpiCards items={kpis} />
+        {analyticsError ? (
+          <ApiErrorState message={analyticsError} onRetry={reloadAnalytics} className="my-8" />
+        ) : analyticsLoading || !customerAnalytics ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <KpiSkeleton />
+            <KpiSkeleton />
+            <KpiSkeleton />
+            <KpiSkeleton />
+          </div>
+        ) : (
+          <KpiCards items={kpis} />
+        )}
+
         <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
-          <CategoryBarChart
-            title="Project Types Distribution"
-            subtitle="Distribution of customer projects by category, Number of customers vs. Project Type"
-            data={projectTypes}
-            tooltipLabel="Customers"
-            tooltipValueFormatter={(value) => value.toLocaleString()}
-            yTicks={[0, 1_000, 5_000, 10_000, 20_000]}
-            yDomainMax={20_000}
-            yTickFormatter={(value) => value.toLocaleString()}
-          />
-          <CustomerTrendChart range={periodToRange[period]} />
+          {analyticsLoading || !customerAnalytics ? (
+            <section className="rounded-2xl bg-card p-5 sm:p-6">
+              <Skeleton className="h-65 w-full sm:h-80" />
+            </section>
+          ) : projectTypes.every((row) => row.value === 0) ? (
+            <section className="rounded-2xl bg-card p-5 sm:p-6">
+              <h2 className="text-lg font-bold text-ink">Project Types Distribution</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Number of customers vs. project type</p>
+              <ApiEmptyState message="No customer projects yet." className="py-16" />
+            </section>
+          ) : (
+            <CategoryBarChart
+              title="Project Types Distribution"
+              subtitle="Distribution of customer projects by category, Number of customers vs. Project Type"
+              data={projectTypes}
+              tooltipLabel="Customers"
+              tooltipValueFormatter={(value) => value.toLocaleString()}
+              yTicks={projectTypesAxis.yTicks}
+              yDomainMax={projectTypesAxis.yDomainMax}
+              yTickFormatter={(value) => value.toLocaleString()}
+            />
+          )}
+
+          {analyticsLoading || !customerAnalytics ? (
+            <section className="rounded-2xl bg-card p-5 sm:p-6">
+              <Skeleton className="h-65 w-full sm:h-80" />
+            </section>
+          ) : (
+            <CustomerTrendChart period={period} data={customerTrendData} />
+          )}
         </div>
+
         <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
-          <JourneyDropOff />
-          <CategoryBarChart
-            title="Acquisition Channel"
-            subtitle="Customers by Source of Discovery"
-            data={acquisitionChannels}
-            tooltipLabel="Customers"
-            tooltipValueFormatter={(value) => value.toLocaleString()}
-            yTicks={[0, 1_000, 5_000, 10_000, 20_000]}
-            yDomainMax={20_000}
-            yTickFormatter={(value) => value.toLocaleString()}
-            uppercaseTooltipLabel
-          />
+          {journeyLoading || !journey ? (
+            <section className="rounded-2xl bg-card p-5 sm:p-6">
+              <Skeleton className="h-80 w-full" />
+            </section>
+          ) : (
+            <CustomerConversionFunnel stages={funnelStages} />
+          )}
+
+          {analyticsLoading || !customerAnalytics ? (
+            <section className="rounded-2xl bg-card p-5 sm:p-6">
+              <Skeleton className="h-65 w-full sm:h-80" />
+            </section>
+          ) : acquisitionChannels.every((row) => row.value === 0) ? (
+            <section className="rounded-2xl bg-card p-5 sm:p-6">
+              <h2 className="text-lg font-bold text-ink">Acquisition Channel</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Customers by Source of Discovery</p>
+              <ApiEmptyState message="No customers yet." className="py-16" />
+            </section>
+          ) : (
+            <CategoryBarChart
+              title="Acquisition Channel"
+              subtitle="Customers by Source of Discovery"
+              data={acquisitionChannels}
+              tooltipLabel="Customers"
+              tooltipValueFormatter={(value) => value.toLocaleString()}
+              yTicks={acquisitionAxis.yTicks}
+              yDomainMax={acquisitionAxis.yDomainMax}
+              yTickFormatter={(value) => value.toLocaleString()}
+              uppercaseTooltipLabel
+            />
+          )}
         </div>
-        <CustomersDirectory />
+
+        <section>
+          <h2 className="text-lg font-bold text-ink">Customers</h2>
+          <p className="mt-1 text-sm text-muted-foreground">View and filter system registered customers</p>
+
+          <div className="mt-5 rounded-2xl bg-card p-4 sm:p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+              <div className="flex shrink-0 items-center gap-2 text-sm font-medium text-ink">
+                <ListFilter className="size-5 shrink-0" strokeWidth={1.8} />
+                <span>Filter by:</span>
+              </div>
+              <div className="grid w-full min-w-0 grid-cols-2 gap-3 sm:min-w-[320px] sm:flex-1 lg:w-auto lg:flex-none lg:gap-5">
+                <div className="min-w-0">
+                  <span className="sr-only">Status</span>
+                  <Select value={status} onValueChange={(value) => setStatus((value ?? "all") as "all" | UserStatus)}>
+                    <SelectTrigger className="h-10 w-full min-w-0 border-border bg-transparent text-sm font-medium">
+                      <SelectValue className="min-w-0 truncate">
+                        {(value) =>
+                          value === "all" ? "Status: All" : `Status: ${value === "ACTIVE" ? "Active" : value === "INACTIVE" ? "Inactive" : "Suspended"}`
+                        }
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Status: All</SelectItem>
+                      <SelectItem value="ACTIVE">Status: Active</SelectItem>
+                      <SelectItem value="INACTIVE">Status: Inactive</SelectItem>
+                      <SelectItem value="SUSPENDED">Status: Suspended</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="min-w-0">
+                  <span className="sr-only">Total spend</span>
+                  <Select value={sort} onValueChange={(value) => setSort((value ?? "spend") as "spend" | "name")}>
+                    <SelectTrigger className="h-10 w-full min-w-0 border-border bg-transparent text-sm font-medium">
+                      <SelectValue className="min-w-0 truncate">{(value) => (value === "name" ? "Name: A - Z" : "Total Spend: Highest")}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="spend">Total Spend: Highest</SelectItem>
+                      <SelectItem value="name">Name: A - Z</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="relative flex-1 lg:mx-2">
+                <Search className="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search by customer name, email..."
+                  aria-label="Search customers"
+                  className="w-full rounded-full border border-border bg-[#F9FAFB] py-3 pr-4 pl-11 text-sm text-ink outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+              <p className="shrink-0 text-xs font-semibold tracking-wider text-muted-foreground uppercase lg:hidden xl:inline">
+                Showing {directoryResults.length} result{directoryResults.length === 1 ? "" : "s"}
+              </p>
+            </div>
+          </div>
+
+          {customersLoading ? (
+            <div className="mt-5 grid gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {[0, 1, 2].map((item) => (
+                <div key={item} className="rounded-2xl bg-card p-5 sm:p-6">
+                  <Skeleton className="h-5 w-2/3" />
+                  <Skeleton className="mt-4 h-3 w-full" />
+                  <Skeleton className="mt-2 h-3 w-1/2" />
+                </div>
+              ))}
+            </div>
+          ) : customersError ? (
+            <ApiErrorState message={customersError} onRetry={reloadCustomers} className="mt-5" />
+          ) : directoryResults.length === 0 ? (
+            <ApiEmptyState message="No customers match your filters." className="mt-5 py-16" />
+          ) : (
+            <ul className="mt-5 grid gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {directoryResults.map((customer) => (
+                <li key={customer.id} className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-semibold text-card">
+                        {getInitials(customer.fullName)}
+                      </span>
+                      <h3 className="min-w-0 truncate text-lg font-bold text-ink">{customer.fullName}</h3>
+                    </div>
+                    <Badge variant={customer.status === "ACTIVE" ? "primary" : customer.status === "SUSPENDED" ? "destructive" : "muted"}>
+                      {customer.status}
+                    </Badge>
+                  </div>
+                  <dl className="mt-5 space-y-3 border-t border-[#E5E7EB] pt-4 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <dt className="shrink-0 text-muted-foreground">Contact</dt>
+                      <dd className="min-w-0 text-right font-data text-ink">
+                        <span className="block truncate">{customer.email ?? "—"}</span>
+                        <span className="block whitespace-nowrap">{customer.phone ?? "—"}</span>
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">Last Order</dt>
+                      <dd className="whitespace-nowrap font-data text-ink">
+                        {customer.lastOrderAt ? formatShortDate(customer.lastOrderAt) : "—"}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">Total Orders</dt>
+                      <dd className="whitespace-nowrap font-data text-ink">{customer.orderCount}</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 border-t border-[#E5E7EB] pt-3">
+                      <dt className="text-muted-foreground">Total Spend</dt>
+                      <dd className="font-data text-xl font-semibold whitespace-nowrap text-ink">
+                        {formatCompactCurrency(customer.lifetimeSpend)}
+                      </dd>
+                    </div>
+                  </dl>
+                  <Link
+                    href={`/admin/customers/${customer.id}`}
+                    className="mt-5 flex items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-bold text-ink transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95"
+                  >
+                    View Details
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </>
   );
