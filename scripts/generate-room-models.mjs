@@ -46,7 +46,12 @@ const WALL_THICKNESS = 0.12;
 // texture can sit on squarely.
 const DOOR = { width: 0.95, height: 2.06, centerX: -1.15 };
 const BACK_WINDOW = { width: 1.5, height: 1.15, sillY: 1.0, centerX: 1.0 };
-const LEFT_WINDOW = { width: 1.3, height: 1.15, sillY: 1.0, centerZ: 0.55 };
+// centerZ is negative (toward the back wall, away from the open/camera side)
+// so the window doesn't sit right next to the doorway threshold — closer to
+// camera, it would loom disproportionately large in perspective and its
+// curtain would dominate the default framing instead of reading as a normal
+// part of the wall.
+const LEFT_WINDOW = { width: 1.3, height: 1.15, sillY: 1.0, centerZ: -0.9 };
 
 const material = (options) => new THREE.MeshStandardMaterial(options);
 
@@ -348,20 +353,24 @@ const buildWindow = (name, { width, height, sillY }) => {
   );
   win.add(glass);
 
-  // Rod overhangs the opening the way a real one does.
+  // Rod overhangs the opening the way a real one does. Kept close to the wall
+  // (a small fraction of the wall thickness proud of it) so it — and the
+  // curtain hanging from it — reads as fixed to the wall rather than as a
+  // separate panel floating in front of it.
   const rodLength = width + 0.5;
   const rodY = sillY + height + 0.16;
+  const curtainZ = WALL_THICKNESS / 2 + 0.03;
   win.add(
-    cylinder(`${name}_Rod`, 0.014, 0.014, rodLength, [0, rodY, 0.1], PALETTE.curtainRod, 16, [0, 0, Math.PI / 2]),
-    cylinder(`${name}_Rod_Finial_L`, 0.026, 0.026, 0.03, [-rodLength / 2, rodY, 0.1], PALETTE.curtainRod, 16, [0, 0, Math.PI / 2]),
-    cylinder(`${name}_Rod_Finial_R`, 0.026, 0.026, 0.03, [rodLength / 2, rodY, 0.1], PALETTE.curtainRod, 16, [0, 0, Math.PI / 2]),
+    cylinder(`${name}_Rod`, 0.014, 0.014, rodLength, [0, rodY, curtainZ], PALETTE.curtainRod, 16, [0, 0, Math.PI / 2]),
+    cylinder(`${name}_Rod_Finial_L`, 0.026, 0.026, 0.03, [-rodLength / 2, rodY, curtainZ], PALETTE.curtainRod, 16, [0, 0, Math.PI / 2]),
+    cylinder(`${name}_Rod_Finial_R`, 0.026, 0.026, 0.03, [rodLength / 2, rodY, curtainZ], PALETTE.curtainRod, 16, [0, 0, Math.PI / 2]),
   );
 
   const curtainHeight = rodY - sillY + height * 0.12;
   const curtainWidth = width * 0.42;
   [-1, 1].forEach((side, index) => {
     const panel = curtainPanel(`${name}_Curtain_${index}`, curtainWidth, curtainHeight);
-    panel.position.set(side * (width / 2 + 0.06 - curtainWidth / 2), rodY - curtainHeight / 2 - 0.02, 0.1);
+    panel.position.set(side * (width / 2 + 0.06 - curtainWidth / 2), rodY - curtainHeight / 2 - 0.02, curtainZ);
     win.add(panel);
   });
 
