@@ -118,7 +118,11 @@ const MODEL_SURFACE_OVERRIDES: Record<string, { floor: string[]; wall: string[] 
     floor: ["Floor_Wall_0"],
     // The whole house shell is one mesh (open-plan, stairwell included) —
     // tiling it re-tiles every wall in the model, not just the kitchen's.
-    wall: ["Structure_Wall_0", "WindowWall_Wall_0"],
+    // `WindowWall_Wall_0` deliberately isn't listed: despite the name, it's
+    // the panel the window itself is set into (right up against the glass),
+    // not a paintable room wall — tiling it read as "the window's own
+    // surround got tiled instead of the actual wall."
+    wall: ["Structure_Wall_0"],
   },
 };
 
