@@ -209,13 +209,23 @@ const DEFAULT_CAMERA_CONFIG: CameraConfig = {
  * own bounding boxes (`Box3.setFromObject` per mesh) rather than guessed:
  * the kitchen run (cupboards/counters/sink/hob) centres around world x≈3,
  * z≈0.5, and the floor sits at y≈-0.18, so a standing eye-height target is
- * y≈1.3. The camera itself sits back near where the breakfast stools are
- * (x≈-4), a little above eye height, angled in on that run — the same kind
- * of three-quarter framing as the source listing's own preview render.
+ * y≈1.3. The camera itself sits back near where the breakfast stools are,
+ * a little above eye height, angled in on that run — the same kind of
+ * three-quarter framing as the source listing's own preview render.
+ *
+ * `position.x` is deliberately kept a couple of metres clear of the
+ * exterior wall (which sits at x≈-6.48, the floor mesh's own boundary): an
+ * earlier attempt put the camera at x=-6.5 — almost touching that wall — so
+ * one edge of frame was a metres-away, badly minified close-up of it,
+ * blown out to a flat wash by the tile texture's own mip levels (the same
+ * effect the procedural rooms' curtains hit at a grazing angle), while the
+ * rest of frame read fine. It looked exactly like "the wall tile is on the
+ * wrong spot" — it wasn't; the camera was just standing inside the wall's
+ * near field.
  */
 const MODEL_CAMERA_CONFIGS: Record<string, CameraConfig> = {
   "/models/rooms/modern_kitchen.glb": {
-    position: [-6.5, 2.6, 4.5],
+    position: [-4.04, 2.32, 3.21],
     target: [3, 1.5, -0.5],
     near: 0.1,
     far: 100,
