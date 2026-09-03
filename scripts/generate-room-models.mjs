@@ -338,7 +338,11 @@ const buildDoor = () => {
  * rather than just a scaled-down copy of the wide one.
  */
 const curtainPanel = (name, width, height, material, folds = 7, depth = 0.05) => {
-  const geometry = new THREE.PlaneGeometry(width, height, folds * 6, 1);
+  // 6 segments per fold period was coarse enough to facet visibly under
+  // lighting — a "cartoon" look rather than a curved one. This many
+  // segments makes each ridge and valley read as an actual rounded curve.
+  const segmentsPerFold = 24;
+  const geometry = new THREE.PlaneGeometry(width, height, folds * segmentsPerFold, 1);
   const position = geometry.attributes.position;
   for (let i = 0; i < position.count; i += 1) {
     const x = position.getX(i);
@@ -555,21 +559,11 @@ const buildKitchen = () => {
   scene.add(buildShell());
   scene.add(buildDoor());
 
-  // Back window: light curtains, deliberately undressed rather than
-  // symmetric — one panel tied back tight against its finial, the other
-  // drawn most of the way across, so the two windows don't read as the same
-  // treatment repeated twice.
+  // Back window: symmetric open pair (buildWindow's own default spans),
+  // just recoloured one dark, one light.
   {
-    const rodHalf = (BACK_WINDOW.width + 0.5) / 2;
-    const outer = rodHalf - 0.04;
     const backWindow = buildWindow("WindowBack", BACK_WINDOW, {
-      curtain: {
-        colors: [PALETTE.curtainDark, PALETTE.curtainLight],
-        panels: [
-          { outer: -outer, inner: -outer + 0.2 }, // collapsed: gathered tight near its finial
-          { outer, inner: -(BACK_WINDOW.width / 2 - 0.15) }, // extended: drawn most of the way across
-        ],
-      },
+      curtain: { colors: [PALETTE.curtainDark, PALETTE.curtainLight] },
     });
     backWindow.position.set(BACK_WINDOW.centerX, 0, -ROOM.depth / 2);
     scene.add(backWindow);
