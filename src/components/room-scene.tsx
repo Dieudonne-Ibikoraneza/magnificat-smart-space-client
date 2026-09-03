@@ -295,6 +295,8 @@ type CameraConfig = {
    * the camera's side by design).
    */
   bounds?: { min: [number, number, number]; max: [number, number, number] };
+  /** Horizontal field of view in degrees; see `ResponsiveCamera`. */
+  horizontalFov?: number;
 };
 
 // Module constant, not an inline literal: R3F re-applies these when the prop
@@ -373,10 +375,23 @@ const DEFAULT_CAMERA_CONFIG: CameraConfig = {
  */
 const MODEL_CAMERA_CONFIGS: Record<string, CameraConfig> = {
   "/models/rooms/modern_kitchen.glb": {
-    // ~9.2 m back along the same three-quarter line as before (was 8 m), so
-    // more of the run is in frame from the outset.
-    position: [-5.1, 2.44, 3.76],
-    target: [3, 1.5, -0.5],
+    /**
+     * ~9.2 m back along the same three-quarter line as before (was 8 m), so
+     * more of the run is in frame from the outset.
+     *
+     * The target sits at 0.8 m rather than eye height, which drops the whole
+     * rig (the position is the target plus an offset) to a camera height of
+     * ~1.7 m. That is what puts floor *behind the stools* in frame: the
+     * bottom of the frame is a fixed angle below the view axis, so how close
+     * to the camera it meets the floor depends on how high the camera is,
+     * not on how far back it is. At the old 2.4 m the nearest visible floor
+     * was x≈-1.4 — level with the stools at x≈-1.6, so they sat hard on the
+     * bottom edge. At 1.7 m it reaches x≈-2.5, clearing ~0.9 m behind them.
+     * Raising the camera instead does the opposite: it lifts the near floor
+     * further out of frame.
+     */
+    position: [-5.1, 1.44, 3.76],
+    target: [3, 0.5, -0.5],
     near: 0.1,
     far: 100,
     /**
@@ -392,9 +407,20 @@ const MODEL_CAMERA_CONFIGS: Record<string, CameraConfig> = {
      * the blank back of unfurnished walls and the stairwell that were never
      * meant to be seen head-on.
      */
+    /**
+     * Wide, because the camera is boxed in indoors. Backing up runs into a
+     * wall at ~10 m from this target, and at the old 50° that framed only
+     * ~9 m of room — *less* than before it was confined, which is the wrong
+     * direction. At 75° the same 10 m frames ~15 m, so the whole 13.4 m room
+     * fits with the camera still inside it.
+     */
+    horizontalFov: 75,
     orbitLimits: {
       minDistance: 4,
-      maxDistance: 10,
+      // Deliberately past what the room allows: `bounds` is the real stop,
+      // so the dolly runs until the camera actually reaches a wall rather
+      // than halting early at a number that has to guess where the walls are.
+      maxDistance: 16,
       // Asymmetric on purpose: swinging toward 0° (measured, camera at
       // pos≈(-4.2,2.6,7.45)) put the camera almost against a wall past the
       // kitchen's far corner, filling the frame with a close-up of it.
@@ -415,8 +441,8 @@ const MODEL_CAMERA_CONFIGS: Record<string, CameraConfig> = {
      * clearing the wall tops and showing the outside of the model.
      */
     bounds: {
-      min: [-6.0, 0.9, -4.0],
-      max: [6.4, 4.6, 6.9],
+      min: [-6.25, 0.8, -4.15],
+      max: [6.65, 4.9, 7.15],
     },
   },
 };
@@ -456,15 +482,23 @@ const ContainCamera = ({ bounds }: { bounds: NonNullable<CameraConfig["bounds"]>
  * wider window shows a shorter slice of the same room rather than a wider
  * one. Clamped so a very narrow/tall viewport doesn't swing the other way
  * into a fisheye.
+ *
+ * How wide that constant is, is per-model (`CameraConfig.horizontalFov`),
+ * because it is the only lever left once the camera is confined indoors: it
+ * cannot back through a wall, so past the point where it reaches one, the
+ * only way to fit more of the room in frame is a wider lens — the same
+ * reason interiors are shot on wide angles rather than from further back.
  */
-const TARGET_HORIZONTAL_FOV_DEG = 50;
+const DEFAULT_HORIZONTAL_FOV_DEG = 50;
 const MIN_VERTICAL_FOV_DEG = 35;
-const MAX_VERTICAL_FOV_DEG = 60;
+const MAX_VERTICAL_FOV_DEG = 72;
 
 const ResponsiveCamera = ({ config }: { config: CameraConfig }) => {
   const { width, height } = useThree((state) => state.size);
   const aspect = width / height || 1;
-  const horizontalFovRad = THREE.MathUtils.degToRad(TARGET_HORIZONTAL_FOV_DEG);
+  const horizontalFovRad = THREE.MathUtils.degToRad(
+    config.horizontalFov ?? DEFAULT_HORIZONTAL_FOV_DEG,
+  );
   const verticalFovRad = 2 * Math.atan(Math.tan(horizontalFovRad / 2) / aspect);
   const fov = THREE.MathUtils.clamp(
     THREE.MathUtils.radToDeg(verticalFovRad),
