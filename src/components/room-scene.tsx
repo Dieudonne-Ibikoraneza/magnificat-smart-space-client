@@ -93,19 +93,7 @@ const useTileTexture = (product: Product | undefined) => {
 /** One shared material per surface role — every wall segment tiles identically. */
 const useTileMaterial = (texture: THREE.Texture | null) => {
   const material = useMemo(
-    () =>
-      texture
-        ? // DoubleSide for the same reason the generator's own baseline wall/floor
-          // material is: these are single, thickness-less quads, and the camera
-          // can graze past a wall's near edge close enough to catch its back —
-          // a front-only material just goes invisible there.
-          new THREE.MeshStandardMaterial({
-            map: texture,
-            roughness: 0.45,
-            metalness: 0.05,
-            side: THREE.DoubleSide,
-          })
-        : null,
+    () => (texture ? new THREE.MeshStandardMaterial({ map: texture, roughness: 0.45, metalness: 0.05 }) : null),
     [texture],
   );
 
