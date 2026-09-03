@@ -2,7 +2,7 @@
 
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
-import { OrbitControls, useGLTF } from "@react-three/drei";
+import { OrbitControls, PerspectiveCamera, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { Product } from "@/components/product-card";
@@ -111,9 +111,51 @@ const isWall = (name: string) => name.startsWith("Wall_");
 // Chosen to sit comfortably inside `ORBIT_LIMITS` below (~4 m out, ~80°
 // polar, ~8° azimuth) with margin on every side, so OrbitControls never has
 // to snap the view on first mount to satisfy its own bounds.
-const CAMERA = { position: [0.55, 1.84, 3.6] as [number, number, number], fov: 45, near: 0.1, far: 60 };
+const CAMERA_POSITION: [number, number, number] = [0.55, 1.84, 3.6];
+const CAMERA_NEAR = 0.1;
+const CAMERA_FAR = 60;
 const GL = { antialias: true };
 const ORBIT_TARGET: [number, number, number] = [0, 1.15, -0.3];
+
+/**
+ * `PerspectiveCamera.fov` is vertical — on a wide viewport, a fixed fov shows
+ * *more sideways* than it does on a narrow/square one, for the same camera
+ * position and the same `ORBIT_LIMITS` below: the customer's actual browser
+ * window turned out much wider than this file was tuned against, and at that
+ * aspect the same "in the doorway" position let both side walls, the window
+ * rods, and a strip of ceiling all into frame at once — the boundaries were
+ * never loosened, the frame just got wide enough to see past what they were
+ * meant to hide. Recomputing the vertical fov from the canvas's own aspect
+ * ratio keeps the *horizontal* field of view roughly constant instead, so a
+ * wider window shows a shorter slice of the same room rather than a wider
+ * one. Clamped so a very narrow/tall viewport doesn't swing the other way
+ * into a fisheye.
+ */
+const TARGET_HORIZONTAL_FOV_DEG = 50;
+const MIN_VERTICAL_FOV_DEG = 35;
+const MAX_VERTICAL_FOV_DEG = 60;
+
+const ResponsiveCamera = () => {
+  const { width, height } = useThree((state) => state.size);
+  const aspect = width / height || 1;
+  const horizontalFovRad = THREE.MathUtils.degToRad(TARGET_HORIZONTAL_FOV_DEG);
+  const verticalFovRad = 2 * Math.atan(Math.tan(horizontalFovRad / 2) / aspect);
+  const fov = THREE.MathUtils.clamp(
+    THREE.MathUtils.radToDeg(verticalFovRad),
+    MIN_VERTICAL_FOV_DEG,
+    MAX_VERTICAL_FOV_DEG,
+  );
+
+  return (
+    <PerspectiveCamera
+      makeDefault
+      position={CAMERA_POSITION}
+      near={CAMERA_NEAR}
+      far={CAMERA_FAR}
+      fov={fov}
+    />
+  );
+};
 
 /**
  * How far the customer can orbit before the illusion breaks. The room shell
@@ -283,8 +325,9 @@ export const RoomScene = ({
 
   return (
     <div className={className}>
-      <Canvas shadows dpr={[1, 2]} camera={CAMERA} gl={GL}>
+      <Canvas shadows dpr={[1, 2]} gl={GL}>
         <color attach="background" args={[0xeceae5]} />
+        <ResponsiveCamera />
         <RoomLighting />
         <Suspense fallback={null}>
           <ModelErrorBoundary key={modelUrl} onError={() => setMissingUrl(modelUrl)}>
