@@ -108,10 +108,10 @@ const isWall = (name: string) => name.startsWith("Wall_");
 // Module constants, not inline literals: R3F re-applies these when the prop
 // identity changes, so a fresh object every render would snap the camera back
 // to its starting position every time the customer picked a tile.
-// Chosen to sit comfortably inside `ORBIT_LIMITS` below (~5 m out, ~78°
-// polar, ~12° azimuth) with margin on every side, so OrbitControls never has
+// Chosen to sit comfortably inside `ORBIT_LIMITS` below (~4 m out, ~80°
+// polar, ~8° azimuth) with margin on every side, so OrbitControls never has
 // to snap the view on first mount to satisfy its own bounds.
-const CAMERA = { position: [1.0, 2.2, 4.5] as [number, number, number], fov: 45, near: 0.1, far: 60 };
+const CAMERA = { position: [0.55, 1.84, 3.6] as [number, number, number], fov: 45, near: 0.1, far: 60 };
 const GL = { antialias: true };
 const ORBIT_TARGET: [number, number, number] = [0, 1.15, -0.3];
 
@@ -119,26 +119,29 @@ const ORBIT_TARGET: [number, number, number] = [0, 1.15, -0.3];
  * How far the customer can orbit before the illusion breaks. The room shell
  * is a 3-walled box open on the camera's side (see the generator) — nothing
  * stops the camera physically leaving it, so the boundary has to be enforced
- * here instead. Left unconstrained, two things go wrong: swinging far enough
- * around lets you see past the side walls' outer faces (single-sided
- * materials, so they simply vanish from behind), and tipping too far
- * overhead turns "standing in a kitchen" into "looking down into an open
- * box" — which is exactly the dollhouse angle that gives the room away as a
- * shell rather than a place. These keep the camera inside a cone that always
- * reads as "in the doorway looking in," never "hovering above the box."
+ * here instead. Left unconstrained, three things go wrong: swinging far
+ * enough around lets you see past the side walls' outer faces (single-sided
+ * materials, so they simply vanish from behind), tipping too far overhead
+ * turns "standing in a kitchen" into "looking down into an open box," and
+ * zooming out while tipped over combines with the wall/floor's flat repeating
+ * photo texture to read as looking *through* the surfaces rather than at
+ * them, from a raking, near-top-down angle. These keep the camera inside a
+ * narrow, near-eye-level cone that always reads as "in the doorway looking
+ * in," never "hovering above the box, staring down through it."
  */
 const ORBIT_LIMITS = {
-  minDistance: 2.4,
-  maxDistance: 5.8,
+  minDistance: 2.2,
+  maxDistance: 5.0,
   // Azimuth, either side of dead-centre: enough to glance toward each side
   // wall without ever swinging past one to its unrendered back face.
-  minAzimuthAngle: -Math.PI / 3.3, // -54.5°
-  maxAzimuthAngle: Math.PI / 3.3, // 54.5°
-  // Polar angle, measured from straight up: the floor above keeps the
-  // dollhouse view out, the ceiling below stops the camera dropping to floor
-  // level and clipping through the range.
-  minPolarAngle: Math.PI / 2.6, // ~69.2° off vertical — steep enough to glance down at the range, not so steep it reads as looking down into an open box.
-  maxPolarAngle: Math.PI / 2.15, // ~83.7° — short of dead-flat, so it can't graze through furniture.
+  minAzimuthAngle: -Math.PI / 4.5, // -40°
+  maxAzimuthAngle: Math.PI / 4.5, // 40°
+  // Polar angle, measured from straight up, kept to a narrow band around
+  // human eye-level: steep enough that neither the floor's nor a wall's flat
+  // tile photo is ever seen edge-on/raking (the "looking through it" effect),
+  // shallow enough it can't graze down through the range or the floor.
+  minPolarAngle: Math.PI / 2.4, // 75° off vertical.
+  maxPolarAngle: Math.PI / 2.05, // ~87.8° off vertical.
 };
 
 const RoomModel = ({
