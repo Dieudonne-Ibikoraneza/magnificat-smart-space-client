@@ -59,7 +59,11 @@ const PALETTE = {
   surface: material({ color: 0xd9d4cc, roughness: 0.92, metalness: 0 }),
   ceiling: material({ color: 0xf3f1ec, roughness: 0.95, metalness: 0 }),
   trim: material({ color: 0xf5f3ef, roughness: 0.6, metalness: 0 }),
-  doorPanel: material({ color: 0xe8e4dc, roughness: 0.55, metalness: 0 }),
+  // Deep-brown wood door: one tone across the leaf, casing, and reveal so it
+  // reads as a single wood unit, plus a darker shade in the recessed shaker
+  // panels (a real inset catches less light and reads a touch darker).
+  doorPanel: material({ color: 0x4a2f1c, roughness: 0.55, metalness: 0 }),
+  doorPanelDark: material({ color: 0x33200f, roughness: 0.65, metalness: 0 }),
   // Metalness is kept deliberately moderate across the metals: a physically
   // "correct" 0.9+ reflects the environment for nearly all of its colour, and
   // in a room lit only by lights (no HDRI) that renders as near-black. These
@@ -79,7 +83,11 @@ const PALETTE = {
     transparent: true,
     opacity: 0.24,
   }),
-  curtain: material({ color: 0xe4ded2, roughness: 0.95, metalness: 0, side: THREE.DoubleSide }),
+  // Two curtain colours, not one shared everywhere — each window gets its
+  // own (see buildKitchen), so the room doesn't read as the same fabric
+  // copy-pasted at every opening.
+  curtainDark: material({ color: 0x2a2926, roughness: 0.92, metalness: 0, side: THREE.DoubleSide }),
+  curtainLight: material({ color: 0xf6f3ea, roughness: 0.92, metalness: 0, side: THREE.DoubleSide }),
   curtainRod: material({ color: 0x6f6a63, roughness: 0.35, metalness: 0.85 }),
   lightBody: material({ color: 0xe9e7e2, roughness: 0.5, metalness: 0.15 }),
   lightLens: material({
@@ -241,9 +249,27 @@ const buildShell = () => {
   });
 
   // Skirting, so the floor/wall junction doesn't read as a paper-thin seam.
+  // Back wall's run is split around the doorway rather than one solid bar —
+  // running straight across would sit right in front of the door casing's
+  // own base, at almost the same depth, and visually cut its run to the
+  // floor short.
   const skirtHeight = 0.09;
+  const doorGapHalf = DOOR.width / 2 + 0.1;
+  const backLeftWidth = DOOR.centerX - doorGapHalf - -ROOM.width / 2;
+  const backRightWidth = ROOM.width / 2 - (DOOR.centerX + doorGapHalf);
   shell.add(
-    box("Skirting_Back", [ROOM.width, skirtHeight, 0.02], [0, skirtHeight / 2, -ROOM.depth / 2 + 0.01], PALETTE.trim),
+    box(
+      "Skirting_Back_0",
+      [backLeftWidth, skirtHeight, 0.02],
+      [-ROOM.width / 2 + backLeftWidth / 2, skirtHeight / 2, -ROOM.depth / 2 + 0.01],
+      PALETTE.trim,
+    ),
+    box(
+      "Skirting_Back_1",
+      [backRightWidth, skirtHeight, 0.02],
+      [ROOM.width / 2 - backRightWidth / 2, skirtHeight / 2, -ROOM.depth / 2 + 0.01],
+      PALETTE.trim,
+    ),
     box("Skirting_Left", [0.02, skirtHeight, ROOM.depth], [-ROOM.width / 2 + 0.01, skirtHeight / 2, 0], PALETTE.trim),
     box("Skirting_Right", [0.02, skirtHeight, ROOM.depth], [ROOM.width / 2 - 0.01, skirtHeight / 2, 0], PALETTE.trim),
   );
@@ -258,21 +284,23 @@ const buildDoor = () => {
   const jamb = 0.06;
   const door = group("Door");
 
-  // Reveal — the wall's own thickness showing through the opening.
+  // Reveal — the wall's own thickness showing through the opening. Wood-toned
+  // (not the window trim colour) so the doorway reads as one wood unit.
   door.add(
-    box("Door_Reveal_Left", [jamb, DOOR.height, WALL_THICKNESS], [DOOR.centerX - DOOR.width / 2 - jamb / 2, DOOR.height / 2, z - WALL_THICKNESS / 2 + 0.001], PALETTE.trim),
-    box("Door_Reveal_Right", [jamb, DOOR.height, WALL_THICKNESS], [DOOR.centerX + DOOR.width / 2 + jamb / 2, DOOR.height / 2, z - WALL_THICKNESS / 2 + 0.001], PALETTE.trim),
-    box("Door_Reveal_Head", [DOOR.width + jamb * 2, jamb, WALL_THICKNESS], [DOOR.centerX, DOOR.height + jamb / 2, z - WALL_THICKNESS / 2 + 0.001], PALETTE.trim),
+    box("Door_Reveal_Left", [jamb, DOOR.height, WALL_THICKNESS], [DOOR.centerX - DOOR.width / 2 - jamb / 2, DOOR.height / 2, z - WALL_THICKNESS / 2 + 0.001], PALETTE.doorPanel),
+    box("Door_Reveal_Right", [jamb, DOOR.height, WALL_THICKNESS], [DOOR.centerX + DOOR.width / 2 + jamb / 2, DOOR.height / 2, z - WALL_THICKNESS / 2 + 0.001], PALETTE.doorPanel),
+    box("Door_Reveal_Head", [DOOR.width + jamb * 2, jamb, WALL_THICKNESS], [DOOR.centerX, DOOR.height + jamb / 2, z - WALL_THICKNESS / 2 + 0.001], PALETTE.doorPanel),
   );
 
   // Casing on the room side.
   door.add(
-    box("Door_Casing_Left", [0.07, DOOR.height + 0.07, 0.025], [DOOR.centerX - DOOR.width / 2 - 0.035, DOOR.height / 2, z + 0.013], PALETTE.trim),
-    box("Door_Casing_Right", [0.07, DOOR.height + 0.07, 0.025], [DOOR.centerX + DOOR.width / 2 + 0.035, DOOR.height / 2, z + 0.013], PALETTE.trim),
-    box("Door_Casing_Head", [DOOR.width + 0.14, 0.07, 0.025], [DOOR.centerX, DOOR.height + 0.035, z + 0.013], PALETTE.trim),
+    box("Door_Casing_Left", [0.07, DOOR.height + 0.07, 0.025], [DOOR.centerX - DOOR.width / 2 - 0.035, DOOR.height / 2, z + 0.013], PALETTE.doorPanel),
+    box("Door_Casing_Right", [0.07, DOOR.height + 0.07, 0.025], [DOOR.centerX + DOOR.width / 2 + 0.035, DOOR.height / 2, z + 0.013], PALETTE.doorPanel),
+    box("Door_Casing_Head", [DOOR.width + 0.14, 0.07, 0.025], [DOOR.centerX, DOOR.height + 0.035, z + 0.013], PALETTE.doorPanel),
   );
 
-  // Leaf, sitting just inside the opening, with two recessed shaker panels.
+  // Leaf, sitting just inside the opening, with two recessed shaker panels —
+  // a shade darker than the leaf, so the recess actually reads as a recess.
   const leafZ = z - WALL_THICKNESS / 2;
   door.add(box("Door_Leaf", [DOOR.width - 0.02, DOOR.height - 0.02, 0.045], [DOOR.centerX, DOOR.height / 2, leafZ], PALETTE.doorPanel));
   const panelDepth = 0.05;
@@ -285,7 +313,7 @@ const buildDoor = () => {
         `Door_Panel_${index}`,
         [DOOR.width - 0.24, panel.h, panelDepth],
         [DOOR.centerX, panel.y, leafZ + 0.004],
-        PALETTE.trim,
+        PALETTE.doorPanelDark,
       ),
     );
   });
@@ -304,9 +332,12 @@ const buildDoor = () => {
 
 /**
  * Pleated curtain panel: a plane folded along its width by a sine wave, which
- * reads as fabric from any angle a flat quad wouldn't.
+ * reads as fabric from any angle a flat quad wouldn't. A fixed fold count
+ * regardless of `width` is deliberate — the same 7 folds packed into a
+ * narrower panel is what makes a "tied back" panel read as gathered fabric
+ * rather than just a scaled-down copy of the wide one.
  */
-const curtainPanel = (name, width, height, folds = 7, depth = 0.05) => {
+const curtainPanel = (name, width, height, material, folds = 7, depth = 0.05) => {
   const geometry = new THREE.PlaneGeometry(width, height, folds * 6, 1);
   const position = geometry.attributes.position;
   for (let i = 0; i < position.count; i += 1) {
@@ -315,7 +346,7 @@ const curtainPanel = (name, width, height, folds = 7, depth = 0.05) => {
     position.setZ(i, wave * depth);
   }
   geometry.computeVertexNormals();
-  const mesh = new THREE.Mesh(geometry, PALETTE.curtain);
+  const mesh = new THREE.Mesh(geometry, material);
   mesh.name = name;
   return mesh;
 };
@@ -324,8 +355,19 @@ const curtainPanel = (name, width, height, folds = 7, depth = 0.05) => {
  * One window: reveal, frame, glazing, sill, plus a rod and a pair of curtain
  * panels. Built facing +z at the origin and positioned by the caller, so the
  * back and left walls can share it.
+ *
+ * `curtain` customises the dressing so not every window looks identical:
+ * - `colors`: one material per panel — each window's pair is one dark, one
+ *   light panel by default, not one window all-dark and the other all-light.
+ * - `panels`: two `{ outer, inner }` spans (signed local x, `outer` toward
+ *   that side's finial) — same width on both sides draws a symmetric,
+ *   mostly-open pair; a wide/narrow pair draws one panel tied back and the
+ *   other extended across, i.e. a closed or asymmetric drape. Both edges are
+ *   caller-controlled so they can be pulled in to just short of the rod's
+ *   finials (see `buildKitchen`) instead of leaving bare rod showing past
+ *   the fabric.
  */
-const buildWindow = (name, { width, height, sillY }) => {
+const buildWindow = (name, { width, height, sillY }, { glassMaterial = PALETTE.glass, curtain } = {}) => {
   const win = group(name);
   const frame = 0.05;
 
@@ -349,7 +391,7 @@ const buildWindow = (name, { width, height, sillY }) => {
     `${name}_Glass`,
     [width - frame * 2, height - frame * 2, 0.012],
     [0, sillY + height / 2, -0.04],
-    PALETTE.glass,
+    glassMaterial,
   );
   win.add(glass);
 
@@ -358,19 +400,32 @@ const buildWindow = (name, { width, height, sillY }) => {
   // curtain hanging from it — reads as fixed to the wall rather than as a
   // separate panel floating in front of it.
   const rodLength = width + 0.5;
+  const rodHalf = rodLength / 2;
   const rodY = sillY + height + 0.16;
   const curtainZ = WALL_THICKNESS / 2 + 0.03;
   win.add(
     cylinder(`${name}_Rod`, 0.014, 0.014, rodLength, [0, rodY, curtainZ], PALETTE.curtainRod, 16, [0, 0, Math.PI / 2]),
-    cylinder(`${name}_Rod_Finial_L`, 0.026, 0.026, 0.03, [-rodLength / 2, rodY, curtainZ], PALETTE.curtainRod, 16, [0, 0, Math.PI / 2]),
-    cylinder(`${name}_Rod_Finial_R`, 0.026, 0.026, 0.03, [rodLength / 2, rodY, curtainZ], PALETTE.curtainRod, 16, [0, 0, Math.PI / 2]),
+    cylinder(`${name}_Rod_Finial_L`, 0.026, 0.026, 0.03, [-rodHalf, rodY, curtainZ], PALETTE.curtainRod, 16, [0, 0, Math.PI / 2]),
+    cylinder(`${name}_Rod_Finial_R`, 0.026, 0.026, 0.03, [rodHalf, rodY, curtainZ], PALETTE.curtainRod, 16, [0, 0, Math.PI / 2]),
   );
 
   const curtainHeight = rodY - sillY + height * 0.12;
-  const curtainWidth = width * 0.42;
-  [-1, 1].forEach((side, index) => {
-    const panel = curtainPanel(`${name}_Curtain_${index}`, curtainWidth, curtainHeight);
-    panel.position.set(side * (width / 2 + 0.06 - curtainWidth / 2), rodY - curtainHeight / 2 - 0.02, curtainZ);
+  // Default: symmetric, each panel's outer edge a few cm short of its
+  // finial (so it always sits *before* the rod's end, never past it) and
+  // its inner edge just short of centre.
+  const finialMargin = 0.04;
+  const defaultOuter = rodHalf - finialMargin;
+  const panels = curtain?.panels ?? [
+    { outer: -defaultOuter, inner: -0.02 },
+    { outer: defaultOuter, inner: 0.02 },
+  ];
+  // One panel dark, one light by default — every window's own pair is
+  // two-toned, not just one window dark and the other all light.
+  const curtainColors = curtain?.colors ?? [PALETTE.curtainDark, PALETTE.curtainLight];
+  panels.forEach(({ outer, inner }, index) => {
+    const panelWidth = Math.abs(outer - inner);
+    const panel = curtainPanel(`${name}_Curtain_${index}`, panelWidth, curtainHeight, curtainColors[index % curtainColors.length]);
+    panel.position.set((outer + inner) / 2, rodY - curtainHeight / 2 - 0.02, curtainZ);
     win.add(panel);
   });
 
@@ -500,14 +555,44 @@ const buildKitchen = () => {
   scene.add(buildShell());
   scene.add(buildDoor());
 
-  const backWindow = buildWindow("WindowBack", BACK_WINDOW);
-  backWindow.position.set(BACK_WINDOW.centerX, 0, -ROOM.depth / 2);
-  scene.add(backWindow);
+  // Back window: light curtains, deliberately undressed rather than
+  // symmetric — one panel tied back tight against its finial, the other
+  // drawn most of the way across, so the two windows don't read as the same
+  // treatment repeated twice.
+  {
+    const rodHalf = (BACK_WINDOW.width + 0.5) / 2;
+    const outer = rodHalf - 0.04;
+    const backWindow = buildWindow("WindowBack", BACK_WINDOW, {
+      curtain: {
+        colors: [PALETTE.curtainDark, PALETTE.curtainLight],
+        panels: [
+          { outer: -outer, inner: -outer + 0.2 }, // collapsed: gathered tight near its finial
+          { outer, inner: -(BACK_WINDOW.width / 2 - 0.15) }, // extended: drawn most of the way across
+        ],
+      },
+    });
+    backWindow.position.set(BACK_WINDOW.centerX, 0, -ROOM.depth / 2);
+    scene.add(backWindow);
+  }
 
-  const leftWindow = buildWindow("WindowLeft", LEFT_WINDOW);
-  leftWindow.position.set(-ROOM.width / 2, 0, LEFT_WINDOW.centerZ);
-  leftWindow.rotation.y = Math.PI / 2;
-  scene.add(leftWindow);
+  // Left window: dark curtains, drawn fully closed — each panel spans from
+  // just short of its own finial almost to centre.
+  {
+    const rodHalf = (LEFT_WINDOW.width + 0.5) / 2;
+    const outer = rodHalf - 0.04;
+    const leftWindow = buildWindow("WindowLeft", LEFT_WINDOW, {
+      curtain: {
+        colors: [PALETTE.curtainLight, PALETTE.curtainDark],
+        panels: [
+          { outer: -outer, inner: -0.02 },
+          { outer, inner: 0.02 },
+        ],
+      },
+    });
+    leftWindow.position.set(-ROOM.width / 2, 0, LEFT_WINDOW.centerZ);
+    leftWindow.rotation.y = Math.PI / 2;
+    scene.add(leftWindow);
+  }
 
   // Range against the right wall rather than the back one: a hob directly
   // under a curtained window is both odd to look at and wrong in a real
