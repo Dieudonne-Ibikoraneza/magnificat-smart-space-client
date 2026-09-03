@@ -1,7 +1,7 @@
 "use client";
 
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
@@ -282,6 +282,19 @@ type CameraConfig = {
     minPolarAngle: number;
     maxPolarAngle: number;
   };
+  /**
+   * The box the camera is physically confined to, in world units. The orbit
+   * limits above are the *feel* of the control; this is the guarantee. They
+   * are not the same thing: distance, polar and azimuth interact, so a
+   * combination that is legal on each axis on its own can still put the
+   * camera through a wall or above the ceiling — which is how a zoomed-out
+   * or tilted-up view ended up showing the outside of the model. Clamping
+   * the position itself is the only limit that can't be walked around.
+   *
+   * Omitted for rooms that don't need it (the procedural shells are open on
+   * the camera's side by design).
+   */
+  bounds?: { min: [number, number, number]; max: [number, number, number] };
 };
 
 // Module constant, not an inline literal: R3F re-applies these when the prop
@@ -360,7 +373,9 @@ const DEFAULT_CAMERA_CONFIG: CameraConfig = {
  */
 const MODEL_CAMERA_CONFIGS: Record<string, CameraConfig> = {
   "/models/rooms/modern_kitchen.glb": {
-    position: [-4.04, 2.32, 3.21],
+    // ~9.2 m back along the same three-quarter line as before (was 8 m), so
+    // more of the run is in frame from the outset.
+    position: [-5.1, 2.44, 3.76],
     target: [3, 1.5, -0.5],
     near: 0.1,
     far: 100,
@@ -378,21 +393,55 @@ const MODEL_CAMERA_CONFIGS: Record<string, CameraConfig> = {
      * meant to be seen head-on.
      */
     orbitLimits: {
-      minDistance: 5,
-      maxDistance: 14,
+      minDistance: 4,
+      maxDistance: 10,
       // Asymmetric on purpose: swinging toward 0° (measured, camera at
       // pos≈(-4.2,2.6,7.45)) put the camera almost against a wall past the
       // kitchen's far corner, filling the frame with a close-up of it.
       minAzimuthAngle: (-62.24 - 20) * (Math.PI / 180),
       maxAzimuthAngle: (-62.24 + 8) * (Math.PI / 180),
-      minPolarAngle: Math.PI / 2.6,
+      // 72°, not 69°: at the far end of the dolly the shallower angle lifted
+      // the camera to roughly ceiling height, which is where the view started
+      // looking down onto the top of the model instead of into the room.
+      minPolarAngle: (72 * Math.PI) / 180,
       maxPolarAngle: Math.PI / 2.05,
+    },
+    /**
+     * The room's own interior, measured off the model, pulled in far enough
+     * that the camera never sits in a wall: the floor runs x -6.48..6.90 and
+     * z -4.46..7.45, and the walls stop at y 5.32 (`WindowWall_Wall_0` is
+     * 5.5 m tall from a floor at y -0.18, and the ceiling slab's underside
+     * agrees). Capping y well under that is what stops the tilt-up from
+     * clearing the wall tops and showing the outside of the model.
+     */
+    bounds: {
+      min: [-6.0, 0.9, -4.0],
+      max: [6.4, 4.6, 6.9],
     },
   },
 };
 
 const cameraConfigFor = (modelUrl: string): CameraConfig =>
   MODEL_CAMERA_CONFIGS[modelUrl] ?? DEFAULT_CAMERA_CONFIG;
+
+/**
+ * Keeps the camera inside the room, whatever the orbit limits allow. Runs at
+ * the default frame priority, which is after drei's `OrbitControls` has
+ * written this frame's position (it updates at priority -1), so the clamp is
+ * the last word. `OrbitControls` re-derives its spherical state from
+ * `camera.position` on its next update, so a clamped camera simply behaves
+ * as though it had been dollied to the wall and stopped there.
+ */
+const ContainCamera = ({ bounds }: { bounds: NonNullable<CameraConfig["bounds"]> }) => {
+  const min = useMemo(() => new THREE.Vector3(...bounds.min), [bounds]);
+  const max = useMemo(() => new THREE.Vector3(...bounds.max), [bounds]);
+
+  useFrame((state) => {
+    state.camera.position.clamp(min, max);
+  });
+
+  return null;
+};
 
 /**
  * `PerspectiveCamera.fov` is vertical — on a wide viewport, a fixed fov shows
@@ -589,6 +638,7 @@ export const RoomScene = ({
       <Canvas key={modelUrl} shadows dpr={[1, 2]} gl={GL}>
         <color attach="background" args={[0xeceae5]} />
         <ResponsiveCamera config={cameraConfig} />
+        {cameraConfig.bounds ? <ContainCamera bounds={cameraConfig.bounds} /> : null}
         <RoomLighting />
         <Suspense fallback={null}>
           <ModelErrorBoundary key={modelUrl} onError={() => setMissingUrl(modelUrl)}>
