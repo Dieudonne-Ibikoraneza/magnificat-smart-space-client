@@ -56,7 +56,12 @@ const LEFT_WINDOW = { width: 1.3, height: 1.15, sillY: 1.0, centerZ: -0.9 };
 const material = (options) => new THREE.MeshStandardMaterial(options);
 
 const PALETTE = {
-  surface: material({ color: 0xd9d4cc, roughness: 0.92, metalness: 0 }),
+  // DoubleSide: a wall or floor is a single flat quad with no thickness, and
+  // the camera can orbit close enough to a wall's near edge to graze past its
+  // front face — a single-sided material simply vanishes there, showing the
+  // pale canvas background through and reading as "the wall stopped being
+  // tiled." Rendering both faces means there's always a surface to hit.
+  surface: material({ color: 0xd9d4cc, roughness: 0.92, metalness: 0, side: THREE.DoubleSide }),
   ceiling: material({ color: 0xf3f1ec, roughness: 0.95, metalness: 0 }),
   trim: material({ color: 0xf5f3ef, roughness: 0.6, metalness: 0 }),
   doorPanel: material({ color: 0xe8e4dc, roughness: 0.55, metalness: 0 }),
@@ -72,12 +77,31 @@ const PALETTE = {
   castIron: material({ color: 0x35383d, roughness: 0.72, metalness: 0.2 }),
   burnerCap: material({ color: 0x2a2c30, roughness: 0.5, metalness: 0.35 }),
   ovenGlass: material({ color: 0x1b1f26, roughness: 0.12, metalness: 0.2 }),
+  // `depthWrite: false` on both: a transparent pane sitting close to the
+  // mullion/frame boxes in front of it (both occupy the same window-depth
+  // band) otherwise fights with them in the depth buffer as the camera
+  // moves — classic transparent-vs-opaque flicker. Not writing depth means
+  // the glass never contests those boxes for which one's "in front."
   glass: material({
     color: 0xbfd8e4,
     roughness: 0.06,
     metalness: 0,
     transparent: true,
     opacity: 0.24,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  }),
+  // The one window left clear enough to actually see the exterior through —
+  // barely tinted, so the tree and sky outside read plainly rather than
+  // through a frosted haze.
+  glassClear: material({
+    color: 0xcfe6ee,
+    roughness: 0.04,
+    metalness: 0,
+    transparent: true,
+    opacity: 0.1,
+    side: THREE.DoubleSide,
+    depthWrite: false,
   }),
   curtain: material({ color: 0xe4ded2, roughness: 0.95, metalness: 0, side: THREE.DoubleSide }),
   curtainRod: material({ color: 0x6f6a63, roughness: 0.35, metalness: 0.85 }),
@@ -89,6 +113,13 @@ const PALETTE = {
     emissive: 0xffd98a,
     emissiveIntensity: 1.4,
   }),
+  // Exterior backdrop, seen through the one clear window — self-lit
+  // (emissive close to their own colour) since the room's own lights are
+  // aimed inward and wouldn't reach several metres past the back wall.
+  sky: material({ color: 0x8fc7ec, roughness: 1, metalness: 0, emissive: 0x8fc7ec, emissiveIntensity: 0.55 }),
+  ground: material({ color: 0x6fa25a, roughness: 1, metalness: 0, emissive: 0x3f6b34, emissiveIntensity: 0.4 }),
+  treeTrunk: material({ color: 0x6b4a34, roughness: 0.9, metalness: 0, emissive: 0x2a1c14, emissiveIntensity: 0.3 }),
+  treeFoliage: material({ color: 0x4f8a4a, roughness: 0.95, metalness: 0, emissive: 0x2c5228, emissiveIntensity: 0.35 }),
 };
 
 /**
@@ -325,7 +356,7 @@ const curtainPanel = (name, width, height, folds = 7, depth = 0.05) => {
  * panels. Built facing +z at the origin and positioned by the caller, so the
  * back and left walls can share it.
  */
-const buildWindow = (name, { width, height, sillY }) => {
+const buildWindow = (name, { width, height, sillY }, glassMaterial = PALETTE.glass) => {
   const win = group(name);
   const frame = 0.05;
 
@@ -342,14 +373,17 @@ const buildWindow = (name, { width, height, sillY }) => {
     box(`${name}_Frame_Right`, [frame, height, 0.06], [width / 2 - frame / 2, sillY + height / 2, -0.03], PALETTE.trim),
     box(`${name}_Frame_Top`, [width, frame, 0.06], [0, sillY + height - frame / 2, -0.03], PALETTE.trim),
     box(`${name}_Frame_Bottom`, [width, frame, 0.06], [0, sillY + frame / 2, -0.03], PALETTE.trim),
-    box(`${name}_Mullion`, [0.04, height - frame * 2, 0.05], [0, sillY + height / 2, -0.03], PALETTE.trim),
+    // Shallower and shifted toward the room side of the frame's own depth
+    // band, clear of the glass pane behind it (z -0.046 to -0.034 below) —
+    // sharing that band was flickering against the glass as the camera moved.
+    box(`${name}_Mullion`, [0.04, height - frame * 2, 0.03], [0, sillY + height / 2, -0.015], PALETTE.trim),
   );
 
   const glass = box(
     `${name}_Glass`,
     [width - frame * 2, height - frame * 2, 0.012],
     [0, sillY + height / 2, -0.04],
-    PALETTE.glass,
+    glassMaterial,
   );
   win.add(glass);
 
@@ -396,8 +430,11 @@ const buildRange = () => {
     // Recessed plinth, so the range reads as standing on feet rather than fused to the floor.
     box("Cooker_Plinth", [W - 0.08, 0.08, D - 0.06], [0, 0.04, 0], PALETTE.enamel),
     box("Cooker_Top", [W, 0.03, D], [0, H, 0], PALETTE.enamel),
-    // Backguard carrying the control panel.
-    box("Cooker_Backguard", [W, 0.16, 0.06], [0, H + 0.08, -D / 2 + 0.03], PALETTE.darkSteel),
+    // Backguard carrying the control panel. Pulled 3cm forward of a flush
+    // fit against the body's own back face — sitting exactly on it (both at
+    // z = -D/2) left two surfaces coincident, which flickered as the camera
+    // moved (the "black strip" z-fighting against the body behind it).
+    box("Cooker_Backguard", [W, 0.16, 0.06], [0, H + 0.08, -D / 2 + 0.06], PALETTE.darkSteel),
   );
 
   // Four burners on a 2×2 grid — two small at the front, two large at the back.
@@ -434,7 +471,8 @@ const buildRange = () => {
   // Control knobs along the backguard.
   [-0.24, -0.08, 0.08, 0.24].forEach((dx, index) => {
     range.add(
-      cylinder(`Cooker_Knob_${index}`, 0.024, 0.028, 0.03, [dx, H + 0.09, -D / 2 + 0.075], PALETTE.steel, 18, [Math.PI / 2, 0, 0]),
+      // z kept 1.5cm proud of the backguard's own (now further-forward) front face.
+      cylinder(`Cooker_Knob_${index}`, 0.024, 0.028, 0.03, [dx, H + 0.09, -D / 2 + 0.105], PALETTE.steel, 18, [Math.PI / 2, 0, 0]),
     );
   });
 
@@ -477,6 +515,59 @@ const buildPan = ([burnerX, burnerZ], rangeHeight) => {
   return pan;
 };
 
+// --- Exterior backdrop -------------------------------------------------------
+
+/** A simple low-poly tree: a trunk plus a few overlapping foliage clumps, so it doesn't read as one bare sphere. */
+const buildTree = (name, x, z, scale = 1) => {
+  const tree = group(name);
+  const trunkHeight = 1.6 * scale;
+  tree.add(
+    cylinder(`${name}_Trunk`, 0.09 * scale, 0.13 * scale, trunkHeight, [x, trunkHeight / 2, z], PALETTE.treeTrunk, 10),
+  );
+  const clumps = [
+    [0, trunkHeight + 0.55 * scale, 0, 0.75 * scale],
+    [0.35 * scale, trunkHeight + 0.25 * scale, 0.1 * scale, 0.55 * scale],
+    [-0.3 * scale, trunkHeight + 0.35 * scale, -0.15 * scale, 0.5 * scale],
+    [0.05 * scale, trunkHeight + 0.9 * scale, -0.2 * scale, 0.5 * scale],
+  ];
+  clumps.forEach(([dx, dy, dz, radius], index) => {
+    const foliage = new THREE.Mesh(new THREE.IcosahedronGeometry(radius, 1), PALETTE.treeFoliage);
+    foliage.name = `${name}_Foliage_${index}`;
+    foliage.position.set(x + dx, dy, z + dz);
+    tree.add(foliage);
+  });
+  return tree;
+};
+
+/**
+ * What's visible through the one clear window (see `buildKitchen`) — a sky
+ * backdrop, a strip of ground, and a couple of trees. Placed beyond the back
+ * wall, well outside the room shell, purely so there's *something* other than
+ * void behind that glass.
+ */
+const buildExteriorView = () => {
+  const exterior = group("Exterior");
+  const wallZ = -ROOM.depth / 2;
+  const skyZ = wallZ - 7;
+  const groundZ = wallZ - 4;
+
+  const sky = new THREE.Mesh(new THREE.PlaneGeometry(14, 9), PALETTE.sky);
+  sky.name = "Exterior_Sky";
+  sky.position.set(BACK_WINDOW.centerX, 3.2, skyZ);
+  exterior.add(sky);
+
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(14, 6), PALETTE.ground);
+  ground.name = "Exterior_Ground";
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(BACK_WINDOW.centerX, 0, groundZ);
+  exterior.add(ground);
+
+  exterior.add(buildTree("Exterior_Tree_0", BACK_WINDOW.centerX - 0.6, wallZ - 2.4, 1));
+  exterior.add(buildTree("Exterior_Tree_1", BACK_WINDOW.centerX + 1.6, wallZ - 3.4, 0.7));
+
+  return exterior;
+};
+
 // --- Ceiling light ----------------------------------------------------------
 
 const buildCeilingLight = () => {
@@ -500,9 +591,12 @@ const buildKitchen = () => {
   scene.add(buildShell());
   scene.add(buildDoor());
 
-  const backWindow = buildWindow("WindowBack", BACK_WINDOW);
+  // Kept clear (see PALETTE.glassClear) so there's an actual view out of it —
+  // the tree and sky behind the back wall, below.
+  const backWindow = buildWindow("WindowBack", BACK_WINDOW, PALETTE.glassClear);
   backWindow.position.set(BACK_WINDOW.centerX, 0, -ROOM.depth / 2);
   scene.add(backWindow);
+  scene.add(buildExteriorView());
 
   const leftWindow = buildWindow("WindowLeft", LEFT_WINDOW);
   leftWindow.position.set(-ROOM.width / 2, 0, LEFT_WINDOW.centerZ);
