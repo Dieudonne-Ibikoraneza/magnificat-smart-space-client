@@ -15,8 +15,7 @@ export const products: Product[] = [
     boxCoverage: 1.75,
     piecesPerBox: 7,
     price: 22000,
-    image:
-      "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=900&q=85",
+    image: "/tile.png",
     description:
       "Pre-cut polished granite step tiles with a bullnose edge. Ideal for creating stunning spaces.",
     stockStatus: "in_stock",
@@ -35,7 +34,7 @@ export const products: Product[] = [
     piecesPerBox: 7,
     price: 18500,
     image:
-      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/flagged/photo-1622363405079-da46534ce5ec?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fGElMjB0aWxlfGVufDB8fDB8fHww",
     description:
       "Pre-cut polished granite step tiles with a bullnose edge. Ideal for creating stunning spaces.",
     stockStatus: "low_stock",
@@ -53,8 +52,7 @@ export const products: Product[] = [
     boxCoverage: 1.5,
     piecesPerBox: 15,
     price: 15000,
-    image:
-      "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=85",
+    image: "/tile-wood.jpg",
     description:
       "Pre-cut polished granite step tiles with a bullnose edge. Ideal for creating stunning spaces.",
     stockStatus: "out_of_stock",
@@ -72,8 +70,7 @@ export const products: Product[] = [
     boxCoverage: 1.5,
     piecesPerBox: 15,
     price: 20000,
-    image:
-      "https://images.unsplash.com/photo-1615529162924-f8605388461d?auto=format&fit=crop&w=900&q=85",
+    image: "/tile-wood.jpg",
     description:
       "Pre-cut polished granite step tiles with a bullnose edge. Ideal for creating stunning spaces.",
     stockStatus: "in_stock",
@@ -91,8 +88,7 @@ export const products: Product[] = [
     boxCoverage: 1.53,
     piecesPerBox: 17,
     price: 12000,
-    image:
-      "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&w=900&q=85",
+    image: "/tile-marble.jpg",
     description:
       "Pre-cut polished granite step tiles with a bullnose edge. Ideal for creating stunning spaces.",
     stockStatus: "in_stock",
@@ -110,8 +106,7 @@ export const products: Product[] = [
     boxCoverage: 1.92,
     piecesPerBox: 12,
     price: 13500,
-    image:
-      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=85",
+    image: "/tile-marble.jpg",
     description:
       "Pre-cut polished granite step tiles with a bullnose edge. Ideal for creating stunning spaces.",
     stockStatus: "low_stock",
@@ -129,8 +124,7 @@ export const products: Product[] = [
     boxCoverage: 1.44,
     piecesPerBox: 4,
     price: 17000,
-    image:
-      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=85",
+    image: "/tile-marble.jpg",
     description:
       "Pre-cut polished granite step tiles with a bullnose edge. Ideal for creating stunning spaces.",
     stockStatus: "in_stock",
@@ -148,8 +142,7 @@ export const products: Product[] = [
     boxCoverage: 1.44,
     piecesPerBox: 4,
     price: 16000,
-    image:
-      "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=85",
+    image: "/tile-marble.jpg",
     description:
       "Pre-cut polished granite step tiles with a bullnose edge. Ideal for creating stunning spaces.",
     stockStatus: "in_stock",
@@ -167,8 +160,7 @@ export const products: Product[] = [
     boxCoverage: 1.28,
     piecesPerBox: 16,
     price: 15000,
-    image:
-      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=900&q=85&sat=-20",
+    image: "/tile-marble.jpg",
     description:
       "Pre-cut polished granite step tiles with a bullnose edge. Ideal for creating stunning spaces.",
     stockStatus: "low_stock",
@@ -186,8 +178,7 @@ export const products: Product[] = [
     boxCoverage: 1.12,
     piecesPerBox: 14,
     price: 14500,
-    image:
-      "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=85",
+    image: "/tile-marble.jpg",
     description:
       "Pre-cut polished granite step tiles with a bullnose edge. Ideal for creating stunning spaces.",
     stockStatus: "in_stock",

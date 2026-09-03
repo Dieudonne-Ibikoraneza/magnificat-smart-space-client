@@ -90,10 +90,28 @@ const useTileTexture = (product: Product | undefined) => {
   return loaded.texture;
 };
 
-/** One shared material per surface role — every wall segment tiles identically. */
+/**
+ * One shared material per surface role — every wall segment tiles identically.
+ *
+ * `DoubleSide` because a sourced model's surfaces don't necessarily face the
+ * way ours do: `modern_kitchen.glb`'s walls are zero-thickness planes whose
+ * normals point *out* of the room, and they only read from inside because the
+ * model's own materials are double-sided too. Swapping in a front-only
+ * material culled them from the customer's viewpoint entirely — the wall
+ * simply vanished and you saw straight through it to the shell behind, which
+ * looked exactly like "the tile never got applied to the big wall."
+ */
 const useTileMaterial = (texture: THREE.Texture | null) => {
   const material = useMemo(
-    () => (texture ? new THREE.MeshStandardMaterial({ map: texture, roughness: 0.45, metalness: 0.05 }) : null),
+    () =>
+      texture
+        ? new THREE.MeshStandardMaterial({
+            map: texture,
+            roughness: 0.45,
+            metalness: 0.05,
+            side: THREE.DoubleSide,
+          })
+        : null,
     [texture],
   );
 
@@ -105,17 +123,276 @@ const useTileMaterial = (texture: THREE.Texture | null) => {
 const isFloor = (name: string) => name === "Floor";
 const isWall = (name: string) => name.startsWith("Wall_");
 
-// Module constants, not inline literals: R3F re-applies these when the prop
+/**
+ * The `Floor` / `Wall_*` naming convention above is a contract this app
+ * controls — it's what `scripts/generate-room-models.mjs` deliberately names
+ * things. A model sourced elsewhere (e.g. a downloaded Sketchfab asset) comes
+ * with whatever names its own author used, so it needs its tileable meshes
+ * looked up by an explicit list instead. Keyed by `modelUrl`; a model with no
+ * entry here falls through to the naming convention as normal.
+ */
+const MODEL_SURFACE_OVERRIDES: Record<string, { floor: string[]; wall: string[] }> = {
+  "/models/rooms/modern_kitchen.glb": {
+    floor: ["Floor_Wall_0"],
+    /**
+     * Both walls, despite the confusingly similar `*_Wall_0` names:
+     *
+     * - `WindowWall_Wall_0` is the kitchen's big interior wall — the broad
+     *   surface beside the window.
+     * - `Structure_Wall_0` is the house shell, which is what the stairs side
+     *   of the room is made of.
+     *
+     * The shell also carries the window's reveal welded into the same mesh;
+     * `prepareTileableGroups` separates that out so the tile lands on the
+     * wall and not on the few centimetres of jamb around the glass.
+     */
+    wall: ["WindowWall_Wall_0", "Structure_Wall_0"],
+  },
+};
+
+/**
+ * A sourced model can weld unrelated trim into the same mesh as the wall it
+ * borders. `modern_kitchen.glb`'s `Structure_Wall_0` is one such mesh: it is
+ * the house shell (22.5 m across, ~498 m² of surface) *plus* a separate
+ * 24-triangle ring of window reveal (~7 m², sitting exactly on the window at
+ * x≈2, z≈-4.7). Handing the customer's tile to the whole mesh put it on that
+ * reveal — a few centimetres of jamb either side of the glass — which reads
+ * as the tile landing on the window frame rather than on the wall.
+ *
+ * The two are separate *connected components*, so they can be told apart
+ * without hardcoding coordinates: weld the triangles into islands by shared
+ * position, then treat an island as trim when it is a negligible fraction of
+ * the mesh's largest island. The index buffer is reordered so the tileable
+ * islands come first, and two geometry groups let one mesh carry the tile on
+ * the wall and its own original material on the trim.
+ *
+ * Returns the number of leading triangles that are tileable. A mesh that is
+ * a single island (every surface our own generator makes) reports all of
+ * them and is left untouched.
+ */
+const TRIM_ISLAND_AREA_FRACTION = 0.05;
+
+const prepareTileableGroups = (geometry: THREE.BufferGeometry): number => {
+  const cached = geometry.userData.tileableTriangleCount as number | undefined;
+  if (cached !== undefined) return cached;
+
+  const position = geometry.attributes.position;
+  const index = geometry.index;
+  const triangleCount = index ? index.count / 3 : position.count / 3;
+  const triangleVertex = (triangle: number, corner: number) =>
+    index ? index.getX(triangle * 3 + corner) : triangle * 3 + corner;
+
+  // Union-find over quantised positions, so vertices duplicated at a UV seam
+  // still count as joined rather than splitting one surface into many.
+  const parent = new Map<string, string>();
+  const keyOf = (vertex: number) =>
+    `${position.getX(vertex).toFixed(3)},${position.getY(vertex).toFixed(3)},${position.getZ(vertex).toFixed(3)}`;
+  const find = (key: string): string => {
+    const seen = parent.get(key);
+    if (seen === undefined || seen === key) return key;
+    const root = find(seen);
+    parent.set(key, root);
+    return root;
+  };
+  const union = (left: string, right: string) => {
+    const a = find(left);
+    const b = find(right);
+    if (a !== b) parent.set(a, b);
+  };
+
+  const triangleKeys: string[] = [];
+  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+    const keys = [0, 1, 2].map((corner) => keyOf(triangleVertex(triangle, corner)));
+    keys.forEach((key) => {
+      if (!parent.has(key)) parent.set(key, key);
+    });
+    union(keys[0], keys[1]);
+    union(keys[1], keys[2]);
+    triangleKeys.push(keys[0]);
+  }
+
+  const areaByIsland = new Map<string, number>();
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const ab = new THREE.Vector3();
+  const ac = new THREE.Vector3();
+  const islandOf: string[] = [];
+  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+    a.fromBufferAttribute(position, triangleVertex(triangle, 0));
+    b.fromBufferAttribute(position, triangleVertex(triangle, 1));
+    c.fromBufferAttribute(position, triangleVertex(triangle, 2));
+    const area = ab.subVectors(b, a).cross(ac.subVectors(c, a)).length() / 2;
+    const island = find(triangleKeys[triangle]);
+    islandOf.push(island);
+    areaByIsland.set(island, (areaByIsland.get(island) ?? 0) + area);
+  }
+
+  const largestArea = Math.max(...areaByIsland.values());
+  const isTrim = (island: string) =>
+    (areaByIsland.get(island) ?? 0) < largestArea * TRIM_ISLAND_AREA_FRACTION;
+
+  const tileable: number[] = [];
+  const trim: number[] = [];
+  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+    (isTrim(islandOf[triangle]) ? trim : tileable).push(triangle);
+  }
+
+  if (trim.length > 0) {
+    const reordered: number[] = [];
+    [...tileable, ...trim].forEach((triangle) => {
+      reordered.push(
+        triangleVertex(triangle, 0),
+        triangleVertex(triangle, 1),
+        triangleVertex(triangle, 2),
+      );
+    });
+    geometry.setIndex(reordered);
+    geometry.clearGroups();
+    geometry.addGroup(0, tileable.length * 3, 0);
+    geometry.addGroup(tileable.length * 3, trim.length * 3, 1);
+  }
+
+  geometry.userData.tileableTriangleCount = tileable.length;
+  return tileable.length;
+};
+
+const surfaceRoleOf = (modelUrl: string, name: string): "floor" | "wall" | null => {
+  const override = MODEL_SURFACE_OVERRIDES[modelUrl];
+  if (override) {
+    if (override.floor.includes(name)) return "floor";
+    if (override.wall.includes(name)) return "wall";
+    return null;
+  }
+  if (isFloor(name)) return "floor";
+  if (isWall(name)) return "wall";
+  return null;
+};
+
+type CameraConfig = {
+  position: [number, number, number];
+  target: [number, number, number];
+  near: number;
+  far: number;
+  orbitLimits: {
+    minDistance: number;
+    maxDistance: number;
+    minAzimuthAngle: number;
+    maxAzimuthAngle: number;
+    minPolarAngle: number;
+    maxPolarAngle: number;
+  };
+};
+
+// Module constant, not an inline literal: R3F re-applies these when the prop
 // identity changes, so a fresh object every render would snap the camera back
 // to its starting position every time the customer picked a tile.
-// Chosen to sit comfortably inside `ORBIT_LIMITS` below (~4 m out, ~80°
-// polar, ~8° azimuth) with margin on every side, so OrbitControls never has
-// to snap the view on first mount to satisfy its own bounds.
-const CAMERA_POSITION: [number, number, number] = [0.55, 1.84, 3.6];
-const CAMERA_NEAR = 0.1;
-const CAMERA_FAR = 60;
 const GL = { antialias: true };
-const ORBIT_TARGET: [number, number, number] = [0, 1.15, -0.3];
+
+/**
+ * Default camera rig, tuned for the ~4 m procedurally generated rooms (see
+ * `scripts/generate-room-models.mjs`). A model with its own entry in
+ * `MODEL_CAMERA_CONFIGS` below overrides this wholesale — a downloaded asset
+ * can be built at an entirely different scale and origin, so there's no
+ * sensible way to derive its rig from this one.
+ */
+const DEFAULT_CAMERA_CONFIG: CameraConfig = {
+  // Chosen to sit comfortably inside `orbitLimits` below (~4 m out, ~80°
+  // polar, ~8° azimuth) with margin on every side, so OrbitControls never has
+  // to snap the view on first mount to satisfy its own bounds.
+  position: [0.55, 1.84, 3.6],
+  target: [0, 1.15, -0.3],
+  near: 0.1,
+  far: 60,
+  /**
+   * How far the customer can orbit before the illusion breaks. The room
+   * shell is a 3-walled box open on the camera's side (see the generator) —
+   * nothing stops the camera physically leaving it, so the boundary has to
+   * be enforced here instead. Left unconstrained, three things go wrong:
+   * swinging far enough around lets you see past the side walls' outer
+   * faces (single-sided materials, so they simply vanish from behind),
+   * tipping too far overhead turns "standing in a kitchen" into "looking
+   * down into an open box," and zooming out while tipped over combines with
+   * the wall/floor's flat repeating photo texture to read as looking
+   * *through* the surfaces rather than at them, from a raking, near-top-down
+   * angle. These keep the camera inside a narrow, near-eye-level cone that
+   * always reads as "in the doorway looking in," never "hovering above the
+   * box, staring down through it."
+   */
+  orbitLimits: {
+    minDistance: 2.2,
+    maxDistance: 5.0,
+    // Azimuth, either side of dead-centre: enough to glance toward each side
+    // wall without ever swinging past one to its unrendered back face.
+    minAzimuthAngle: -Math.PI / 4.5, // -40°
+    maxAzimuthAngle: Math.PI / 4.5, // 40°
+    // Polar angle, measured from straight up, kept to a narrow band around
+    // human eye-level: steep enough that neither the floor's nor a wall's
+    // flat tile photo is ever seen edge-on/raking (the "looking through it"
+    // effect), shallow enough it can't graze down through the range or the
+    // floor.
+    minPolarAngle: Math.PI / 2.4, // 75° off vertical.
+    maxPolarAngle: Math.PI / 2.05, // ~87.8° off vertical.
+  },
+};
+
+/**
+ * `modern_kitchen.glb` (doc: sourced from Sketchfab, not generated here) is
+ * a whole open-plan ground floor — kitchen, stairwell, and all — built many
+ * times larger than the procedural rooms and centred nowhere near its own
+ * origin. `position`/`target` below were measured by dumping this model's
+ * own bounding boxes (`Box3.setFromObject` per mesh) rather than guessed:
+ * the kitchen run (cupboards/counters/sink/hob) centres around world x≈3,
+ * z≈0.5, and the floor sits at y≈-0.18, so a standing eye-height target is
+ * y≈1.3. The camera itself sits back near where the breakfast stools are,
+ * a little above eye height, angled in on that run — the same kind of
+ * three-quarter framing as the source listing's own preview render.
+ *
+ * `position.x` is deliberately kept a couple of metres clear of the
+ * exterior wall (which sits at x≈-6.48, the floor mesh's own boundary): an
+ * earlier attempt put the camera at x=-6.5 — almost touching that wall — so
+ * one edge of frame was a metres-away, badly minified close-up of it,
+ * blown out to a flat wash by the tile texture's own mip levels (the same
+ * effect the procedural rooms' curtains hit at a grazing angle), while the
+ * rest of frame read fine. It looked exactly like "the wall tile is on the
+ * wrong spot" — it wasn't; the camera was just standing inside the wall's
+ * near field.
+ */
+const MODEL_CAMERA_CONFIGS: Record<string, CameraConfig> = {
+  "/models/rooms/modern_kitchen.glb": {
+    position: [-4.04, 2.32, 3.21],
+    target: [3, 1.5, -0.5],
+    near: 0.1,
+    far: 100,
+    /**
+     * This default `position`/`target` pair sits at azimuth ≈ -62°, not 0°
+     * (it's a deliberately angled three-quarter view, matching the source
+     * listing's own preview render) — so unlike the procedural rooms, the
+     * azimuth window here is centred on *that* angle, not on dead-ahead.
+     * Centring it on 0° instead once clamped the default view itself down
+     * to a near-zero-distance snap on mount, because the un-clamped default
+     * fell way outside a window centred elsewhere. The window is narrow
+     * (±20°) because, unlike the procedural rooms' closed boxes, this is an
+     * open-plan house shell — swing much further and the camera points at
+     * the blank back of unfurnished walls and the stairwell that were never
+     * meant to be seen head-on.
+     */
+    orbitLimits: {
+      minDistance: 5,
+      maxDistance: 14,
+      // Asymmetric on purpose: swinging toward 0° (measured, camera at
+      // pos≈(-4.2,2.6,7.45)) put the camera almost against a wall past the
+      // kitchen's far corner, filling the frame with a close-up of it.
+      minAzimuthAngle: (-62.24 - 20) * (Math.PI / 180),
+      maxAzimuthAngle: (-62.24 + 8) * (Math.PI / 180),
+      minPolarAngle: Math.PI / 2.6,
+      maxPolarAngle: Math.PI / 2.05,
+    },
+  },
+};
+
+const cameraConfigFor = (modelUrl: string): CameraConfig =>
+  MODEL_CAMERA_CONFIGS[modelUrl] ?? DEFAULT_CAMERA_CONFIG;
 
 /**
  * `PerspectiveCamera.fov` is vertical — on a wide viewport, a fixed fov shows
@@ -135,7 +412,7 @@ const TARGET_HORIZONTAL_FOV_DEG = 50;
 const MIN_VERTICAL_FOV_DEG = 35;
 const MAX_VERTICAL_FOV_DEG = 60;
 
-const ResponsiveCamera = () => {
+const ResponsiveCamera = ({ config }: { config: CameraConfig }) => {
   const { width, height } = useThree((state) => state.size);
   const aspect = width / height || 1;
   const horizontalFovRad = THREE.MathUtils.degToRad(TARGET_HORIZONTAL_FOV_DEG);
@@ -149,41 +426,12 @@ const ResponsiveCamera = () => {
   return (
     <PerspectiveCamera
       makeDefault
-      position={CAMERA_POSITION}
-      near={CAMERA_NEAR}
-      far={CAMERA_FAR}
+      position={config.position}
+      near={config.near}
+      far={config.far}
       fov={fov}
     />
   );
-};
-
-/**
- * How far the customer can orbit before the illusion breaks. The room shell
- * is a 3-walled box open on the camera's side (see the generator) — nothing
- * stops the camera physically leaving it, so the boundary has to be enforced
- * here instead. Left unconstrained, three things go wrong: swinging far
- * enough around lets you see past the side walls' outer faces (single-sided
- * materials, so they simply vanish from behind), tipping too far overhead
- * turns "standing in a kitchen" into "looking down into an open box," and
- * zooming out while tipped over combines with the wall/floor's flat repeating
- * photo texture to read as looking *through* the surfaces rather than at
- * them, from a raking, near-top-down angle. These keep the camera inside a
- * narrow, near-eye-level cone that always reads as "in the doorway looking
- * in," never "hovering above the box, staring down through it."
- */
-const ORBIT_LIMITS = {
-  minDistance: 2.2,
-  maxDistance: 5.0,
-  // Azimuth, either side of dead-centre: enough to glance toward each side
-  // wall without ever swinging past one to its unrendered back face.
-  minAzimuthAngle: -Math.PI / 4.5, // -40°
-  maxAzimuthAngle: Math.PI / 4.5, // 40°
-  // Polar angle, measured from straight up, kept to a narrow band around
-  // human eye-level: steep enough that neither the floor's nor a wall's flat
-  // tile photo is ever seen edge-on/raking (the "looking through it" effect),
-  // shallow enough it can't graze down through the range or the floor.
-  minPolarAngle: Math.PI / 2.4, // 75° off vertical.
-  maxPolarAngle: Math.PI / 2.05, // ~87.8° off vertical.
 };
 
 const RoomModel = ({
@@ -217,16 +465,23 @@ const RoomModel = ({
 
       if (!baseline.has(object.uuid)) baseline.set(object.uuid, object.material);
 
-      const replacement = isFloor(object.name)
-        ? floorMaterial
-        : isWall(object.name)
-          ? wallMaterial
-          : null;
-      if (isFloor(object.name) || isWall(object.name)) {
-        object.material = replacement ?? baseline.get(object.uuid)!;
-      }
+      const role = surfaceRoleOf(modelUrl, object.name);
+      if (!role) return;
+
+      const original = baseline.get(object.uuid)!;
+      const replacement = (role === "floor" ? floorMaterial : wallMaterial) ?? original;
+
+      // Trim welded into the same mesh (see `prepareTileableGroups`) keeps the
+      // model's own material while the surface around it takes the tile.
+      const geometry = object.geometry as THREE.BufferGeometry;
+      const tileable = Array.isArray(original)
+        ? geometry.index?.count ?? 0
+        : prepareTileableGroups(geometry) * 3;
+      const hasTrim = geometry.groups.length === 2 && tileable > 0;
+
+      object.material = hasTrim ? [replacement, original as THREE.Material] : replacement;
     });
-  }, [room, floorMaterial, wallMaterial]);
+  }, [room, modelUrl, floorMaterial, wallMaterial]);
 
   return <primitive object={room} />;
 };
@@ -323,18 +578,31 @@ export const RoomScene = ({
     );
   }
 
+  const cameraConfig = cameraConfigFor(modelUrl);
+
   return (
     <div className={className}>
-      <Canvas shadows dpr={[1, 2]} gl={GL}>
+      {/* Keyed by modelUrl: switching to a model at a wildly different scale
+          (see `MODEL_CAMERA_CONFIGS`) needs a fresh camera/controls instance,
+          not OrbitControls carrying over stale internal state tuned for the
+          previous room's size. */}
+      <Canvas key={modelUrl} shadows dpr={[1, 2]} gl={GL}>
         <color attach="background" args={[0xeceae5]} />
-        <ResponsiveCamera />
+        <ResponsiveCamera config={cameraConfig} />
         <RoomLighting />
         <Suspense fallback={null}>
           <ModelErrorBoundary key={modelUrl} onError={() => setMissingUrl(modelUrl)}>
             <RoomModel modelUrl={modelUrl} floorTile={floorTile} wallTile={wallTile} />
           </ModelErrorBoundary>
         </Suspense>
-        <OrbitControls makeDefault target={ORBIT_TARGET} enablePan={false} enableDamping dampingFactor={0.08} {...ORBIT_LIMITS} />
+        <OrbitControls
+          makeDefault
+          target={cameraConfig.target}
+          enablePan={false}
+          enableDamping
+          dampingFactor={0.08}
+          {...cameraConfig.orbitLimits}
+        />
       </Canvas>
     </div>
   );

@@ -36,7 +36,7 @@ type Surface = "floor" | "walls";
  * the tab list keeps matching the rooms the platform actually offers.
  */
 const roomModels: Record<Room, string> = {
-  Kitchen: "/models/rooms/kitchen.glb",
+  Kitchen: "/models/rooms/modern_kitchen.glb",
   "Living Room": "/models/rooms/living_room.glb",
   Bathroom: "/models/rooms/bathroom.glb",
   Bedroom: "/models/rooms/bedroom.glb",
