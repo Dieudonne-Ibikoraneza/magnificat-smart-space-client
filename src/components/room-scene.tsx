@@ -90,10 +90,28 @@ const useTileTexture = (product: Product | undefined) => {
   return loaded.texture;
 };
 
-/** One shared material per surface role — every wall segment tiles identically. */
+/**
+ * One shared material per surface role — every wall segment tiles identically.
+ *
+ * `DoubleSide` because a sourced model's surfaces don't necessarily face the
+ * way ours do: `modern_kitchen.glb`'s walls are zero-thickness planes whose
+ * normals point *out* of the room, and they only read from inside because the
+ * model's own materials are double-sided too. Swapping in a front-only
+ * material culled them from the customer's viewpoint entirely — the wall
+ * simply vanished and you saw straight through it to the shell behind, which
+ * looked exactly like "the tile never got applied to the big wall."
+ */
 const useTileMaterial = (texture: THREE.Texture | null) => {
   const material = useMemo(
-    () => (texture ? new THREE.MeshStandardMaterial({ map: texture, roughness: 0.45, metalness: 0.05 }) : null),
+    () =>
+      texture
+        ? new THREE.MeshStandardMaterial({
+            map: texture,
+            roughness: 0.45,
+            metalness: 0.05,
+            side: THREE.DoubleSide,
+          })
+        : null,
     [texture],
   );
 
@@ -116,13 +134,25 @@ const isWall = (name: string) => name.startsWith("Wall_");
 const MODEL_SURFACE_OVERRIDES: Record<string, { floor: string[]; wall: string[] }> = {
   "/models/rooms/modern_kitchen.glb": {
     floor: ["Floor_Wall_0"],
-    // The whole house shell is one mesh (open-plan, stairwell included) —
-    // tiling it re-tiles every wall in the model, not just the kitchen's.
-    // `WindowWall_Wall_0` deliberately isn't listed: despite the name, it's
-    // the panel the window itself is set into (right up against the glass),
-    // not a paintable room wall — tiling it read as "the window's own
-    // surround got tiled instead of the actual wall."
-    wall: ["Structure_Wall_0"],
+    /**
+     * Only `WindowWall_Wall_0`, despite the two candidates both being named
+     * `*_Wall_0`. Verified by tinting each mesh a flat colour and looking at
+     * the room from the customer's own viewpoint:
+     *
+     * - `WindowWall_Wall_0` is the kitchen's big interior wall — the broad
+     *   surface beside the window that a customer actually reads as "the
+     *   wall," and the one worth judging a tile on.
+     * - `Structure_Wall_0` is the house shell. From inside the kitchen the
+     *   only parts of it on screen are the couple of centimetres of jamb
+     *   flanking the window glass, plus the stairwell wall of the adjoining
+     *   space. Tiling it put the customer's tile on those slivers — reading
+     *   as "the tile landed on the window frame, not the wall" — while the
+     *   real wall stayed bare.
+     *
+     * The two can't be split apart any further: the shell is a single mesh,
+     * so the jamb slivers and the stairwell come as one piece.
+     */
+    wall: ["WindowWall_Wall_0"],
   },
 };
 
