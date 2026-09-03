@@ -135,25 +135,126 @@ const MODEL_SURFACE_OVERRIDES: Record<string, { floor: string[]; wall: string[] 
   "/models/rooms/modern_kitchen.glb": {
     floor: ["Floor_Wall_0"],
     /**
-     * Only `WindowWall_Wall_0`, despite the two candidates both being named
-     * `*_Wall_0`. Verified by tinting each mesh a flat colour and looking at
-     * the room from the customer's own viewpoint:
+     * Both walls, despite the confusingly similar `*_Wall_0` names:
      *
      * - `WindowWall_Wall_0` is the kitchen's big interior wall — the broad
-     *   surface beside the window that a customer actually reads as "the
-     *   wall," and the one worth judging a tile on.
-     * - `Structure_Wall_0` is the house shell. From inside the kitchen the
-     *   only parts of it on screen are the couple of centimetres of jamb
-     *   flanking the window glass, plus the stairwell wall of the adjoining
-     *   space. Tiling it put the customer's tile on those slivers — reading
-     *   as "the tile landed on the window frame, not the wall" — while the
-     *   real wall stayed bare.
+     *   surface beside the window.
+     * - `Structure_Wall_0` is the house shell, which is what the stairs side
+     *   of the room is made of.
      *
-     * The two can't be split apart any further: the shell is a single mesh,
-     * so the jamb slivers and the stairwell come as one piece.
+     * The shell also carries the window's reveal welded into the same mesh;
+     * `prepareTileableGroups` separates that out so the tile lands on the
+     * wall and not on the few centimetres of jamb around the glass.
      */
-    wall: ["WindowWall_Wall_0"],
+    wall: ["WindowWall_Wall_0", "Structure_Wall_0"],
   },
+};
+
+/**
+ * A sourced model can weld unrelated trim into the same mesh as the wall it
+ * borders. `modern_kitchen.glb`'s `Structure_Wall_0` is one such mesh: it is
+ * the house shell (22.5 m across, ~498 m² of surface) *plus* a separate
+ * 24-triangle ring of window reveal (~7 m², sitting exactly on the window at
+ * x≈2, z≈-4.7). Handing the customer's tile to the whole mesh put it on that
+ * reveal — a few centimetres of jamb either side of the glass — which reads
+ * as the tile landing on the window frame rather than on the wall.
+ *
+ * The two are separate *connected components*, so they can be told apart
+ * without hardcoding coordinates: weld the triangles into islands by shared
+ * position, then treat an island as trim when it is a negligible fraction of
+ * the mesh's largest island. The index buffer is reordered so the tileable
+ * islands come first, and two geometry groups let one mesh carry the tile on
+ * the wall and its own original material on the trim.
+ *
+ * Returns the number of leading triangles that are tileable. A mesh that is
+ * a single island (every surface our own generator makes) reports all of
+ * them and is left untouched.
+ */
+const TRIM_ISLAND_AREA_FRACTION = 0.05;
+
+const prepareTileableGroups = (geometry: THREE.BufferGeometry): number => {
+  const cached = geometry.userData.tileableTriangleCount as number | undefined;
+  if (cached !== undefined) return cached;
+
+  const position = geometry.attributes.position;
+  const index = geometry.index;
+  const triangleCount = index ? index.count / 3 : position.count / 3;
+  const triangleVertex = (triangle: number, corner: number) =>
+    index ? index.getX(triangle * 3 + corner) : triangle * 3 + corner;
+
+  // Union-find over quantised positions, so vertices duplicated at a UV seam
+  // still count as joined rather than splitting one surface into many.
+  const parent = new Map<string, string>();
+  const keyOf = (vertex: number) =>
+    `${position.getX(vertex).toFixed(3)},${position.getY(vertex).toFixed(3)},${position.getZ(vertex).toFixed(3)}`;
+  const find = (key: string): string => {
+    const seen = parent.get(key);
+    if (seen === undefined || seen === key) return key;
+    const root = find(seen);
+    parent.set(key, root);
+    return root;
+  };
+  const union = (left: string, right: string) => {
+    const a = find(left);
+    const b = find(right);
+    if (a !== b) parent.set(a, b);
+  };
+
+  const triangleKeys: string[] = [];
+  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+    const keys = [0, 1, 2].map((corner) => keyOf(triangleVertex(triangle, corner)));
+    keys.forEach((key) => {
+      if (!parent.has(key)) parent.set(key, key);
+    });
+    union(keys[0], keys[1]);
+    union(keys[1], keys[2]);
+    triangleKeys.push(keys[0]);
+  }
+
+  const areaByIsland = new Map<string, number>();
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const ab = new THREE.Vector3();
+  const ac = new THREE.Vector3();
+  const islandOf: string[] = [];
+  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+    a.fromBufferAttribute(position, triangleVertex(triangle, 0));
+    b.fromBufferAttribute(position, triangleVertex(triangle, 1));
+    c.fromBufferAttribute(position, triangleVertex(triangle, 2));
+    const area = ab.subVectors(b, a).cross(ac.subVectors(c, a)).length() / 2;
+    const island = find(triangleKeys[triangle]);
+    islandOf.push(island);
+    areaByIsland.set(island, (areaByIsland.get(island) ?? 0) + area);
+  }
+
+  const largestArea = Math.max(...areaByIsland.values());
+  const isTrim = (island: string) =>
+    (areaByIsland.get(island) ?? 0) < largestArea * TRIM_ISLAND_AREA_FRACTION;
+
+  const tileable: number[] = [];
+  const trim: number[] = [];
+  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+    (isTrim(islandOf[triangle]) ? trim : tileable).push(triangle);
+  }
+
+  if (trim.length > 0) {
+    const reordered: number[] = [];
+    [...tileable, ...trim].forEach((triangle) => {
+      reordered.push(
+        triangleVertex(triangle, 0),
+        triangleVertex(triangle, 1),
+        triangleVertex(triangle, 2),
+      );
+    });
+    geometry.setIndex(reordered);
+    geometry.clearGroups();
+    geometry.addGroup(0, tileable.length * 3, 0);
+    geometry.addGroup(tileable.length * 3, trim.length * 3, 1);
+  }
+
+  geometry.userData.tileableTriangleCount = tileable.length;
+  return tileable.length;
 };
 
 const surfaceRoleOf = (modelUrl: string, name: string): "floor" | "wall" | null => {
@@ -365,10 +466,20 @@ const RoomModel = ({
       if (!baseline.has(object.uuid)) baseline.set(object.uuid, object.material);
 
       const role = surfaceRoleOf(modelUrl, object.name);
-      if (role) {
-        const replacement = role === "floor" ? floorMaterial : wallMaterial;
-        object.material = replacement ?? baseline.get(object.uuid)!;
-      }
+      if (!role) return;
+
+      const original = baseline.get(object.uuid)!;
+      const replacement = (role === "floor" ? floorMaterial : wallMaterial) ?? original;
+
+      // Trim welded into the same mesh (see `prepareTileableGroups`) keeps the
+      // model's own material while the surface around it takes the tile.
+      const geometry = object.geometry as THREE.BufferGeometry;
+      const tileable = Array.isArray(original)
+        ? geometry.index?.count ?? 0
+        : prepareTileableGroups(geometry) * 3;
+      const hasTrim = geometry.groups.length === 2 && tileable > 0;
+
+      object.material = hasTrim ? [replacement, original as THREE.Material] : replacement;
     });
   }, [room, modelUrl, floorMaterial, wallMaterial]);
 
