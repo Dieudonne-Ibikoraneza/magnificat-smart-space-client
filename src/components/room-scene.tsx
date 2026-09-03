@@ -108,9 +108,38 @@ const isWall = (name: string) => name.startsWith("Wall_");
 // Module constants, not inline literals: R3F re-applies these when the prop
 // identity changes, so a fresh object every render would snap the camera back
 // to its starting position every time the customer picked a tile.
-const CAMERA = { position: [0.4, 1.75, 5.6] as [number, number, number], fov: 45, near: 0.1, far: 60 };
+// Chosen to sit comfortably inside `ORBIT_LIMITS` below (~5 m out, ~78°
+// polar, ~12° azimuth) with margin on every side, so OrbitControls never has
+// to snap the view on first mount to satisfy its own bounds.
+const CAMERA = { position: [1.0, 2.2, 4.5] as [number, number, number], fov: 45, near: 0.1, far: 60 };
 const GL = { antialias: true };
 const ORBIT_TARGET: [number, number, number] = [0, 1.15, -0.3];
+
+/**
+ * How far the customer can orbit before the illusion breaks. The room shell
+ * is a 3-walled box open on the camera's side (see the generator) — nothing
+ * stops the camera physically leaving it, so the boundary has to be enforced
+ * here instead. Left unconstrained, two things go wrong: swinging far enough
+ * around lets you see past the side walls' outer faces (single-sided
+ * materials, so they simply vanish from behind), and tipping too far
+ * overhead turns "standing in a kitchen" into "looking down into an open
+ * box" — which is exactly the dollhouse angle that gives the room away as a
+ * shell rather than a place. These keep the camera inside a cone that always
+ * reads as "in the doorway looking in," never "hovering above the box."
+ */
+const ORBIT_LIMITS = {
+  minDistance: 2.4,
+  maxDistance: 5.8,
+  // Azimuth, either side of dead-centre: enough to glance toward each side
+  // wall without ever swinging past one to its unrendered back face.
+  minAzimuthAngle: -Math.PI / 3.3, // -54.5°
+  maxAzimuthAngle: Math.PI / 3.3, // 54.5°
+  // Polar angle, measured from straight up: the floor above keeps the
+  // dollhouse view out, the ceiling below stops the camera dropping to floor
+  // level and clipping through the range.
+  minPolarAngle: Math.PI / 2.6, // ~69.2° off vertical — steep enough to glance down at the range, not so steep it reads as looking down into an open box.
+  maxPolarAngle: Math.PI / 2.15, // ~83.7° — short of dead-flat, so it can't graze through furniture.
+};
 
 const RoomModel = ({
   modelUrl,
@@ -259,19 +288,7 @@ export const RoomScene = ({
             <RoomModel modelUrl={modelUrl} floorTile={floorTile} wallTile={wallTile} />
           </ModelErrorBoundary>
         </Suspense>
-        <OrbitControls
-          makeDefault
-          target={ORBIT_TARGET}
-          enablePan={false}
-          minDistance={2.2}
-          maxDistance={8}
-          // Stop short of the floor plane and of straight-down, so the camera
-          // can never end up under the room or looking at the ceiling's back.
-          minPolarAngle={Math.PI / 6}
-          maxPolarAngle={Math.PI / 2.05}
-          enableDamping
-          dampingFactor={0.08}
-        />
+        <OrbitControls makeDefault target={ORBIT_TARGET} enablePan={false} enableDamping dampingFactor={0.08} {...ORBIT_LIMITS} />
       </Canvas>
     </div>
   );
