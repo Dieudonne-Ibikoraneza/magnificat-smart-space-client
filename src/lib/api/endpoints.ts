@@ -287,6 +287,15 @@ export const ordersApi = {
   updateStatus: (id: string, status: OrderStatus, note?: string) =>
     api.patch<ApiOrder>(`/orders/${id}/status`, { status, note }),
 
+  /** Stock/admin: revise the quantities agreed during order negotiation. */
+  updateItems: (
+    id: string,
+    body: {
+      items: { productId: string; areaSqm: number }[];
+      notes?: string;
+    },
+  ) => api.patch<ApiOrder>(`/orders/${id}/items`, body),
+
   saveDeliveryDetails: (
     id: string,
     body: {
