@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import {
   Bookmark,
@@ -22,10 +23,36 @@ import { getProductsByCollection, products } from "@/data/catalog";
 import { collections } from "@/data/collections";
 import { cn } from "@/lib/utils";
 
-const rooms = ["Living Room", "Kitchen", "Bathroom", "Bedroom"] as const;
+const rooms = ["Kitchen", "Living Room", "Bathroom", "Bedroom"] as const;
 
 type Room = (typeof rooms)[number];
 type Surface = "floor" | "walls";
+
+/**
+ * Room shells live in `public/models/rooms/`, authored by
+ * `scripts/generate-room-models.mjs` — same paths the seeded `Room.modelUrl`
+ * values use. Rooms whose GLB hasn't been authored yet fall through to
+ * `RoomScene`'s own "not available" state rather than being hidden here, so
+ * the tab list keeps matching the rooms the platform actually offers.
+ */
+const roomModels: Record<Room, string> = {
+  Kitchen: "/models/rooms/kitchen.glb",
+  "Living Room": "/models/rooms/living_room.glb",
+  Bathroom: "/models/rooms/bathroom.glb",
+  Bedroom: "/models/rooms/bedroom.glb",
+};
+
+// three.js pulls in a WebGL renderer that can't run during SSR, and the room
+// GLB is several hundred KB — both are reasons to keep it out of the initial
+// page bundle and mount it only in the browser.
+const RoomScene = dynamic(() => import("@/components/room-scene").then((mod) => mod.RoomScene), {
+  ssr: false,
+  loading: () => (
+    <div className="flex size-full items-center justify-center">
+      <p className="text-sm font-semibold text-muted">Loading the room…</p>
+    </div>
+  ),
+});
 
 const panelHeight =
   "h-[calc(100dvh-7rem)] sm:h-[calc(100dvh-8rem)]";
@@ -272,7 +299,7 @@ const MobileTilePickerSheet = ({
 };
 
 const VisualizerPage = () => {
-  const [activeRoom, setActiveRoom] = useState<Room>("Living Room");
+  const [activeRoom, setActiveRoom] = useState<Room>("Kitchen");
   const [activeSurface, setActiveSurface] = useState<Surface>("floor");
   const [searchQuery, setSearchQuery] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -328,6 +355,8 @@ const VisualizerPage = () => {
 
   const selectedProductId = selections[activeSurface];
   const selectedProduct = products.find((product) => product.id === selectedProductId);
+  const floorTile = products.find((product) => product.id === selections.floor);
+  const wallTile = products.find((product) => product.id === selections.walls);
 
   const closePicker = () => {
     setPickerClosing(true);
@@ -389,11 +418,12 @@ const VisualizerPage = () => {
               </div>
             </div>
 
-            <div className="flex flex-1 items-center justify-center px-4 pb-24 lg:pb-0">
-              <p className="text-2xl font-bold tracking-tight text-muted/70 sm:text-4xl">
-                3D Viewport
-              </p>
-            </div>
+            <RoomScene
+              modelUrl={roomModels[activeRoom]}
+              floorTile={floorTile}
+              wallTile={wallTile}
+              className="relative flex-1"
+            />
 
             <div className="absolute inset-x-0 bottom-0 z-10 flex gap-2 p-4 lg:hidden">
               <Button
