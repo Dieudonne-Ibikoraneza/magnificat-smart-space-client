@@ -145,18 +145,20 @@ const ComparePageContent = () => {
                 <caption className="sr-only">Tile specifications compared side by side</caption>
                 <thead>
                   <tr>
-                    <th scope="col" className="w-40 pb-4 text-left align-bottom">
+                    <th scope="col" className="w-40 pr-3 pb-4 pl-3 text-left align-bottom">
                       <span className="text-[11px] font-bold uppercase tracking-wide text-muted">
                         Specification
                       </span>
                     </th>
                     {selected.map((product) => (
                       <th key={product.id} scope="col" className="px-3 pb-4 text-left align-bottom">
-                        {/* Capped and centered so every compared tile's photo, name and badge line up
-                            at the same size — otherwise the table's own column width (which grows with
-                            whichever product has the longest text, e.g. "Recommended rooms") would stretch
-                            a photo wider than its neighbours purely because of unrelated cell content. */}
-                        <div className="relative mx-auto w-full max-w-[180px]">
+                        {/* Capped (not centered) so every compared tile's photo, name and badge line up
+                            at the same size AND start flush with the spec rows below them — otherwise
+                            the table's own column width (which grows with whichever product has the
+                            longest text, e.g. "Recommended rooms") would both stretch a photo wider than
+                            its neighbours and, if centered, drift its left edge away from where the data
+                            cells below it (which start at this same column's own left inset) begin. */}
+                        <div className="relative w-full max-w-[180px]">
                           <Button
                             type="button"
                             variant="ghost"
@@ -198,20 +200,24 @@ const ComparePageContent = () => {
                 </thead>
                 <tbody>
                   {comparisonRows.map((row) => (
-                    <tr
-                      key={row.label}
-                      className={cn(
-                        "border-t border-slate-100",
-                        differs(row) && "bg-amber-50/40",
-                      )}
-                    >
-                      <th scope="row" className="py-3.5 pr-3 text-left align-top text-xs font-semibold text-muted">
+                    <tr key={row.label} className="border-t border-slate-100">
+                      <th
+                        scope="row"
+                        className={cn(
+                          "py-4 pr-3 pl-3 text-left align-top text-xs font-semibold text-muted first:rounded-l-lg",
+                          differs(row) && "bg-amber-50",
+                        )}
+                      >
                         {row.label}
                       </th>
-                      {selected.map((product) => (
+                      {selected.map((product, index) => (
                         <td
                           key={product.id}
-                          className="px-3 py-3.5 align-top font-data text-sm font-semibold text-ink"
+                          className={cn(
+                            "px-3 py-4 align-top font-data text-sm font-semibold text-ink",
+                            differs(row) && "bg-amber-50",
+                            differs(row) && index === selected.length - 1 && "rounded-r-lg",
+                          )}
                         >
                           {row.value(product)}
                         </td>
@@ -219,12 +225,12 @@ const ComparePageContent = () => {
                     </tr>
                   ))}
                   <tr className="border-t border-slate-100">
-                    <th scope="row" className="py-4 pr-3 text-left align-top text-xs font-semibold text-muted">
+                    <th scope="row" className="py-4 pr-3 pl-3 text-left align-top text-xs font-semibold text-muted">
                       Actions
                     </th>
                     {selected.map((product) => (
                       <td key={product.id} className="px-3 py-4 align-top">
-                        <div className="mx-auto w-full max-w-[180px]">
+                        <div className="w-full max-w-[180px]">
                           <Button
                             nativeButton={false}
                             render={<Link href={`/products/${product.id}`} />}
