@@ -344,12 +344,22 @@ const curtainPanel = (name, width, height, material, folds = 7, depth = 0.05) =>
   const segmentsPerFold = 24;
   const geometry = new THREE.PlaneGeometry(width, height, folds * segmentsPerFold, 1);
   const position = geometry.attributes.position;
+  const normal = geometry.attributes.normal;
+  const angularFreq = (folds * Math.PI * 2) / width;
   for (let i = 0; i < position.count; i += 1) {
     const x = position.getX(i);
-    const wave = Math.sin(((x + width / 2) / width) * folds * Math.PI * 2);
-    position.setZ(i, wave * depth);
+    const theta = (x + width / 2) * angularFreq;
+    position.setZ(i, Math.sin(theta) * depth);
+    // Set the true analytic normal for this height-map surface directly,
+    // rather than `computeVertexNormals()`'s face-averaging — which, with
+    // only one row of faces on either side of this panel's top and bottom
+    // edge, under-averages there and left the hem with a row of stray bright
+    // quads where a normal ended up pointing straight at a light instead of
+    // outward with the rest of the fold.
+    const slope = Math.cos(theta) * depth * angularFreq;
+    const len = Math.hypot(slope, 1);
+    normal.setXYZ(i, -slope / len, 0, 1 / len);
   }
-  geometry.computeVertexNormals();
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = name;
   return mesh;
