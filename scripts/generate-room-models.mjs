@@ -407,6 +407,12 @@ const buildWindow = (name, { width, height, sillY }, { glassMaterial = PALETTE.g
   const rodHalf = rodLength / 2;
   const rodY = sillY + height + 0.16;
   const curtainZ = WALL_THICKNESS / 2 + 0.03;
+  // The fabric itself sits further proud of the wall than the rod does —
+  // the sill and frame pieces (below/around it) are only a few cm behind
+  // the rod's own z, and the curtain's folded, near-edge-on surface at that
+  // spacing was reading as gapping to show the sill through it near the
+  // hem. This margin puts clear daylight between the two.
+  const curtainFabricZ = curtainZ + 0.06;
   win.add(
     cylinder(`${name}_Rod`, 0.014, 0.014, rodLength, [0, rodY, curtainZ], PALETTE.curtainRod, 16, [0, 0, Math.PI / 2]),
     cylinder(`${name}_Rod_Finial_L`, 0.026, 0.026, 0.03, [-rodHalf, rodY, curtainZ], PALETTE.curtainRod, 16, [0, 0, Math.PI / 2]),
@@ -429,7 +435,7 @@ const buildWindow = (name, { width, height, sillY }, { glassMaterial = PALETTE.g
   panels.forEach(({ outer, inner }, index) => {
     const panelWidth = Math.abs(outer - inner);
     const panel = curtainPanel(`${name}_Curtain_${index}`, panelWidth, curtainHeight, curtainColors[index % curtainColors.length]);
-    panel.position.set((outer + inner) / 2, rodY - curtainHeight / 2 - 0.02, curtainZ);
+    panel.position.set((outer + inner) / 2, rodY - curtainHeight / 2 - 0.02, curtainFabricZ);
     win.add(panel);
   });
 
@@ -559,11 +565,20 @@ const buildKitchen = () => {
   scene.add(buildShell());
   scene.add(buildDoor());
 
-  // Back window: symmetric open pair (buildWindow's own default spans),
-  // just recoloured one dark, one light.
+  // Back window: open — each panel drawn back to a narrow width at its own
+  // finial, leaving the glass itself clear in the middle.
   {
+    const rodHalf = (BACK_WINDOW.width + 0.5) / 2;
+    const outer = rodHalf - 0.04;
+    const openPanelWidth = 0.4;
     const backWindow = buildWindow("WindowBack", BACK_WINDOW, {
-      curtain: { colors: [PALETTE.curtainDark, PALETTE.curtainLight] },
+      curtain: {
+        colors: [PALETTE.curtainDark, PALETTE.curtainLight],
+        panels: [
+          { outer: -outer, inner: -outer + openPanelWidth },
+          { outer, inner: outer - openPanelWidth },
+        ],
+      },
     });
     backWindow.position.set(BACK_WINDOW.centerX, 0, -ROOM.depth / 2);
     scene.add(backWindow);
