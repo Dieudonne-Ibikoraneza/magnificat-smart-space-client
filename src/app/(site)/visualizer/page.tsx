@@ -57,6 +57,20 @@ const RoomScene = dynamic(() => import("@/components/room-scene").then((mod) => 
 const panelHeight =
   "h-[calc(100dvh-7rem)] sm:h-[calc(100dvh-8rem)]";
 
+/**
+ * The 3D viewport specifically (not the tile-picker sidebar, which is a plain
+ * scrollable list and has no comparable ceiling) — `panelHeight` alone tracks
+ * `100dvh`, uncapped, so on a tall enough display it hands the WebGL canvas
+ * an increasingly tall, narrow frame to render into. The room's own camera
+ * rig (`room-scene.tsx`) derives its field of view from that frame's aspect
+ * ratio, so an extreme one pushes the vertical fov toward its own floor and
+ * the room reads as unnaturally zoomed in — a device-height problem showing
+ * up as a camera problem. Capping the viewport's own height is what keeps
+ * the aspect ratio (and so the camera) in the range it was actually tuned
+ * for, however tall the screen gets.
+ */
+const viewportPanelHeight = cn(panelHeight, "max-h-[820px]");
+
 const TilePickerCard = ({
   product,
   selected,
@@ -395,7 +409,7 @@ const VisualizerPage = () => {
   return (
     <>
       <div className={cn("flex flex-col lg:flex-row lg:gap-8", panelHeight)}>
-        <div className={cn("relative min-h-0 min-w-0 flex-1", panelHeight)}>
+        <div className={cn("relative min-h-0 min-w-0 flex-1", viewportPanelHeight)}>
           <div className="relative flex size-full flex-col overflow-hidden rounded-2xl bg-muted-background shadow-inner">
             <div className="absolute left-3 right-3 top-3 z-10 sm:left-4 sm:right-auto">
               <div className="scrollbar-hide flex gap-1 overflow-x-auto rounded-full bg-white/95 p-1 shadow-sm backdrop-blur-sm">

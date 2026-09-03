@@ -437,12 +437,21 @@ const MODEL_CAMERA_CONFIGS: Record<string, CameraConfig> = {
      * that the camera never sits in a wall: the floor runs x -6.48..6.90 and
      * z -4.46..7.45, and the walls stop at y 5.32 (`WindowWall_Wall_0` is
      * 5.5 m tall from a floor at y -0.18, and the ceiling slab's underside
-     * agrees). Capping y well under that is what stops the tilt-up from
-     * clearing the wall tops and showing the outside of the model.
+     * agrees).
+     *
+     * `max[1]` is well under that, at 3.6 rather than something closer to
+     * the walls' own 5.32 — not for the walls' sake, but for the pendant
+     * lights hanging over the island: their cords run most of the way up to
+     * the ceiling, and swinging to the far azimuth limit while tilted all
+     * the way up put the camera up near y=4.9, close enough to one that its
+     * thin cord — nearly end-on from up there — stretched across the frame.
+     * 3.6 sits just above the ~3.34 the default azimuth's own tilt-up
+     * reaches (already checked clean), so the well-behaved views keep their
+     * full range and only the combination that reached the cords is cut off.
      */
     bounds: {
       min: [-6.25, 0.8, -4.15],
-      max: [6.65, 4.9, 7.15],
+      max: [6.65, 3.6, 7.15],
     },
   },
 };
