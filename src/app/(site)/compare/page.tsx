@@ -152,7 +152,11 @@ const ComparePageContent = () => {
                     </th>
                     {selected.map((product) => (
                       <th key={product.id} scope="col" className="px-3 pb-4 text-left align-bottom">
-                        <div className="relative">
+                        {/* Capped and centered so every compared tile's photo, name and badge line up
+                            at the same size — otherwise the table's own column width (which grows with
+                            whichever product has the longest text, e.g. "Recommended rooms") would stretch
+                            a photo wider than its neighbours purely because of unrelated cell content. */}
+                        <div className="relative mx-auto w-full max-w-[180px]">
                           <Button
                             type="button"
                             variant="ghost"
@@ -170,7 +174,7 @@ const ComparePageContent = () => {
                               fill
                               unoptimized
                               className="object-cover"
-                              sizes="200px"
+                              sizes="180px"
                             />
                           </span>
                           <Link
@@ -220,14 +224,16 @@ const ComparePageContent = () => {
                     </th>
                     {selected.map((product) => (
                       <td key={product.id} className="px-3 py-4 align-top">
-                        <Button
-                          nativeButton={false}
-                          render={<Link href={`/products/${product.id}`} />}
-                          className="group h-10 w-full gap-2 bg-primary text-xs font-bold text-ink hover:bg-primary/90"
-                        >
-                          View details
-                          <ArrowRight className="transition-transform duration-300 group-hover:translate-x-1" />
-                        </Button>
+                        <div className="mx-auto w-full max-w-[180px]">
+                          <Button
+                            nativeButton={false}
+                            render={<Link href={`/products/${product.id}`} />}
+                            className="group h-10 w-full gap-2 bg-primary text-xs font-bold text-ink hover:bg-primary/90"
+                          >
+                            View details
+                            <ArrowRight className="transition-transform duration-300 group-hover:translate-x-1" />
+                          </Button>
+                        </div>
                       </td>
                     ))}
                   </tr>
