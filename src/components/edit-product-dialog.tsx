@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Pencil, Wallet } from "lucide-react";
+import Image from "next/image";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { Check, ImagePlus, Pencil, Wallet, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -31,12 +32,9 @@ const suitableForOptions: { value: SuitableFor; label: string }[] = [
 const roomTypeOptions = Object.keys(roomTypeLabels) as RoomType[];
 
 /**
- * Edits the fields that don't need extra infrastructure to change safely:
- * name, price, description, suitable-for, and room types. SKU, collection,
- * box coverage/pieces-per-box, and the image are left out — the first three
- * would need a "does this still add up" check against existing orders/stock
- * math, and the image has no upload pipeline behind it yet (see the "new
- * product" pages, deliberately left on mock data for the same reason).
+ * Product editor. Packaging values remain editable because the API validates
+ * them as part of the product record, while stock itself is intentionally
+ * managed through the stock adjustment workflow.
  */
 export const EditProductDialog = ({
   product,
@@ -48,10 +46,17 @@ export const EditProductDialog = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(product.name);
+  const [sku, setSku] = useState(product.sku);
+  const [boxCoverageSqm, setBoxCoverageSqm] = useState(String(product.boxCoverageSqm));
+  const [piecesPerBox, setPiecesPerBox] = useState(String(product.piecesPerBox));
   const [price, setPrice] = useState(String(product.price));
   const [description, setDescription] = useState(product.description ?? "");
   const [suitableFor, setSuitableFor] = useState<SuitableFor>(product.suitableFor);
   const [roomTypes, setRoomTypes] = useState<RoomType[]>(product.roomTypes);
+  const [image, setImage] = useState(product.image);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const toggleRoomType = (option: RoomType) => {
@@ -62,27 +67,46 @@ export const EditProductDialog = ({
 
   const parsedPrice = Number(price);
   const priceValid = price.trim() !== "" && Number.isFinite(parsedPrice) && parsedPrice > 0;
+  const parsedCoverage = Number(boxCoverageSqm);
+  const parsedPieces = Number(piecesPerBox);
+  const packagingValid = Number.isFinite(parsedCoverage) && parsedCoverage > 0 && Number.isInteger(parsedPieces) && parsedPieces > 0;
   const nameValid = name.trim().length >= 2;
-  const valid = nameValid && priceValid && roomTypes.length > 0;
+  const imageValid = !!imageFile || image.trim().length > 0;
+  const valid = nameValid && sku.trim().length > 0 && priceValid && packagingValid && imageValid && roomTypes.length > 0;
+
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
 
   const resetToProduct = () => {
     setName(product.name);
+    setSku(product.sku);
+    setBoxCoverageSqm(String(product.boxCoverageSqm));
+    setPiecesPerBox(String(product.piecesPerBox));
     setPrice(String(product.price));
     setDescription(product.description ?? "");
     setSuitableFor(product.suitableFor);
     setRoomTypes(product.roomTypes);
+    setImage(product.image);
+    setImageFile(null);
+    setPreviewUrl(null);
   };
 
   const handleSubmit = async () => {
     if (!valid) return;
     setSubmitting(true);
     try {
+      const uploaded = imageFile ? await productsApi.uploadImage(imageFile) : null;
       await productsApi.update(product.id, {
         name: name.trim(),
+        sku: sku.trim(),
+        boxCoverageSqm: parsedCoverage,
+        piecesPerBox: parsedPieces,
         price: parsedPrice,
         description: description.trim() || undefined,
         suitableFor,
         roomTypes,
+        image: uploaded?.path ?? image,
       });
       onUpdated();
       toast.success("Product updated", { description: `${name.trim()} was saved.` });
@@ -120,7 +144,7 @@ export const EditProductDialog = ({
         <DialogHeader>
           <DialogTitle>Edit product</DialogTitle>
           <DialogDescription>
-            SKU, collection, packaging, and the photo aren&apos;t editable here.
+            Update the product details and replace its catalog image when needed.
           </DialogDescription>
         </DialogHeader>
 
@@ -132,6 +156,63 @@ export const EditProductDialog = ({
               <p className="text-xs font-medium text-red-600">Enter a name of at least 2 characters.</p>
             )}
           </Field>
+
+          <Field>
+            <FieldLabel htmlFor="edit-sku">SKU</FieldLabel>
+            <Input id="edit-sku" value={sku} onChange={(event) => setSku(event.target.value)} />
+            {sku.length === 0 && <p className="text-xs font-medium text-red-600">Enter a SKU.</p>}
+          </Field>
+
+          <Field>
+            <FieldLabel>Product Image</FieldLabel>
+            <div className="mt-1">
+              {previewUrl || image ? (
+                <div className="relative aspect-4/3 overflow-hidden rounded-xl bg-muted-background">
+                  <Image src={previewUrl ?? image} alt={`${name || "Product"} preview`} fill unoptimized className="object-cover" />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon-sm"
+                    onClick={() => { setImageFile(null); setImage(""); setPreviewUrl(null); }}
+                    className="absolute top-3 right-3 rounded-full bg-white/95 text-ink shadow-sm"
+                    aria-label="Remove product image"
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => inputRef.current?.click()} className="flex aspect-4/3 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-secondary/40 text-center hover:bg-secondary/60">
+                  <span className="flex size-11 items-center justify-center rounded-full bg-white text-ink shadow-sm"><ImagePlus className="size-5" /></span>
+                  <span className="text-sm font-semibold text-ink">Choose a product image</span>
+                  <span className="text-xs text-muted-foreground">PNG, JPG or WEBP · up to 10MB</span>
+                </button>
+              )}
+              <input
+                ref={inputRef}
+                id="edit-product-image"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                  const file = event.target.files?.[0] ?? null;
+                  setImageFile(file);
+                  setPreviewUrl(file ? URL.createObjectURL(file) : null);
+                }}
+              />
+            </div>
+          </Field>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="edit-box-coverage">Box Coverage (m²)</FieldLabel>
+              <Input id="edit-box-coverage" type="number" min={0} step="0.01" value={boxCoverageSqm} onChange={(event) => setBoxCoverageSqm(event.target.value)} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="edit-pieces-per-box">Pieces per Box</FieldLabel>
+              <Input id="edit-pieces-per-box" type="number" min={1} step="1" value={piecesPerBox} onChange={(event) => setPiecesPerBox(event.target.value)} />
+            </Field>
+          </div>
+          {!packagingValid && (boxCoverageSqm.length > 0 || piecesPerBox.length > 0) && <p className="text-xs font-medium text-red-600">Enter valid coverage and a whole number of pieces per box.</p>}
 
           <Field>
             <FieldLabel htmlFor="edit-price">Price (RWF / sqm)</FieldLabel>

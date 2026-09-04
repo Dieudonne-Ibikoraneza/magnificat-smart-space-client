@@ -45,7 +45,8 @@ const CAMERA_CONFIG: CameraConfig = {
   far: 60,
   horizontalFov: 58,
   orbitLimits: {
-    minDistance: 4.0,
+    // Close tile inspection over the carpet/floor; bounds keep clear of the bed.
+    minDistance: 1.5,
     // Mounting landed exactly on `maxDistance` before, which left no room
     // to actually zoom out any further than the default shot. Past that:
     // the Sketchfab reference framing.
@@ -58,12 +59,12 @@ const CAMERA_CONFIG: CameraConfig = {
   /**
    * Keeps the camera inside the room regardless of what the orbit limits
    * alone allow — the same guarantee as the other rooms' `bounds`, see
-   * `ContainCamera` in `room-scene.tsx`. `max.z` gives the wider
-   * `maxDistance` above room to actually back up in; still stays short of
-   * the open floor's own far edge and doesn't walk into the bed cluster.
+   * `ContainCamera` in `room-scene.tsx`. `max.z` gives room to back up;
+   * `min.z` sits on the carpet side of the bed so minDistance can actually
+   * reach a close floor/wall view instead of stopping metres out.
    */
   bounds: {
-    min: [-2.0, -1.4, 3.2],
+    min: [-2.0, -1.4, 0.8],
     max: [2.0, 1.2, 7.0],
   },
 };

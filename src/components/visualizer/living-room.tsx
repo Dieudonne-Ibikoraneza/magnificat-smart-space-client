@@ -57,7 +57,8 @@ const CAMERA_CONFIG: CameraConfig = {
   far: 100,
   horizontalFov: 60,
   orbitLimits: {
-    minDistance: 4,
+    // Pull in for a close look at tiles; bounds still keep clear of furniture.
+    minDistance: 1.5,
     maxDistance: 7.5,
     minAzimuthAngle: (30 * Math.PI) / 180,
     maxAzimuthAngle: (100 * Math.PI) / 180,
@@ -68,10 +69,12 @@ const CAMERA_CONFIG: CameraConfig = {
    * Keeps the camera inside the room regardless of what the orbit limits
    * alone allow, the same guarantee as the kitchen's `bounds` — see
    * `ContainCamera` in `room-scene.tsx`. `max.x`/`max.z` stop short of the
-   * doorway return described above (measured near x≈5, z≈1.7-2).
+   * doorway return described above (measured near x≈5, z≈1.7-2). `min.x`
+   * is loose enough that minDistance can actually reach a close tile view
+   * rather than being clamped in the open floor far from the sofa.
    */
   bounds: {
-    min: [1.8, 0.3, -0.8],
+    min: [0.6, 0.3, -0.8],
     max: [5.2, 2.3, 3.2],
   },
 };

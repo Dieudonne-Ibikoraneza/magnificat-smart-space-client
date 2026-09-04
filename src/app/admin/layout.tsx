@@ -2,9 +2,8 @@
 
 import { createContext, useContext, useState } from "react";
 import {
-  BookOpen,
   Bot,
-  Box,
+  MessageSquareText,
   Boxes,
   LayoutGrid,
   Layers,
@@ -37,13 +36,12 @@ const navigation = [
   { label: "Stock & Inventory", href: "/admin/inventory", icon: ShelvingUnit, section: "Operations" },
   { label: "Customers", href: "/admin/customers", icon: User, section: "Operations" },
   { label: "Collections", href: "/admin/collections", icon: Layers, section: "Operations" },
-  { label: "3D Rooms", href: "/admin/rooms", icon: Box, section: "Content" },
-  { label: "Knowledge Base", href: "/admin/knowledge-base", icon: BookOpen, section: "Content" },
   { label: "Customer Analytics", href: "/admin/analytics/customers", icon: Users, section: "Analytics" },
   { label: "Sales Analytics", href: "/admin/analytics/sales", icon: WalletCards, section: "Analytics" },
   { label: "Tiles Analytics", href: "/admin/analytics/tiles", icon: Boxes, section: "Analytics" },
   { label: "Journey Analytics", href: "/admin/analytics/journey", icon: Workflow, section: "Analytics" },
   { label: "AI Analytics", href: "/admin/analytics/ai", icon: Bot, section: "Analytics" },
+  { label: "Asked Questions", href: "/admin/asked-questions", icon: MessageSquareText, section: "Analytics" },
   { label: "Staff", href: "/admin/staff", icon: UsersRound, section: "Management" },
   { label: "System Settings", href: "/admin/settings", icon: Settings, section: "Management" },
   { label: "Account Settings", href: "/admin/account-settings", icon: UserCog, section: "Management" },

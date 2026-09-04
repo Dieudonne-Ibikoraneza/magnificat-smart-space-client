@@ -2,10 +2,18 @@
 
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, PerspectiveCamera, useGLTF } from "@react-three/drei";
+import { OrbitControls, PerspectiveCamera, useGLTF, useProgress } from "@react-three/drei";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { Product } from "@/components/product-card";
+import {
+  Progress,
+  ProgressIndicator,
+  ProgressLabel,
+  ProgressTrack,
+  ProgressValue,
+} from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 /**
  * The 3D room viewport (doc 3.5). Room shells are authored as GLBs by
@@ -38,8 +46,15 @@ const tileMetres = (product: Product): [number, number] => {
  * suspense-based (drei's `useTexture`) so a product whose image 404s or is
  * blocked by CORS just leaves the surface untiled instead of blanking the
  * whole canvas behind an error boundary.
+ *
+ * `ready` flips true once this product's fetch has settled (texture or
+ * failure), so the room loader can wait before revealing the scene — otherwise
+ * metre UV rewrites land on the model's atlas for a frame and flash the
+ * packed-sprite look.
  */
-const useTileTexture = (product: Product | undefined) => {
+const useTileTexture = (
+  product: Product | undefined,
+): { texture: THREE.Texture | null; ready: boolean } => {
   const productId = product?.id;
 
   // Switching tiles keeps showing the *previous* one until the new image has
@@ -49,18 +64,29 @@ const useTileTexture = (product: Product | undefined) => {
   // down to no tile is the one case cleared right away, in render rather
   // than from an effect — the same pattern `useApi` uses for its own inputs
   // — since there's no "next" texture to wait for.
-  const [loaded, setLoaded] = useState<{ id: string | undefined; texture: THREE.Texture | null }>({
+  const [loaded, setLoaded] = useState<{
+    id: string | undefined;
+    texture: THREE.Texture | null;
+    ready: boolean;
+  }>({
     id: productId,
     texture: null,
+    ready: productId === undefined,
   });
   if (productId === undefined && loaded.id !== undefined) {
-    setLoaded({ id: undefined, texture: null });
+    setLoaded({ id: undefined, texture: null, ready: true });
   }
 
   useEffect(() => {
     if (!product) return;
 
     let active = true;
+    setLoaded((current) =>
+      current.id === product.id && current.ready
+        ? current
+        : { id: product.id, texture: current.texture, ready: false },
+    );
+
     const loader = new THREE.TextureLoader();
     loader.setCrossOrigin("anonymous");
     loader.load(
@@ -78,13 +104,13 @@ const useTileTexture = (product: Product | undefined) => {
         texture.colorSpace = THREE.SRGBColorSpace;
         texture.anisotropy = 8;
         texture.repeat.set(1 / width, 1 / height);
-        setLoaded({ id: product.id, texture });
+        setLoaded({ id: product.id, texture, ready: true });
       },
       undefined,
       // A tile whose image won't load ends up untiled — but only once that's
       // actually known, not for the whole gap while it was still trying.
       () => {
-        if (active) setLoaded({ id: product.id, texture: null });
+        if (active) setLoaded({ id: product.id, texture: null, ready: true });
       },
     );
 
@@ -96,7 +122,10 @@ const useTileTexture = (product: Product | undefined) => {
   // Textures are GPU allocations, so the outgoing one has to be released by hand.
   useEffect(() => () => loaded.texture?.dispose(), [loaded.texture]);
 
-  return loaded.texture;
+  // Ready only when the settled entry is for the *current* product — otherwise
+  // we're still on the previous tile's texture mid-switch.
+  const ready = productId === undefined ? true : loaded.ready && loaded.id === productId;
+  return { texture: loaded.texture, ready };
 };
 
 /**
@@ -518,12 +547,18 @@ const filterArchitecturalIslands = (
   return { keep, furniture };
 };
 
-const splitByOrientation = (object: THREE.Mesh): { floorCount: number; wallCount: number } => {
+const splitByOrientation = (
+  object: THREE.Mesh,
+  { rewriteUvs = true }: { rewriteUvs?: boolean } = {},
+): { floorCount: number; wallCount: number } => {
   const geometry = object.geometry as THREE.BufferGeometry;
   const cachedFloor = geometry.userData.orientationFloorCount as number | undefined;
   const cachedWall = geometry.userData.orientationWallCount as number | undefined;
   if (cachedFloor !== undefined && cachedWall !== undefined) {
-    rewriteOrientationUvsToMetres(object);
+    // Only project to metre UVs when a tile material is about to land —
+    // rewriting under the model's own atlas samples the packed sprite sheet
+    // across the room (the brief "glitch" flash before tiles finish loading).
+    if (rewriteUvs) rewriteOrientationUvsToMetres(object);
     return {
       floorCount: cachedFloor,
       wallCount: cachedWall,
@@ -598,7 +633,7 @@ const splitByOrientation = (object: THREE.Mesh): { floorCount: number; wallCount
 
   geometry.userData.orientationFloorCount = floor.length;
   geometry.userData.orientationWallCount = wall.length;
-  rewriteOrientationUvsToMetres(object);
+  if (rewriteUvs) rewriteOrientationUvsToMetres(object);
   const resultGeometry = object.geometry as THREE.BufferGeometry;
   return {
     floorCount: resultGeometry.userData.orientationFloorCount as number,
@@ -703,7 +738,8 @@ const DEFAULT_CAMERA_CONFIG: CameraConfig = {
    * box, staring down through it."
    */
   orbitLimits: {
-    minDistance: 2.2,
+    // Close enough to read individual tiles; still short of clipping the shell.
+    minDistance: 1.0,
     maxDistance: 5.0,
     // Azimuth, either side of dead-centre: enough to glance toward each side
     // wall without ever swinging past one to its unrendered back face.
@@ -784,7 +820,9 @@ const MODEL_CAMERA_CONFIGS: Record<string, CameraConfig> = {
      */
     horizontalFov: 75,
     orbitLimits: {
-      minDistance: 4,
+      // Lets the customer pull in for a clear look at floor/wall tiles;
+      // `bounds` still stops the dolly before a wall.
+      minDistance: 1.5,
       // Deliberately past what the room allows: `bounds` is the real stop,
       // so the dolly runs until the camera actually reaches a wall rather
       // than halting early at a number that has to guess where the walls are.
@@ -899,28 +937,50 @@ const RoomModel = ({
   floorTile,
   wallTile,
   surfaceOverride,
+  onReady,
 }: {
   modelUrl: string;
   floorTile?: Product;
   wallTile?: Product;
   /** Explicit tileable-mesh list; falls back to `MODEL_SURFACE_OVERRIDES[modelUrl]`, then the naming convention. */
   surfaceOverride?: SurfaceOverride;
+  /** Fires once the shell is prepared and any selected tile textures have settled. */
+  onReady?: () => void;
 }) => {
   const { scene } = useGLTF(modelUrl);
-  // Clone once per load: `useGLTF` caches the source scene across mounts, and
-  // re-materialling the cached copy would leak into every other consumer.
-  const room = useMemo(() => scene.clone(true), [scene]);
+  // Clone geometry too: `scene.clone(true)` still *shares* BufferGeometry with
+  // the `useGLTF` cache, and our orientation/UV rewrites would permanently
+  // mutate that cache — every later visit would flash the atlas-on-metre-UVs
+  // glitch before materials re-applied.
+  const room = useMemo(() => {
+    const cloned = scene.clone(true);
+    cloned.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        object.geometry = object.geometry.clone();
+      }
+    });
+    return cloned;
+  }, [scene]);
 
-  const floorMaterial = useTileMaterial(useTileTexture(floorTile));
-  const wallMaterial = useTileMaterial(useTileTexture(wallTile));
+  const floorTexture = useTileTexture(floorTile);
+  const wallTexture = useTileTexture(wallTile);
+  const floorMaterial = useTileMaterial(floorTexture.texture);
+  const wallMaterial = useTileMaterial(wallTexture.texture);
+  const tilesReady = floorTexture.ready && wallTexture.ready;
 
   // The GLB's own materials, kept so deselecting a tile puts the plain
   // plastered surface back rather than leaving the last tile stuck on.
   const originals = useRef(new Map<string, THREE.Material | THREE.Material[]>());
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
+  const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
+    if (!tilesReady) return;
+
     const baseline = originals.current;
     const override = surfaceOverride ?? surfaceOverrideFor(modelUrl);
+    const applyMetreUvs = Boolean(floorMaterial || wallMaterial);
 
     room.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
@@ -932,7 +992,7 @@ const RoomModel = ({
 
       if (override?.combinedShell?.includes(object.name)) {
         const originalMaterial = Array.isArray(original) ? original[0] : original;
-        const { floorCount, wallCount } = splitByOrientation(object);
+        const { floorCount, wallCount } = splitByOrientation(object, { rewriteUvs: applyMetreUvs });
         object.material = [
           floorCount > 0 ? (floorMaterial ?? originalMaterial) : originalMaterial,
           wallCount > 0 ? (wallMaterial ?? originalMaterial) : originalMaterial,
@@ -954,7 +1014,7 @@ const RoomModel = ({
         const wallTris = prepareWallGroups(object);
         const wallGeometry = object.geometry as THREE.BufferGeometry;
         if (wallGeometry.groups.length >= 2) {
-          rewriteLeadingTriangleUvsToMetres(object, wallTris);
+          if (applyMetreUvs) rewriteLeadingTriangleUvsToMetres(object, wallTris);
           object.material = [replacement, originalMaterial];
           return;
         }
@@ -970,15 +1030,20 @@ const RoomModel = ({
       // Sourced override meshes use 0..1 UVs — rewrite to metres so labelled
       // tile sizes land at their true physical scale (procedural rooms already
       // ship metre UVs from the generator, so leave those alone).
-      if (override) rewriteLeadingTriangleUvsToMetres(object, tileableTris);
+      if (override && applyMetreUvs) rewriteLeadingTriangleUvsToMetres(object, tileableTris);
       const grouped = object.geometry as THREE.BufferGeometry;
       const hasTrim = grouped.groups.length === 2 && tileable > 0;
 
       object.material = hasTrim ? [replacement, originalMaterial] : replacement;
     });
-  }, [room, modelUrl, floorMaterial, wallMaterial, surfaceOverride]);
 
-  return <primitive object={room} />;
+    setRevealed(true);
+    onReadyRef.current?.();
+  }, [room, modelUrl, floorMaterial, wallMaterial, surfaceOverride, tilesReady]);
+
+  // Stay hidden until the first successful prepare pass — not on later tile
+  // switches, which would blank the room while the next image fetches.
+  return <primitive object={room} visible={revealed} />;
 };
 
 /** Warm key light sitting inside the ceiling fixture, plus cool fill through the windows. */
@@ -1047,6 +1112,37 @@ class ModelErrorBoundary extends Component<{ onError: () => void; children: Reac
   }
 }
 
+/**
+ * Covers the viewport while the GLB (and any selected tile images) download,
+ * and until `RoomModel` finishes preparing the shell. Hides the atlas-UV
+ * flash that otherwise shows for a few frames on sourced rooms.
+ */
+const RoomLoadingOverlay = ({ visible }: { visible: boolean }) => {
+  const { progress, active } = useProgress();
+  const value = !active && visible ? 100 : Math.min(100, Math.round(progress));
+
+  return (
+    <div
+      className={cn(
+        "absolute inset-0 z-10 flex items-center justify-center bg-[#eceae5] px-6 transition-opacity duration-300",
+        visible ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
+      aria-hidden={!visible}
+      aria-busy={visible}
+    >
+      <Progress value={value} className="w-full max-w-xs flex-col gap-2">
+        <div className="flex w-full items-baseline gap-3">
+          <ProgressLabel className="text-ink">Loading room…</ProgressLabel>
+          <ProgressValue className="text-muted" />
+        </div>
+        <ProgressTrack className="w-full bg-black/10">
+          <ProgressIndicator className="bg-primary" />
+        </ProgressTrack>
+      </Progress>
+    </div>
+  );
+};
+
 export const RoomScene = ({
   modelUrl,
   floorTile,
@@ -1074,6 +1170,11 @@ export const RoomScene = ({
 }) => {
   // Which model failed to load, so switching to another room clears it.
   const [missingUrl, setMissingUrl] = useState<string | null>(null);
+  const [sceneReady, setSceneReady] = useState(false);
+
+  useEffect(() => {
+    setSceneReady(false);
+  }, [modelUrl]);
 
   if (missingUrl === modelUrl) {
     return (
@@ -1090,12 +1191,19 @@ export const RoomScene = ({
   const cameraConfig = cameraConfigProp ?? cameraConfigFor(modelUrl);
 
   return (
-    <div className={className}>
+    <div className={cn("relative", className)}>
+      <RoomLoadingOverlay visible={!sceneReady} />
       {/* Keyed by modelUrl: switching to a model at a wildly different scale
           (see `MODEL_CAMERA_CONFIGS`) needs a fresh camera/controls instance,
           not OrbitControls carrying over stale internal state tuned for the
           previous room's size. */}
-      <Canvas key={modelUrl} shadows dpr={[1, 2]} gl={GL}>
+      <Canvas
+        key={modelUrl}
+        shadows
+        dpr={[1, 2]}
+        gl={GL}
+        className={cn(!sceneReady && "opacity-0")}
+      >
         <color attach="background" args={[0xeceae5]} />
         <ResponsiveCamera config={cameraConfig} />
         {cameraConfig.bounds ? <ContainCamera bounds={cameraConfig.bounds} /> : null}
@@ -1107,6 +1215,7 @@ export const RoomScene = ({
               floorTile={floorTile}
               wallTile={wallTile}
               surfaceOverride={surfaceOverride}
+              onReady={() => setSceneReady(true)}
             />
           </ModelErrorBoundary>
         </Suspense>

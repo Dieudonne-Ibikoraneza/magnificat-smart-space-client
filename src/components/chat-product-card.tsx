@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, Loader2, ShoppingCart } from "lucide-react";
+import { ArrowUpRight, Expand, Loader2, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { useCart } from "@/lib/cart-store";
@@ -12,11 +12,13 @@ import { productsApi, tokenStore } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { toProduct } from "@/lib/api/mappers";
 import type { ChatRecommendation } from "@/lib/api/types";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 type ChatProductCardProps = { product: ChatRecommendation };
 
 export const ChatProductCard = ({ product }: ChatProductCardProps) => {
   const [adding, setAdding] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const cart = useCart();
   const router = useRouter();
 
@@ -54,17 +56,35 @@ export const ChatProductCard = ({ product }: ChatProductCardProps) => {
   return (
     <article className="overflow-hidden rounded-xl bg-white shadow-sm">
       <div className="relative aspect-[1.1/1] overflow-hidden bg-muted-background">
-        <Image
-          src={product.image}
-          alt={product.name}
-          fill
-          unoptimized
-          className="object-cover"
-        />
+        <Image src={product.image} alt={product.name} fill unoptimized className="object-cover" />
+        <button
+          type="button"
+          onClick={() => setIsFullScreen(true)}
+          aria-label={`View ${product.name} visualization full screen`}
+          className="absolute right-2 top-2 flex size-9 items-center justify-center rounded-full bg-ink/70 text-white shadow-sm transition hover:bg-ink"
+        >
+          <Expand className="size-4" />
+        </button>
         <span className="absolute left-2 top-2 inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold text-ink shadow-sm">
           {Math.round(product.matchScore)}% Match
         </span>
+        <span className="absolute bottom-2 left-2 inline-flex items-center rounded-full bg-ink/75 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm">
+          AI room visualization
+        </span>
       </div>
+      <Dialog open={isFullScreen} onOpenChange={setIsFullScreen}>
+        <DialogContent className="max-w-6xl bg-ink p-2 sm:p-3" showClose>
+          <DialogTitle className="sr-only">{product.name} room visualization</DialogTitle>
+          <DialogDescription className="sr-only">
+            AI-generated room visualization showing the recommended tile.
+          </DialogDescription>
+          <div className="relative flex min-h-[50vh] items-center justify-center overflow-hidden rounded-xl bg-black">
+            {/* Data URLs returned by Gemini are intentionally rendered without Next image optimization. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={product.image} alt={`${product.name} AI room visualization`} className="max-h-[85vh] w-full object-contain" />
+          </div>
+        </DialogContent>
+      </Dialog>
       <div className="p-3">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-[#d5c19f]">
           {product.collection} · {product.size}
