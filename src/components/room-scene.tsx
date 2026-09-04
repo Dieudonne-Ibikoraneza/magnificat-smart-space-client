@@ -42,14 +42,20 @@ const tileMetres = (product: Product): [number, number] => {
 const useTileTexture = (product: Product | undefined) => {
   const productId = product?.id;
 
-  // Reset during render when the selection changes rather than from an effect
-  // — the same pattern `useApi` uses for its own inputs, and it stops the
-  // previous tile showing for a frame under the new selection.
+  // Switching tiles keeps showing the *previous* one until the new image has
+  // actually finished loading, rather than dropping to the untiled surface
+  // for the gap — that gap is a real, visible flash (a network fetch takes
+  // tens to hundreds of milliseconds), not a one-frame nicety. Deselecting
+  // down to no tile is the one case cleared right away, in render rather
+  // than from an effect — the same pattern `useApi` uses for its own inputs
+  // — since there's no "next" texture to wait for.
   const [loaded, setLoaded] = useState<{ id: string | undefined; texture: THREE.Texture | null }>({
     id: productId,
     texture: null,
   });
-  if (loaded.id !== productId) setLoaded({ id: productId, texture: null });
+  if (productId === undefined && loaded.id !== undefined) {
+    setLoaded({ id: undefined, texture: null });
+  }
 
   useEffect(() => {
     if (!product) return;
@@ -75,8 +81,11 @@ const useTileTexture = (product: Product | undefined) => {
         setLoaded({ id: product.id, texture });
       },
       undefined,
-      // A tile whose image won't load simply stays untiled.
-      () => undefined,
+      // A tile whose image won't load ends up untiled — but only once that's
+      // actually known, not for the whole gap while it was still trying.
+      () => {
+        if (active) setLoaded({ id: product.id, texture: null });
+      },
     );
 
     return () => {
@@ -424,6 +433,91 @@ const prepareWallGroups = (object: THREE.Mesh): number => {
   return wall.length;
 };
 
+/**
+ * `splitByOrientation`'s wall/floor buckets catch anything near-vertical or
+ * near-horizontal, which doesn't tell a real surface apart from furniture
+ * that happens to face the same way — a TV, a wardrobe door, a framed
+ * picture, a bed platform, a media-console top. On `modern_bedroom.glb`
+ * those are welded into the same mesh as the shell and share its texture
+ * atlas, so once misclassified they don't just risk taking the customer's
+ * tile — `rewriteOrientationUvsToMetres` rewrites every tileable triangle's
+ * UVs to a world-metres projection, which samples the wrong part of that
+ * atlas even with no tile selected. That's what a flat, wrong-coloured TV
+ * or cupboard face is: not a missing texture, a mis-sampled one.
+ *
+ * They're not welded to the actual walls/floor (different connected
+ * component), and nowhere near a shell surface's own area, so the same
+ * island/area-ratio test `prepareTileableGroups` uses for trim tells them
+ * apart here too: keep an island only if it's within
+ * `SHELL_ISLAND_AREA_FRACTION` of the *largest* one (every real wall or
+ * floor plate in a room is roughly the same order of magnitude); anything
+ * smaller is furniture and goes back to the untouched "rest" bucket, UVs
+ * and all.
+ */
+const SHELL_ISLAND_AREA_FRACTION = 0.2;
+
+const filterArchitecturalIslands = (
+  candidates: number[],
+  triangleVertex: (triangle: number, corner: number) => number,
+  position: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
+): { keep: number[]; furniture: number[] } => {
+  if (candidates.length === 0) return { keep: [], furniture: [] };
+
+  const parent = new Map<string, string>();
+  const keyOf = (vertex: number) =>
+    `${position.getX(vertex).toFixed(3)},${position.getY(vertex).toFixed(3)},${position.getZ(vertex).toFixed(3)}`;
+  const find = (key: string): string => {
+    const seen = parent.get(key);
+    if (seen === undefined || seen === key) return key;
+    const root = find(seen);
+    parent.set(key, root);
+    return root;
+  };
+  const union = (left: string, right: string) => {
+    const a = find(left);
+    const b = find(right);
+    if (a !== b) parent.set(a, b);
+  };
+
+  const triangleKeys: string[] = [];
+  candidates.forEach((triangle) => {
+    const keys = [0, 1, 2].map((corner) => keyOf(triangleVertex(triangle, corner)));
+    keys.forEach((key) => {
+      if (!parent.has(key)) parent.set(key, key);
+    });
+    union(keys[0], keys[1]);
+    union(keys[1], keys[2]);
+    triangleKeys.push(keys[0]);
+  });
+
+  const areaByIsland = new Map<string, number>();
+  const islandOf: string[] = [];
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const ab = new THREE.Vector3();
+  const ac = new THREE.Vector3();
+  candidates.forEach((triangle, i) => {
+    a.fromBufferAttribute(position, triangleVertex(triangle, 0));
+    b.fromBufferAttribute(position, triangleVertex(triangle, 1));
+    c.fromBufferAttribute(position, triangleVertex(triangle, 2));
+    const area = ab.subVectors(b, a).cross(ac.subVectors(c, a)).length() / 2;
+    const island = find(triangleKeys[i]);
+    islandOf.push(island);
+    areaByIsland.set(island, (areaByIsland.get(island) ?? 0) + area);
+  });
+
+  const largestArea = Math.max(...areaByIsland.values());
+  const keep: number[] = [];
+  const furniture: number[] = [];
+  candidates.forEach((triangle, i) => {
+    const area = areaByIsland.get(islandOf[i]) ?? 0;
+    (area >= largestArea * SHELL_ISLAND_AREA_FRACTION ? keep : furniture).push(triangle);
+  });
+
+  return { keep, furniture };
+};
+
 const splitByOrientation = (object: THREE.Mesh): { floorCount: number; wallCount: number } => {
   const geometry = object.geometry as THREE.BufferGeometry;
   const cachedFloor = geometry.userData.orientationFloorCount as number | undefined;
@@ -465,16 +559,28 @@ const splitByOrientation = (object: THREE.Mesh): { floorCount: number; wallCount
   }
 
   const midY = (worldBox.min.y + worldBox.max.y) / 2;
-  const floor: number[] = [];
-  const wall: number[] = [];
+  const floorCandidates: number[] = [];
+  const wallCandidates: number[] = [];
   const rest: number[] = [];
   for (let triangle = 0; triangle < triangleCount; triangle += 1) {
     if (Math.abs(upDot[triangle]) > ORIENTATION_SPLIT_DOT) {
-      (avgY[triangle] < midY ? floor : rest).push(triangle);
+      (avgY[triangle] < midY ? floorCandidates : rest).push(triangle);
     } else {
-      wall.push(triangle);
+      wallCandidates.push(triangle);
     }
   }
+
+  const { keep: floor, furniture: floorFurniture } = filterArchitecturalIslands(
+    floorCandidates,
+    triangleVertex,
+    position,
+  );
+  const { keep: wall, furniture: wallFurniture } = filterArchitecturalIslands(
+    wallCandidates,
+    triangleVertex,
+    position,
+  );
+  rest.push(...floorFurniture, ...wallFurniture);
 
   const reordered: number[] = [];
   [...floor, ...wall, ...rest].forEach((triangle) => {

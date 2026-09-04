@@ -43,7 +43,6 @@ type Surface = "floor" | "walls";
  */
 const roomModels: Partial<Record<Room, string>> = {
   Kitchen: "/models/rooms/modern_kitchen.glb",
-  Bedroom: "/models/rooms/bedroom.glb",
 };
 
 // three.js pulls in a WebGL renderer that can't run during SSR, and a room
@@ -64,6 +63,10 @@ const LivingRoom = dynamic(() => import("@/components/visualizer/living-room"), 
   loading: roomLoadingFallback,
 });
 const Bathroom = dynamic(() => import("@/components/visualizer/bathroom"), {
+  ssr: false,
+  loading: roomLoadingFallback,
+});
+const Bedroom = dynamic(() => import("@/components/visualizer/bedroom"), {
   ssr: false,
   loading: roomLoadingFallback,
 });
@@ -450,6 +453,8 @@ const VisualizerPage = () => {
               <LivingRoom floorTile={floorTile} wallTile={wallTile} className="relative flex-1" />
             ) : activeRoom === "Bathroom" ? (
               <Bathroom floorTile={floorTile} wallTile={wallTile} className="relative flex-1" />
+            ) : activeRoom === "Bedroom" ? (
+              <Bedroom floorTile={floorTile} wallTile={wallTile} className="relative flex-1" />
             ) : (
               <RoomScene
                 modelUrl={roomModels[activeRoom]!}
