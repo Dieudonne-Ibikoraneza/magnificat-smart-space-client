@@ -131,7 +131,7 @@ const isWall = (name: string) => name.startsWith("Wall_");
  * looked up by an explicit list instead. Keyed by `modelUrl`; a model with no
  * entry here falls through to the naming convention as normal.
  */
-const MODEL_SURFACE_OVERRIDES: Record<string, { floor: string[]; wall: string[] }> = {
+const MODEL_SURFACE_OVERRIDES: Record<string, SurfaceOverride> = {
   "/models/rooms/modern_kitchen.glb": {
     floor: ["Floor_Wall_0"],
     /**
@@ -257,11 +257,204 @@ const prepareTileableGroups = (geometry: THREE.BufferGeometry): number => {
   return tileable.length;
 };
 
-const surfaceRoleOf = (modelUrl: string, name: string): "floor" | "wall" | null => {
-  const override = MODEL_SURFACE_OVERRIDES[modelUrl];
+/**
+ * Not every sourced model even has a separate floor mesh to point at:
+ * `white_modern_living_room.glb`'s whole shell — floor, walls, and ceiling —
+ * is one welded surface (`Structure_Structure_0`), because floor and wall
+ * triangles share edges at the skirting line and so land in the same
+ * connected component no matter what. Splitting that apart needs a different
+ * signal than `prepareTileableGroups`' connectivity: face orientation. A
+ * near-vertical normal is a wall; a near-horizontal one is either the floor
+ * or the ceiling, told apart by which half of the mesh's own height range it
+ * sits in. Three groups come out — floor, wall, and "the rest" (the ceiling,
+ * left with its own baked-in material) — reordered into the index buffer the
+ * same way `prepareTileableGroups` does, just three-way instead of two.
+ *
+ * After the split, floor/wall UVs are rewritten to world metres (see
+ * `rewriteOrientationUvsToMetres`) so tile `repeat = 1 / tileMetres` matches
+ * the labelled size — Sketchfab shells ship with 0..1 UVs, which otherwise
+ * stretch a 50 cm tile across half a wall.
+ */
+const ORIENTATION_SPLIT_DOT = 0.7;
+
+/**
+ * Project a world-space point onto metre UVs for a face with the given
+ * normal. Floors use XZ; walls use the two axes most perpendicular to the
+ * face so a 50 cm tile lands at 50 cm on every orientation.
+ */
+const projectMetreUv = (
+  point: THREE.Vector3,
+  normal: THREE.Vector3,
+  out: THREE.Vector2,
+): THREE.Vector2 => {
+  const ax = Math.abs(normal.x);
+  const ay = Math.abs(normal.y);
+  const az = Math.abs(normal.z);
+  if (ay >= ax && ay >= az) {
+    return out.set(point.x, point.z);
+  }
+  if (ax >= az) {
+    return out.set(point.z, point.y);
+  }
+  return out.set(point.x, point.y);
+};
+
+/**
+ * Sourced shells (unlike the procedural rooms) ship with artist 0..1 UVs.
+ * `useTileTexture` sizes tiles with `repeat = 1 / tileMetres`, which only
+ * reads as physical size when UVs are in metres — so rewrite floor/wall
+ * UVs from world position after the orientation split.
+ *
+ * Indexed geometry is expanded first: a skirting vertex shared by a floor
+ * triangle and a wall triangle cannot carry both (x,z) and (x,y) UVs.
+ */
+const rewriteOrientationUvsToMetres = (object: THREE.Mesh) => {
+  let geometry = object.geometry as THREE.BufferGeometry;
+  if (geometry.userData.metreUvs) return;
+
+  if (geometry.index) {
+    const groups = geometry.groups.map((group) => ({ ...group }));
+    const floorCount = geometry.userData.orientationFloorCount as number;
+    const wallCount = geometry.userData.orientationWallCount as number;
+    const expanded = geometry.toNonIndexed();
+    expanded.clearGroups();
+    groups.forEach((group) => expanded.addGroup(group.start, group.count, group.materialIndex));
+    expanded.userData.orientationFloorCount = floorCount;
+    expanded.userData.orientationWallCount = wallCount;
+    object.geometry = expanded;
+    geometry = expanded;
+  }
+
+  const position = geometry.attributes.position;
+  let uv = geometry.attributes.uv as THREE.BufferAttribute | undefined;
+  if (!uv || uv.count !== position.count) {
+    uv = new THREE.BufferAttribute(new Float32Array(position.count * 2), 2);
+    geometry.setAttribute("uv", uv);
+  }
+
+  object.updateWorldMatrix(true, false);
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const ab = new THREE.Vector3();
+  const ac = new THREE.Vector3();
+  const normal = new THREE.Vector3();
+  const world = new THREE.Vector3();
+  const projected = new THREE.Vector2();
+  const floorCount = (geometry.userData.orientationFloorCount as number) ?? 0;
+  const wallCount = (geometry.userData.orientationWallCount as number) ?? 0;
+  const tileableTriangles = floorCount + wallCount;
+
+  for (let triangle = 0; triangle < tileableTriangles; triangle += 1) {
+    const base = triangle * 3;
+    a.fromBufferAttribute(position, base).applyMatrix4(object.matrixWorld);
+    b.fromBufferAttribute(position, base + 1).applyMatrix4(object.matrixWorld);
+    c.fromBufferAttribute(position, base + 2).applyMatrix4(object.matrixWorld);
+    normal.crossVectors(ab.subVectors(b, a), ac.subVectors(c, a)).normalize();
+
+    for (let corner = 0; corner < 3; corner += 1) {
+      world.fromBufferAttribute(position, base + corner).applyMatrix4(object.matrixWorld);
+      projectMetreUv(world, normal, projected);
+      uv.setXY(base + corner, projected.x, projected.y);
+    }
+  }
+
+  uv.needsUpdate = true;
+  geometry.userData.metreUvs = true;
+};
+
+const splitByOrientation = (object: THREE.Mesh): { floorCount: number; wallCount: number } => {
+  const geometry = object.geometry as THREE.BufferGeometry;
+  const cachedFloor = geometry.userData.orientationFloorCount as number | undefined;
+  const cachedWall = geometry.userData.orientationWallCount as number | undefined;
+  if (cachedFloor !== undefined && cachedWall !== undefined) {
+    rewriteOrientationUvsToMetres(object);
+    return {
+      floorCount: cachedFloor,
+      wallCount: cachedWall,
+    };
+  }
+
+  const position = geometry.attributes.position;
+  const index = geometry.index;
+  const triangleCount = index ? index.count / 3 : position.count / 3;
+  const triangleVertex = (triangle: number, corner: number) =>
+    index ? index.getX(triangle * 3 + corner) : triangle * 3 + corner;
+
+  object.updateWorldMatrix(true, false);
+  const up = new THREE.Vector3(0, 1, 0);
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const ab = new THREE.Vector3();
+  const ac = new THREE.Vector3();
+  const normal = new THREE.Vector3();
+  const worldBox = new THREE.Box3();
+  const upDot: number[] = [];
+  const avgY: number[] = [];
+
+  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+    a.fromBufferAttribute(position, triangleVertex(triangle, 0)).applyMatrix4(object.matrixWorld);
+    b.fromBufferAttribute(position, triangleVertex(triangle, 1)).applyMatrix4(object.matrixWorld);
+    c.fromBufferAttribute(position, triangleVertex(triangle, 2)).applyMatrix4(object.matrixWorld);
+    worldBox.expandByPoint(a).expandByPoint(b).expandByPoint(c);
+    normal.crossVectors(ab.subVectors(b, a), ac.subVectors(c, a)).normalize();
+    upDot.push(normal.dot(up));
+    avgY.push((a.y + b.y + c.y) / 3);
+  }
+
+  const midY = (worldBox.min.y + worldBox.max.y) / 2;
+  const floor: number[] = [];
+  const wall: number[] = [];
+  const rest: number[] = [];
+  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+    if (Math.abs(upDot[triangle]) > ORIENTATION_SPLIT_DOT) {
+      (avgY[triangle] < midY ? floor : rest).push(triangle);
+    } else {
+      wall.push(triangle);
+    }
+  }
+
+  const reordered: number[] = [];
+  [...floor, ...wall, ...rest].forEach((triangle) => {
+    reordered.push(
+      triangleVertex(triangle, 0),
+      triangleVertex(triangle, 1),
+      triangleVertex(triangle, 2),
+    );
+  });
+  geometry.setIndex(reordered);
+  geometry.clearGroups();
+  geometry.addGroup(0, floor.length * 3, 0);
+  geometry.addGroup(floor.length * 3, wall.length * 3, 1);
+  geometry.addGroup((floor.length + wall.length) * 3, rest.length * 3, 2);
+
+  geometry.userData.orientationFloorCount = floor.length;
+  geometry.userData.orientationWallCount = wall.length;
+  rewriteOrientationUvsToMetres(object);
+  const resultGeometry = object.geometry as THREE.BufferGeometry;
+  return {
+    floorCount: resultGeometry.userData.orientationFloorCount as number,
+    wallCount: resultGeometry.userData.orientationWallCount as number,
+  };
+};
+
+/** A model's tileable meshes, explicit rather than guessed from names — see `MODEL_SURFACE_OVERRIDES`. */
+export type SurfaceOverride = {
+  /** Meshes tiled wholesale as floor. */
+  floor?: string[];
+  /** Meshes tiled wholesale as wall. */
+  wall?: string[];
+  /** Meshes needing `splitByOrientation` because they weld floor/wall/ceiling into one surface. */
+  combinedShell?: string[];
+};
+
+const surfaceOverrideFor = (modelUrl: string): SurfaceOverride | undefined => MODEL_SURFACE_OVERRIDES[modelUrl];
+
+const roleForSurface = (name: string, override: SurfaceOverride | undefined): "floor" | "wall" | null => {
   if (override) {
-    if (override.floor.includes(name)) return "floor";
-    if (override.wall.includes(name)) return "wall";
+    if (override.floor?.includes(name)) return "floor";
+    if (override.wall?.includes(name)) return "wall";
     return null;
   }
   if (isFloor(name)) return "floor";
@@ -269,7 +462,7 @@ const surfaceRoleOf = (modelUrl: string, name: string): "floor" | "wall" | null 
   return null;
 };
 
-type CameraConfig = {
+export type CameraConfig = {
   position: [number, number, number];
   target: [number, number, number];
   near: number;
@@ -530,10 +723,13 @@ const RoomModel = ({
   modelUrl,
   floorTile,
   wallTile,
+  surfaceOverride,
 }: {
   modelUrl: string;
   floorTile?: Product;
   wallTile?: Product;
+  /** Explicit tileable-mesh list; falls back to `MODEL_SURFACE_OVERRIDES[modelUrl]`, then the naming convention. */
+  surfaceOverride?: SurfaceOverride;
 }) => {
   const { scene } = useGLTF(modelUrl);
   // Clone once per load: `useGLTF` caches the source scene across mounts, and
@@ -549,6 +745,7 @@ const RoomModel = ({
 
   useEffect(() => {
     const baseline = originals.current;
+    const override = surfaceOverride ?? surfaceOverrideFor(modelUrl);
 
     room.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
@@ -556,11 +753,22 @@ const RoomModel = ({
       object.receiveShadow = true;
 
       if (!baseline.has(object.uuid)) baseline.set(object.uuid, object.material);
+      const original = baseline.get(object.uuid)!;
 
-      const role = surfaceRoleOf(modelUrl, object.name);
+      if (override?.combinedShell?.includes(object.name)) {
+        const originalMaterial = Array.isArray(original) ? original[0] : original;
+        const { floorCount, wallCount } = splitByOrientation(object);
+        object.material = [
+          floorCount > 0 ? (floorMaterial ?? originalMaterial) : originalMaterial,
+          wallCount > 0 ? (wallMaterial ?? originalMaterial) : originalMaterial,
+          originalMaterial,
+        ];
+        return;
+      }
+
+      const role = roleForSurface(object.name, override);
       if (!role) return;
 
-      const original = baseline.get(object.uuid)!;
       const replacement = (role === "floor" ? floorMaterial : wallMaterial) ?? original;
 
       // Trim welded into the same mesh (see `prepareTileableGroups`) keeps the
@@ -573,7 +781,7 @@ const RoomModel = ({
 
       object.material = hasTrim ? [replacement, original as THREE.Material] : replacement;
     });
-  }, [room, modelUrl, floorMaterial, wallMaterial]);
+  }, [room, modelUrl, floorMaterial, wallMaterial, surfaceOverride]);
 
   return <primitive object={room} />;
 };
@@ -649,11 +857,25 @@ export const RoomScene = ({
   floorTile,
   wallTile,
   className,
+  cameraConfig: cameraConfigProp,
+  surfaceOverride,
 }: {
   modelUrl: string;
   floorTile?: Product;
   wallTile?: Product;
   className?: string;
+  /**
+   * Own the room's camera rig here instead of adding another entry to the
+   * internal `MODEL_CAMERA_CONFIGS` map — the point of taking it as a prop
+   * (see `components/visualizer/living-room.tsx`) is that a per-room
+   * component can carry its own tuning without this file growing an entry
+   * per sourced model. Falls back to `MODEL_CAMERA_CONFIGS[modelUrl]`, then
+   * `DEFAULT_CAMERA_CONFIG`, for callers (Kitchen, still wired inline in the
+   * visualizer page) that predate this prop.
+   */
+  cameraConfig?: CameraConfig;
+  /** Same idea as `cameraConfig`, for which meshes are tileable. */
+  surfaceOverride?: SurfaceOverride;
 }) => {
   // Which model failed to load, so switching to another room clears it.
   const [missingUrl, setMissingUrl] = useState<string | null>(null);
@@ -670,7 +892,7 @@ export const RoomScene = ({
     );
   }
 
-  const cameraConfig = cameraConfigFor(modelUrl);
+  const cameraConfig = cameraConfigProp ?? cameraConfigFor(modelUrl);
 
   return (
     <div className={className}>
@@ -685,7 +907,12 @@ export const RoomScene = ({
         <RoomLighting />
         <Suspense fallback={null}>
           <ModelErrorBoundary key={modelUrl} onError={() => setMissingUrl(modelUrl)}>
-            <RoomModel modelUrl={modelUrl} floorTile={floorTile} wallTile={wallTile} />
+            <RoomModel
+              modelUrl={modelUrl}
+              floorTile={floorTile}
+              wallTile={wallTile}
+              surfaceOverride={surfaceOverride}
+            />
           </ModelErrorBoundary>
         </Suspense>
         <OrbitControls
