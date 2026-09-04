@@ -300,27 +300,26 @@ const projectMetreUv = (
 };
 
 /**
- * Sourced shells (unlike the procedural rooms) ship with artist 0..1 UVs.
- * `useTileTexture` sizes tiles with `repeat = 1 / tileMetres`, which only
- * reads as physical size when UVs are in metres — so rewrite floor/wall
- * UVs from world position after the orientation split.
+ * Sourced models ship with artist 0..1 UVs. `useTileTexture` sizes tiles with
+ * `repeat = 1 / tileMetres`, which only reads as physical size when UVs are
+ * in metres — so rewrite the leading tileable triangles from world position.
  *
- * Indexed geometry is expanded first: a skirting vertex shared by a floor
- * triangle and a wall triangle cannot carry both (x,z) and (x,y) UVs.
+ * Indexed geometry is expanded first: a vertex shared by faces that need
+ * different projections (floor vs wall, or two wall orientations) cannot
+ * carry both UV pairs at once.
  */
-const rewriteOrientationUvsToMetres = (object: THREE.Mesh) => {
+const rewriteLeadingTriangleUvsToMetres = (object: THREE.Mesh, triangleCount: number) => {
+  if (triangleCount <= 0) return;
   let geometry = object.geometry as THREE.BufferGeometry;
   if (geometry.userData.metreUvs) return;
 
   if (geometry.index) {
     const groups = geometry.groups.map((group) => ({ ...group }));
-    const floorCount = geometry.userData.orientationFloorCount as number;
-    const wallCount = geometry.userData.orientationWallCount as number;
+    const userData = { ...geometry.userData };
     const expanded = geometry.toNonIndexed();
     expanded.clearGroups();
     groups.forEach((group) => expanded.addGroup(group.start, group.count, group.materialIndex));
-    expanded.userData.orientationFloorCount = floorCount;
-    expanded.userData.orientationWallCount = wallCount;
+    Object.assign(expanded.userData, userData);
     object.geometry = expanded;
     geometry = expanded;
   }
@@ -341,11 +340,8 @@ const rewriteOrientationUvsToMetres = (object: THREE.Mesh) => {
   const normal = new THREE.Vector3();
   const world = new THREE.Vector3();
   const projected = new THREE.Vector2();
-  const floorCount = (geometry.userData.orientationFloorCount as number) ?? 0;
-  const wallCount = (geometry.userData.orientationWallCount as number) ?? 0;
-  const tileableTriangles = floorCount + wallCount;
 
-  for (let triangle = 0; triangle < tileableTriangles; triangle += 1) {
+  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
     const base = triangle * 3;
     a.fromBufferAttribute(position, base).applyMatrix4(object.matrixWorld);
     b.fromBufferAttribute(position, base + 1).applyMatrix4(object.matrixWorld);
@@ -361,6 +357,71 @@ const rewriteOrientationUvsToMetres = (object: THREE.Mesh) => {
 
   uv.needsUpdate = true;
   geometry.userData.metreUvs = true;
+};
+
+const rewriteOrientationUvsToMetres = (object: THREE.Mesh) => {
+  const geometry = object.geometry as THREE.BufferGeometry;
+  const floorCount = (geometry.userData.orientationFloorCount as number) ?? 0;
+  const wallCount = (geometry.userData.orientationWallCount as number) ?? 0;
+  rewriteLeadingTriangleUvsToMetres(object, floorCount + wallCount);
+};
+
+/**
+ * Wall meshes on sourced models sometimes weld the ceiling into the same
+ * mesh — `Bathroom_SideWalls_0` is ~61 wall tris + ~18 ceiling tris (plus a
+ * couple of near-horizontal sills). Handing the whole mesh the wall tile
+ * paints the roof. Split so only near-vertical faces take the tile; the
+ * rest keep the model's own material.
+ *
+ * Returns the number of leading (tileable) triangles.
+ */
+const prepareWallGroups = (object: THREE.Mesh): number => {
+  const geometry = object.geometry as THREE.BufferGeometry;
+  const cached = geometry.userData.wallTileableTriangleCount as number | undefined;
+  if (cached !== undefined) return cached;
+
+  const position = geometry.attributes.position;
+  const index = geometry.index;
+  const triangleCount = index ? index.count / 3 : position.count / 3;
+  const triangleVertex = (triangle: number, corner: number) =>
+    index ? index.getX(triangle * 3 + corner) : triangle * 3 + corner;
+
+  object.updateWorldMatrix(true, false);
+  const up = new THREE.Vector3(0, 1, 0);
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const ab = new THREE.Vector3();
+  const ac = new THREE.Vector3();
+  const normal = new THREE.Vector3();
+  const wall: number[] = [];
+  const rest: number[] = [];
+
+  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+    a.fromBufferAttribute(position, triangleVertex(triangle, 0)).applyMatrix4(object.matrixWorld);
+    b.fromBufferAttribute(position, triangleVertex(triangle, 1)).applyMatrix4(object.matrixWorld);
+    c.fromBufferAttribute(position, triangleVertex(triangle, 2)).applyMatrix4(object.matrixWorld);
+    normal.crossVectors(ab.subVectors(b, a), ac.subVectors(c, a)).normalize();
+    (Math.abs(normal.dot(up)) > ORIENTATION_SPLIT_DOT ? rest : wall).push(triangle);
+  }
+
+  if (rest.length > 0) {
+    const reordered: number[] = [];
+    [...wall, ...rest].forEach((triangle) => {
+      reordered.push(
+        triangleVertex(triangle, 0),
+        triangleVertex(triangle, 1),
+        triangleVertex(triangle, 2),
+      );
+    });
+    geometry.setIndex(reordered);
+    geometry.clearGroups();
+    geometry.addGroup(0, wall.length * 3, 0);
+    geometry.addGroup(wall.length * 3, rest.length * 3, 1);
+  }
+
+  geometry.userData.wallTileableTriangleCount = wall.length;
+  return wall.length;
 };
 
 const splitByOrientation = (object: THREE.Mesh): { floorCount: number; wallCount: number } => {
@@ -445,6 +506,14 @@ export type SurfaceOverride = {
   floor?: string[];
   /** Meshes tiled wholesale as wall. */
   wall?: string[];
+  /**
+   * When set, wall meshes peel near-horizontal faces into the original
+   * material (see `prepareWallGroups`). Needed when a sourced wall mesh
+   * welds the ceiling in — e.g. bathroom side walls. Left off for shells
+   * that only need `prepareTileableGroups` trim separation (kitchen), since
+   * those can also have horizontal jamb faces that must stay on the trim path.
+   */
+  peelCeilingFromWalls?: boolean;
   /** Meshes needing `splitByOrientation` because they weld floor/wall/ceiling into one surface. */
   combinedShell?: string[];
 };
@@ -769,17 +838,37 @@ const RoomModel = ({
       const role = roleForSurface(object.name, override);
       if (!role) return;
 
-      const replacement = (role === "floor" ? floorMaterial : wallMaterial) ?? original;
+      const originalMaterial = Array.isArray(original) ? original[0] : original;
+      const replacement = (role === "floor" ? floorMaterial : wallMaterial) ?? originalMaterial;
+
+      // Sourced wall meshes can weld the ceiling into the same geometry
+      // (bathroom side walls). Peel horizontal faces into a second group so
+      // they keep the plaster rather than taking the wall tile.
+      if (role === "wall" && override?.peelCeilingFromWalls) {
+        const wallTris = prepareWallGroups(object);
+        const wallGeometry = object.geometry as THREE.BufferGeometry;
+        if (wallGeometry.groups.length >= 2) {
+          rewriteLeadingTriangleUvsToMetres(object, wallTris);
+          object.material = [replacement, originalMaterial];
+          return;
+        }
+      }
 
       // Trim welded into the same mesh (see `prepareTileableGroups`) keeps the
       // model's own material while the surface around it takes the tile.
       const geometry = object.geometry as THREE.BufferGeometry;
-      const tileable = Array.isArray(original)
-        ? geometry.index?.count ?? 0
-        : prepareTileableGroups(geometry) * 3;
-      const hasTrim = geometry.groups.length === 2 && tileable > 0;
+      const tileableTris = Array.isArray(original)
+        ? (geometry.index?.count ?? geometry.attributes.position.count) / 3
+        : prepareTileableGroups(geometry);
+      const tileable = tileableTris * 3;
+      // Sourced override meshes use 0..1 UVs — rewrite to metres so labelled
+      // tile sizes land at their true physical scale (procedural rooms already
+      // ship metre UVs from the generator, so leave those alone).
+      if (override) rewriteLeadingTriangleUvsToMetres(object, tileableTris);
+      const grouped = object.geometry as THREE.BufferGeometry;
+      const hasTrim = grouped.groups.length === 2 && tileable > 0;
 
-      object.material = hasTrim ? [replacement, original as THREE.Material] : replacement;
+      object.material = hasTrim ? [replacement, originalMaterial] : replacement;
     });
   }, [room, modelUrl, floorMaterial, wallMaterial, surfaceOverride]);
 

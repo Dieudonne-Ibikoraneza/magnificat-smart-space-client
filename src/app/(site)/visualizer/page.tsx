@@ -43,7 +43,6 @@ type Surface = "floor" | "walls";
  */
 const roomModels: Partial<Record<Room, string>> = {
   Kitchen: "/models/rooms/modern_kitchen.glb",
-  Bathroom: "/models/rooms/bathroom.glb",
   Bedroom: "/models/rooms/bedroom.glb",
 };
 
@@ -61,6 +60,10 @@ const RoomScene = dynamic(() => import("@/components/room-scene").then((mod) => 
   loading: roomLoadingFallback,
 });
 const LivingRoom = dynamic(() => import("@/components/visualizer/living-room"), {
+  ssr: false,
+  loading: roomLoadingFallback,
+});
+const Bathroom = dynamic(() => import("@/components/visualizer/bathroom"), {
   ssr: false,
   loading: roomLoadingFallback,
 });
@@ -445,6 +448,8 @@ const VisualizerPage = () => {
 
             {activeRoom === "Living Room" ? (
               <LivingRoom floorTile={floorTile} wallTile={wallTile} className="relative flex-1" />
+            ) : activeRoom === "Bathroom" ? (
+              <Bathroom floorTile={floorTile} wallTile={wallTile} className="relative flex-1" />
             ) : (
               <RoomScene
                 modelUrl={roomModels[activeRoom]!}
