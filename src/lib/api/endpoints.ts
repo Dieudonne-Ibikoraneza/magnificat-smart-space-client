@@ -17,6 +17,8 @@ import type {
   ApiUser,
   AuthTokens,
   ChatSendResult,
+  ChatConversationSummary,
+  AskedQuestion,
   CustomerAnalytics,
   CustomerDetail,
   CustomerSummary,
@@ -402,6 +404,12 @@ export const chatbotApi = {
     api.get<{ id: string; role: string; content: string; createdAt: string }[]>(
       `/chatbot/conversations/${conversationId}/messages`,
     ),
+
+  /** Authenticated customer's saved projects; ready for the conversation-list endpoint. */
+  myConversations: () => api.get<ChatConversationSummary[]>('/chatbot/conversations/mine'),
+
+  /** Admin/marketing view of questions customers asked the assistant. */
+  askedQuestions: () => api.get<AskedQuestion[]>('/chatbot/asked-questions'),
 
   /** Doc 3.6: side-by-side comparison of the selected tiles. */
   compare: (sessionId: string, productIds: string[]) =>

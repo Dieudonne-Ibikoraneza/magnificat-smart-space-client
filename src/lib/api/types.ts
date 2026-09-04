@@ -446,6 +446,27 @@ export type ChatSendResult = {
   products: ChatRecommendation[];
 };
 
+export type ChatConversationSummary = {
+  id: string;
+  sessionId: string;
+  language: Language;
+  createdAt: string;
+  updatedAt: string;
+  messageCount?: number;
+};
+
+/** A customer question captured for the admin/marketing workspace. */
+export type AskedQuestion = {
+  id: string;
+  question: string;
+  answer?: string | null;
+  conversationId: string;
+  userId?: string | null;
+  customerName?: string | null;
+  customerEmail?: string | null;
+  createdAt: string;
+};
+
 export type ApiKnowledgeBaseEntry = {
   id: string;
   question: string;

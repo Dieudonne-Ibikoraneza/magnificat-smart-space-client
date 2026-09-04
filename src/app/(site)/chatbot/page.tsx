@@ -8,6 +8,7 @@ import {
   ImagePlus,
   Minus,
   Paperclip,
+  RotateCcw,
   Send,
   Sparkles,
   ThumbsDown,
@@ -27,6 +28,7 @@ import { roomTypeLabels } from "@/lib/api/mappers";
 import { getSessionId } from "@/lib/session-id";
 import type { ChatRecommendation, ProfilingQuestion, RecommendationDecision, RoomType } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
+import { useCurrentUser } from "@/lib/current-user";
 
 /**
  * A photo or video of the customer's own room, attached to a message. The
@@ -101,6 +103,7 @@ export default function ChatbotPage() {
   // bot message id so each recommendation turn keeps its own reaction.
   const [batchDecisions, setBatchDecisions] = useState<Record<string, RecommendationDecision>>({});
   const [decidingMessageId, setDecidingMessageId] = useState<string | null>(null);
+  const { user, loading: userLoading } = useCurrentUser();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -173,10 +176,30 @@ export default function ChatbotPage() {
   // questionnaire — if none are configured (or the fetch fails), skip
   // straight to free-form chat rather than blocking the page on it.
   useEffect(() => {
+    if (userLoading) return;
     let active = true;
 
     (async () => {
       try {
+        const savedConversationId = user?.id
+          ? window.localStorage.getItem(`mss.chatbot.conversation.${user.id}`)
+          : null;
+        if (savedConversationId) {
+          const history = await chatbotApi.history(savedConversationId);
+          if (!active) return;
+          setConversationId(savedConversationId);
+          setPhase("chatting");
+          setIsTyping(false);
+          setMessages([
+            ...initialMessages,
+            ...history.map((message) => ({
+              id: message.id,
+              sender: message.role === "USER" ? ("user" as const) : ("bot" as const),
+              text: message.content,
+            })),
+          ]);
+          return;
+        }
         const questions = await settingsApi.profilingQuestions({ language: "EN" });
         if (!active) return;
         const always = questions
@@ -201,7 +224,7 @@ export default function ChatbotPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [user?.id, userLoading]);
 
   /** The real round-trip: persists the turn, asks the AI provider for a reply, and returns real catalog picks (never invented ones). */
   const sendToAssistant = async (content: string, options?: { showUserBubble?: boolean }) => {
@@ -217,6 +240,9 @@ export default function ChatbotPage() {
         language: "EN",
       });
       setConversationId(result.conversation.id);
+      if (user?.id) {
+        window.localStorage.setItem(`mss.chatbot.conversation.${user.id}`, result.conversation.id);
+      }
       setMessages((current) => [
         ...current,
         {
@@ -238,6 +264,24 @@ export default function ChatbotPage() {
     } finally {
       setIsTyping(false);
     }
+  };
+
+  const startNewProject = () => {
+    if (user?.id) window.localStorage.removeItem(`mss.chatbot.conversation.${user.id}`);
+    setConversationId(undefined);
+    setMessages(initialMessages);
+    setBatchDecisions({});
+    setProfilingAnswers([]);
+    setProfilingIndex(0);
+    setSelectedRoomType(null);
+    setConditionalsAppended(false);
+    setAttachment(null);
+    resetInput();
+    const always = allQuestions.filter((question) => !question.roomType).sort((a, b) => a.position - b.position);
+    setActiveQueue(always);
+    setPhase(always.length ? "profiling" : "chatting");
+    if (always[0]) revealBotMessage(always[0].text);
+    else setIsTyping(false);
   };
 
   /**
@@ -434,8 +478,17 @@ export default function ChatbotPage() {
           className="scrollbar-hide h-full overflow-x-hidden overflow-y-auto overscroll-y-contain px-1 sm:px-2"
         >
           <section className="px-1 pb-4 pt-2 sm:px-0" aria-label="Assistant introduction">
-            <h1 className="text-xl font-bold text-ink sm:text-2xl">AI Design Assistant</h1>
-            <p className="mt-1 text-xs text-muted sm:text-sm">Select questions below to get personalized recommendations.</p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h1 className="text-xl font-bold text-ink sm:text-2xl">AI Design Assistant</h1>
+                <p className="mt-1 text-xs text-muted sm:text-sm">
+                  {user ? "Your project is saved to your account." : "Sign in to save your design projects."}
+                </p>
+              </div>
+              <Button type="button" variant="outline" onClick={startNewProject} className="h-9 gap-2 rounded-full px-3 text-xs font-bold">
+                <RotateCcw className="size-3.5" /> New project
+              </Button>
+            </div>
           </section>
 
           <section className="space-y-7" aria-live="polite">

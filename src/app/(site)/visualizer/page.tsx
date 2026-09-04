@@ -35,23 +35,40 @@ type Surface = "floor" | "walls";
  * `RoomScene`'s own "not available" state rather than being hidden here, so
  * the tab list keeps matching the rooms the platform actually offers.
  */
-const roomModels: Record<Room, string> = {
+/**
+ * Rooms with their own tuning (their own camera rig, tileable-mesh list —
+ * see `components/visualizer/living-room.tsx`) get their own component
+ * instead of an entry here, so this map only ever needs a bare model path
+ * for the rooms that don't need anything more than that.
+ */
+const roomModels: Partial<Record<Room, string>> = {
   Kitchen: "/models/rooms/modern_kitchen.glb",
-  "Living Room": "/models/rooms/living_room.glb",
-  Bathroom: "/models/rooms/bathroom.glb",
-  Bedroom: "/models/rooms/bedroom.glb",
 };
 
-// three.js pulls in a WebGL renderer that can't run during SSR, and the room
-// GLB is several hundred KB — both are reasons to keep it out of the initial
-// page bundle and mount it only in the browser.
+// three.js pulls in a WebGL renderer that can't run during SSR, and a room
+// GLB runs from several hundred KB to tens of MB — both are reasons to keep
+// it out of the initial page bundle and mount it only in the browser.
+const roomLoadingFallback = () => (
+  <div className="flex size-full items-center justify-center">
+    <p className="text-sm font-semibold text-muted">Loading the room…</p>
+  </div>
+);
+
 const RoomScene = dynamic(() => import("@/components/room-scene").then((mod) => mod.RoomScene), {
   ssr: false,
-  loading: () => (
-    <div className="flex size-full items-center justify-center">
-      <p className="text-sm font-semibold text-muted">Loading the room…</p>
-    </div>
-  ),
+  loading: roomLoadingFallback,
+});
+const LivingRoom = dynamic(() => import("@/components/visualizer/living-room"), {
+  ssr: false,
+  loading: roomLoadingFallback,
+});
+const Bathroom = dynamic(() => import("@/components/visualizer/bathroom"), {
+  ssr: false,
+  loading: roomLoadingFallback,
+});
+const Bedroom = dynamic(() => import("@/components/visualizer/bedroom"), {
+  ssr: false,
+  loading: roomLoadingFallback,
 });
 
 const panelHeight =
@@ -432,12 +449,20 @@ const VisualizerPage = () => {
               </div>
             </div>
 
-            <RoomScene
-              modelUrl={roomModels[activeRoom]}
-              floorTile={floorTile}
-              wallTile={wallTile}
-              className="relative flex-1"
-            />
+            {activeRoom === "Living Room" ? (
+              <LivingRoom floorTile={floorTile} wallTile={wallTile} className="relative flex-1" />
+            ) : activeRoom === "Bathroom" ? (
+              <Bathroom floorTile={floorTile} wallTile={wallTile} className="relative flex-1" />
+            ) : activeRoom === "Bedroom" ? (
+              <Bedroom floorTile={floorTile} wallTile={wallTile} className="relative flex-1" />
+            ) : (
+              <RoomScene
+                modelUrl={roomModels[activeRoom]!}
+                floorTile={floorTile}
+                wallTile={wallTile}
+                className="relative flex-1"
+              />
+            )}
 
             <div className="absolute inset-x-0 bottom-0 z-10 flex gap-2 p-4 lg:hidden">
               <Button
