@@ -17,8 +17,11 @@ import type {
   ApiUser,
   AuthTokens,
   ChatSendResult,
+  ChatRecommendation,
+  ChatMessageAttachment,
+  ApiChatConversation,
   ChatConversationSummary,
-  AskedQuestion,
+  AskedQuestionsPage,
   CustomerAnalytics,
   CustomerDetail,
   CustomerSummary,
@@ -369,6 +372,8 @@ export const quotesApi = {
 
 export const roomsApi = {
   list: () => api.get<ApiRoom[]>("/rooms"),
+  /** Every room template, published or hidden — admin content management only. */
+  listAdmin: () => api.get<ApiRoom[]>("/rooms/admin"),
   create: (body: {
     type: RoomType;
     name: string;
@@ -376,6 +381,19 @@ export const roomsApi = {
     description?: string;
     thumbnail?: string;
   }) => api.post<ApiRoom>("/rooms", body),
+  update: (
+    id: string,
+    body: Partial<{
+      type: RoomType;
+      name: string;
+      modelUrl: string;
+      description: string;
+      thumbnail: string;
+      isActive: boolean;
+    }>,
+  ) => api.patch<ApiRoom>(`/rooms/${id}`, body),
+  /** Rejected (400) if any saved customer design still uses this room — hide it (`update` with `isActive: false`) instead. */
+  remove: (id: string) => api.delete<void>(`/rooms/${id}`),
 
   saveDesign: (body: {
     roomId: string;
@@ -400,26 +418,57 @@ export const chatbotApi = {
     language?: Language;
   }) => api.post<ChatSendResult>("/chatbot/messages", body),
 
+  /** `products`/`decision` are only present on an assistant message that actually recommended something — reattached from `Recommendation.messageId` so a reloaded conversation shows the same cards and like/dislike state, not just the bare text. `attachment` is the same "put this tile on my floor" turn reattached from `ChatMessage.attachments`. */
   history: (conversationId: string) =>
-    api.get<{ id: string; role: string; content: string; createdAt: string }[]>(
-      `/chatbot/conversations/${conversationId}/messages`,
-    ),
+    api.get<
+      {
+        id: string;
+        role: string;
+        content: string;
+        createdAt: string;
+        products?: ChatRecommendation[];
+        decision?: RecommendationDecision;
+        attachment?: ChatMessageAttachment;
+      }[]
+    >(`/chatbot/conversations/${conversationId}/messages`),
 
-  /** Authenticated customer's saved projects; ready for the conversation-list endpoint. */
-  myConversations: () => api.get<ChatConversationSummary[]>('/chatbot/conversations/mine'),
+  /** Starts a brand-new conversation ("project") for the signed-in customer — a fresh session id server-side, so it can never resolve back to an existing one. */
+  startConversation: (language?: Language) =>
+    api.post<ApiChatConversation>("/chatbot/conversations", { language }),
 
-  /** Admin/marketing view of questions customers asked the assistant. */
-  askedQuestions: () => api.get<AskedQuestion[]>('/chatbot/asked-questions'),
+  /** The signed-in customer's own conversations, most recent first. */
+  myConversations: () => api.get<ChatConversationSummary[]>("/chatbot/conversations"),
+
+  /** Admin/marketing: questions customers asked after already receiving a recommendation. Cursor-paginated for infinite scroll — pass the previous page's `nextCursor` back as `cursor` to continue. */
+  askedQuestions: (params: { cursor?: string; limit?: number } = {}) =>
+    api.get<AskedQuestionsPage>("/chatbot/admin/asked-questions", { query: params }),
 
   /** Doc 3.6: side-by-side comparison of the selected tiles. */
   compare: (sessionId: string, productIds: string[]) =>
     api.post<{ products: ApiProduct[] }>("/chatbot/compare", { sessionId, productIds }),
 
-  imagePreview: (body: { conversationId: string; roomImageUrl: string; productIds: string[] }) =>
-    api.post<{ id: string; status: string; outputUrl: string | null }>("/chatbot/preview/image", body),
+  /** Uploads the customer's own room photo first — returns the bare `path` to submit as `roomImagePath` to `roomTilePreview` below, plus a short-lived `url` for an immediate local preview. */
+  uploadRoomPhoto: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiUpload<{ bucket: string; path: string; url: string; expiresIn: number; contentType: string; size: number }>(
+      "/chatbot/preview/room-photo",
+      formData,
+    );
+  },
 
-  videoPreview: (body: { conversationId: string; roomVideoUrl: string; productIds: string[] }) =>
-    api.post<{ id: string; status: string; outputUrl: string | null }>("/chatbot/preview/video", body),
+  /** Doc 3.6: edits the uploaded room photo to show the picked tile on its floor, and saves both the photo and the result into the conversation. */
+  roomTilePreview: (body: { conversationId: string; roomImagePath: string; productId: string; note?: string }) =>
+    api.post<{
+      userMessage: { id: string; role: "USER"; content: string; createdAt: string; attachment: ChatMessageAttachment };
+      assistantMessage: {
+        id: string;
+        role: "ASSISTANT";
+        content: string;
+        createdAt: string;
+        attachment: ChatMessageAttachment;
+      };
+    }>("/chatbot/preview/image", body),
 
   /** Customer feedback on one recommendation — liked, disliked, or cleared back to "no response". */
   setRecommendationDecision: (recommendationId: string, decision: RecommendationDecision) =>

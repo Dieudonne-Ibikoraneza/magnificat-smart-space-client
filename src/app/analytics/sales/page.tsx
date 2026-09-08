@@ -35,7 +35,8 @@ type SalesKpi =
       value: string;
       icon: typeof Wallet;
       trend?: string;
-      breakdown?: { customer: number; staff: number };
+      /** Shown as a separate footnote line, deliberately not folded into `value` — see `AnalyticsService#orderSubtotal`. */
+      transportFees?: number;
     }
   | {
       label: string;
@@ -93,16 +94,10 @@ const KpiCard = (kpi: SalesKpi) => {
           <p className="mt-1 text-xs text-muted-foreground">{kpi.subtitle}</p>
         )}
       </div>
-      {"breakdown" in kpi && kpi.breakdown && (
-        <div className="mt-4 space-y-2 border-t border-border pt-3 text-xs">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Customer-created</span>
-            <span className="font-data font-semibold text-ink">{formatCompactCurrency(kpi.breakdown.customer)}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Staff-created</span>
-            <span className="font-data font-semibold text-ink">{formatCompactCurrency(kpi.breakdown.staff)}</span>
-          </div>
+      {"transportFees" in kpi && kpi.transportFees !== undefined && (
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3 text-xs">
+          <span className="text-muted-foreground">Transport fees (not included)</span>
+          <span className="font-data font-semibold text-ink">{formatCompactCurrency(kpi.transportFees)}</span>
         </div>
       )}
     </article>
@@ -294,13 +289,6 @@ const AnalyticsSalesPage = () => {
   const { data: tiles, loading: tilesLoading } = useApi(() => analyticsApi.tiles({ period: range }), [range]);
   const { data: ordersData, loading: ordersLoading, error: ordersError, reload: reloadOrders } = useApi(() => ordersApi.list({ limit: 100 }));
 
-  const byCreator = sales
-    ? {
-        customer: sales.byCreator.find((row) => row.createdByType === "CUSTOMER")?.total ?? 0,
-        staff: sales.byCreator.find((row) => row.createdByType === "STAFF")?.total ?? 0,
-      }
-    : { customer: 0, staff: 0 };
-
   const kpis: SalesKpi[] = sales
     ? [
         {
@@ -308,7 +296,7 @@ const AnalyticsSalesPage = () => {
           value: formatCompactCurrency(sales.totalSales),
           icon: Wallet,
           trend: `${sales.percentChangeVsLastPeriod > 0 ? "+" : ""}${sales.percentChangeVsLastPeriod.toFixed(1)}%`,
-          breakdown: byCreator,
+          transportFees: sales.totalTransportFees,
         },
         { label: "Average Order Value", value: formatRWF(sales.averageOrderValue), icon: ShoppingBasket },
         { label: "Total Orders", value: sales.totalOrders.toLocaleString(), icon: ShoppingBasket },

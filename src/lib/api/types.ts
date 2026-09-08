@@ -161,6 +161,17 @@ export type ApiProduct = {
    * only, never the stored quantity.
    */
   quantityOnHandSqm?: number;
+  /**
+   * Same staff-only visibility — square metres held by other customers'
+   * still-PENDING orders during their payment window (see
+   * `availableAreaSqmOf`). `quantityOnHandSqm - reservedAreaSqm` (floored at
+   * 0) is what's actually available to sell right now; `stockStatus` above
+   * is already computed from that difference, not from `quantityOnHandSqm`
+   * alone, so a product can carry real on-hand stock and still show
+   * `out_of_stock` — see `staffStockDisplay` for how the staff-facing UI
+   * distinguishes that from a genuine shortage.
+   */
+  reservedAreaSqm?: number;
   /** Same visibility as `quantityOnHandSqm` — the box/piece conversion of it. */
   onHandBreakdown?: { totalPieces: number; completeBoxes: number; remainingPieces: number };
   /** Same staff-only visibility — the moving weighted-average cost per m², for inventory valuation. Never shown to clients. */
@@ -339,7 +350,12 @@ export type StockShortage = {
   productId: string;
   productName: string;
   requestedAreaSqm: number;
-  availableAreaSqm: number;
+  /**
+   * Exact stock on hand — staff-only (doc 3.2). The server omits it from
+   * responses to a customer (order-create, order-message metadata), so it's
+   * only present when a staff member is the one reading.
+   */
+  availableAreaSqm?: number;
 };
 
 export type CreatedOrder = ApiOrder & { shortages: StockShortage[] };
@@ -440,31 +456,61 @@ export type ChatRecommendation = {
   reason: string;
 };
 
+/**
+ * Doc 3.6's "put this tile on my floor" preview — persisted on
+ * `ChatMessage.attachments`, so this same shape comes back both from the
+ * live `POST /chatbot/preview/image` call and from `GET .../messages` on a
+ * later reload (see `ChatbotService.resolveMessageAttachment`).
+ */
+export type ChatMessageAttachment =
+  | { kind: "room-photo"; url: string }
+  | {
+      kind: "room-tile-preview";
+      productId: string;
+      productName: string;
+      roomImageUrl: string;
+      /** `null` when generation failed — the assistant's text says so; there's nothing to render here. */
+      generatedImageUrl: string | null;
+    };
+
 export type ChatSendResult = {
   conversation: { id: string; sessionId: string; language: Language };
   message: { id: string; role: "ASSISTANT"; content: string; createdAt: string };
   products: ChatRecommendation[];
 };
 
-export type ChatConversationSummary = {
+export type ApiChatConversation = {
   id: string;
+  userId: string | null;
   sessionId: string;
   language: Language;
+  /** Auto-set from the customer's first message — `null` for a brand-new, still-empty conversation. */
+  title: string | null;
   createdAt: string;
   updatedAt: string;
-  messageCount?: number;
 };
 
-/** A customer question captured for the admin/marketing workspace. */
+/** One of the signed-in customer's conversations ("projects"), as listed by `GET /chatbot/conversations` — carries only its most recent message (`messages[0]`), enough for a list preview. */
+export type ChatConversationSummary = ApiChatConversation & {
+  messages: { id: string; role: "USER" | "ASSISTANT" | "SYSTEM"; content: string; createdAt: string }[];
+};
+
+/** A customer question captured for the admin/marketing workspace — every message a customer sent after the assistant had already made a recommendation in that conversation. There's no stored "answer": this logs the question itself, not the assistant's reply to it. */
 export type AskedQuestion = {
   id: string;
-  question: string;
-  answer?: string | null;
   conversationId: string;
-  userId?: string | null;
-  customerName?: string | null;
-  customerEmail?: string | null;
+  userId: string | null;
+  messageId: string;
+  question: string;
   createdAt: string;
+  user: { id: string; fullName: string; email: string | null; phone: string | null } | null;
+  conversation: { id: string; sessionId: string; language: Language; title: string | null } | null;
+};
+
+/** `GET /chatbot/admin/asked-questions` — cursor-paginated for infinite scroll (see the endpoint's own doc). */
+export type AskedQuestionsPage = {
+  items: AskedQuestion[];
+  nextCursor: string | null;
 };
 
 export type ApiKnowledgeBaseEntry = {
@@ -481,7 +527,7 @@ export type ApiKnowledgeBaseEntry = {
 export type ChatMediaJob = {
   id: string;
   conversationId: string;
-  type: "IMAGE_PREVIEW" | "VIDEO_PREVIEW";
+  type: "IMAGE_PREVIEW";
   status: "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
   inputUrl: string | null;
   outputUrl: string | null;
@@ -525,6 +571,9 @@ export type ProfilingQuestion = {
 // --- Reports & analytics ----------------------------------------------------
 
 export type TrendPoint = { label: string; value: number };
+
+/** The "Orders by Creator" chart's shape — one point per period bucket, split customer- vs staff-placed. */
+export type CreatorTrendPoint = { label: string; customer: number; staff: number };
 
 export type StockMovement = {
   id: string;
@@ -576,10 +625,15 @@ export type FulfillmentQueue = {
  */
 export type AnalyticsOverview = {
   period: AnalyticsPeriod;
+  /** Tile revenue only — never the delivery cost. See `totalTransportFees`. */
   totalSales: number;
+  /** Delivery/transport fees earned orders were quoted, kept independent of `totalSales` on purpose. */
+  totalTransportFees: number;
   totalOrders: number;
   pendingOrders: number;
   averageOrderValue: number;
+  byCreator: { createdByType: OrderCreatorType; count: number; total: number }[];
+  creatorTrend: CreatorTrendPoint[];
   totalCustomers: number;
   repeatCustomers: number;
   repeatPurchaseRate: number;
@@ -618,7 +672,10 @@ export type CustomerAnalytics = {
  */
 export type SalesAnalytics = {
   period: AnalyticsPeriod;
+  /** Tile revenue only — never the delivery cost. See `totalTransportFees`. */
   totalSales: number;
+  /** Delivery/transport fees earned orders were quoted, kept independent of `totalSales` on purpose. */
+  totalTransportFees: number;
   previousTotalSales: number;
   percentChangeVsLastPeriod: number;
   totalOrders: number;
@@ -628,6 +685,7 @@ export type SalesAnalytics = {
   repeatPurchaseRate: number;
   byStatus: { status: OrderStatus; count: number; total: number }[];
   byCreator: { createdByType: OrderCreatorType; count: number; total: number }[];
+  creatorTrend: CreatorTrendPoint[];
   bestSellingTiles: {
     productId: string;
     name: string;

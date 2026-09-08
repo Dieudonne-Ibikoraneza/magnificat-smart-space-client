@@ -81,9 +81,11 @@ export const OrderStatusControl = ({
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Cancelled is terminal — the server rejects any further status change on
-  // one (`orders.service.ts`), so there's nothing this control could do.
-  if (status === "CANCELLED") return null;
+  // Cancelled and delivered are end states: a cancelled order can't change
+  // at all (`orders.service.ts` rejects it), and a delivered one has reached
+  // the end of fulfilment — there's nothing left for this control to move it
+  // to, so it's hidden rather than left offering a pointless dialog.
+  if (status === "CANCELLED" || status === "DELIVERED") return null;
 
   const handleSave = async () => {
     setSubmitting(true);

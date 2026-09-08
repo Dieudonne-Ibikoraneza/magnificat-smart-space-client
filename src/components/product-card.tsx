@@ -3,12 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type MouseEvent } from "react";
+import { type MouseEvent } from "react";
 import { ArrowRight, Check, Heart, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { tokenStore } from "@/lib/api";
 import { useCart } from "@/lib/cart-store";
+import { useFavorites } from "@/lib/favorites-store";
 import { cn } from "@/lib/utils";
 
 export type Product = {
@@ -69,9 +70,25 @@ export const ProductCard = ({
   selected?: boolean;
   onToggle?: () => void;
 }) => {
-  const [liked, setLiked] = useState(false);
   const router = useRouter();
   const cart = useCart();
+  const favorites = useFavorites();
+  const liked = favorites.isFavorited(product.id);
+
+  const handleToggleFavorite = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!tokenStore.getAccessToken()) {
+      toast.error("Sign in required", {
+        description: "Create a free account or log in to save favorites.",
+      });
+      router.push("/auth");
+      return;
+    }
+    // Instant — the heart animation below plays on this same click; the
+    // actual save happens in the background (see `useFavorites`).
+    favorites.toggle(product);
+  };
 
   const handleAddToCart = (event: MouseEvent) => {
     event.preventDefault();
@@ -140,11 +157,7 @@ export const ProductCard = ({
             className="group/like absolute top-3 right-3 z-20 size-9 rounded-full bg-white/90 shadow-sm hover:bg-white"
             aria-label={liked ? `Remove ${product.name} from favorites` : `Save ${product.name}`}
             aria-pressed={liked}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              setLiked((value) => !value);
-            }}
+            onClick={handleToggleFavorite}
           >
             <span className="pointer-events-none absolute inset-0" aria-hidden="true">
               {liked && (

@@ -47,6 +47,7 @@ import {
 import { AdminPageHeader } from "@/app/admin/layout";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { OrderStatusBadge } from "@/components/order-status-control";
+import { OrdersByCreatorChart } from "@/components/orders-by-creator-chart";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import { ChartAxisTick } from "@/components/chart-axis-tick";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -256,11 +257,19 @@ const SalesOverview = () => {
           )}
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 xl:grid-cols-1">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
         <div className="rounded-xl border border-border p-4">
           <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">Total Sales</p>
           <p className="mt-1 text-xl font-black text-ink">
             {overview ? formatCompactCurrency(overview.totalSales) : "—"}
+          </p>
+        </div>
+        <div className="rounded-xl border border-border p-4">
+          <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
+            Transport Fees <span className="normal-case">(not included above)</span>
+          </p>
+          <p className="mt-1 text-xl font-black text-ink">
+            {overview ? formatCompactCurrency(overview.totalTransportFees) : "—"}
           </p>
         </div>
         <div className="rounded-xl border border-border p-4">
@@ -274,6 +283,11 @@ const SalesOverview = () => {
           <p className="mt-1 text-xl font-black text-ink">{overview ? overview.totalOrders.toLocaleString() : "—"}</p>
         </div>
       </div>
+      {loading && !overview ? (
+        <Skeleton className="h-90 w-full xl:col-span-2" />
+      ) : overview && !overview.creatorTrend.every((point) => point.customer === 0 && point.staff === 0) ? (
+        <OrdersByCreatorChart data={overview.creatorTrend} className="border-t border-border pt-6 xl:col-span-2" />
+      ) : null}
     </section>
   );
 };

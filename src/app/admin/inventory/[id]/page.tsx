@@ -14,20 +14,9 @@ import { DeleteProductButton } from "@/components/delete-product-button";
 import { productsApi } from "@/lib/api";
 import { toProduct, roomTypeLabels } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
-import type { StockStatus } from "@/lib/api/types";
+import { staffStockDisplay } from "@/lib/stock-display";
 
 type AdminProductDetailsProps = { params: Promise<{ id: string }> };
-
-const stockLabels: Record<StockStatus, string> = {
-  in_stock: "In stock",
-  low_stock: "Low stock",
-  out_of_stock: "Out of stock",
-};
-const stockStyles: Record<StockStatus, string> = {
-  in_stock: "border-green-200 bg-green-50 text-green-700",
-  low_stock: "border-amber/30 bg-white text-amber",
-  out_of_stock: "border-red-200 bg-red-50 text-red-700",
-};
 
 const getSuitableFor = (suitableFor: "floor" | "wall" | "both") => {
   const badges: { label: string; icon: typeof Layers3 }[] = [];
@@ -59,7 +48,8 @@ const AdminProductDetailsPage = ({ params }: AdminProductDetailsProps) => {
   if (!apiProduct) return null;
 
   const product = toProduct(apiProduct);
-  const currentStock = apiProduct.quantityOnHandSqm ?? 0;
+  const stock = staffStockDisplay(apiProduct);
+  const currentStock = stock.quantityOnHandSqm;
   const breakdown = apiProduct.onHandBreakdown;
 
   return (
@@ -107,9 +97,9 @@ const AdminProductDetailsPage = ({ params }: AdminProductDetailsProps) => {
                 </h2>
               </div>
               <span
-                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold uppercase ${stockStyles[product.stockStatus]}`}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold uppercase ${stock.badge}`}
               >
-                {stockLabels[product.stockStatus]}
+                {stock.label}
               </span>
             </div>
             <p className="mt-6 text-2xl font-bold text-ink">
@@ -122,6 +112,7 @@ const AdminProductDetailsPage = ({ params }: AdminProductDetailsProps) => {
               <StockLevelPanel
                 productId={product.id}
                 productName={product.name}
+                reservedAreaSqm={stock.reservedAreaSqm}
                 currentStockSqm={currentStock}
                 onAdjusted={reload}
               />

@@ -33,6 +33,11 @@ const CartPage = () => {
     waitlisted: boolean;
   } | null>(null);
   const [placingOrder, setPlacingOrder] = useState(false);
+  /** Bumped whenever a "Place Order" attempt gets rejected as unfulfillable —
+   * the server opens/continues the customer's cart negotiation thread for
+   * that in the same call, invisibly to `CartNegotiationChat`'s own state, so
+   * this is the signal that tells it to go fetch the thread again. */
+  const [negotiationRefreshToken, setNegotiationRefreshToken] = useState(0);
   /** What's currently typed in a quantity box, kept separate from the committed value so a mid-edit "" or "3." doesn't get clobbered by the store's clamped/rounded number. */
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
@@ -97,12 +102,16 @@ const CartPage = () => {
       });
 
       if (!result.orderCreated) {
-        // Not expected from a customer's own checkout anymore — a shortage
-        // now still creates a real (waitlisted) order below — but kept as a
-        // defensive fallback in case the server ever responds otherwise.
-        cart.refresh();
-        toast.warning("Couldn't fully process that", {
-          description: "Please refresh your cart and try again.",
+        // Part of the cart exceeds what's on hand *in total*, not just
+        // what's currently unreserved — no waitlist can fix that, only a
+        // restock can, so no order was created. The server already
+        // opened/continued the cart negotiation thread below; the cart
+        // itself is left untouched so the customer can adjust it themselves
+        // instead.
+        setNegotiationRefreshToken((token) => token + 1);
+        toast.warning("Couldn't place that order", {
+          description:
+            "Part of your cart is more than we have in stock — we've started a chat with our stock team below.",
         });
         return;
       }
@@ -316,7 +325,9 @@ const CartPage = () => {
                           <span className="font-bold">
                             The full {shortage.requestedAreaSqm} m² requested isn&apos;t available right now.
                           </span>{" "}
-                          Lower the quantity, or chat with our stock team below to work out the rest.
+                          Placing the order may waitlist this part until more stock frees up — or, if it&apos;s more
+                          than we have at all, we&apos;ll open a chat with our stock team below. You can also lower
+                          the quantity instead.
                         </span>
                       </p>
                     )}
@@ -349,7 +360,7 @@ const CartPage = () => {
             trigger={
               <Button
                 type="button"
-                disabled={cart.lines.length === 0 || shortages.length > 0 || placingOrder}
+                disabled={cart.lines.length === 0 || placingOrder}
                 className="relative h-14 w-full justify-center px-5 text-base font-bold disabled:pointer-events-auto disabled:cursor-not-allowed"
               >
                 {placingOrder ? "Placing order…" : "Place Order"} <ArrowRight className="absolute right-5 size-5" />
@@ -358,8 +369,9 @@ const CartPage = () => {
           />
           {shortages.length > 0 && (
             <p className="mt-3 text-center text-xs font-medium text-amber-800">
-              We can&apos;t place this order yet — {shortages.length === 1 ? "one item exceeds" : `${shortages.length} items exceed`} what&apos;s
-              currently in stock. Chat with our stock team below to work it out.
+              {shortages.length === 1 ? "One item exceeds" : `${shortages.length} items exceed`} what&apos;s
+              currently available — if it can still be covered from stock on hand, we&apos;ll accept it and
+              waitlist that part; otherwise we&apos;ll open a chat with our stock team below.
             </p>
           )}
           <div className="my-5 flex items-center gap-4 text-sm text-muted">
@@ -379,7 +391,11 @@ const CartPage = () => {
         </aside>
       </div>
 
-      <CartNegotiationChat shortages={shortages} cartItems={cartNegotiationItems} />
+      <CartNegotiationChat
+        shortages={shortages}
+        cartItems={cartNegotiationItems}
+        refreshToken={negotiationRefreshToken}
+      />
 
       <section id="quotation-print" aria-hidden="true" className="quotation-printable mx-auto max-w-4xl bg-white p-5 text-ink sm:p-10">
         <header className="flex items-start justify-between gap-8 border-b border-slate-200 pb-6">

@@ -167,6 +167,42 @@ export const ensureRefreshed = () => {
   return refreshInFlight;
 };
 
+/** Reads a JWT's `exp` (ms since epoch) without verifying it — purely to
+ * decide locally whether the token is still worth sending. Returns null for
+ * anything that isn't a JWT with a numeric `exp`. */
+const readJwtExpiryMs = (token: string): number | null => {
+  const payload = token.split(".")[1];
+  if (!payload) return null;
+  try {
+    const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))) as {
+      exp?: unknown;
+    };
+    return typeof json.exp === "number" ? json.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Small margin so a token about to expire mid-flight is treated as already expired. */
+const TOKEN_EXPIRY_SKEW_MS = 10_000;
+
+/**
+ * Refreshes a stored access token that's expired (or within
+ * `TOKEN_EXPIRY_SKEW_MS` of it) *before* the request goes out. The 401 retry
+ * below only covers endpoints that actually reject a stale token — public
+ * ones (`GET /products`, `/collections`, …) answer it with the anonymous
+ * view instead, so a staff page waiting on a 401 to trigger the refresh
+ * would silently render the public shape of its data (e.g. stock quantities
+ * missing, shown as 0) until the next reload.
+ */
+const ensureFreshAccessToken = async (): Promise<void> => {
+  const accessToken = tokenStore.getAccessToken();
+  if (!accessToken || !tokenStore.getRefreshToken()) return;
+  const expiryMs = readJwtExpiryMs(accessToken);
+  if (expiryMs === null || Date.now() < expiryMs - TOKEN_EXPIRY_SKEW_MS) return;
+  await ensureRefreshed();
+};
+
 const send = async (path: string, options: RequestOptions): Promise<Response> => {
   const headers: Record<string, string> = {};
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
@@ -189,6 +225,8 @@ const send = async (path: string, options: RequestOptions): Promise<Response> =>
  * Throws `ApiError` on any non-2xx response.
  */
 export const apiRequest = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
+  if (!options.anonymous) await ensureFreshAccessToken();
+
   let response: Response;
   try {
     response = await send(path, options);
@@ -220,6 +258,8 @@ export const apiRequest = async <T>(path: string, options: RequestOptions = {}):
  * server can't parse the body at all).
  */
 export const apiUpload = async <T>(path: string, formData: FormData): Promise<T> => {
+  await ensureFreshAccessToken();
+
   const sendForm = () => {
     const headers: Record<string, string> = {};
     const accessToken = tokenStore.getAccessToken();
@@ -252,6 +292,8 @@ export const apiUpload = async <T>(path: string, formData: FormData): Promise<T>
  * handling as `apiRequest`, but resolves to a `Blob` rather than parsed JSON.
  */
 export const fetchBlob = async (path: string): Promise<Blob> => {
+  await ensureFreshAccessToken();
+
   let response = await send(path, {});
 
   if (response.status === 401 && tokenStore.getRefreshToken()) {

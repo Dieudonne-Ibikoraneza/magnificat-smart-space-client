@@ -267,7 +267,13 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
                           <p className={"text-[11px] font-bold tracking-wider uppercase " + (state === "pending" ? "text-muted" : "text-ink")}>{stepLabels[step]}</p>
                           {timestamp ? <p className="mt-0.5 font-data text-xs text-muted">{formatDateTime(timestamp)}</p> : null}
                           <p className={"mt-1 text-xs " + (state === "pending" ? "text-muted" : "text-ink")}>
-                            {state === "pending" ? "Pending" : timestamp ? "Done" : "In progress"}
+                            {state === "done"
+                              ? "Done"
+                              : state === "current"
+                                ? timestamp
+                                  ? "Done"
+                                  : "In progress"
+                                : "Pending"}
                           </p>
                         </div>
                       </li>

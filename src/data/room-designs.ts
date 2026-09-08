@@ -47,7 +47,7 @@ export const visualizerRooms: VisualizerRoom[] = [
     name: "Kitchen with island",
     description: "Galley kitchen with a backsplash run and a durable floor.",
     thumbnail: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80",
-    modelUrl: "/models/rooms/kitchen.glb",
+    modelUrl: "/models/rooms/modern_kitchen.glb",
     isActive: true,
   },
   {

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useMemo, useState, type FormEvent } from "react";
 import { Box, Boxes, Eye, EyeOff, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { AdminPageHeader } from "@/app/admin/layout";
+import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -26,27 +27,18 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
-import {
-  visualizerRooms,
-  type RoomTypeLabel,
-  type VisualizerRoom,
-} from "@/data/room-designs";
+import { roomsApi } from "@/lib/api";
+import { ApiError } from "@/lib/api/client";
+import { roomTypeLabels } from "@/lib/api/mappers";
+import { useApi } from "@/lib/api/use-api";
+import type { ApiRoom, RoomType } from "@/lib/api/types";
 
-const roomTypes: RoomTypeLabel[] = [
-  "Living Room (Saloon)",
-  "Bedroom",
-  "Bathroom",
-  "Kitchen",
-  "Balcony",
-  "Stairs",
-  "Gates",
-  "Outdoor",
-];
+const roomTypes = Object.keys(roomTypeLabels) as RoomType[];
 
-type RoomDraft = Omit<VisualizerRoom, "id" | "isActive">;
+type RoomDraft = { type: RoomType; name: string; description: string; thumbnail: string; modelUrl: string };
 
 const emptyDraft: RoomDraft = {
-  type: "Living Room (Saloon)",
+  type: "LIVING_ROOM",
   name: "",
   description: "",
   thumbnail: "",
@@ -56,21 +48,26 @@ const emptyDraft: RoomDraft = {
 /**
  * Content management for the 3D rooms the visualizer offers (doc 3.10).
  * Publishing a room is what makes it selectable in the customer-facing
- * visualizer, so retiring one is a visibility toggle rather than a delete.
+ * visualizer, so retiring one is a visibility toggle rather than a delete —
+ * a hard delete is only even allowed once no saved customer design still
+ * references it (enforced server-side, not just by this page's own copy).
  */
 export default function AdminRoomsPage() {
-  const [rooms, setRooms] = useState(visualizerRooms);
+  const { data: rooms, loading, error, reload } = useApi(() => roomsApi.listAdmin());
   const [search, setSearch] = useState("");
-  const [editing, setEditing] = useState<VisualizerRoom | null>(null);
+  const [editing, setEditing] = useState<ApiRoom | null>(null);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<RoomDraft>(emptyDraft);
+  const [saving, setSaving] = useState(false);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return rooms;
-    return rooms.filter(
+    const items = rooms ?? [];
+    if (!term) return items;
+    return items.filter(
       (room) =>
-        room.name.toLowerCase().includes(term) || room.type.toLowerCase().includes(term),
+        room.name.toLowerCase().includes(term) ||
+        roomTypeLabels[room.type].toLowerCase().includes(term),
     );
   }, [rooms, search]);
 
@@ -80,12 +77,12 @@ export default function AdminRoomsPage() {
     setCreating(true);
   };
 
-  const openEdit = (room: VisualizerRoom) => {
+  const openEdit = (room: ApiRoom) => {
     setDraft({
       type: room.type,
       name: room.name,
-      description: room.description,
-      thumbnail: room.thumbnail,
+      description: room.description ?? "",
+      thumbnail: room.thumbnail ?? "",
       modelUrl: room.modelUrl,
     });
     setEditing(room);
@@ -99,45 +96,84 @@ export default function AdminRoomsPage() {
 
   const valid = draft.name.trim() !== "" && draft.modelUrl.trim() !== "";
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!valid) return;
-
-    if (editing) {
-      setRooms((current) =>
-        current.map((room) => (room.id === editing.id ? { ...room, ...draft } : room)),
-      );
-      toast.success("Room updated", { description: `${draft.name} has been saved.` });
-    } else {
-      setRooms((current) => [
-        ...current,
-        { ...draft, id: `room-${Date.now().toString(36)}`, isActive: true },
-      ]);
-      toast.success("Room added", { description: `${draft.name} is now available in the visualizer.` });
+    if (!valid || saving) return;
+    setSaving(true);
+    try {
+      const body = {
+        type: draft.type,
+        name: draft.name.trim(),
+        modelUrl: draft.modelUrl.trim(),
+        description: draft.description.trim() || undefined,
+        thumbnail: draft.thumbnail.trim() || undefined,
+      };
+      if (editing) {
+        await roomsApi.update(editing.id, body);
+        toast.success("Room updated", { description: `${draft.name} has been saved.` });
+      } else {
+        await roomsApi.create(body);
+        toast.success("Room added", { description: `${draft.name} is now available in the visualizer.` });
+      }
+      closeDialog();
+      reload();
+    } catch (cause) {
+      toast.error(editing ? "Couldn't update room" : "Couldn't add room", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    } finally {
+      setSaving(false);
     }
-    closeDialog();
   };
 
-  const toggleActive = (id: string) => {
-    let nowActive = false;
-    setRooms((current) =>
-      current.map((room) => {
-        if (room.id !== id) return room;
-        nowActive = !room.isActive;
-        return { ...room, isActive: nowActive };
-      }),
+  const toggleActive = async (room: ApiRoom) => {
+    const nextActive = !room.isActive;
+    try {
+      await roomsApi.update(room.id, { isActive: nextActive });
+      toast.success(nextActive ? "Room published" : "Room hidden", {
+        description: nextActive
+          ? "Customers can now pick this room in the visualizer."
+          : "This room no longer appears in the visualizer.",
+      });
+      reload();
+    } catch (cause) {
+      toast.error("Couldn't change visibility", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    }
+  };
+
+  const remove = async (room: ApiRoom) => {
+    try {
+      await roomsApi.remove(room.id);
+      toast.success("Room deleted");
+      reload();
+    } catch (cause) {
+      toast.error("Couldn't delete room", {
+        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="pb-10">
+        <AdminPageHeader title="3D Rooms" subtitle="Manage the rooms customers can design in." />
+        <ApiLoading label="Loading rooms…" className="mt-10" />
+      </div>
     );
-    toast.success(nowActive ? "Room published" : "Room hidden", {
-      description: nowActive
-        ? "Customers can now pick this room in the visualizer."
-        : "This room no longer appears in the visualizer.",
-    });
-  };
+  }
 
-  const remove = (id: string) => {
-    setRooms((current) => current.filter((room) => room.id !== id));
-    toast.success("Room deleted");
-  };
+  if (error) {
+    return (
+      <div className="pb-10">
+        <AdminPageHeader title="3D Rooms" subtitle="Manage the rooms customers can design in." />
+        <ApiErrorState message={error} onRetry={reload} className="mt-10" />
+      </div>
+    );
+  }
+
+  const roomList = rooms ?? [];
 
   return (
     <div className="pb-10">
@@ -149,9 +185,9 @@ export default function AdminRoomsPage() {
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         {[
-          { label: "Total rooms", value: rooms.length, icon: Boxes },
-          { label: "Published", value: rooms.filter((room) => room.isActive).length, icon: Eye },
-          { label: "Hidden", value: rooms.filter((room) => !room.isActive).length, icon: EyeOff },
+          { label: "Total rooms", value: roomList.length, icon: Boxes },
+          { label: "Published", value: roomList.filter((room) => room.isActive).length, icon: Eye },
+          { label: "Hidden", value: roomList.filter((room) => !room.isActive).length, icon: EyeOff },
         ].map(({ label, value, icon: Icon }) => (
           <article key={label} className="rounded-2xl bg-card p-5">
             <span className="flex size-10 items-center justify-center rounded-lg bg-muted-background text-ink">
@@ -204,10 +240,12 @@ export default function AdminRoomsPage() {
 
             <div className="p-5">
               <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                {room.type}
+                {roomTypeLabels[room.type]}
               </p>
               <h2 className="mt-1 text-base font-bold text-ink">{room.name}</h2>
-              <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{room.description}</p>
+              {room.description && (
+                <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{room.description}</p>
+              )}
               <p className="mt-3 truncate font-data text-xs text-muted-foreground">{room.modelUrl}</p>
 
               <div className="mt-5 flex flex-wrap gap-2">
@@ -222,7 +260,7 @@ export default function AdminRoomsPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => toggleActive(room.id)}
+                  onClick={() => void toggleActive(room)}
                   className="h-9 gap-1.5 text-xs font-bold"
                 >
                   {room.isActive ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
@@ -230,9 +268,9 @@ export default function AdminRoomsPage() {
                 </Button>
                 <ConfirmDialog
                   title="Delete this room?"
-                  description={`"${room.name}" and its 3D model reference will be removed. Saved customer designs that used it will no longer open.`}
+                  description={`"${room.name}" and its 3D model reference will be removed. This is only allowed if no saved customer design still uses it.`}
                   confirmLabel="Delete room"
-                  onConfirm={() => remove(room.id)}
+                  onConfirm={() => void remove(room)}
                   trigger={
                     <Button
                       type="button"
@@ -264,7 +302,7 @@ export default function AdminRoomsPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={submit} className="mt-5 space-y-4">
+          <form onSubmit={(event) => void submit(event)} className="mt-5 space-y-4">
             <Field>
               <FieldLabel htmlFor="room-name">Room name</FieldLabel>
               <Input
@@ -281,16 +319,16 @@ export default function AdminRoomsPage() {
               <Select
                 value={draft.type}
                 onValueChange={(value) =>
-                  setDraft((current) => ({ ...current, type: (value ?? current.type) as RoomTypeLabel }))
+                  setDraft((current) => ({ ...current, type: (value ?? current.type) as RoomType }))
                 }
               >
                 <SelectTrigger id="room-type" className="h-10 w-full text-sm">
-                  <SelectValue />
+                  <SelectValue>{(value) => roomTypeLabels[value as RoomType]}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {roomTypes.map((type) => (
                     <SelectItem key={type} value={type}>
-                      {type}
+                      {roomTypeLabels[type]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -339,8 +377,8 @@ export default function AdminRoomsPage() {
               <Button type="button" variant="outline" onClick={closeDialog} className="h-10 px-5 text-sm font-bold">
                 Cancel
               </Button>
-              <Button type="submit" disabled={!valid} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
-                {editing ? "Save changes" : "Add room"}
+              <Button type="submit" disabled={!valid || saving} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
+                {saving ? "Saving…" : editing ? "Save changes" : "Add room"}
               </Button>
             </DialogFooter>
           </form>

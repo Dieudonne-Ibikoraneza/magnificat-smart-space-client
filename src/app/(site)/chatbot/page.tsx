@@ -3,57 +3,59 @@
 import { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import {
   Bot,
+  Check,
   ChevronDown,
   CornerDownRight,
-  ImagePlus,
-  Minus,
+  Maximize2,
   Paperclip,
   RotateCcw,
+  Search,
   Send,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
   UserRound,
-  Video,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { ChatProductCard } from "@/components/chat-product-card";
 import { followUps } from "@/data/chat";
-import { chatbotApi, settingsApi } from "@/lib/api";
+import { chatbotApi, eventsApi, productsApi, settingsApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { roomTypeLabels } from "@/lib/api/mappers";
-import { getSessionId } from "@/lib/session-id";
-import type { ChatRecommendation, ProfilingQuestion, RecommendationDecision, RoomType } from "@/lib/api/types";
+import { useApi } from "@/lib/api/use-api";
+import type {
+  ChatMessageAttachment,
+  ChatRecommendation,
+  ProfilingQuestion,
+  RecommendationDecision,
+  RoomType,
+} from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/lib/current-user";
-
-/**
- * A photo or video of the customer's own room, attached to a message. The
- * doc (3.6) asks the assistant to generate a styled preview from this, but
- * that model isn't wired up in this environment yet (no real image/video
- * provider, and no public upload endpoint to even get the file a URL) — see
- * `sendAttachment` below, which is honest about that instead of faking it.
- */
-type ChatAttachment = {
-  kind: "image" | "video";
-  name: string;
-  /** Object URL for the local preview; revoked when the page unmounts. */
-  url: string;
-};
+import { getSessionId } from "@/lib/session-id";
 
 type ChatMessage = {
   id: string;
   sender: "bot" | "user";
   text: string;
   products?: ChatRecommendation[];
-  attachment?: ChatAttachment;
+  /** Doc 3.6's "put this tile on my floor" preview, on either side of the
+   * turn — the customer's own room photo, or the assistant's edited result.
+   * Persisted server-side on `ChatMessage.attachments`, so this same shape
+   * comes back on a reload — see `chatbotApi.history`. */
+  attachment?: ChatMessageAttachment;
   isNew?: boolean;
 };
 
-const MAX_ATTACHMENT_MB = 25;
+/** A room photo picked but not sent yet — held locally until a tile is also chosen. */
+type PendingRoomPhoto = { file: File; previewUrl: string };
+type TileOption = { id: string; name: string; image: string };
+
+const MAX_ATTACHMENT_MB = 15;
 
 const initialMessages: ChatMessage[] = [
   { id: "welcome", sender: "bot", text: "Welcome to Magnificat Smart Space! I am your AI Design Assistant. Let's narrow down your requirements so I can give you the best recommendations — I'll ask a few quick questions to get started." },
@@ -63,8 +65,70 @@ const makeId = () => `${Date.now()}-${Math.random()}`;
 const MAX_MESSAGE_LENGTH = 2000;
 const MESSAGE_COUNT_THRESHOLD = 1000;
 
+/**
+ * Persists which conversation ("project") this browser last had open for this
+ * customer, so reopening the chatbot resumes it instead of starting over —
+ * both the conversation id *and* the exact session id it was created under,
+ * since `ChatbotService.sendMessage` resolves an existing conversation by the
+ * (customer, sessionId) pair: reusing the wrong session id would silently
+ * resume a stale conversation instead of the one just saved (or, for "start
+ * new project" below, resume the *old* one instead of truly starting fresh).
+ */
+type SavedConversation = { conversationId: string; sessionId: string };
+const savedConversationKey = (userId: string) => `mss.chatbot.conversation.${userId}`;
+
+const readSavedConversation = (userId: string): SavedConversation | null => {
+  try {
+    const raw = window.localStorage.getItem(savedConversationKey(userId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SavedConversation>;
+    return parsed.conversationId && parsed.sessionId ? (parsed as SavedConversation) : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * The pre-recommendation questionnaire has no conversation yet to persist it
+ * against (that's only created once the first message actually reaches the
+ * backend) — without saving progress somewhere, a crash, a bad connection, or
+ * just an accidental reload partway through Q&A threw away every answer the
+ * customer had already given, back to question 1. Saved after every answer,
+ * cleared the moment a real conversation exists (`sendToAssistant`'s success
+ * path) or "start new project" is chosen.
+ */
+type SavedProfilingProgress = {
+  activeQueue: ProfilingQuestion[];
+  profilingIndex: number;
+  profilingAnswers: { question: string; answer: string }[];
+  selectedRoomType: RoomType | null;
+  conditionalsAppended: boolean;
+  messages: { id: string; sender: "bot" | "user"; text: string }[];
+};
+const savedProfilingKey = (userId: string) => `mss.chatbot.profiling.${userId}`;
+
+const readSavedProfilingProgress = (userId: string): SavedProfilingProgress | null => {
+  try {
+    const raw = window.localStorage.getItem(savedProfilingKey(userId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SavedProfilingProgress>;
+    return parsed.activeQueue && parsed.activeQueue.length > 0
+      ? (parsed as SavedProfilingProgress)
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+const clearSavedProfilingProgress = (userId: string) => {
+  window.localStorage.removeItem(savedProfilingKey(userId));
+};
+
 /** Whether this admin-configured question is the one asking which room the customer is designing for — the only one shown with quick-select buttons instead of (as well as) free text. */
 const isRoomQuestion = (question: ProfilingQuestion) => /room/i.test(question.text);
+
+/** Whether this is the room-size question ("What is the approximate size of the space?") — answering it is the journey funnel's "ENTERED_DIMENSIONS" stage. */
+const isSizeQuestion = (question: ProfilingQuestion) => /size|sqm|square met|dimension/i.test(question.text);
 
 /** "Living Room (Saloon)" -> "living room" — matches a typed answer against the label even with the parenthetical aside stripped. */
 const coreRoomLabel = (label: string) => label.replace(/\s*\(.*?\)\s*/g, "").trim().toLowerCase();
@@ -77,13 +141,78 @@ const findRoomTypeFromAnswer = (answer: string): RoomType | undefined => {
   });
 };
 
+/**
+ * Edge-to-edge viewer for a chat image — the uploaded room photo (shown tiny
+ * inline) and the generated preview both open into this. Backdrop click, the
+ * close button, or Escape all dismiss it; body scroll is locked while open.
+ */
+const ImageLightbox = ({
+  url,
+  alt,
+  onClose,
+}: {
+  url: string | null;
+  alt: string;
+  onClose: () => void;
+}) => {
+  useEffect(() => {
+    if (!url) return;
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [url, onClose]);
+
+  if (!url) return null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={alt}
+      onClick={onClose}
+      className="animate-in fade-in fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm duration-150"
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close full screen"
+        className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
+      >
+        <X className="size-5" />
+      </button>
+      {/* A signed Supabase Storage URL — next/image optimisation doesn't apply. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={url}
+        alt={alt}
+        onClick={(event) => event.stopPropagation()}
+        className="max-h-[92vh] max-w-[92vw] rounded-lg object-contain shadow-2xl"
+      />
+    </div>
+  );
+};
+
 export default function ChatbotPage() {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
+  /** The session id this conversation was (or will be) created under — see `SavedConversation`. `null` until either a saved one is restored or the first send mints one. */
+  const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
+  const [pendingPhoto, setPendingPhoto] = useState<PendingRoomPhoto | null>(null);
+  const [selectedTile, setSelectedTile] = useState<TileOption | null>(null);
+  const [tileSearch, setTileSearch] = useState("");
+  const [isSendingPreview, setIsSendingPreview] = useState(false);
+  /** The image currently opened full screen (uploaded room photo or generated preview), or `null`. */
+  const [lightbox, setLightbox] = useState<{ url: string; alt: string } | null>(null);
 
   // The pre-recommendation questionnaire (doc 3.10: admin-configured
   // profiling questions) — asked once, in order, before the assistant is
@@ -102,12 +231,20 @@ export default function ChatbotPage() {
   // per card — "did these three picks work for you overall?" Keyed by the
   // bot message id so each recommendation turn keeps its own reaction.
   const [batchDecisions, setBatchDecisions] = useState<Record<string, RecommendationDecision>>({});
-  const [decidingMessageId, setDecidingMessageId] = useState<string | null>(null);
   const { user, loading: userLoading } = useCurrentUser();
+
+  // Tile choices for the room-photo preview — only fetched once a photo is
+  // actually picked, and re-fetched as the customer searches within them.
+  const { data: tileResults, loading: tilesLoading } = useApi(
+    () => (pendingPhoto ? productsApi.list({ search: tileSearch || undefined, limit: 24 }) : Promise.resolve(undefined)),
+    [pendingPhoto, tileSearch],
+  );
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  /** Fires the journey funnel's "ENTERED_DIMENSIONS" stage once, the first time the customer answers the room-size profiling question. */
+  const enteredDimensionsFiredRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   /** Every object URL handed out, so none leak when the page unmounts. */
   const objectUrlsRef = useRef<string[]>([]);
@@ -181,13 +318,12 @@ export default function ChatbotPage() {
 
     (async () => {
       try {
-        const savedConversationId = user?.id
-          ? window.localStorage.getItem(`mss.chatbot.conversation.${user.id}`)
-          : null;
-        if (savedConversationId) {
-          const history = await chatbotApi.history(savedConversationId);
+        const saved = user?.id ? readSavedConversation(user.id) : null;
+        if (saved) {
+          const history = await chatbotApi.history(saved.conversationId);
           if (!active) return;
-          setConversationId(savedConversationId);
+          setConversationId(saved.conversationId);
+          setChatSessionId(saved.sessionId);
           setPhase("chatting");
           setIsTyping(false);
           setMessages([
@@ -196,16 +332,44 @@ export default function ChatbotPage() {
               id: message.id,
               sender: message.role === "USER" ? ("user" as const) : ("bot" as const),
               text: message.content,
+              products: message.products?.length ? message.products : undefined,
+              attachment: message.attachment,
             })),
           ]);
+          // A batch already decided before this reload shows its "thanks"
+          // state immediately instead of the buttons — "PENDING" (Prisma's
+          // default for a never-decided row) counts as not decided yet.
+          setBatchDecisions(
+            Object.fromEntries(
+              history
+                .filter((message) => message.decision && message.decision !== "PENDING")
+                .map((message) => [message.id, message.decision!]),
+            ),
+          );
           return;
         }
+        // No saved conversation for this browser+customer — the first send
+        // below mints a fresh session id, which is what tells the backend
+        // this is a genuinely new conversation rather than resuming one.
         const questions = await settingsApi.profilingQuestions({ language: "EN" });
         if (!active) return;
+        setAllQuestions(questions);
+
+        const savedProgress = user?.id ? readSavedProfilingProgress(user.id) : null;
+        if (savedProgress) {
+          setActiveQueue(savedProgress.activeQueue);
+          setProfilingIndex(savedProgress.profilingIndex);
+          setProfilingAnswers(savedProgress.profilingAnswers);
+          setSelectedRoomType(savedProgress.selectedRoomType);
+          setConditionalsAppended(savedProgress.conditionalsAppended);
+          setMessages(savedProgress.messages);
+          setIsTyping(false);
+          return;
+        }
+
         const always = questions
           .filter((question) => !question.roomType)
           .sort((a, b) => a.position - b.position);
-        setAllQuestions(questions);
         if (always.length === 0) {
           setPhase("chatting");
           setIsTyping(false);
@@ -226,6 +390,38 @@ export default function ChatbotPage() {
     };
   }, [user?.id, userLoading]);
 
+  // Saves questionnaire progress after every answer, so a reload (or a
+  // request that fails partway) resumes exactly where the customer left off
+  // instead of resetting to question 1 — see `SavedProfilingProgress`.
+  useEffect(() => {
+    if (!user?.id || phase !== "profiling" || activeQueue.length === 0) return;
+    try {
+      window.localStorage.setItem(
+        savedProfilingKey(user.id),
+        JSON.stringify({
+          activeQueue,
+          profilingIndex,
+          profilingAnswers,
+          selectedRoomType,
+          conditionalsAppended,
+          messages: messages.map(({ id, sender, text }) => ({ id, sender, text })),
+        } satisfies SavedProfilingProgress),
+      );
+    } catch {
+      // Best-effort only — a full/blocked localStorage just means a reload
+      // mid-questionnaire won't resume, same as before this existed.
+    }
+  }, [
+    user?.id,
+    phase,
+    activeQueue,
+    profilingIndex,
+    profilingAnswers,
+    selectedRoomType,
+    conditionalsAppended,
+    messages,
+  ]);
+
   /** The real round-trip: persists the turn, asks the AI provider for a reply, and returns real catalog picks (never invented ones). */
   const sendToAssistant = async (content: string, options?: { showUserBubble?: boolean }) => {
     if (options?.showUserBubble ?? true) {
@@ -233,15 +429,31 @@ export default function ChatbotPage() {
     }
     setIsTyping(true);
     try {
+      // Mint a session id on this turn's very first send rather than at
+      // mount — `startNewProject` clears `chatSessionId` to force exactly
+      // this, since a fresh id (not the previous conversation's) is what
+      // makes `ChatbotService.sendMessage` create a genuinely new
+      // conversation instead of resuming the old one.
+      const sessionId = chatSessionId ?? crypto.randomUUID();
       const result = await chatbotApi.sendMessage({
-        sessionId: getSessionId(),
+        sessionId,
         content,
         conversationId,
         language: "EN",
       });
       setConversationId(result.conversation.id);
+      setChatSessionId(result.conversation.sessionId);
       if (user?.id) {
-        window.localStorage.setItem(`mss.chatbot.conversation.${user.id}`, result.conversation.id);
+        window.localStorage.setItem(
+          savedConversationKey(user.id),
+          JSON.stringify({
+            conversationId: result.conversation.id,
+            sessionId: result.conversation.sessionId,
+          } satisfies SavedConversation),
+        );
+        // A real conversation now exists — the questionnaire progress this
+        // turn's send just superseded no longer needs its own save.
+        clearSavedProfilingProgress(user.id);
       }
       setMessages((current) => [
         ...current,
@@ -267,15 +479,22 @@ export default function ChatbotPage() {
   };
 
   const startNewProject = () => {
-    if (user?.id) window.localStorage.removeItem(`mss.chatbot.conversation.${user.id}`);
+    if (user?.id) {
+      window.localStorage.removeItem(savedConversationKey(user.id));
+      clearSavedProfilingProgress(user.id);
+    }
     setConversationId(undefined);
+    // Cleared, not just left alone — the next send must mint a fresh session
+    // id (see `sendToAssistant`), or the backend would resolve the old
+    // (customer, sessionId) pair right back to the conversation being left.
+    setChatSessionId(null);
     setMessages(initialMessages);
     setBatchDecisions({});
     setProfilingAnswers([]);
     setProfilingIndex(0);
     setSelectedRoomType(null);
     setConditionalsAppended(false);
-    setAttachment(null);
+    clearPendingPhoto();
     resetInput();
     const always = allQuestions.filter((question) => !question.roomType).sort((a, b) => a.position - b.position);
     setActiveQueue(always);
@@ -286,30 +505,25 @@ export default function ChatbotPage() {
 
   /**
    * One reaction for the whole batch of picks in a bot turn, not per card —
-   * clicking the already-active choice undoes it back to "no response".
-   * Applies the same decision to every recommendation in that turn so the
-   * customer only has to answer once for the three products shown together.
+   * final, not a toggle: once the customer says a batch helped or didn't,
+   * that's their answer, not a setting to keep flipping. The buttons switch
+   * to a thank-you the instant this is clicked — the actual save happens
+   * afterwards, in the background, so a slow or failed request never blocks
+   * (or un-does) what the customer already told us.
    */
-  const decideBatch = async (message: ChatMessage, next: "ACCEPTED" | "REJECTED") => {
+  const decideBatch = (message: ChatMessage, next: "ACCEPTED" | "REJECTED") => {
+    if (batchDecisions[message.id] && batchDecisions[message.id] !== "PENDING") return;
     const recommendationIds = message.products?.map((product) => product.recommendationId) ?? [];
     if (recommendationIds.length === 0) return;
 
-    const previous = batchDecisions[message.id] ?? "PENDING";
-    const target: RecommendationDecision = previous === next ? "PENDING" : next;
-    setBatchDecisions((current) => ({ ...current, [message.id]: target }));
-    setDecidingMessageId(message.id);
-    try {
-      await Promise.all(
-        recommendationIds.map((recommendationId) => chatbotApi.setRecommendationDecision(recommendationId, target)),
-      );
-    } catch (cause) {
-      setBatchDecisions((current) => ({ ...current, [message.id]: previous }));
+    setBatchDecisions((current) => ({ ...current, [message.id]: next }));
+    void Promise.all(
+      recommendationIds.map((recommendationId) => chatbotApi.setRecommendationDecision(recommendationId, next)),
+    ).catch((cause) => {
       toast.error("Couldn't save your feedback", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+        description: cause instanceof ApiError ? cause.message : "Please try again — it won't change what's shown here.",
       });
-    } finally {
-      setDecidingMessageId(null);
-    }
+    });
   };
 
   /**
@@ -336,6 +550,13 @@ export default function ChatbotPage() {
       }
     }
 
+    if (!enteredDimensionsFiredRef.current && isSizeQuestion(question)) {
+      enteredDimensionsFiredRef.current = true;
+      void eventsApi
+        .journey({ sessionId: getSessionId(), stage: "ENTERED_DIMENSIONS" })
+        .catch(() => undefined);
+    }
+
     const nextIndex = profilingIndex + 1;
     if (nextIndex < activeQueue.length) {
       setProfilingIndex(nextIndex);
@@ -358,79 +579,132 @@ export default function ChatbotPage() {
     }
 
     setPhase("chatting");
-    const summary = updatedAnswers.map((entry) => `${entry.question} ${entry.answer}`).join(" ");
-    void sendToAssistant(`${summary} Based on this, please recommend tiles now.`.slice(0, MAX_MESSAGE_LENGTH), {
+    // One "Question N: ... / Answer: ..." block per turn, blank-line
+    // separated — a run-on sentence of every question and answer back to
+    // back reads ambiguously (to the model and to anyone reading it back,
+    // e.g. in the admin asked-questions view) once there are several of them.
+    const summary = updatedAnswers
+      .map((entry, index) => `Question ${index + 1}: ${entry.question}\nAnswer: ${entry.answer}`)
+      .join("\n\n");
+    const recommendationRequest =
+      `${summary}\n\nThese are the project and room specifications — from all the products, ` +
+      "please recommend the 3 best tiles.";
+    void sendToAssistant(recommendationRequest.slice(0, MAX_MESSAGE_LENGTH), {
       showUserBubble: false,
     });
   };
 
-  const pickAttachment = (event: ChangeEvent<HTMLInputElement>) => {
+  const pickRoomPhoto = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
 
-    const isImage = file.type.startsWith("image/");
-    const isVideo = file.type.startsWith("video/");
-    if (!isImage && !isVideo) {
-      toast.error("Unsupported file", { description: "Attach a photo or a video of your room." });
+    if (!file.type.startsWith("image/")) {
+      toast.error("Unsupported file", { description: "Attach a photo of your room (images only)." });
       return;
     }
     if (file.size > MAX_ATTACHMENT_MB * 1024 * 1024) {
-      toast.error("File too large", { description: `Keep attachments under ${MAX_ATTACHMENT_MB} MB.` });
+      toast.error("File too large", { description: `Keep photos under ${MAX_ATTACHMENT_MB} MB.` });
       return;
     }
 
     const url = URL.createObjectURL(file);
     objectUrlsRef.current.push(url);
-    setAttachment({ kind: isImage ? "image" : "video", name: file.name, url });
+    setPendingPhoto({ file, previewUrl: url });
+    setSelectedTile(null);
+    setTileSearch("");
   };
 
-  const clearAttachment = () => setAttachment(null);
+  const clearPendingPhoto = () => {
+    setPendingPhoto(null);
+    setSelectedTile(null);
+    setTileSearch("");
+  };
 
   /**
-   * Styled photo/video previews (doc 3.6) need a real image/video generation
-   * model and somewhere to upload the file to first — neither exists in this
-   * environment yet (see the media providers, both still stubs). Rather than
-   * fake a "rendering your preview" animation over the customer's own photo,
-   * this shows their attachment (that part is real) and says plainly that
-   * the styled-preview feature isn't available yet, steering them back to
-   * the real, working part of the assistant.
+   * Doc 3.6's "put this tile on my floor" preview: uploads the room photo,
+   * then asks the assistant to edit it with the selected tile on its floor —
+   * a real Gemini image-edit call, not a canned response. Both the photo and
+   * the (possibly failed) result are saved into the conversation server-side
+   * (see `ChatbotService.generateImagePreview`), so a reload shows exactly
+   * this turn again without regenerating it.
    */
-  const sendAttachment = (media: ChatAttachment, text: string) => {
-    setMessages((current) => [
-      ...current,
-      { id: makeId(), sender: "user", text, attachment: media, isNew: true },
-    ]);
-    setAttachment(null);
-    setIsTyping(true);
+  const sendRoomTilePreview = async () => {
+    if (!pendingPhoto || !selectedTile || isSendingPreview) return;
+    const note = input.trim();
+    setIsSendingPreview(true);
+    resetInput();
 
-    window.setTimeout(() => {
-      setIsTyping(false);
+    try {
+      let convId = conversationId;
+      let sessId = chatSessionId;
+      if (!convId) {
+        const conversation = await chatbotApi.startConversation("EN");
+        convId = conversation.id;
+        sessId = conversation.sessionId;
+        setConversationId(convId);
+        setChatSessionId(sessId);
+        setPhase("chatting");
+        if (user?.id) {
+          window.localStorage.setItem(
+            savedConversationKey(user.id),
+            JSON.stringify({ conversationId: convId, sessionId: sessId } satisfies SavedConversation),
+          );
+          clearSavedProfilingProgress(user.id);
+        }
+      }
+
+      const uploaded = await chatbotApi.uploadRoomPhoto(pendingPhoto.file);
+      const result = await chatbotApi.roomTilePreview({
+        conversationId: convId,
+        roomImagePath: uploaded.path,
+        productId: selectedTile.id,
+        note: note || undefined,
+      });
+
       setMessages((current) => [
         ...current,
         {
-          id: makeId(),
+          id: result.userMessage.id,
+          sender: "user",
+          text: result.userMessage.content,
+          attachment: result.userMessage.attachment,
+          isNew: true,
+        },
+        {
+          id: result.assistantMessage.id,
           sender: "bot",
-          text: "Styled photo and video previews aren't available yet in this environment — but tell me the room, size, and colors and I can recommend real tiles from our catalog right now.",
+          text: result.assistantMessage.content,
+          attachment: result.assistantMessage.attachment,
           isNew: true,
         },
       ]);
-    }, 650);
+
+      if (
+        result.assistantMessage.attachment.kind === "room-tile-preview" &&
+        !result.assistantMessage.attachment.generatedImageUrl
+      ) {
+        toast.error("Couldn't generate that preview", {
+          description: "Please try again in a moment.",
+        });
+      }
+
+      clearPendingPhoto();
+    } catch (cause) {
+      toast.error("Couldn't generate your room preview", {
+        description: cause instanceof ApiError ? cause.message : "Please check your connection and try again.",
+      });
+    } finally {
+      setIsSendingPreview(false);
+    }
   };
 
   const submitAnswer = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const answer = input.trim();
 
-    if (attachment && !isTyping) {
-      resetInput();
-      sendAttachment(
-        attachment,
-        answer ||
-          (attachment.kind === "image"
-            ? "Here's a photo of my room — show me how these tiles would look."
-            : "Here's a video of my room — apply the design to it."),
-      );
+    if (pendingPhoto) {
+      void sendRoomTilePreview();
       return;
     }
 
@@ -492,7 +766,9 @@ export default function ChatbotPage() {
           </section>
 
           <section className="space-y-7" aria-live="polite">
-            {messages.map((message) => (
+            {messages.map((message) => {
+              const attachment = message.attachment;
+              return (
               <div
                 key={message.id}
                 className={`flex gap-3 ${message.sender === "user" ? "justify-end" : "items-start"} ${message.isNew ? `chat-message-enter-${message.sender}` : ""}`}
@@ -509,26 +785,59 @@ export default function ChatbotPage() {
                     className={`whitespace-pre-wrap rounded-xl px-5 py-3 text-xs leading-relaxed sm:text-sm ${message.sender === "user" ? "rounded-tr-sm bg-ink text-white" : "bg-white text-slate-700 shadow-sm"}`}
                   >
                     {message.text}
-                    {message.attachment && (
-                      <figure className="mt-3 overflow-hidden rounded-lg bg-black/5">
-                        {message.attachment.kind === "image" ? (
-                          // Local object URL, so next/image optimisation doesn't apply.
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={message.attachment.url}
-                            alt={`Your room: ${message.attachment.name}`}
-                            className="max-h-64 w-full object-cover"
-                          />
-                        ) : (
-                          <video
-                            src={message.attachment.url}
-                            controls
-                            className="max-h-64 w-full object-cover"
-                            aria-label={`Your room video: ${message.attachment.name}`}
-                          />
-                        )}
-                      </figure>
+                    {attachment?.kind === "room-photo" && (
+                      // The uploaded room photo rides along as a small chip —
+                      // it's context for the request, not the thing worth
+                      // looking at; tap it to see it full screen.
+                      <button
+                        type="button"
+                        onClick={() => setLightbox({ url: attachment.url, alt: "Your room" })}
+                        className="group mt-3 flex items-center gap-2 rounded-lg border border-white/15 bg-black/10 p-1.5 text-left transition-colors hover:bg-black/20"
+                      >
+                        {/* A signed Supabase Storage URL — next/image optimisation doesn't apply. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={attachment.url}
+                          alt="Your room"
+                          className="size-12 shrink-0 rounded-md object-cover"
+                        />
+                        <span className="inline-flex items-center gap-1 pr-1 text-[11px] font-medium opacity-80 group-hover:opacity-100">
+                          <Maximize2 className="size-3" /> View full screen
+                        </span>
+                      </button>
                     )}
+                    {attachment?.kind === "room-tile-preview" &&
+                      (() => {
+                        const previewUrl = attachment.generatedImageUrl ?? attachment.roomImageUrl;
+                        const previewAlt = attachment.generatedImageUrl
+                          ? `Your room with ${attachment.productName} on the floor`
+                          : "Your room";
+                        return (
+                          <figure className="group relative mt-3 overflow-hidden rounded-lg bg-black/5">
+                            {/* The generated result is the payload of this turn —
+                                shown large, natural aspect ratio, and openable
+                                full screen. A failed generation falls back to the
+                                room photo, dimmed. */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={previewUrl}
+                              alt={previewAlt}
+                              className={cn(
+                                "w-full rounded-lg object-contain",
+                                attachment.generatedImageUrl ? "max-h-[34rem]" : "max-h-72 opacity-60",
+                              )}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setLightbox({ url: previewUrl, alt: previewAlt })}
+                              aria-label="View full screen"
+                              className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md bg-black/55 px-2 py-1 text-[11px] font-semibold text-white opacity-0 transition-opacity hover:bg-black/75 focus-visible:opacity-100 group-hover:opacity-100"
+                            >
+                              <Maximize2 className="size-3" /> Full screen
+                            </button>
+                          </figure>
+                        );
+                      })()}
                   </div>
                   {message.sender === "user" && (
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-white">
@@ -562,56 +871,60 @@ export default function ChatbotPage() {
                           ))}
                         </ul>
                       </div>
-                      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-sm sm:p-5">
-                        <p className="text-xs font-bold text-ink sm:text-sm">Did these recommendations help?</p>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            disabled={decidingMessageId === message.id}
-                            onClick={() => void decideBatch(message, "ACCEPTED")}
-                            aria-pressed={batchDecisions[message.id] === "ACCEPTED"}
-                            className={cn(
-                              "h-9 gap-1.5 rounded-full border-slate-200 px-3.5 text-xs font-bold",
-                              batchDecisions[message.id] === "ACCEPTED"
-                                ? "border-primary bg-primary text-ink"
-                                : "text-muted hover:text-ink",
-                            )}
-                          >
-                            <ThumbsUp className="size-3.5" /> Like
-                          </Button>
+                      {batchDecisions[message.id] && batchDecisions[message.id] !== "PENDING" ? (
+                        <div className="mt-3 flex items-center gap-3 rounded-xl bg-white p-4 shadow-sm sm:p-5">
                           <span
                             className={cn(
-                              "flex h-9 items-center gap-1.5 rounded-full px-3.5 text-xs font-bold",
-                              !batchDecisions[message.id] || batchDecisions[message.id] === "PENDING"
-                                ? "bg-muted-background text-muted-foreground"
-                                : "text-slate-300",
+                              "flex size-9 shrink-0 items-center justify-center rounded-full",
+                              batchDecisions[message.id] === "ACCEPTED"
+                                ? "bg-green-50 text-green-600"
+                                : "bg-amber-50 text-amber-600",
                             )}
                           >
-                            <Minus className="size-3.5" /> No response
+                            {batchDecisions[message.id] === "ACCEPTED" ? (
+                              <ThumbsUp className="size-4" />
+                            ) : (
+                              <ThumbsDown className="size-4" />
+                            )}
                           </span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            disabled={decidingMessageId === message.id}
-                            onClick={() => void decideBatch(message, "REJECTED")}
-                            aria-pressed={batchDecisions[message.id] === "REJECTED"}
-                            className={cn(
-                              "h-9 gap-1.5 rounded-full border-slate-200 px-3.5 text-xs font-bold",
-                              batchDecisions[message.id] === "REJECTED"
-                                ? "border-destructive bg-destructive text-white"
-                                : "text-muted hover:text-ink",
-                            )}
-                          >
-                            <ThumbsDown className="size-3.5" /> Dislike
-                          </Button>
+                          <div>
+                            <p className="text-xs font-bold text-ink sm:text-sm">Thanks for your feedback!</p>
+                            <p className="mt-0.5 text-xs leading-5 text-muted sm:text-[13px]">
+                              {batchDecisions[message.id] === "ACCEPTED"
+                                ? "Glad these picks worked for you — add your favorite to cart or view its full details above whenever you're ready."
+                                : "Noted — tell me more about what you're after (colour, size, budget, anything) and I'll try a different direction."}
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-sm sm:p-5">
+                          <p className="text-xs font-bold text-ink sm:text-sm">Did these recommendations help?</p>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => decideBatch(message, "ACCEPTED")}
+                              className="h-9 gap-1.5 rounded-full border-slate-200 px-3.5 text-xs font-bold text-muted hover:text-ink"
+                            >
+                              <ThumbsUp className="size-3.5" /> Like
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => decideBatch(message, "REJECTED")}
+                              className="h-9 gap-1.5 rounded-full border-slate-200 px-3.5 text-xs font-bold text-muted hover:text-ink"
+                            >
+                              <ThumbsDown className="size-3.5" /> Dislike
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
 
             {isTyping && (
               <div className="flex items-center gap-3">
@@ -670,27 +983,90 @@ export default function ChatbotPage() {
         onSubmit={submitAnswer}
         className="z-10 shrink-0 bg-background px-1 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-2"
       >
-        {attachment && (
-          <div className="mb-2 flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-ink">
-              {attachment.kind === "image" ? <ImagePlus className="size-4" /> : <Video className="size-4" />}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-xs font-semibold text-ink">{attachment.name}</span>
-              <span className="block text-[11px] text-muted">
-                {attachment.kind === "image" ? "Room photo" : "Room video"} · ready to send
+        {pendingPhoto && (
+          <div className="mb-2 space-y-3 rounded-xl border border-slate-200 bg-white p-3">
+            <div className="flex items-center gap-3">
+              <span className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-black/5">
+                {/* Local object URL — next/image optimisation doesn't apply. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={pendingPhoto.previewUrl} alt="Your room" className="size-full object-cover" />
               </span>
-            </span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={clearAttachment}
-              aria-label="Remove attachment"
-              className="shrink-0 text-muted hover:text-ink"
-            >
-              <X className="size-4" />
-            </Button>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-semibold text-ink">
+                  {selectedTile ? `${selectedTile.name} on your floor` : "Choose a tile for the floor"}
+                </span>
+                <span className="block text-[11px] text-muted">
+                  {selectedTile ? "Ready to send" : "Pick one below"}
+                </span>
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={clearPendingPhoto}
+                disabled={isSendingPreview}
+                aria-label="Remove room photo"
+                className="shrink-0 text-muted hover:text-ink"
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
+              <Input
+                value={tileSearch}
+                onChange={(event) => setTileSearch(event.target.value)}
+                placeholder="Search tiles by name…"
+                disabled={isSendingPreview}
+                className="h-9 rounded-full pl-9 text-xs"
+              />
+            </div>
+
+            <div className="scrollbar-hide flex gap-2 overflow-x-auto pb-1">
+              {tilesLoading &&
+                Array.from({ length: 6 }).map((_, index) => (
+                  <div key={`tile-skeleton-${index}`} className="w-16 shrink-0" aria-hidden="true">
+                    <span className="block aspect-square animate-pulse rounded-lg bg-slate-200" />
+                    <span className="mt-1 block h-2.5 w-11 animate-pulse rounded bg-slate-200" />
+                  </div>
+                ))}
+              {!tilesLoading && tileResults?.items.length === 0 && (
+                <p className="py-2 text-xs text-muted">No tiles match that search.</p>
+              )}
+              {!tilesLoading &&
+                tileResults?.items.map((product) => {
+                const isSelected = selectedTile?.id === product.id;
+                return (
+                  <button
+                    key={product.id}
+                    type="button"
+                    disabled={isSendingPreview}
+                    onClick={() => setSelectedTile({ id: product.id, name: product.name, image: product.image })}
+                    aria-pressed={isSelected}
+                    aria-label={`Select ${product.name}`}
+                    className="w-16 shrink-0 text-left"
+                  >
+                    <span
+                      className={cn(
+                        "relative block aspect-square overflow-hidden rounded-lg border-2",
+                        isSelected ? "border-primary" : "border-transparent",
+                      )}
+                    >
+                      {/* A signed Supabase Storage URL — next/image optimisation doesn't apply. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={product.image} alt={product.name} className="size-full object-cover" />
+                      {isSelected && (
+                        <span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-primary text-ink">
+                          <Check className="size-2.5" strokeWidth={3} />
+                        </span>
+                      )}
+                    </span>
+                    <span className="mt-1 block truncate text-[10px] font-medium text-ink">{product.name}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -698,19 +1074,19 @@ export default function ChatbotPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,video/*"
-            onChange={pickAttachment}
+            accept="image/*"
+            onChange={pickRoomPhoto}
             className="sr-only"
-            aria-label="Attach a photo or video of your room"
+            aria-label="Attach a photo of your room"
           />
           <Textarea
             ref={textareaRef}
             value={input}
             onChange={(event) => handleInputChange(event.target.value)}
             onKeyDown={handleInputKeyDown}
-            disabled={isTyping}
+            disabled={isTyping || isSendingPreview}
             rows={1}
-            placeholder={attachment ? "Add a note about your room (optional)…" : "Type your message here..."}
+            placeholder={pendingPhoto ? "Add a note about your room (optional)…" : "Type your message here..."}
             className="h-14 min-h-14 max-h-35 overflow-y-hidden rounded-xl bg-white px-3 py-3.5 pr-26 text-sm leading-normal"
           />
           <Button
@@ -718,8 +1094,8 @@ export default function ChatbotPage() {
             size="icon"
             variant="ghost"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isTyping}
-            aria-label="Attach a photo or video of your room"
+            disabled={isTyping || isSendingPreview}
+            aria-label="Attach a photo of your room"
             className="absolute bottom-3 right-14 top-auto size-9 rounded-full text-muted hover:bg-secondary hover:text-ink"
           >
             <Paperclip className="size-4" />
@@ -728,7 +1104,12 @@ export default function ChatbotPage() {
             type="submit"
             size="icon"
             aria-label="Send message"
-            disabled={isTyping || input.length > MAX_MESSAGE_LENGTH || (attachment ? false : !input.trim())}
+            disabled={
+              isTyping ||
+              isSendingPreview ||
+              input.length > MAX_MESSAGE_LENGTH ||
+              (pendingPhoto ? !selectedTile : !input.trim())
+            }
             className="absolute bottom-3 right-3 top-auto size-9 rounded-full bg-slate-200 text-ink hover:bg-primary"
           >
             <Send className="size-4" />
@@ -741,8 +1122,8 @@ export default function ChatbotPage() {
           )}
         >
           <p className={showCharacterCount ? "hidden sm:flex" : ""}>
-            Press Enter to submit · Shift + Enter for a new line · Attach a room photo or video to
-            share with the assistant
+            Press Enter to submit · Shift + Enter for a new line · Attach a room photo to preview a
+            tile on its floor
           </p>
           {showCharacterCount && (
             <p className={input.length > MAX_MESSAGE_LENGTH ? "font-semibold text-red-500" : ""}>
@@ -751,6 +1132,12 @@ export default function ChatbotPage() {
           )}
         </div>
       </form>
+
+      <ImageLightbox
+        url={lightbox?.url ?? null}
+        alt={lightbox?.alt ?? ""}
+        onClose={() => setLightbox(null)}
+      />
     </div>
   );
 }

@@ -30,6 +30,7 @@ import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { ChartAxisTick } from "@/components/chart-axis-tick";
 import { OrderStatusBadge } from "@/components/order-status-control";
+import { OrdersByCreatorChart } from "@/components/orders-by-creator-chart";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import {
   Table,
@@ -131,12 +132,6 @@ const SalesOverviewPage = () => {
   );
   const recentOrders = ordersData?.items ?? [];
 
-  const byCreator = sales
-    ? {
-        CUSTOMER: sales.byCreator.find((row) => row.createdByType === "CUSTOMER")?.total ?? 0,
-        STAFF: sales.byCreator.find((row) => row.createdByType === "STAFF")?.total ?? 0,
-      }
-    : null;
   const pendingOrders = sales?.byStatus.find((row) => row.status === "PENDING")?.count ?? 0;
 
   return (
@@ -150,7 +145,7 @@ const SalesOverviewPage = () => {
           <ApiErrorState message={salesError} onRetry={reloadSales} className="my-8" />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {salesLoading || !sales || !byCreator ? (
+            {salesLoading || !sales ? (
               <>
                 <KpiSkeleton />
                 <KpiSkeleton />
@@ -167,15 +162,9 @@ const SalesOverviewPage = () => {
                     </span>
                   </div>
                   <p className="mt-4 text-2xl font-bold text-ink">{formatCompactCurrency(sales.totalSales)}</p>
-                  <div className="mt-4 space-y-2 border-t border-border pt-3 text-xs">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-muted-foreground">Customer-created</span>
-                      <span className="font-data font-semibold text-ink">{formatCompactCurrency(byCreator.CUSTOMER)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-muted-foreground">Staff-created</span>
-                      <span className="font-data font-semibold text-ink">{formatCompactCurrency(byCreator.STAFF)}</span>
-                    </div>
+                  <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3 text-xs">
+                    <span className="text-muted-foreground">Transport fees (not included)</span>
+                    <span className="font-data font-semibold text-ink">{formatCompactCurrency(sales.totalTransportFees)}</span>
                   </div>
                   <p
                     className={cn(
@@ -300,6 +289,14 @@ const SalesOverviewPage = () => {
             </Link>
           </section>
         </div>
+
+        {salesLoading || !sales ? (
+          <Skeleton className="h-90 w-full rounded-2xl" />
+        ) : sales.creatorTrend.every((point) => point.customer === 0 && point.staff === 0) ? null : (
+          <section className="rounded-2xl bg-card p-5 sm:p-6">
+            <OrdersByCreatorChart data={sales.creatorTrend} />
+          </section>
+        )}
 
         <section className="rounded-2xl bg-card p-5 sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

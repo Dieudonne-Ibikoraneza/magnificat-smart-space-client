@@ -47,6 +47,23 @@ const getSuitableForBadges = (suitableFor: Product["suitableFor"]) => {
 const errorMessage = (cause: unknown, fallback: string) =>
   cause instanceof ApiError ? cause.message : fallback;
 
+/**
+ * Deep-link into the visualizer with this tile already applied. The visualizer
+ * reads `?floor=`/`?wall=` (see `visualizer/page.tsx`), so a floor-only tile
+ * pre-fills the floor, a wall-only tile the walls, and a "both" tile both.
+ */
+const visualizerHref = (product: Product) => {
+  const params = new URLSearchParams();
+  if (product.suitableFor === "floor" || product.suitableFor === "both") {
+    params.set("floor", product.id);
+  }
+  if (product.suitableFor === "wall" || product.suitableFor === "both") {
+    params.set("wall", product.id);
+  }
+  const query = params.toString();
+  return query ? `/visualizer?${query}` : "/visualizer";
+};
+
 const ProductDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = use(params);
   const router = useRouter();
@@ -213,7 +230,7 @@ const ProductDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => 
           <section className="rounded-2xl bg-ink p-7 text-center text-white shadow-sm sm:p-8">
             <h2 className="text-xl font-bold">See it in your room</h2>
             <p className="mx-auto mt-3 max-w-md text-sm leading-5 text-white/70">Use our AI-powered 3D visualizer to see how these tiles look in your space before you buy.</p>
-            <Button nativeButton={false} render={<Link href="/visualizer" />} className="group mt-6 h-14 min-h-14 px-7 py-3 font-bold bg-primary text-ink hover:bg-primary/90">Start Visualizing <ArrowRight className="transition-transform duration-300 group-hover:translate-x-1" /></Button>
+            <Button nativeButton={false} render={<Link href={visualizerHref(product)} />} className="group mt-6 h-14 min-h-14 px-7 py-3 font-bold bg-primary text-ink hover:bg-primary/90">Start Visualizing <ArrowRight className="transition-transform duration-300 group-hover:translate-x-1" /></Button>
           </section>
 
           <QuantityCalculator product={product} value={requiredArea} onChange={setRequiredArea} />

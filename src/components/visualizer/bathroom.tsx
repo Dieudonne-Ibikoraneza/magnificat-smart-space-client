@@ -45,8 +45,10 @@ const CAMERA_CONFIG: CameraConfig = {
   far: 60,
   horizontalFov: 78,
   orbitLimits: {
-    // Close tile inspection; bounds still stop short of the vanity/toilet.
-    minDistance: 1.0,
+    // Close enough to read the tile's texture/grout lines up close; `bounds`
+    // (not this number) is what actually stops short of the vanity/toilet,
+    // so pulling this in further can't newly clip anything.
+    minDistance: 0.4,
     // Zoomed all the way out, this is the customer's own reference shot:
     // the whole back wall (mirror, light, cabinet, toilet, art) framed
     // head-on, with margin of floor and ceiling around it — see the

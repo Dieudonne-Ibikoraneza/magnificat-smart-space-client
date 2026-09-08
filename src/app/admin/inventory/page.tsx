@@ -15,6 +15,7 @@ import {
   Search,
 } from "lucide-react";
 import { getVisiblePages } from "@/lib/catalog-utils";
+import { staffStockDisplay } from "@/lib/stock-display";
 import { cn } from "@/lib/utils";
 import { AdminPageHeader } from "@/app/admin/layout";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
@@ -50,38 +51,16 @@ import {
 
 const PAGE_SIZE = 10;
 
-const statusStyles: Record<
-  StockStatus,
-  { label: string; dot: string; text: string; badge: string; quantity: string }
-> = {
-  in_stock: {
-    label: "In stock",
-    dot: "bg-green-500",
-    text: "text-green-700",
-    badge: "border-green-200 bg-green-50 text-green-700",
-    quantity: "text-ink",
-  },
-  low_stock: {
-    label: "Low stock",
-    dot: "bg-amber-500",
-    text: "text-amber-700",
-    badge: "border-amber/30 bg-white/95 text-amber",
-    quantity: "text-amber-600",
-  },
-  out_of_stock: {
-    label: "Out of stock",
-    dot: "bg-red-500",
-    text: "text-red-600",
-    badge: "border-red-200 bg-red-50 text-red-700",
-    quantity: "text-red-600",
-  },
+/** Filter dropdown labels only — the real, server-computed `StockStatus` enum, distinct from the "Fully reserved" nuance `staffStockDisplay` adds per-row below. */
+const filterStatusLabels: Record<StockStatus, string> = {
+  in_stock: "In stock",
+  low_stock: "Low stock",
+  out_of_stock: "Out of stock",
 };
 
-const getStatus = (product: ApiProduct) => statusStyles[product.stockStatus];
-
 export const AdminInventoryProductCard = ({ product, basePath = "/admin/inventory" }: { product: ApiProduct; basePath?: string }) => {
-  const status = getStatus(product);
-  const quantity = product.quantityOnHandSqm ?? 0;
+  const status = staffStockDisplay(product);
+  const quantity = status.quantityOnHandSqm;
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-3xl bg-white shadow-sm transition-shadow hover:shadow-[0_8px_30px_rgba(15,39,71,0.10)]">
@@ -260,7 +239,7 @@ const AdminInventoryPage = () => {
                   {(value) =>
                     value === "all"
                       ? "Status"
-                      : statusStyles[value as StockStatus]?.label
+                      : filterStatusLabels[value as StockStatus]
                   }
                 </SelectValue>
               </SelectTrigger>
@@ -330,8 +309,8 @@ const AdminInventoryPage = () => {
                 </TableHeader>
                 <TableBody>
                   {pageItems.map((product) => {
-                    const itemStatus = getStatus(product);
-                    const quantity = product.quantityOnHandSqm ?? 0;
+                    const itemStatus = staffStockDisplay(product);
+                    const quantity = itemStatus.quantityOnHandSqm;
                     return (
                       <TableRow key={product.id}>
                         <TableCell className="p-4">

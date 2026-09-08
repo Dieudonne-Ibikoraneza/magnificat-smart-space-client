@@ -3,6 +3,7 @@ import "./globals.css";
 import { Inter, Manrope } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { CartProvider } from "@/lib/cart-store";
+import { FavoritesProvider } from "@/lib/favorites-store";
 import { CurrentUserProvider } from "@/lib/current-user";
 import { Toaster } from "@/components/ui/toast";
 import { GlobalOrderAlertDialog } from "@/components/global-order-alert-dialog";
@@ -20,7 +21,9 @@ const RootLayout = ({ children }: LayoutProps<"/">) => {
     <html lang="en" className={cn("h-full antialiased", "font-sans", inter.variable, manrope.variable)}>
       <body className="flex min-h-full min-w-0 flex-col overflow-x-hidden">
         <CurrentUserProvider>
-          <CartProvider>{children}</CartProvider>
+          <CartProvider>
+            <FavoritesProvider>{children}</FavoritesProvider>
+          </CartProvider>
           <GlobalOrderAlertDialog />
         </CurrentUserProvider>
         <Toaster />

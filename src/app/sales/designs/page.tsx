@@ -1,48 +1,147 @@
-import { notFound } from "next/navigation";
-
-// Disabled — Shared Designs is commented out (nav item too, see
-// src/app/sales/layout.tsx) rather than deleted, so it's easy to bring
-// back later. Everything below the original page.
-
-/*
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowRight, FileText, Layers3, Ruler, Search, Users } from "lucide-react";
+import { ArrowRight, Layers3, Mail, Phone, Search, Sparkles, Users } from "lucide-react";
 import { SalesPageHeader } from "@/app/sales/layout";
+import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "@/components/ui/toast";
-import { getDesignProducts, sharedDesigns } from "@/data/room-designs";
-
-const formatRWF = (value: number) => `RWF ${Math.round(value).toLocaleString("en-US")}`;
+import { roomsApi, toProduct } from "@/lib/api";
+import { useApi } from "@/lib/api/use-api";
+import type { ApiRoomDesign } from "@/lib/api/types";
 
 /**
- * Designs customers shared with the sales team from the 3D visualizer (doc 3.5).
- * Each one already carries the room, the surfaces and the tiles chosen, so it
- * converts straight into a draft order without re-asking the customer.
- *//*
+ * Designs a customer styled in the 3D visualizer and explicitly shared with
+ * the sales team (doc 3.5) — real data from `GET /rooms/designs/shared`
+ * (staff-only), which already carries who shared it (`design.user`) and
+ * exactly what they chose (`design.room`, `design.tiles`). This page was
+ * disabled and mocked before (see git history) with no way to see either the
+ * shared design or the customer behind it — this replaces that entirely.
+ */
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
+const surfaceLabels: Record<string, string> = { FLOOR: "Floor", WALL: "Walls" };
+
+const DesignCard = ({ design }: { design: ApiRoomDesign }) => {
+  const preview = design.previewImageUrl || design.room?.thumbnail || "/showroom.jpg";
+  const tiles = design.tiles.flatMap((tile) =>
+    tile.product ? [{ surface: tile.surface, product: toProduct(tile.product, tile.product.collection?.title) }] : [],
+  );
+
+  return (
+    <article className="overflow-hidden rounded-2xl bg-card">
+      <div className="relative aspect-[16/10] bg-muted-background">
+        <Image
+          src={preview}
+          alt={`Preview of ${design.name}`}
+          fill
+          unoptimized
+          className="object-cover"
+          sizes="(max-width: 768px) 100vw, 33vw"
+        />
+        {design.room?.name && (
+          <span className="absolute left-3 top-3 rounded-md bg-white/90 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-ink backdrop-blur-sm">
+            {design.room.name}
+          </span>
+        )}
+      </div>
+
+      <div className="p-5">
+        <h2 className="text-base font-bold text-ink">{design.name}</h2>
+
+        {design.user && (
+          <Link
+            href={`/sales/customers/${design.user.id}`}
+            className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-ink hover:underline"
+          >
+            <Users className="size-3.5" /> {design.user.fullName}
+          </Link>
+        )}
+        {design.user?.email && (
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Mail className="size-3.5" /> {design.user.email}
+          </p>
+        )}
+        {design.user?.phone && (
+          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Phone className="size-3.5" /> {design.user.phone}
+          </p>
+        )}
+
+        <p className="mt-2 text-xs text-muted-foreground">Shared {formatDate(design.createdAt)}</p>
+
+        <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <dt className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+              <Layers3 className="size-3" /> Surfaces
+            </dt>
+            <dd className="mt-1 font-data font-semibold text-ink">{design.tiles.length}</dd>
+          </div>
+        </dl>
+
+        {tiles.length > 0 && (
+          <ul className="mt-4 space-y-2 border-t border-border pt-4">
+            {tiles.map((tile) => (
+              <li key={tile.surface} className="flex items-center gap-3">
+                <span className="relative size-9 shrink-0 overflow-hidden rounded-lg bg-muted-background">
+                  <Image src={tile.product.image} alt="" fill unoptimized className="object-cover" sizes="36px" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <Link
+                    href={`/sales/catalog/${tile.product.id}`}
+                    className="block truncate text-sm font-semibold text-ink hover:underline"
+                  >
+                    {tile.product.name}
+                  </Link>
+                  <span className="block text-xs text-muted-foreground">
+                    {surfaceLabels[tile.surface] ?? tile.surface}
+                    {tile.product.size ? ` · ${tile.product.size}` : ""}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <Button
+          nativeButton={false}
+          render={<Link href={design.user ? `/sales/orders/new?customer=${design.user.id}` : "/sales/orders/new"} />}
+          className="group mt-5 h-10 w-full gap-2 text-xs font-bold"
+        >
+          Start order for this customer
+          <ArrowRight className="size-3.5 transition-transform duration-300 group-hover:translate-x-1" />
+        </Button>
+      </div>
+    </article>
+  );
+};
+
+/** Shared designs come from `GET /rooms/designs/shared` — see `src/lib/api/endpoints.ts`. */
 export default function SalesDesignsPage() {
+  const { data, loading, error, reload } = useApi(() => roomsApi.sharedDesigns());
+  const designs = useMemo(() => data ?? [], [data]);
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return sharedDesigns;
-    return sharedDesigns.filter(
+    if (!term) return designs;
+    return designs.filter(
       (design) =>
         design.name.toLowerCase().includes(term) ||
-        design.roomName.toLowerCase().includes(term) ||
-        (design.customerName ?? "").toLowerCase().includes(term),
+        (design.room?.name ?? "").toLowerCase().includes(term) ||
+        (design.user?.fullName ?? "").toLowerCase().includes(term) ||
+        (design.user?.email ?? "").toLowerCase().includes(term),
     );
-  }, [search]);
+  }, [designs, search]);
 
   return (
     <div className="pb-10">
       <SalesPageHeader
         title="Shared Designs"
-        subtitle="Rooms customers designed and shared with you for a quotation."
+        subtitle="Rooms customers styled in the 3D visualizer and shared with you for a quotation."
       />
 
       <div className="relative mt-6 max-w-md">
@@ -56,122 +155,32 @@ export default function SalesDesignsPage() {
         />
       </div>
 
-      <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((design) => {
-          const tiles = getDesignProducts(design);
-          const estimate = tiles.reduce(
-            (total, tile) =>
-              total + (design.areaSqm / tiles.length / tile.product.boxCoverage) * tile.product.price,
-            0,
-          );
-
-          return (
-            <article key={design.id} className="overflow-hidden rounded-2xl bg-card">
-              <div className="relative aspect-[16/10] bg-muted-background">
-                <Image
-                  src={design.previewImage}
-                  alt={`Preview of ${design.name}`}
-                  fill
-                  unoptimized
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 33vw"
-                />
-                <span className="absolute left-3 top-3 rounded-md bg-white/90 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-ink backdrop-blur-sm">
-                  {design.roomName}
-                </span>
-              </div>
-
-              <div className="p-5">
-                <h2 className="text-base font-bold text-ink">{design.name}</h2>
-                {design.customerName && (
-                  <Link
-                    href={`/sales/customers/${design.customerSlug}`}
-                    className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-ink hover:underline"
-                  >
-                    <Users className="size-3.5" /> {design.customerName}
-                  </Link>
-                )}
-                <p className="mt-1 text-xs text-muted-foreground">Shared {design.savedAt}</p>
-
-                <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <dt className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                      <Ruler className="size-3" /> Area
-                    </dt>
-                    <dd className="mt-1 font-data font-semibold text-ink">{design.areaSqm} m²</dd>
-                  </div>
-                  <div>
-                    <dt className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                      <Layers3 className="size-3" /> Surfaces
-                    </dt>
-                    <dd className="mt-1 font-data font-semibold text-ink">{design.tiles.length}</dd>
-                  </div>
-                </dl>
-
-                <ul className="mt-4 space-y-2 border-t border-border pt-4">
-                  {tiles.map((tile) => (
-                    <li key={tile.surface} className="flex items-center gap-3">
-                      <span className="relative size-9 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-                        <Image src={tile.product.image} alt="" fill unoptimized className="object-cover" sizes="36px" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <Link
-                          href={`/sales/catalog/${tile.product.id}`}
-                          className="block truncate text-sm font-semibold text-ink hover:underline"
-                        >
-                          {tile.product.name}
-                        </Link>
-                        <span className="block text-xs text-muted-foreground">
-                          {tile.surface} · {tile.product.size}
-                        </span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-
-                <p className="mt-4 flex items-center justify-between border-t border-border pt-4 text-sm">
-                  <span className="text-muted-foreground">Estimated materials</span>
-                  <span className="font-data font-bold text-ink">{formatRWF(estimate)}</span>
-                </p>
-
-                <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      toast.success("Quotation drafted", {
-                        description: `Materials from "${design.name}" are ready to review on a new order.`,
-                      })
-                    }
-                    className="h-10 gap-2 text-xs font-bold"
-                  >
-                    <FileText className="size-3.5" /> Draft quotation
-                  </Button>
-                  <Button
-                    nativeButton={false}
-                    render={<Link href="/sales/orders/new" />}
-                    className="group h-10 gap-2 text-xs font-bold"
-                  >
-                    Create order
-                    <ArrowRight className="transition-transform duration-300 group-hover:translate-x-1" />
-                  </Button>
-                </div>
-              </div>
-            </article>
-          );
-        })}
-
-        {filtered.length === 0 && (
-          <p className="col-span-full rounded-2xl bg-card p-10 text-center text-sm text-muted-foreground">
-            No shared designs match that search.
-          </p>
+      <div className="mt-6">
+        {loading ? (
+          <ApiLoading label="Loading shared designs…" className="py-24" />
+        ) : error ? (
+          <ApiErrorState message={error} onRetry={reload} className="my-16" />
+        ) : designs.length === 0 ? (
+          <div className="rounded-2xl bg-card p-10 text-center">
+            <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-secondary text-ink">
+              <Sparkles className="size-6" />
+            </span>
+            <h2 className="mt-5 text-lg font-bold text-ink">No shared designs yet</h2>
+            <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+              Once a customer saves a design in the 3D visualizer and shares it with sales, it&apos;ll show
+              up here with their contact details and the exact tiles they chose.
+            </p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <ApiEmptyState message="No shared designs match that search." className="py-16" />
+        ) : (
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {filtered.map((design) => (
+              <DesignCard key={design.id} design={design} />
+            ))}
+          </div>
         )}
       </div>
     </div>
   );
-}
-*/
-
-export default function SalesDesignsPage() {
-  notFound();
 }

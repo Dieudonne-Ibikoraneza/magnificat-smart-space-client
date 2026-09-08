@@ -45,8 +45,10 @@ const CAMERA_CONFIG: CameraConfig = {
   far: 60,
   horizontalFov: 58,
   orbitLimits: {
-    // Close tile inspection over the carpet/floor; bounds keep clear of the bed.
-    minDistance: 1.5,
+    // Close enough to read the tile's texture/grout lines up close; `bounds`
+    // (not this number) is what actually keeps clear of the bed, so pulling
+    // this in further can't newly clip anything.
+    minDistance: 0.6,
     // Mounting landed exactly on `maxDistance` before, which left no room
     // to actually zoom out any further than the default shot. Past that:
     // the Sketchfab reference framing.

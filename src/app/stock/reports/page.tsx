@@ -197,16 +197,21 @@ export default function StockReportsPage() {
                 )}
               </p>
               {!sales.loading && sales.data && (
-                <p
-                  className={cn(
-                    "mt-1 text-xs font-bold",
-                    sales.data.percentChangeVsLastPeriod >= 0 ? "text-green-600" : "text-red-600",
-                  )}
-                >
-                  {sales.data.percentChangeVsLastPeriod >= 0 ? "↗" : "↘"}{" "}
-                  {sales.data.percentChangeVsLastPeriod >= 0 ? "+" : ""}
-                  {sales.data.percentChangeVsLastPeriod.toFixed(1)}% vs last period
-                </p>
+                <>
+                  <p
+                    className={cn(
+                      "mt-1 text-xs font-bold",
+                      sales.data.percentChangeVsLastPeriod >= 0 ? "text-green-600" : "text-red-600",
+                    )}
+                  >
+                    {sales.data.percentChangeVsLastPeriod >= 0 ? "↗" : "↘"}{" "}
+                    {sales.data.percentChangeVsLastPeriod >= 0 ? "+" : ""}
+                    {sales.data.percentChangeVsLastPeriod.toFixed(1)}% vs last period
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    Transport fees (not included): {formatCompactCurrency(sales.data.totalTransportFees)}
+                  </p>
+                </>
               )}
             </div>
           </div>

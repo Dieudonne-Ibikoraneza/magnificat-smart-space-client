@@ -57,13 +57,15 @@ const CAMERA_CONFIG: CameraConfig = {
   far: 100,
   horizontalFov: 60,
   orbitLimits: {
-    // Pull in for a close look at tiles; bounds still keep clear of furniture.
-    minDistance: 1.5,
+    // Close enough to read the tile's texture/grout lines up close; `bounds`
+    // (not this number) is what actually stops the camera before furniture
+    // or a wall, so pulling this in further can't newly clip anything.
+    minDistance: 0.6,
     maxDistance: 7.5,
     minAzimuthAngle: (30 * Math.PI) / 180,
     maxAzimuthAngle: (100 * Math.PI) / 180,
     minPolarAngle: (60 * Math.PI) / 180,
-    maxPolarAngle: (98 * Math.PI) / 180,
+    maxPolarAngle: (80 * Math.PI) / 180,
   },
   /**
    * Keeps the camera inside the room regardless of what the orbit limits
@@ -75,7 +77,7 @@ const CAMERA_CONFIG: CameraConfig = {
    */
   bounds: {
     min: [0.6, 0.3, -0.8],
-    max: [5.2, 2.3, 3.2],
+    max: [5.2, 2.3, 2.3],
   },
 };
 

@@ -2,27 +2,43 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   Boxes,
   CircleAlert,
+  Filter,
+  Loader2,
   PackageCheck,
   Ruler,
+  Search,
   Truck,
 } from "lucide-react";
+import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { FilterOptionsCard } from "@/components/product-catalog";
 import { Switch } from "@/components/ui/switch";
-import { products } from "@/data/catalog";
-import { getAvailableStockSqm } from "@/lib/stock-availability";
+import { calculatorApi, eventsApi, productsApi, toProduct } from "@/lib/api";
+import { ApiError } from "@/lib/api/client";
 import {
-  DEFAULT_WASTAGE_PERCENT,
-  calculateFloorPlan,
-  resolveBaseArea,
-} from "@/lib/floor-plan";
+  buildFilterGroups,
+  EMPTY_FILTERS,
+  filterProducts,
+  hasActiveFilters,
+  toggleFilterOption,
+  type CatalogFilters,
+} from "@/lib/catalog-utils";
+import { useApi } from "@/lib/api/use-api";
+import { getSessionId } from "@/lib/session-id";
+import type { FloorPlanCalculation } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
+
+const DEFAULT_WASTAGE_PERCENT = 10;
+/** Recalculates this long after the customer stops typing — real-time
+ * enough to feel live, without a request per keystroke. */
+const DEBOUNCE_MS = 450;
 
 const formatRWF = (value: number) => `RWF ${Math.round(value).toLocaleString("en-US")}`;
 const formatNumber = (value: number) =>
@@ -31,53 +47,131 @@ const formatNumber = (value: number) =>
 /**
  * Floor plan calculator (doc 3.8): the client enters room dimensions, we add a
  * wastage allowance, and return the material needed split between what current
- * stock covers and what has to be sourced separately, with an estimated cost.
+ * stock covers and what has to be sourced separately, with an estimated cost —
+ * all computed server-side (`POST /calculator/floor-plan`) against the real
+ * catalog and real stock, not a client-side estimate over mock data.
  */
 export default function FloorPlanCalculatorPage() {
+  const {
+    data: productsPage,
+    loading: productsLoading,
+    error: productsError,
+    reload: reloadProducts,
+  } = useApi(() => productsApi.list({ limit: 100 }));
+  const products = useMemo(() => (productsPage?.items ?? []).map((item) => toProduct(item)), [productsPage]);
+
   const [lengthM, setLengthM] = useState("6");
   const [widthM, setWidthM] = useState("5");
   const [totalAreaSqm, setTotalAreaSqm] = useState("");
   const [useTotalArea, setUseTotalArea] = useState(false);
   const [wastagePercent, setWastagePercent] = useState(String(DEFAULT_WASTAGE_PERCENT));
-  const [productId, setProductId] = useState(products[0].id);
+  const [productId, setProductId] = useState<string | null>(null);
 
+  // Lands on the first loaded product once the catalog arrives, unless the
+  // customer already picked one — a derived default, not an effect, so there's
+  // nothing to synchronize after the fact (see `useApi`'s own convention).
+  const [defaultedProducts, setDefaultedProducts] = useState(productsPage);
+  if (defaultedProducts !== productsPage) {
+    setDefaultedProducts(productsPage);
+    if (!productId && products.length > 0) setProductId(products[0].id);
+  }
+
+  const [tileSearch, setTileSearch] = useState("");
+  const [tileFilters, setTileFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
+  const [tileFiltersOpen, setTileFiltersOpen] = useState(false);
+  const tileFilterGroups = useMemo(() => buildFilterGroups(products), [products]);
+  const filteredProducts = useMemo(() => {
+    const term = tileSearch.trim().toLowerCase();
+    const searched = term
+      ? products.filter(
+          (item) =>
+            item.name.toLowerCase().includes(term) ||
+            item.collection.toLowerCase().includes(term) ||
+            item.size.toLowerCase().includes(term),
+        )
+      : products;
+    return filterProducts(searched, tileFilters);
+  }, [products, tileSearch, tileFilters]);
+
+  // Selection stays whatever the customer last picked even if a search/filter
+  // change hides it from the visible list below — narrowing the picker is
+  // about browsing, not about silently swapping out their chosen tile.
   const product = products.find((item) => item.id === productId) ?? products[0];
+  const baseArea = useTotalArea
+    ? Number(totalAreaSqm) || 0
+    : (Number(lengthM) || 0) * (Number(widthM) || 0);
 
-  const input = useMemo(
-    () => ({
-      lengthM: useTotalArea ? undefined : Number(lengthM),
-      widthM: useTotalArea ? undefined : Number(widthM),
-      totalAreaSqm: useTotalArea ? Number(totalAreaSqm) : undefined,
-      wastagePercent: Number(wastagePercent),
-    }),
-    [lengthM, widthM, totalAreaSqm, useTotalArea, wastagePercent],
-  );
+  const [result, setResult] = useState<FloorPlanCalculation | null>(null);
+  const [calculating, setCalculating] = useState(false);
+  const [calcError, setCalcError] = useState<string | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
+  const enteredDimensionsFiredRef = useRef(false);
 
-  const baseArea = resolveBaseArea(input);
+  useEffect(() => {
+    // Nothing to fetch — the render below already keys off `baseArea <= 0`
+    // directly rather than this effect's state, so there's no stale
+    // `result`/`calcError` to clear here (see the "Updating…" badge's own
+    // `baseArea > 0` guard for the one place that could otherwise leak).
+    if (!product || baseArea <= 0) return;
 
-  const result = useMemo(() => {
-    const availableSqm = getAvailableStockSqm(product);
-    const availablePieces = Number.isFinite(availableSqm)
-      ? Math.floor(availableSqm / product.tileArea)
-      : Number.MAX_SAFE_INTEGER;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setCalculating(true);
+      calculatorApi
+        .floorPlan({
+          productId: product.id,
+          length: useTotalArea ? undefined : Number(lengthM) || undefined,
+          width: useTotalArea ? undefined : Number(widthM) || undefined,
+          totalAreaSqm: useTotalArea ? Number(totalAreaSqm) || undefined : undefined,
+          wastagePercent: Number(wastagePercent) || 0,
+        })
+        .then((data) => {
+          if (!active) return;
+          setResult(data);
+          setCalcError(null);
+          if (!enteredDimensionsFiredRef.current) {
+            enteredDimensionsFiredRef.current = true;
+            void eventsApi
+              .journey({ sessionId: getSessionId(), stage: "ENTERED_DIMENSIONS" })
+              .catch(() => undefined);
+          }
+        })
+        .catch((cause) => {
+          if (!active) return;
+          setCalcError(
+            cause instanceof ApiError ? cause.message : "Couldn't calculate this — please try again.",
+          );
+        })
+        .finally(() => {
+          if (active) setCalculating(false);
+        });
+    }, DEBOUNCE_MS);
 
-    return calculateFloorPlan(input, {
-      tileArea: product.tileArea,
-      boxCoverage: product.boxCoverage,
-      piecesPerBox: product.piecesPerBox,
-      price: product.price,
-      availablePieces,
-    });
-  }, [input, product]);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id, baseArea, lengthM, widthM, totalAreaSqm, useTotalArea, wastagePercent, retryToken]);
 
-  const breakdown = [
-    { label: "Room area", value: `${formatNumber(result.baseAreaSqm)} m²` },
-    { label: `With ${result.wastagePercent}% wastage`, value: `${formatNumber(result.requiredAreaSqm)} m²` },
-    { label: "Complete boxes", value: result.completeBoxes.toLocaleString() },
-    { label: "Additional pieces", value: result.remainingPieces.toLocaleString() },
-    { label: "Total pieces", value: result.totalPieces.toLocaleString() },
-    { label: "Material purchased", value: `${formatNumber(result.purchasedAreaSqm)} m²` },
-  ];
+  const breakdown = result
+    ? [
+        { label: "Room area", value: `${formatNumber(result.baseAreaSqm)} m²` },
+        { label: `With ${result.wastagePercent}% wastage`, value: `${formatNumber(result.requiredAreaSqm)} m²` },
+        { label: "Complete boxes", value: result.quantity.completeBoxes.toLocaleString() },
+        { label: "Additional pieces", value: result.quantity.remainingPieces.toLocaleString() },
+        { label: "Total pieces", value: result.quantity.totalPieces.toLocaleString() },
+        { label: "Material purchased", value: `${formatNumber(result.quantity.purchasedArea)} m²` },
+      ]
+    : [];
+
+  if (productsLoading) {
+    return <ApiLoading label="Loading the calculator…" className="py-24" />;
+  }
+
+  if (productsError) {
+    return <ApiErrorState message={productsError} onRetry={reloadProducts} className="my-16" />;
+  }
 
   return (
     <div className="pb-10">
@@ -178,41 +272,105 @@ export default function FloorPlanCalculatorPage() {
           </Field>
 
           <div className="mt-6 border-t border-slate-100 pt-6">
-            <p className="mb-3 text-xs font-bold uppercase tracking-wide text-muted">Choose a tile</p>
-            <div className="max-h-96 space-y-2 overflow-y-auto pr-1">
-              {products.map((item) => (
-                <button
-                  key={item.id}
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">Choose a tile</p>
+              <div className="relative shrink-0">
+                <Button
                   type="button"
-                  onClick={() => setProductId(item.id)}
-                  aria-pressed={item.id === productId}
-                  className={cn(
-                    "flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition-colors",
-                    item.id === productId
-                      ? "border-ink bg-secondary"
-                      : "border-slate-100 hover:bg-[#F9FAFB]",
-                  )}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTileFiltersOpen((open) => !open)}
+                  aria-pressed={tileFiltersOpen}
+                  className={cn("h-8 gap-1.5 border-slate-200 px-2.5 text-xs font-bold", tileFiltersOpen && "bg-muted-background")}
                 >
-                  <span className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-                    <Image src={item.image} alt="" fill unoptimized className="object-cover" sizes="48px" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-ink">{item.name}</span>
-                    <span className="block truncate text-xs text-muted">
-                      {item.size} · {formatRWF(item.price)} per sqm
+                  <Filter className="size-3.5" /> Filters
+                  {hasActiveFilters(tileFilters) && (
+                    <span className="inline-flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-ink">
+                      {Object.values(tileFilters).reduce((sum, group) => sum + group.length, 0)}
                     </span>
-                  </span>
-                </button>
-              ))}
+                  )}
+                </Button>
+
+                {tileFiltersOpen && (
+                  <>
+                    <button
+                      type="button"
+                      aria-label="Close filters"
+                      className="fixed inset-0 z-20 cursor-default"
+                      onClick={() => setTileFiltersOpen(false)}
+                    />
+                    <div className="absolute top-full right-0 z-30 mt-2 max-h-[60vh] w-72 overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 shadow-[0_14px_32px_rgba(15,39,71,0.16)]">
+                      <FilterOptionsCard
+                        bare
+                        filters={tileFilters}
+                        onToggle={(group, option) =>
+                          setTileFilters((current) => toggleFilterOption(current, group, option))
+                        }
+                        onReset={() => setTileFilters(EMPTY_FILTERS)}
+                        groups={tileFilterGroups}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="relative mb-3">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
+              <Input
+                value={tileSearch}
+                onChange={(event) => setTileSearch(event.target.value)}
+                placeholder="Search by name, collection or size..."
+                aria-label="Search tiles"
+                className="h-10 rounded-xl bg-white py-0 pl-10 leading-10"
+              />
+            </div>
+
+            <div className="max-h-96 space-y-2 overflow-y-auto pr-1">
+              {filteredProducts.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted">No tiles match your search.</p>
+              ) : (
+                filteredProducts.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setProductId(item.id)}
+                    aria-pressed={item.id === productId}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition-colors",
+                      item.id === productId
+                        ? "border-ink bg-secondary"
+                        : "border-slate-100 hover:bg-[#F9FAFB]",
+                    )}
+                  >
+                    <span className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted-background">
+                      <Image src={item.image} alt="" fill unoptimized className="object-cover" sizes="48px" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-ink">{item.name}</span>
+                      <span className="block truncate text-xs text-muted">
+                        {item.size} · {formatRWF(item.price)} per sqm
+                      </span>
+                    </span>
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </section>
 
         <div className="space-y-6">
           <section className="rounded-2xl bg-white p-6 shadow-sm sm:p-7">
-            <div className="mb-6 flex items-center gap-2">
-              <Boxes className="size-5 text-ink" />
-              <h2 className="text-lg font-bold text-ink">Material required</h2>
+            <div className="mb-6 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Boxes className="size-5 text-ink" />
+                <h2 className="text-lg font-bold text-ink">Material required</h2>
+              </div>
+              {calculating && result && baseArea > 0 && (
+                <span className="flex items-center gap-1.5 text-xs font-medium text-muted">
+                  <Loader2 className="size-3.5 animate-spin" /> Updating…
+                </span>
+              )}
             </div>
 
             {baseArea <= 0 ? (
@@ -220,6 +378,14 @@ export default function FloorPlanCalculatorPage() {
                 <CircleAlert className="mt-0.5 size-4 shrink-0" />
                 Enter {useTotalArea ? "a total area" : "both a length and a width"} to see the calculation.
               </p>
+            ) : calcError ? (
+              <ApiErrorState
+                message={calcError}
+                onRetry={() => setRetryToken((token) => token + 1)}
+                className="py-8"
+              />
+            ) : !result ? (
+              <ApiLoading label="Calculating…" className="py-8" />
             ) : (
               <>
                 <dl className="space-y-3 text-sm">
@@ -239,7 +405,7 @@ export default function FloorPlanCalculatorPage() {
             )}
           </section>
 
-          {baseArea > 0 && (
+          {result && (
             <section className="rounded-2xl bg-white p-6 shadow-sm sm:p-7">
               <div className="mb-5 flex items-center gap-2">
                 <PackageCheck className="size-5 text-ink" />
@@ -252,18 +418,15 @@ export default function FloorPlanCalculatorPage() {
                     Available from stock
                   </p>
                   <p className="mt-2 text-2xl font-black text-green-800">
-                    {result.fromStockPieces.toLocaleString()}
+                    {result.stockSplit.fromStockPieces.toLocaleString()}
                     <span className="ml-1 text-sm font-bold">pcs</span>
-                  </p>
-                  <p className="mt-1 text-xs font-medium text-green-700">
-                    {formatRWF(result.fromStockCost)}
                   </p>
                 </article>
 
                 <article
                   className={cn(
                     "rounded-xl border p-4",
-                    result.toSourcePieces > 0
+                    result.stockSplit.toSourcePieces > 0
                       ? "border-amber/30 bg-amber-50"
                       : "border-slate-100 bg-[#F9FAFB]",
                   )}
@@ -271,7 +434,7 @@ export default function FloorPlanCalculatorPage() {
                   <p
                     className={cn(
                       "text-[11px] font-bold uppercase tracking-wide",
-                      result.toSourcePieces > 0 ? "text-amber-800" : "text-muted",
+                      result.stockSplit.toSourcePieces > 0 ? "text-amber-800" : "text-muted",
                     )}
                   >
                     To be sourced separately
@@ -279,26 +442,18 @@ export default function FloorPlanCalculatorPage() {
                   <p
                     className={cn(
                       "mt-2 text-2xl font-black",
-                      result.toSourcePieces > 0 ? "text-amber-900" : "text-ink",
+                      result.stockSplit.toSourcePieces > 0 ? "text-amber-900" : "text-ink",
                     )}
                   >
-                    {result.toSourcePieces.toLocaleString()}
+                    {result.stockSplit.toSourcePieces.toLocaleString()}
                     <span className="ml-1 text-sm font-bold">pcs</span>
-                  </p>
-                  <p
-                    className={cn(
-                      "mt-1 text-xs font-medium",
-                      result.toSourcePieces > 0 ? "text-amber-800" : "text-muted",
-                    )}
-                  >
-                    {formatRWF(result.toSourceCost)}
                   </p>
                 </article>
               </div>
 
               <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-muted">
                 <Truck className="mt-0.5 size-3.5 shrink-0" />
-                {result.fullyAvailableFromStock
+                {result.stockSplit.fullyAvailableFromStock
                   ? "Everything you need is on hand — this can be dispatched as soon as the quotation is settled."
                   : "Part of this order would come from the next batch. Our stock team will confirm lead times with you before you pay."}
               </p>

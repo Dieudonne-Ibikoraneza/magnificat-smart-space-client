@@ -4,13 +4,14 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Coins, CircleCheckBig, ExternalLink, Repeat2, UsersRound } from "lucide-react";
+import { Coins, CircleCheckBig, ExternalLink, Repeat2, Truck, UsersRound } from "lucide-react";
 import { AnalyticsPageHeader } from "@/app/analytics/layout";
 import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { ChartAxisTick } from "@/components/chart-axis-tick";
 import { ConversionFunnel, type ConversionFunnelStage } from "@/components/conversion-funnel";
 import { KpiCards, type KpiCardData } from "@/components/kpi-cards";
+import { OrdersByCreatorChart } from "@/components/orders-by-creator-chart";
 import { RevenueTrendChart } from "@/components/revenue-trend-chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { analyticsApi, usersApi } from "@/lib/api";
@@ -153,6 +154,11 @@ const AnalyticsOverviewPage = () => {
   const kpis: KpiCardData[] = overview
     ? [
         { label: "Total Sales (RWF)", value: formatCompactCurrency(overview.totalSales), icon: Coins },
+        {
+          label: "Transport Fees (excl. from Sales)",
+          value: formatCompactCurrency(overview.totalTransportFees),
+          icon: Truck,
+        },
         { label: "Total Customers", value: overview.totalCustomers.toLocaleString(), icon: UsersRound },
         { label: "Repeat Purchase Rate", value: `${overview.repeatPurchaseRate.toFixed(0)}%`, icon: Repeat2 },
         {
@@ -195,6 +201,14 @@ const AnalyticsOverviewPage = () => {
           </div>
         ) : (
           <KpiCards items={kpis} />
+        )}
+
+        {overviewLoading || !overview ? (
+          <Skeleton className="h-90 w-full rounded-2xl" />
+        ) : overview.creatorTrend.every((point) => point.customer === 0 && point.staff === 0) ? null : (
+          <section className="rounded-2xl bg-card p-5 sm:p-6">
+            <OrdersByCreatorChart data={overview.creatorTrend} />
+          </section>
         )}
 
         <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">

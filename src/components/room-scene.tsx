@@ -27,6 +27,10 @@ import { cn } from "@/lib/utils";
  * per-surface bookkeeping.
  */
 
+/** How many times a failed tile-texture fetch retries before the surface is accepted as genuinely untiled — see `useTileTexture`. */
+const MAX_TEXTURE_LOAD_RETRIES = 2;
+const TEXTURE_RETRY_DELAY_MS = 500;
+
 /** "25×40cm" / "60x60 cm" → metres. Falls back to a square derived from the piece area. */
 const tileMetres = (product: Product): [number, number] => {
   const match = product.size.match(/(\d+(?:\.\d+)?)\s*[×x]\s*(\d+(?:\.\d+)?)/i);
@@ -81,6 +85,7 @@ const useTileTexture = (
     if (!product) return;
 
     let active = true;
+    let attempt = 0;
     setLoaded((current) =>
       current.id === product.id && current.ready
         ? current
@@ -89,30 +94,47 @@ const useTileTexture = (
 
     const loader = new THREE.TextureLoader();
     loader.setCrossOrigin("anonymous");
-    loader.load(
-      product.image,
-      (texture) => {
-        if (!active) {
-          texture.dispose();
-          return;
-        }
-        // Everything the texture needs is set here, at creation, so nothing
-        // downstream has to reach back in and mutate it.
-        const [width, height] = tileMetres(product);
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-        texture.colorSpace = THREE.SRGBColorSpace;
-        texture.anisotropy = 8;
-        texture.repeat.set(1 / width, 1 / height);
-        setLoaded({ id: product.id, texture, ready: true });
-      },
-      undefined,
-      // A tile whose image won't load ends up untiled — but only once that's
-      // actually known, not for the whole gap while it was still trying.
-      () => {
-        if (active) setLoaded({ id: product.id, texture: null, ready: true });
-      },
-    );
+
+    const attemptLoad = () => {
+      loader.load(
+        product.image,
+        (texture) => {
+          if (!active) {
+            texture.dispose();
+            return;
+          }
+          // Everything the texture needs is set here, at creation, so nothing
+          // downstream has to reach back in and mutate it.
+          const [width, height] = tileMetres(product);
+          texture.wrapS = THREE.RepeatWrapping;
+          texture.wrapT = THREE.RepeatWrapping;
+          texture.colorSpace = THREE.SRGBColorSpace;
+          texture.anisotropy = 8;
+          texture.repeat.set(1 / width, 1 / height);
+          setLoaded({ id: product.id, texture, ready: true });
+        },
+        undefined,
+        // A single failed fetch is often transient — e.g. the network
+        // briefly saturated by several rooms' worth of GLBs and textures
+        // loading at once during a quick room switch, not a real 404/CORS
+        // block — so this retries a couple of times before accepting
+        // "untiled" as final. Without this, one blip left the surface
+        // permanently blank for the rest of this mount: nothing about
+        // `product` changing again to ever re-trigger this effect.
+        () => {
+          if (!active) return;
+          if (attempt < MAX_TEXTURE_LOAD_RETRIES) {
+            attempt += 1;
+            window.setTimeout(() => {
+              if (active) attemptLoad();
+            }, TEXTURE_RETRY_DELAY_MS);
+            return;
+          }
+          setLoaded({ id: product.id, texture: null, ready: true });
+        },
+      );
+    };
+    attemptLoad();
 
     return () => {
       active = false;
@@ -738,8 +760,10 @@ const DEFAULT_CAMERA_CONFIG: CameraConfig = {
    * box, staring down through it."
    */
   orbitLimits: {
-    // Close enough to read individual tiles; still short of clipping the shell.
-    minDistance: 1.0,
+    // Close enough to read the tile's texture/grout lines up close — this
+    // number alone can't clip the shell either way, since the near clip
+    // plane (0.1) sits well below it.
+    minDistance: 0.5,
     maxDistance: 5.0,
     // Azimuth, either side of dead-centre: enough to glance toward each side
     // wall without ever swinging past one to its unrendered back face.
@@ -820,9 +844,10 @@ const MODEL_CAMERA_CONFIGS: Record<string, CameraConfig> = {
      */
     horizontalFov: 75,
     orbitLimits: {
-      // Lets the customer pull in for a clear look at floor/wall tiles;
-      // `bounds` still stops the dolly before a wall.
-      minDistance: 1.5,
+      // Close enough to read the tile's texture/grout lines up close;
+      // `bounds` (not this number) is what actually stops the dolly before
+      // a wall, so pulling this in further can't newly clip anything.
+      minDistance: 0.6,
       // Deliberately past what the room allows: `bounds` is the real stop,
       // so the dolly runs until the camera actually reaches a wall rather
       // than halting early at a number that has to guess where the walls are.
