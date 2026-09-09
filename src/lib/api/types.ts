@@ -27,15 +27,8 @@ export type HearAboutUs =
   | "SEARCH_ENGINE"
   | "OTHER";
 export type SuitableFor = "FLOOR" | "WALL" | "BOTH";
-export type RoomType =
-  | "LIVING_ROOM"
-  | "BEDROOM"
-  | "BATHROOM"
-  | "KITCHEN"
-  | "BALCONY"
-  | "STAIRS"
-  | "GATES"
-  | "OUTDOOR";
+/** The rooms the whole app supports — living room, bedroom, bathroom, kitchen. */
+export type RoomType = "LIVING_ROOM" | "BEDROOM" | "BATHROOM" | "KITCHEN";
 export type StockStatus = "in_stock" | "low_stock" | "out_of_stock";
 export type OrderType = "PURCHASE" | "BOOKING";
 export type OrderCreatorType = "CUSTOMER" | "STAFF";

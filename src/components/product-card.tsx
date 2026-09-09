@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type MouseEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, Check, Heart, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -50,6 +51,13 @@ export const stockLabels = {
   out_of_stock: "Out of stock",
 };
 
+/** Translation keys for the same statuses — used by the customer-facing card. */
+const STOCK_KEYS = {
+  in_stock: "product.stock.in_stock",
+  low_stock: "product.stock.low_stock",
+  out_of_stock: "product.stock.out_of_stock",
+} as const;
+
 export const ProductCard = ({
   product,
   list = false,
@@ -70,6 +78,7 @@ export const ProductCard = ({
   selected?: boolean;
   onToggle?: () => void;
 }) => {
+  const { t } = useTranslation();
   const router = useRouter();
   const cart = useCart();
   const favorites = useFavorites();
@@ -79,8 +88,8 @@ export const ProductCard = ({
     event.preventDefault();
     event.stopPropagation();
     if (!tokenStore.getAccessToken()) {
-      toast.error("Sign in required", {
-        description: "Create a free account or log in to save favorites.",
+      toast.error(t("product.toast.signInRequiredTitle"), {
+        description: t("product.toast.signInToFavorite"),
       });
       router.push("/auth");
       return;
@@ -94,8 +103,8 @@ export const ProductCard = ({
     event.preventDefault();
     event.stopPropagation();
     if (!tokenStore.getAccessToken()) {
-      toast.error("Sign in required", {
-        description: "Create a free account or log in to add tiles to your cart.",
+      toast.error(t("product.toast.signInRequiredTitle"), {
+        description: t("product.toast.signInToAddToCart"),
       });
       router.push("/auth");
       return;
@@ -107,7 +116,9 @@ export const ProductCard = ({
     const existing = cart.lines.find((line) => line.productId === product.id);
     const nextArea = Math.round(((existing?.areaSqm ?? 0) + product.boxCoverage) * 100) / 100;
     cart.setQuantity(product, nextArea);
-    toast.success("Added to cart", { description: `${product.name} — now ${nextArea} m² in your cart.` });
+    toast.success(t("product.toast.addedTitle"), {
+      description: t("product.toast.addedBody", { name: product.name, area: nextArea }),
+    });
   };
 
   return (
@@ -133,14 +144,14 @@ export const ProductCard = ({
           className={`absolute left-4 top-4 rounded-md border px-2.5 py-1 text-xs font-semibold shadow-sm ${stockStyles[product.stockStatus]}`}
         >
           <span className="mr-1.5">•</span>
-          {stockLabels[product.stockStatus]}
+          {t(STOCK_KEYS[product.stockStatus])}
         </span>
         {selectable && (
           <button
             type="button"
             onClick={onToggle}
             aria-pressed={selected}
-            aria-label={selected ? `Remove ${product.name} from order` : `Select ${product.name}`}
+            aria-label={selected ? t("product.removeFromOrderAria", { name: product.name }) : t("product.selectAria", { name: product.name })}
             className={cn(
               "absolute top-3 right-3 z-20 inline-flex size-9 items-center justify-center rounded-full shadow-sm transition-transform hover:scale-105",
               selected ? "bg-primary text-ink" : "bg-white/90 text-transparent hover:bg-white",
@@ -155,7 +166,7 @@ export const ProductCard = ({
             variant="ghost"
             size="icon"
             className="group/like absolute top-3 right-3 z-20 size-9 rounded-full bg-white/90 shadow-sm hover:bg-white"
-            aria-label={liked ? `Remove ${product.name} from favorites` : `Save ${product.name}`}
+            aria-label={liked ? t("product.removeFavoriteAria", { name: product.name }) : t("product.saveAria", { name: product.name })}
             aria-pressed={liked}
             onClick={handleToggleFavorite}
           >
@@ -183,7 +194,7 @@ export const ProductCard = ({
         <div className="mt-auto flex items-center justify-between pt-4 sm:pt-5">
           <p className="text-lg font-bold text-ink">
             RWF {product.price.toLocaleString()}{" "}
-            <span className="ml-1 text-xs font-normal text-muted">/ sqm</span>
+            <span className="ml-1 text-xs font-normal text-muted">{t("product.pricePerSqm")}</span>
           </p>
           {!selectable && (
             <div className="flex items-center gap-2">
@@ -195,7 +206,7 @@ export const ProductCard = ({
                   disabled={product.stockStatus === "out_of_stock"}
                   onClick={handleAddToCart}
                   className="size-11 rounded-full border border-slate-100 bg-muted-background text-ink hover:bg-primary hover:text-ink disabled:pointer-events-none disabled:opacity-50"
-                  aria-label={`Add ${product.name} to cart`}
+                  aria-label={t("product.addToCartAria", { name: product.name })}
                 >
                   <ShoppingCart className="size-5" />
                 </Button>
@@ -204,9 +215,9 @@ export const ProductCard = ({
                 size="icon"
                 variant="ghost"
                 className="size-11 rounded-full border border-slate-100 bg-muted-background text-ink hover:bg-primary hover:text-ink"
-                aria-label={`View ${product.name}`}
+                aria-label={t("product.viewAria", { name: product.name })}
                 nativeButton={false}
-                render={<Link href={`${detailsBasePath}/${product.id}`} aria-label={`View ${product.name}`} />}
+                render={<Link href={`${detailsBasePath}/${product.id}`} aria-label={t("product.viewAria", { name: product.name })} />}
               >
                 <ArrowRight className="size-5" />
               </Button>

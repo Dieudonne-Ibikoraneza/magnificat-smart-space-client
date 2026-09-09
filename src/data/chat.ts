@@ -1,4 +1,4 @@
-export const roomOptions = ["Living Room", "Bathroom", "Bedroom", "Kitchen", "Balcony"];
+export const roomOptions = ["Living Room", "Bathroom", "Bedroom", "Kitchen"];
 
 /** Suggested prompts shown once the assistant has made its first recommendation — each just sends its `text` as a real chat message. */
 export type FollowUp = { id: string; text: string };

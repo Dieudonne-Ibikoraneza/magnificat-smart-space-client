@@ -5,11 +5,7 @@ export type RoomTypeLabel =
   | "Living Room (Saloon)"
   | "Bedroom"
   | "Bathroom"
-  | "Kitchen"
-  | "Balcony"
-  | "Stairs"
-  | "Gates"
-  | "Outdoor";
+  | "Kitchen";
 
 export type VisualizerRoom = {
   id: string;
@@ -58,24 +54,6 @@ export const visualizerRooms: VisualizerRoom[] = [
     thumbnail: "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&w=600&q=80",
     modelUrl: "/models/rooms/bedroom.glb",
     isActive: true,
-  },
-  {
-    id: "room-balcony",
-    type: "Balcony",
-    name: "Balcony terrace",
-    description: "Exterior surface — needs anti-slip, weather-resistant tiles.",
-    thumbnail: "https://images.unsplash.com/photo-1615529162924-f8605388461d?auto=format&fit=crop&w=600&q=80",
-    modelUrl: "/models/rooms/balcony.glb",
-    isActive: true,
-  },
-  {
-    id: "room-stairs",
-    type: "Stairs",
-    name: "Interior staircase",
-    description: "Tread and riser surfaces for a two-flight staircase.",
-    thumbnail: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=600&q=80",
-    modelUrl: "/models/rooms/stairs.glb",
-    isActive: false,
   },
 ];
 
@@ -154,10 +132,10 @@ export const savedDesigns: SavedDesign[] = [
   },
   {
     id: "DSG-2027",
-    name: "Balcony terrace — anti-slip",
-    roomId: "room-balcony",
-    roomName: "Balcony",
-    previewImage: "https://images.unsplash.com/photo-1615529162924-f8605388461d?auto=format&fit=crop&w=900&q=85",
+    name: "Master bedroom — warm oak",
+    roomId: "room-bedroom",
+    roomName: "Bedroom",
+    previewImage: "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&w=900&q=85",
     savedAt: "2 weeks ago",
     sharedWithSales: false,
     areaSqm: 22,

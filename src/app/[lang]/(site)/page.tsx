@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { ProductCatalog } from "@/components/product-catalog";
 import { ProductsPageSkeleton } from "@/components/skeletons";
@@ -15,13 +16,14 @@ import { useApi } from "@/lib/api/use-api";
  * matching query params) instead of raising this limit further.
  */
 const ProductsPage = () => {
+  const { t } = useTranslation();
   const { data, loading, error, reload } = useApi(() => productsApi.list({ limit: 100 }));
   const products = data?.items.map((product) => toProduct(product)) ?? [];
 
   if (loading) return <ProductsPageSkeleton />;
   if (error) return <ApiErrorState message={error} onRetry={reload} className="my-16" />;
   if (products.length === 0) {
-    return <ApiEmptyState message="No products are available yet — check back soon." className="my-16" />;
+    return <ApiEmptyState message={t("catalog.noProducts")} className="my-16" />;
   }
 
   return <ProductCatalog products={products} />;

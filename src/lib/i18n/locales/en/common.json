@@ -39,6 +39,110 @@
     "label": "Language",
     "select": "Choose a language"
   },
+  "header": {
+    "homeAria": "Magnificat Smart Space home",
+    "primaryNav": "Primary navigation",
+    "mobileNav": "Mobile navigation",
+    "searchPlaceholder": "Search for tiles, categories, or sizes…",
+    "changeLanguage": "Change language",
+    "openMenu": "Open navigation menu",
+    "closeMenu": "Close navigation menu",
+    "signIn": "Sign in",
+    "accountAria": "Account — signed in as {{name}}",
+    "cart": "Shopping cart",
+    "cartWithCount_one": "Shopping cart, {{count}} item",
+    "cartWithCount_other": "Shopping cart, {{count}} items",
+    "nav": {
+      "products": "Products",
+      "collections": "Collections",
+      "visualizer": "3D Visualizer",
+      "compare": "Compare",
+      "calculator": "Calculator",
+      "chatbot": "AI Chatbot"
+    }
+  },
+  "catalog": {
+    "filters": "Filters",
+    "reset": "Reset",
+    "resetFilters": "Reset filters",
+    "closeFilters": "Close filters",
+    "openFilters": "Open filters",
+    "sortBy": "Sort by:",
+    "sort": {
+      "newest": "Newest Arrivals",
+      "low": "Price: Low to High",
+      "high": "Price: High to Low"
+    },
+    "results": {
+      "none": "No results",
+      "showing": "Showing {{start}}–{{end}} of {{total}} results"
+    },
+    "searchPlaceholder": "Search products by name or collection…",
+    "searchProducts": "Search products",
+    "closeProductSearch": "Close product search",
+    "gridView": "Grid view",
+    "listView": "List view",
+    "pagination": {
+      "first": "First",
+      "last": "Last"
+    },
+    "aiHelp": {
+      "title": "Need Expert Help",
+      "body": "Chat with our AI interior designer to find the perfect match.",
+      "cta": "Ask AI Assistant"
+    },
+    "empty": {
+      "noCollectionTitle": "No products in this collection yet",
+      "noMatchTitle": "No products match your filters",
+      "noCollectionBody": "We're still adding tiles to this collection. Browse other collections or check back soon.",
+      "noMatchBody": "Try removing some filters or reset them to see all available products.",
+      "browseCollections": "Browse collections"
+    },
+    "noProducts": "No products are available yet — check back soon.",
+    "filterGroups": {
+      "roomType": "Room type",
+      "size": "Size",
+      "availability": "Availability",
+      "suitableFor": "Suitable for"
+    },
+    "roomTypes": {
+      "livingRoom": "Living Room (Saloon)",
+      "bedroom": "Bedroom",
+      "bathroom": "Bathroom",
+      "kitchen": "Kitchen"
+    },
+    "suitableForOptions": {
+      "floor": "Floor",
+      "wall": "Wall",
+      "floorAndWall": "Floor & Wall"
+    },
+    "availabilityOptions": {
+      "inStockReady": "In Stock Ready",
+      "lowStock": "Low Stock",
+      "outOfStock": "Out of Stock (Pre-order)"
+    }
+  },
+  "product": {
+    "stock": {
+      "in_stock": "In stock",
+      "low_stock": "Low stock",
+      "out_of_stock": "Out of stock"
+    },
+    "pricePerSqm": "/ sqm",
+    "viewAria": "View {{name}}",
+    "addToCartAria": "Add {{name}} to cart",
+    "saveAria": "Save {{name}}",
+    "removeFavoriteAria": "Remove {{name}} from favorites",
+    "selectAria": "Select {{name}}",
+    "removeFromOrderAria": "Remove {{name}} from order",
+    "toast": {
+      "signInRequiredTitle": "Sign in required",
+      "signInToFavorite": "Create a free account or log in to save favorites.",
+      "signInToAddToCart": "Create a free account or log in to add tiles to your cart.",
+      "addedTitle": "Added to cart",
+      "addedBody": "{{name}} — now {{area}} m² in your cart."
+    }
+  },
   "auth": {
     "logoAlt": "Magnificat Smart Space logo",
     "showroomAlt": "Luxury tile showroom",

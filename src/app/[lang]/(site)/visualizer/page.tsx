@@ -35,11 +35,10 @@ import { cn } from "@/lib/utils";
 type Surface = "floor" | "walls";
 
 /**
- * The only room types with a 3D scene actually authored (`RoomScene`'s generic
- * GLB viewer for Kitchen, dedicated tuned components for the rest) — every
- * other `RoomType` the backend knows about (balcony, stairs, gates, outdoor)
- * has no visualizer experience yet, so it's filtered out below rather than
- * shown as a tab that goes nowhere.
+ * The four room types the app supports, each with a 3D scene authored
+ * (`RoomScene`'s generic GLB viewer for Kitchen, dedicated tuned components
+ * for the rest). A room with no backing `Room` row is filtered out below
+ * rather than shown as a tab that goes nowhere.
  */
 const ROOM_TABS: { label: string; type: RoomType }[] = [
   { label: "Kitchen", type: "KITCHEN" },

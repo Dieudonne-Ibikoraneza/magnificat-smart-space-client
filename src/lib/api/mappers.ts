@@ -16,10 +16,6 @@ export const roomTypeLabels: Record<RoomType, string> = {
   BEDROOM: "Bedroom",
   BATHROOM: "Bathroom",
   KITCHEN: "Kitchen",
-  BALCONY: "Balcony",
-  STAIRS: "Stairs",
-  GATES: "Gates",
-  OUTDOOR: "Outdoor",
 };
 
 const roomTypeByLabel = new Map<string, RoomType>(

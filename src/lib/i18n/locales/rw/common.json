@@ -39,6 +39,110 @@
     "label": "Ururimi",
     "select": "Hitamo ururimi"
   },
+  "header": {
+    "homeAria": "Ahabanza ha Magnificat Smart Space",
+    "primaryNav": "Urutonde rw'ibanze",
+    "mobileNav": "Urutonde rwa telefone",
+    "searchPlaceholder": "Shakisha amakaro, ibyiciro, cyangwa ingano…",
+    "changeLanguage": "Hindura ururimi",
+    "openMenu": "Fungura urutonde",
+    "closeMenu": "Funga urutonde",
+    "signIn": "Injira",
+    "accountAria": "Konti — winjiye nka {{name}}",
+    "cart": "Agatebo ko kugura",
+    "cartWithCount_one": "Agatebo ko kugura, ikintu {{count}}",
+    "cartWithCount_other": "Agatebo ko kugura, ibintu {{count}}",
+    "nav": {
+      "products": "Ibicuruzwa",
+      "collections": "Amakusanyirizo",
+      "visualizer": "Kwerekana 3D",
+      "compare": "Kugereranya",
+      "calculator": "Kubara",
+      "chatbot": "Umufasha wa AI"
+    }
+  },
+  "catalog": {
+    "filters": "Muyunguruzi",
+    "reset": "Siba",
+    "resetFilters": "Subiza muyunguruzi",
+    "closeFilters": "Funga muyunguruzi",
+    "openFilters": "Fungura muyunguruzi",
+    "sortBy": "Shungura na:",
+    "sort": {
+      "newest": "Ibyaje vuba",
+      "low": "Igiciro: Gito ku Kinini",
+      "high": "Igiciro: Kinini ku Gito"
+    },
+    "results": {
+      "none": "Nta bisubizo",
+      "showing": "Hagaragara {{start}}–{{end}} muri {{total}} byose hamwe"
+    },
+    "searchPlaceholder": "Shakisha ibicuruzwa ku izina cyangwa ikusanyirizo…",
+    "searchProducts": "Shakisha ibicuruzwa",
+    "closeProductSearch": "Funga ishakisha ry'ibicuruzwa",
+    "gridView": "Igaragaza ry'ibicuruzwa mu mashusho",
+    "listView": "Igaragaza ry'ibicuruzwa mu rutonde",
+    "pagination": {
+      "first": "Iya mbere",
+      "last": "Iya nyuma"
+    },
+    "aiHelp": {
+      "title": "Ukeneye Ubufasha bw'Impuguke",
+      "body": "Ganira na AI yacu mu kurimbisha kugira ngo ubone ikikubereye.",
+      "cta": "Baza AI"
+    },
+    "empty": {
+      "noCollectionTitle": "Nta bicuruzwa biri muri iri kusanyirizo",
+      "noMatchTitle": "Nta bicuruzwa bihuye na muyunguruzi yawe",
+      "noCollectionBody": "Turacyongeramo amakaro muri iri kusanyirizo. Reba andi makusanyirizo cyangwa ugaruke vuba.",
+      "noMatchBody": "Gerageza gukuraho zimwe muri muyunguruzi cyangwa uzisubize kugira ngo ubone ibicuruzwa byose bihari.",
+      "browseCollections": "Reba amakusanyirizo"
+    },
+    "noProducts": "Nta bicuruzwa bihari ubu — garuka vuba.",
+    "filterGroups": {
+      "roomType": "Ubwoko bw'icyumba",
+      "size": "Ingano",
+      "availability": "UKo biri kuboneka",
+      "suitableFor": "Aho bijyanye"
+    },
+    "roomTypes": {
+      "livingRoom": "Icyumba cyo kwakiriramo (Saloon)",
+      "bedroom": "Icyumba cyo kuraramo",
+      "bathroom": "Ubwiherero",
+      "kitchen": "Igikoni"
+    },
+    "suitableForOptions": {
+      "floor": "Hasi",
+      "wall": "Urukuta",
+      "floorAndWall": "Hasi n'Urukuta"
+    },
+    "availabilityOptions": {
+      "inStockReady": "Birahari",
+      "lowStock": "Hasigaye Bike",
+      "outOfStock": "Byashize"
+    }
+  },
+  "product": {
+    "stock": {
+      "in_stock": "Birahari",
+      "low_stock": "Bike bisigaye",
+      "out_of_stock": "Byashize"
+    },
+    "pricePerSqm": "/ m²",
+    "viewAria": "Reba {{name}}",
+    "addToCartAria": "Shyira {{name}} mu gatebo",
+    "saveAria": "Bika {{name}}",
+    "removeFavoriteAria": "Kura {{name}} mu byakunzwe",
+    "selectAria": "Hitamo {{name}}",
+    "removeFromOrderAria": "Kura {{name}} muri oda",
+    "toast": {
+      "signInRequiredTitle": "Ugomba kwinjira",
+      "signInToFavorite": "Fungura konti y'ubuntu cyangwa winjire kugira ngo ubike ibyakunzwe.",
+      "signInToAddToCart": "Fungura konti y'ubuntu cyangwa winjire kugira ngo wongere amakaro mu gatebo.",
+      "addedTitle": "Byashyizwe mu gatebo",
+      "addedBody": "{{name}} — ubu ni {{area}} m² mu gatebo kawe."
+    }
+  },
   "auth": {
     "logoAlt": "Ikirango cya Magnificat Smart Space",
     "showroomAlt": "Aho baragurishiriza amakaro y'umutamenwa",
