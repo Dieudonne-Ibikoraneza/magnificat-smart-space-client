@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowRight,
   Boxes,
@@ -52,6 +53,7 @@ const formatNumber = (value: number) =>
  * catalog and real stock, not a client-side estimate over mock data.
  */
 export default function FloorPlanCalculatorPage() {
+  const { t } = useTranslation();
   const {
     data: productsPage,
     loading: productsLoading,
@@ -139,7 +141,7 @@ export default function FloorPlanCalculatorPage() {
         .catch((cause) => {
           if (!active) return;
           setCalcError(
-            cause instanceof ApiError ? cause.message : "Couldn't calculate this — please try again.",
+            cause instanceof ApiError ? cause.message : t("calculator.calcError"),
           );
         })
         .finally(() => {
@@ -156,17 +158,17 @@ export default function FloorPlanCalculatorPage() {
 
   const breakdown = result
     ? [
-        { label: "Room area", value: `${formatNumber(result.baseAreaSqm)} m²` },
-        { label: `With ${result.wastagePercent}% wastage`, value: `${formatNumber(result.requiredAreaSqm)} m²` },
-        { label: "Complete boxes", value: result.quantity.completeBoxes.toLocaleString() },
-        { label: "Additional pieces", value: result.quantity.remainingPieces.toLocaleString() },
-        { label: "Total pieces", value: result.quantity.totalPieces.toLocaleString() },
-        { label: "Material purchased", value: `${formatNumber(result.quantity.purchasedArea)} m²` },
+        { key: "roomArea", label: t("calculator.breakdown.roomArea"), value: `${formatNumber(result.baseAreaSqm)} m²` },
+        { key: "withWastage", label: t("calculator.breakdown.withWastage", { percent: result.wastagePercent }), value: `${formatNumber(result.requiredAreaSqm)} m²` },
+        { key: "completeBoxes", label: t("calculator.breakdown.completeBoxes"), value: result.quantity.completeBoxes.toLocaleString() },
+        { key: "additionalPieces", label: t("calculator.breakdown.additionalPieces"), value: result.quantity.remainingPieces.toLocaleString() },
+        { key: "totalPieces", label: t("calculator.breakdown.totalPieces"), value: result.quantity.totalPieces.toLocaleString() },
+        { key: "materialPurchased", label: t("calculator.breakdown.materialPurchased"), value: `${formatNumber(result.quantity.purchasedArea)} m²` },
       ]
     : [];
 
   if (productsLoading) {
-    return <ApiLoading label="Loading the calculator…" className="py-24" />;
+    return <ApiLoading label={t("calculator.loading")} className="py-24" />;
   }
 
   if (productsError) {
@@ -176,14 +178,12 @@ export default function FloorPlanCalculatorPage() {
   return (
     <div className="pb-10">
       <header className="mb-8">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted">Floor plan calculator</p>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted">{t("calculator.eyebrow")}</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-          How much material does your room need?
+          {t("calculator.title")}
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">
-          Enter your room dimensions (or a total area) and we&apos;ll work out the quantity, including a
-          wastage allowance, split between what we can ship from current stock and what would need to be
-          sourced separately.
+          {t("calculator.intro")}
         </p>
       </header>
 
@@ -191,24 +191,24 @@ export default function FloorPlanCalculatorPage() {
         <section className="rounded-2xl bg-white p-6 shadow-sm sm:p-7">
           <div className="mb-6 flex items-center gap-2">
             <Ruler className="size-5 text-ink" />
-            <h2 className="text-lg font-bold text-ink">Your space</h2>
+            <h2 className="text-lg font-bold text-ink">{t("calculator.yourSpace")}</h2>
           </div>
 
           <div className="mb-5 flex items-center justify-between gap-4 rounded-xl border border-slate-100 bg-[#F9FAFB] px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-ink">I already know the total area</p>
-              <p className="mt-0.5 text-xs text-muted">Skip length × width and enter m² directly.</p>
+              <p className="text-sm font-semibold text-ink">{t("calculator.knowTotalArea")}</p>
+              <p className="mt-0.5 text-xs text-muted">{t("calculator.knowTotalAreaHint")}</p>
             </div>
             <Switch
               checked={useTotalArea}
               onCheckedChange={setUseTotalArea}
-              aria-label="Enter a total area instead of dimensions"
+              aria-label={t("calculator.useTotalAreaAria")}
             />
           </div>
 
           {useTotalArea ? (
             <Field>
-              <FieldLabel htmlFor="fp-total-area">Total area (m²)</FieldLabel>
+              <FieldLabel htmlFor="fp-total-area">{t("calculator.totalAreaLabel")}</FieldLabel>
               <Input
                 id="fp-total-area"
                 type="number"
@@ -217,14 +217,14 @@ export default function FloorPlanCalculatorPage() {
                 inputMode="decimal"
                 value={totalAreaSqm}
                 onChange={(event) => setTotalAreaSqm(event.target.value)}
-                placeholder="e.g. 30"
+                placeholder={t("calculator.totalAreaPlaceholder")}
                 className="h-12 text-base font-semibold"
               />
             </Field>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
-                <FieldLabel htmlFor="fp-length">Length (m)</FieldLabel>
+                <FieldLabel htmlFor="fp-length">{t("calculator.lengthLabel")}</FieldLabel>
                 <Input
                   id="fp-length"
                   type="number"
@@ -237,7 +237,7 @@ export default function FloorPlanCalculatorPage() {
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="fp-width">Width (m)</FieldLabel>
+                <FieldLabel htmlFor="fp-width">{t("calculator.widthLabel")}</FieldLabel>
                 <Input
                   id="fp-width"
                   type="number"
@@ -253,7 +253,7 @@ export default function FloorPlanCalculatorPage() {
           )}
 
           <Field className="mt-4">
-            <FieldLabel htmlFor="fp-wastage">Wastage allowance (%)</FieldLabel>
+            <FieldLabel htmlFor="fp-wastage">{t("calculator.wastageLabel")}</FieldLabel>
             <Input
               id="fp-wastage"
               type="number"
@@ -266,14 +266,13 @@ export default function FloorPlanCalculatorPage() {
               className="h-12 text-base font-semibold"
             />
             <p className="mt-2 text-xs text-muted">
-              {DEFAULT_WASTAGE_PERCENT}% is recommended for straight layouts; allow 15% for diagonal or
-              herringbone patterns.
+              {t("calculator.wastageHint", { percent: DEFAULT_WASTAGE_PERCENT })}
             </p>
           </Field>
 
           <div className="mt-6 border-t border-slate-100 pt-6">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="text-xs font-bold uppercase tracking-wide text-muted">Choose a tile</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">{t("calculator.chooseTile")}</p>
               <div className="relative shrink-0">
                 <Button
                   type="button"
@@ -283,7 +282,7 @@ export default function FloorPlanCalculatorPage() {
                   aria-pressed={tileFiltersOpen}
                   className={cn("h-8 gap-1.5 border-slate-200 px-2.5 text-xs font-bold", tileFiltersOpen && "bg-muted-background")}
                 >
-                  <Filter className="size-3.5" /> Filters
+                  <Filter className="size-3.5" /> {t("calculator.filters")}
                   {hasActiveFilters(tileFilters) && (
                     <span className="inline-flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-ink">
                       {Object.values(tileFilters).reduce((sum, group) => sum + group.length, 0)}
@@ -295,7 +294,7 @@ export default function FloorPlanCalculatorPage() {
                   <>
                     <button
                       type="button"
-                      aria-label="Close filters"
+                      aria-label={t("calculator.closeFilters")}
                       className="fixed inset-0 z-20 cursor-default"
                       onClick={() => setTileFiltersOpen(false)}
                     />
@@ -320,15 +319,15 @@ export default function FloorPlanCalculatorPage() {
               <Input
                 value={tileSearch}
                 onChange={(event) => setTileSearch(event.target.value)}
-                placeholder="Search by name, collection or size..."
-                aria-label="Search tiles"
+                placeholder={t("calculator.searchTilesPlaceholder")}
+                aria-label={t("calculator.searchTilesAria")}
                 className="h-10 rounded-xl bg-white py-0 pl-10 leading-10"
               />
             </div>
 
             <div className="max-h-96 space-y-2 overflow-y-auto pr-1">
               {filteredProducts.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted">No tiles match your search.</p>
+                <p className="py-6 text-center text-sm text-muted">{t("calculator.noTiles")}</p>
               ) : (
                 filteredProducts.map((item) => (
                   <button
@@ -349,7 +348,7 @@ export default function FloorPlanCalculatorPage() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-ink">{item.name}</span>
                       <span className="block truncate text-xs text-muted">
-                        {item.size} · {formatRWF(item.price)} per sqm
+                        {item.size} · {t("calculator.pricePerSqm", { price: formatRWF(item.price) })}
                       </span>
                     </span>
                   </button>
@@ -364,11 +363,11 @@ export default function FloorPlanCalculatorPage() {
             <div className="mb-6 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Boxes className="size-5 text-ink" />
-                <h2 className="text-lg font-bold text-ink">Material required</h2>
+                <h2 className="text-lg font-bold text-ink">{t("calculator.materialRequired")}</h2>
               </div>
               {calculating && result && baseArea > 0 && (
                 <span className="flex items-center gap-1.5 text-xs font-medium text-muted">
-                  <Loader2 className="size-3.5 animate-spin" /> Updating…
+                  <Loader2 className="size-3.5 animate-spin" /> {t("calculator.updating")}
                 </span>
               )}
             </div>
@@ -376,7 +375,11 @@ export default function FloorPlanCalculatorPage() {
             {baseArea <= 0 ? (
               <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
                 <CircleAlert className="mt-0.5 size-4 shrink-0" />
-                Enter {useTotalArea ? "a total area" : "both a length and a width"} to see the calculation.
+                {t("calculator.enterToSee", {
+                  what: useTotalArea
+                    ? t("calculator.enterToSee_totalArea")
+                    : t("calculator.enterToSee_dimensions"),
+                })}
               </p>
             ) : calcError ? (
               <ApiErrorState
@@ -385,12 +388,12 @@ export default function FloorPlanCalculatorPage() {
                 className="py-8"
               />
             ) : !result ? (
-              <ApiLoading label="Calculating…" className="py-8" />
+              <ApiLoading label={t("calculator.calculating")} className="py-8" />
             ) : (
               <>
                 <dl className="space-y-3 text-sm">
                   {breakdown.map((row) => (
-                    <div key={row.label} className="flex items-center justify-between gap-3">
+                    <div key={row.key} className="flex items-center justify-between gap-3">
                       <dt className="text-muted">{row.label}</dt>
                       <dd className="font-data font-semibold text-ink">{row.value}</dd>
                     </div>
@@ -398,7 +401,7 @@ export default function FloorPlanCalculatorPage() {
                 </dl>
 
                 <div className="mt-6 flex items-center justify-between gap-3 border-t border-slate-100 pt-5">
-                  <p className="text-base font-bold text-ink">Estimated material cost</p>
+                  <p className="text-base font-bold text-ink">{t("calculator.estimatedCost")}</p>
                   <p className="text-xl font-bold text-ink">{formatRWF(result.estimatedCost)}</p>
                 </div>
               </>
@@ -409,17 +412,17 @@ export default function FloorPlanCalculatorPage() {
             <section className="rounded-2xl bg-white p-6 shadow-sm sm:p-7">
               <div className="mb-5 flex items-center gap-2">
                 <PackageCheck className="size-5 text-ink" />
-                <h2 className="text-lg font-bold text-ink">Stock split</h2>
+                <h2 className="text-lg font-bold text-ink">{t("calculator.stockSplit")}</h2>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <article className="rounded-xl border border-green-200 bg-green-50 p-4">
                   <p className="text-[11px] font-bold uppercase tracking-wide text-green-700">
-                    Available from stock
+                    {t("calculator.availableFromStock")}
                   </p>
                   <p className="mt-2 text-2xl font-black text-green-800">
                     {result.stockSplit.fromStockPieces.toLocaleString()}
-                    <span className="ml-1 text-sm font-bold">pcs</span>
+                    <span className="ml-1 text-sm font-bold">{t("calculator.pcs")}</span>
                   </p>
                 </article>
 
@@ -437,7 +440,7 @@ export default function FloorPlanCalculatorPage() {
                       result.stockSplit.toSourcePieces > 0 ? "text-amber-800" : "text-muted",
                     )}
                   >
-                    To be sourced separately
+                    {t("calculator.toBeSourced")}
                   </p>
                   <p
                     className={cn(
@@ -446,7 +449,7 @@ export default function FloorPlanCalculatorPage() {
                     )}
                   >
                     {result.stockSplit.toSourcePieces.toLocaleString()}
-                    <span className="ml-1 text-sm font-bold">pcs</span>
+                    <span className="ml-1 text-sm font-bold">{t("calculator.pcs")}</span>
                   </p>
                 </article>
               </div>
@@ -454,8 +457,8 @@ export default function FloorPlanCalculatorPage() {
               <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-muted">
                 <Truck className="mt-0.5 size-3.5 shrink-0" />
                 {result.stockSplit.fullyAvailableFromStock
-                  ? "Everything you need is on hand — this can be dispatched as soon as the quotation is settled."
-                  : "Part of this order would come from the next batch. Our stock team will confirm lead times with you before you pay."}
+                  ? t("calculator.fullyAvailable")
+                  : t("calculator.partiallyAvailable")}
               </p>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -465,14 +468,14 @@ export default function FloorPlanCalculatorPage() {
                   variant="outline"
                   className="h-12 w-full font-bold"
                 >
-                  View this tile
+                  {t("calculator.viewThisTile")}
                 </Button>
                 <Button
                   nativeButton={false}
                   render={<Link href="/account/cart" />}
                   className="group h-12 w-full gap-2 bg-primary font-bold text-ink hover:bg-primary/90"
                 >
-                  Add to an order
+                  {t("calculator.addToOrder")}
                   <ArrowRight className="transition-transform duration-300 group-hover:translate-x-1" />
                 </Button>
               </div>

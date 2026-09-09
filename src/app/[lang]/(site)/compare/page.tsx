@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, Check, Minus, Plus, Scale, Search, X } from "lucide-react";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { CompareSkeleton } from "@/components/skeletons";
@@ -21,11 +22,25 @@ const formatRWF = (value: number) => `RWF ${Math.round(value).toLocaleString("en
 const formatNumber = (value: number) =>
   value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
-const stockLabels: Record<Product["stockStatus"], string> = {
-  in_stock: "In stock",
-  low_stock: "Low stock",
-  out_of_stock: "Out of stock",
-};
+const STOCK_KEYS = {
+  in_stock: "product.stock.in_stock",
+  low_stock: "product.stock.low_stock",
+  out_of_stock: "product.stock.out_of_stock",
+} as const;
+
+const SUITABLE_FOR_KEYS = {
+  floor: "compare.suitableFor.floor",
+  wall: "compare.suitableFor.wall",
+  both: "compare.suitableFor.both",
+} as const;
+
+/** Product room types arrive as display labels (see `toProduct`); map them back to translation keys. */
+const ROOM_LABEL_KEYS = {
+  "Living Room (Saloon)": "catalog.roomTypes.livingRoom",
+  Bedroom: "catalog.roomTypes.bedroom",
+  Bathroom: "catalog.roomTypes.bathroom",
+  Kitchen: "catalog.roomTypes.kitchen",
+} as const;
 
 const stockTone: Record<Product["stockStatus"], string> = {
   in_stock: "bg-green-50 text-green-700",
@@ -33,10 +48,11 @@ const stockTone: Record<Product["stockStatus"], string> = {
   out_of_stock: "bg-red-50 text-red-700",
 };
 
-const suitableForLabels: Record<Product["suitableFor"], string> = {
-  floor: "Floor only",
-  wall: "Wall only",
-  both: "Floor & wall",
+type TFunc = ReturnType<typeof useTranslation>["t"];
+
+const roomLabel = (t: TFunc, room: string): string => {
+  const key = ROOM_LABEL_KEYS[room as keyof typeof ROOM_LABEL_KEYS];
+  return key ? t(key) : room;
 };
 
 /**
@@ -44,24 +60,26 @@ const suitableForLabels: Record<Product["suitableFor"], string> = {
  * means the table stays a single map over rows × products, and the "differs"
  * highlight is computed the same way for every attribute.
  */
-const comparisonRows: {
+const buildComparisonRows = (t: TFunc): {
   label: string;
   value: (product: Product) => string;
-}[] = [
-  { label: "Price per m²", value: (p) => formatRWF(p.price) },
-  { label: "Price per box", value: (p) => formatRWF(p.price * p.boxCoverage) },
-  { label: "Tile size", value: (p) => p.size },
-  { label: "Area per piece", value: (p) => `${formatNumber(p.tileArea)} m²` },
-  { label: "Coverage per box", value: (p) => `${formatNumber(p.boxCoverage)} m²` },
-  { label: "Pieces per box", value: (p) => String(p.piecesPerBox) },
-  { label: "Suitable for", value: (p) => suitableForLabels[p.suitableFor] },
-  { label: "Recommended rooms", value: (p) => p.roomTypes.join(", ") },
-  { label: "Availability", value: (p) => stockLabels[p.stockStatus] },
-  { label: "SKU", value: (p) => p.sku },
+}[] => [
+  { label: t("compare.rows.pricePerSqm"), value: (p) => formatRWF(p.price) },
+  { label: t("compare.rows.pricePerBox"), value: (p) => formatRWF(p.price * p.boxCoverage) },
+  { label: t("compare.rows.tileSize"), value: (p) => p.size },
+  { label: t("compare.rows.areaPerPiece"), value: (p) => `${formatNumber(p.tileArea)} m²` },
+  { label: t("compare.rows.coveragePerBox"), value: (p) => `${formatNumber(p.boxCoverage)} m²` },
+  { label: t("compare.rows.piecesPerBox"), value: (p) => String(p.piecesPerBox) },
+  { label: t("compare.rows.suitableFor"), value: (p) => t(SUITABLE_FOR_KEYS[p.suitableFor]) },
+  { label: t("compare.rows.recommendedRooms"), value: (p) => p.roomTypes.map((room) => roomLabel(t, room)).join(", ") },
+  { label: t("compare.rows.availability"), value: (p) => t(STOCK_KEYS[p.stockStatus]) },
+  { label: t("compare.rows.sku"), value: (p) => p.sku },
 ];
 
 const ComparePageContent = () => {
+  const { t } = useTranslation();
   const searchParams = useSearchParams();
+  const comparisonRows = buildComparisonRows(t);
   const { data, loading, error, reload } = useApi(() => productsApi.list({ limit: 100 }));
   const products = useMemo(() => data?.items.map((product) => toProduct(product)) ?? [], [data]);
 
@@ -117,19 +135,18 @@ const ComparePageContent = () => {
   if (loading) return <CompareSkeleton />;
   if (error) return <ApiErrorState message={error} onRetry={reload} className="my-16" />;
   if (products.length === 0) {
-    return <ApiEmptyState message="No products are available to compare yet." className="my-16" />;
+    return <ApiEmptyState message={t("compare.empty")} className="my-16" />;
   }
 
   return (
     <div className="pb-10">
       <header className="mb-8">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted">Compare tiles</p>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted">{t("compare.eyebrow")}</p>
         <h1 className="mt-2 flex items-center gap-3 text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-          <Scale className="size-8 shrink-0 text-amber" /> Side-by-side comparison
+          <Scale className="size-8 shrink-0 text-amber" /> {t("compare.title")}
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">
-          Put up to {MAX_COMPARED} tiles next to each other and compare specifications, coverage and
-          suitability before you decide. Differences are highlighted.
+          {t("compare.intro", { max: MAX_COMPARED })}
         </p>
       </header>
 
@@ -137,17 +154,17 @@ const ComparePageContent = () => {
         <section className="min-w-0 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
           {selected.length === 0 ? (
             <p className="py-16 text-center text-sm text-muted">
-              Pick at least one tile from the list to start comparing.
+              {t("compare.pickPrompt")}
             </p>
           ) : (
             <div className="-mx-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6">
               <table className="w-full min-w-[540px] border-collapse text-sm">
-                <caption className="sr-only">Tile specifications compared side by side</caption>
+                <caption className="sr-only">{t("compare.tableCaption")}</caption>
                 <thead>
                   <tr>
                     <th scope="col" className="w-40 pr-3 pb-4 pl-3 text-left align-bottom">
                       <span className="text-[11px] font-bold uppercase tracking-wide text-muted">
-                        Specification
+                        {t("compare.specification")}
                       </span>
                     </th>
                     {selected.map((product) => (
@@ -164,7 +181,7 @@ const ComparePageContent = () => {
                             variant="ghost"
                             size="icon-xs"
                             onClick={() => toggle(product.id)}
-                            aria-label={`Remove ${product.name} from the comparison`}
+                            aria-label={t("compare.removeAria", { name: product.name })}
                             className="absolute -right-1 -top-1 z-10 rounded-full bg-white text-muted shadow-sm hover:text-ink"
                           >
                             <X className="size-3" />
@@ -191,7 +208,7 @@ const ComparePageContent = () => {
                               stockTone[product.stockStatus],
                             )}
                           >
-                            {stockLabels[product.stockStatus]}
+                            {t(STOCK_KEYS[product.stockStatus])}
                           </span>
                         </div>
                       </th>
@@ -226,7 +243,7 @@ const ComparePageContent = () => {
                   ))}
                   <tr className="border-t border-slate-100">
                     <th scope="row" className="py-4 pr-3 pl-3 text-left align-top text-xs font-semibold text-muted">
-                      Actions
+                      {t("compare.actions")}
                     </th>
                     {selected.map((product) => (
                       <td key={product.id} className="px-3 py-4 align-top">
@@ -236,7 +253,7 @@ const ComparePageContent = () => {
                             render={<Link href={`/products/${product.id}`} />}
                             className="group h-10 w-full gap-2 bg-primary text-xs font-bold text-ink hover:bg-primary/90"
                           >
-                            View details
+                            {t("compare.viewDetails")}
                             <ArrowRight className="transition-transform duration-300 group-hover:translate-x-1" />
                           </Button>
                         </div>
@@ -250,9 +267,9 @@ const ComparePageContent = () => {
         </section>
 
         <aside className="rounded-2xl bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="text-base font-bold text-ink">Choose tiles</h2>
+          <h2 className="text-base font-bold text-ink">{t("compare.chooseTiles")}</h2>
           <p className="mt-1 text-xs text-muted">
-            {selected.length} of {MAX_COMPARED} selected
+            {t("compare.selectedCount", { selected: selected.length, max: MAX_COMPARED })}
           </p>
 
           <div className="relative mt-4">
@@ -260,8 +277,8 @@ const ComparePageContent = () => {
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by name, SKU or size..."
-              aria-label="Search tiles to compare"
+              placeholder={t("compare.searchPlaceholder")}
+              aria-label={t("compare.searchAria")}
               className="h-11 rounded-lg pl-10 text-sm"
             />
           </div>
@@ -307,7 +324,7 @@ const ComparePageContent = () => {
               );
             })}
             {pickerResults.length === 0 && (
-              <li className="py-8 text-center text-sm text-muted">No tiles match that search.</li>
+              <li className="py-8 text-center text-sm text-muted">{t("compare.noSearchResults")}</li>
             )}
           </ul>
         </aside>
@@ -316,9 +333,14 @@ const ComparePageContent = () => {
   );
 };
 
+const CompareFallback = () => {
+  const { t } = useTranslation();
+  return <div className="py-20 text-center text-sm text-muted">{t("compare.loading")}</div>;
+};
+
 export default function ComparePage() {
   return (
-    <Suspense fallback={<div className="py-20 text-center text-sm text-muted">Loading comparison…</div>}>
+    <Suspense fallback={<CompareFallback />}>
       <ComparePageContent />
     </Suspense>
   );

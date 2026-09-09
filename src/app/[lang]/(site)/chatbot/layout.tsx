@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
 import { ApiLoading } from "@/components/api-state";
 import { useRequireRole } from "@/lib/require-role";
 import type { Role } from "@/lib/api/types";
@@ -16,6 +17,7 @@ const ANY_AUTHENTICATED_ROLE: Role[] = [
 ];
 
 const ChatbotLayout = ({ children }: { children: React.ReactNode }) => {
+  const { t } = useTranslation();
   const { authorized } = useRequireRole(ANY_AUTHENTICATED_ROLE);
 
   // Holds the page until we know who this is — a signed-out visitor gets
@@ -24,7 +26,7 @@ const ChatbotLayout = ({ children }: { children: React.ReactNode }) => {
   if (!authorized) {
     return (
       <div className="flex h-[calc(100dvh-8.5rem)] items-center justify-center md:h-[calc(100dvh-5rem)]">
-        <ApiLoading label="Loading the assistant…" />
+        <ApiLoading label={t("chatbot.loading")} />
       </div>
     );
   }

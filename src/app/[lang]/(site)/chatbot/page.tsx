@@ -1,6 +1,7 @@
 "use client";
 
-import { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Bot,
   Check,
@@ -56,10 +57,6 @@ type PendingRoomPhoto = { file: File; previewUrl: string };
 type TileOption = { id: string; name: string; image: string };
 
 const MAX_ATTACHMENT_MB = 15;
-
-const initialMessages: ChatMessage[] = [
-  { id: "welcome", sender: "bot", text: "Welcome to Magnificat Smart Space! I am your AI Design Assistant. Let's narrow down your requirements so I can give you the best recommendations — I'll ask a few quick questions to get started." },
-];
 
 const makeId = () => `${Date.now()}-${Math.random()}`;
 const MAX_MESSAGE_LENGTH = 2000;
@@ -155,6 +152,7 @@ const ImageLightbox = ({
   alt: string;
   onClose: () => void;
 }) => {
+  const { t } = useTranslation();
   useEffect(() => {
     if (!url) return;
     const onKey = (event: globalThis.KeyboardEvent) => {
@@ -182,7 +180,7 @@ const ImageLightbox = ({
       <button
         type="button"
         onClick={onClose}
-        aria-label="Close full screen"
+        aria-label={t("chatbot.closeFullScreen")}
         className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
       >
         <X className="size-5" />
@@ -200,6 +198,11 @@ const ImageLightbox = ({
 };
 
 export default function ChatbotPage() {
+  const { t } = useTranslation();
+  const initialMessages = useMemo<ChatMessage[]>(
+    () => [{ id: "welcome", sender: "bot", text: t("chatbot.welcome") }],
+    [t],
+  );
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   /** The session id this conversation was (or will be) created under — see `SavedConversation`. `null` until either a saved one is restored or the first send mints one. */
@@ -388,7 +391,7 @@ export default function ChatbotPage() {
     return () => {
       active = false;
     };
-  }, [user?.id, userLoading]);
+  }, [user?.id, userLoading, initialMessages]);
 
   // Saves questionnaire progress after every answer, so a reload (or a
   // request that fails partway) resumes exactly where the customer left off
@@ -466,12 +469,12 @@ export default function ChatbotPage() {
         },
       ]);
     } catch (cause) {
-      toast.error("Couldn't reach the assistant", {
-        description: cause instanceof ApiError ? cause.message : "Please check your connection and try again.",
+      toast.error(t("chatbot.toast.reachFailedTitle"), {
+        description: cause instanceof ApiError ? cause.message : t("chatbot.toast.connectionBody"),
       });
       setMessages((current) => [
         ...current,
-        { id: makeId(), sender: "bot", text: "Sorry, something went wrong on my end — please try that again.", isNew: true },
+        { id: makeId(), sender: "bot", text: t("chatbot.errorReply"), isNew: true },
       ]);
     } finally {
       setIsTyping(false);
@@ -520,8 +523,8 @@ export default function ChatbotPage() {
     void Promise.all(
       recommendationIds.map((recommendationId) => chatbotApi.setRecommendationDecision(recommendationId, next)),
     ).catch((cause) => {
-      toast.error("Couldn't save your feedback", {
-        description: cause instanceof ApiError ? cause.message : "Please try again — it won't change what's shown here.",
+      toast.error(t("chatbot.toast.feedbackFailedTitle"), {
+        description: cause instanceof ApiError ? cause.message : t("chatbot.toast.feedbackFailedBody"),
       });
     });
   };
@@ -600,11 +603,11 @@ export default function ChatbotPage() {
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      toast.error("Unsupported file", { description: "Attach a photo of your room (images only)." });
+      toast.error(t("chatbot.toast.unsupportedFileTitle"), { description: t("chatbot.toast.unsupportedFileBody") });
       return;
     }
     if (file.size > MAX_ATTACHMENT_MB * 1024 * 1024) {
-      toast.error("File too large", { description: `Keep photos under ${MAX_ATTACHMENT_MB} MB.` });
+      toast.error(t("chatbot.toast.fileTooLargeTitle"), { description: t("chatbot.toast.fileTooLargeBody", { mb: MAX_ATTACHMENT_MB }) });
       return;
     }
 
@@ -684,15 +687,15 @@ export default function ChatbotPage() {
         result.assistantMessage.attachment.kind === "room-tile-preview" &&
         !result.assistantMessage.attachment.generatedImageUrl
       ) {
-        toast.error("Couldn't generate that preview", {
-          description: "Please try again in a moment.",
+        toast.error(t("chatbot.toast.previewFailedTitle"), {
+          description: t("chatbot.toast.previewFailedBody"),
         });
       }
 
       clearPendingPhoto();
     } catch (cause) {
-      toast.error("Couldn't generate your room preview", {
-        description: cause instanceof ApiError ? cause.message : "Please check your connection and try again.",
+      toast.error(t("chatbot.toast.roomPreviewFailedTitle"), {
+        description: cause instanceof ApiError ? cause.message : t("chatbot.toast.connectionBody"),
       });
     } finally {
       setIsSendingPreview(false);
@@ -738,7 +741,7 @@ export default function ChatbotPage() {
     if (isTyping) return;
     const followUp = followUps.find((item) => item.id === followUpId);
     if (!followUp) return;
-    void sendToAssistant(followUp.text);
+    void sendToAssistant(t(followUp.textKey));
   };
 
   const showFollowUps = messages.some((message) => message.products?.length);
@@ -751,16 +754,16 @@ export default function ChatbotPage() {
           ref={scrollRef}
           className="scrollbar-hide h-full overflow-x-hidden overflow-y-auto overscroll-y-contain px-1 sm:px-2"
         >
-          <section className="px-1 pb-4 pt-2 sm:px-0" aria-label="Assistant introduction">
+          <section className="px-1 pb-4 pt-2 sm:px-0" aria-label={t("chatbot.introAria")}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h1 className="text-xl font-bold text-ink sm:text-2xl">AI Design Assistant</h1>
+                <h1 className="text-xl font-bold text-ink sm:text-2xl">{t("chatbot.title")}</h1>
                 <p className="mt-1 text-xs text-muted sm:text-sm">
-                  {user ? "Your project is saved to your account." : "Sign in to save your design projects."}
+                  {user ? t("chatbot.savedNote") : t("chatbot.signInNote")}
                 </p>
               </div>
               <Button type="button" variant="outline" onClick={startNewProject} className="h-9 gap-2 rounded-full px-3 text-xs font-bold">
-                <RotateCcw className="size-3.5" /> New project
+                <RotateCcw className="size-3.5" /> {t("chatbot.newProject")}
               </Button>
             </div>
           </section>
@@ -791,18 +794,18 @@ export default function ChatbotPage() {
                       // looking at; tap it to see it full screen.
                       <button
                         type="button"
-                        onClick={() => setLightbox({ url: attachment.url, alt: "Your room" })}
+                        onClick={() => setLightbox({ url: attachment.url, alt: t("chatbot.yourRoom") })}
                         className="group mt-3 flex items-center gap-2 rounded-lg border border-white/15 bg-black/10 p-1.5 text-left transition-colors hover:bg-black/20"
                       >
                         {/* A signed Supabase Storage URL — next/image optimisation doesn't apply. */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={attachment.url}
-                          alt="Your room"
+                          alt={t("chatbot.yourRoom")}
                           className="size-12 shrink-0 rounded-md object-cover"
                         />
                         <span className="inline-flex items-center gap-1 pr-1 text-[11px] font-medium opacity-80 group-hover:opacity-100">
-                          <Maximize2 className="size-3" /> View full screen
+                          <Maximize2 className="size-3" /> {t("chatbot.viewFullScreen")}
                         </span>
                       </button>
                     )}
@@ -810,8 +813,8 @@ export default function ChatbotPage() {
                       (() => {
                         const previewUrl = attachment.generatedImageUrl ?? attachment.roomImageUrl;
                         const previewAlt = attachment.generatedImageUrl
-                          ? `Your room with ${attachment.productName} on the floor`
-                          : "Your room";
+                          ? t("chatbot.roomWithTile", { tile: attachment.productName })
+                          : t("chatbot.yourRoom");
                         return (
                           <figure className="group relative mt-3 overflow-hidden rounded-lg bg-black/5">
                             {/* The generated result is the payload of this turn —
@@ -830,10 +833,10 @@ export default function ChatbotPage() {
                             <button
                               type="button"
                               onClick={() => setLightbox({ url: previewUrl, alt: previewAlt })}
-                              aria-label="View full screen"
+                              aria-label={t("chatbot.viewFullScreen")}
                               className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md bg-black/55 px-2 py-1 text-[11px] font-semibold text-white opacity-0 transition-opacity hover:bg-black/75 focus-visible:opacity-100 group-hover:opacity-100"
                             >
-                              <Maximize2 className="size-3" /> Full screen
+                              <Maximize2 className="size-3" /> {t("chatbot.fullScreen")}
                             </button>
                           </figure>
                         );
@@ -855,7 +858,7 @@ export default function ChatbotPage() {
                         <div className="flex items-center gap-2">
                           <Sparkles className="size-4 text-amber" />
                           <h4 className="text-xs font-bold tracking-wide text-ink uppercase sm:text-sm">
-                            Why these picks
+                            {t("chatbot.whyPicks")}
                           </h4>
                         </div>
                         <ul className="mt-3 space-y-3">
@@ -888,17 +891,17 @@ export default function ChatbotPage() {
                             )}
                           </span>
                           <div>
-                            <p className="text-xs font-bold text-ink sm:text-sm">Thanks for your feedback!</p>
+                            <p className="text-xs font-bold text-ink sm:text-sm">{t("chatbot.feedback.thanksTitle")}</p>
                             <p className="mt-0.5 text-xs leading-5 text-muted sm:text-[13px]">
                               {batchDecisions[message.id] === "ACCEPTED"
-                                ? "Glad these picks worked for you — add your favorite to cart or view its full details above whenever you're ready."
-                                : "Noted — tell me more about what you're after (colour, size, budget, anything) and I'll try a different direction."}
+                                ? t("chatbot.feedback.acceptedBody")
+                                : t("chatbot.feedback.rejectedBody")}
                             </p>
                           </div>
                         </div>
                       ) : (
                         <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white p-4 shadow-sm sm:p-5">
-                          <p className="text-xs font-bold text-ink sm:text-sm">Did these recommendations help?</p>
+                          <p className="text-xs font-bold text-ink sm:text-sm">{t("chatbot.feedback.prompt")}</p>
                           <div className="flex items-center gap-2">
                             <Button
                               type="button"
@@ -906,7 +909,7 @@ export default function ChatbotPage() {
                               onClick={() => decideBatch(message, "ACCEPTED")}
                               className="h-9 gap-1.5 rounded-full border-slate-200 px-3.5 text-xs font-bold text-muted hover:text-ink"
                             >
-                              <ThumbsUp className="size-3.5" /> Like
+                              <ThumbsUp className="size-3.5" /> {t("chatbot.feedback.like")}
                             </Button>
                             <Button
                               type="button"
@@ -914,7 +917,7 @@ export default function ChatbotPage() {
                               onClick={() => decideBatch(message, "REJECTED")}
                               className="h-9 gap-1.5 rounded-full border-slate-200 px-3.5 text-xs font-bold text-muted hover:text-ink"
                             >
-                              <ThumbsDown className="size-3.5" /> Dislike
+                              <ThumbsDown className="size-3.5" /> {t("chatbot.feedback.dislike")}
                             </Button>
                           </div>
                         </div>
@@ -931,7 +934,7 @@ export default function ChatbotPage() {
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-slate-100 bg-white text-amber shadow-sm">
                   <Bot className="size-4" />
                 </span>
-                <div className="flex items-center gap-1 px-2 py-3" aria-label="Assistant is typing">
+                <div className="flex items-center gap-1 px-2 py-3" aria-label={t("chatbot.typingAria")}>
                   <span className="size-1.5 animate-bounce rounded-full bg-slate-300" />
                   <span className="size-1.5 animate-bounce rounded-full bg-slate-300 [animation-delay:150ms]" />
                   <span className="size-1.5 animate-bounce rounded-full bg-slate-300 [animation-delay:300ms]" />
@@ -943,7 +946,7 @@ export default function ChatbotPage() {
 
           {showFollowUps && (
             <section className="mt-8 border-t border-slate-200/70 pt-8">
-              <h2 className="text-base font-bold text-ink">Follow-ups</h2>
+              <h2 className="text-base font-bold text-ink">{t("chatbot.followUpsTitle")}</h2>
               <div className="mt-3 divide-y divide-slate-200/70">
                 {followUps.map((followUp) => (
                   <Button
@@ -955,7 +958,7 @@ export default function ChatbotPage() {
                     className="h-auto min-h-10 w-full justify-start gap-3 rounded-none px-2 py-2.5 text-left text-xs font-medium text-muted hover:text-ink sm:text-sm"
                   >
                     <CornerDownRight className="size-4 shrink-0 text-slate-400" />
-                    {followUp.text}
+                    {t(followUp.textKey)}
                   </Button>
                 ))}
               </div>
@@ -971,7 +974,7 @@ export default function ChatbotPage() {
             variant="outline"
             size="icon"
             onClick={scrollToBottom}
-            aria-label="Scroll to latest message"
+            aria-label={t("chatbot.scrollToLatest")}
             className="absolute bottom-3 left-1/2 z-10 size-10 -translate-x-1/2 rounded-full border-slate-200 bg-white shadow-md hover:bg-primary"
           >
             <ChevronDown className="size-4" />
@@ -989,14 +992,14 @@ export default function ChatbotPage() {
               <span className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-black/5">
                 {/* Local object URL — next/image optimisation doesn't apply. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={pendingPhoto.previewUrl} alt="Your room" className="size-full object-cover" />
+                <img src={pendingPhoto.previewUrl} alt={t("chatbot.yourRoom")} className="size-full object-cover" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-xs font-semibold text-ink">
-                  {selectedTile ? `${selectedTile.name} on your floor` : "Choose a tile for the floor"}
+                  {selectedTile ? t("chatbot.pendingPhoto.tileOnFloor", { tile: selectedTile.name }) : t("chatbot.pendingPhoto.chooseTile")}
                 </span>
                 <span className="block text-[11px] text-muted">
-                  {selectedTile ? "Ready to send" : "Pick one below"}
+                  {selectedTile ? t("chatbot.pendingPhoto.readyToSend") : t("chatbot.pendingPhoto.pickBelow")}
                 </span>
               </span>
               <Button
@@ -1005,7 +1008,7 @@ export default function ChatbotPage() {
                 size="icon-sm"
                 onClick={clearPendingPhoto}
                 disabled={isSendingPreview}
-                aria-label="Remove room photo"
+                aria-label={t("chatbot.pendingPhoto.remove")}
                 className="shrink-0 text-muted hover:text-ink"
               >
                 <X className="size-4" />
@@ -1017,7 +1020,7 @@ export default function ChatbotPage() {
               <Input
                 value={tileSearch}
                 onChange={(event) => setTileSearch(event.target.value)}
-                placeholder="Search tiles by name…"
+                placeholder={t("chatbot.pendingPhoto.searchTiles")}
                 disabled={isSendingPreview}
                 className="h-9 rounded-full pl-9 text-xs"
               />
@@ -1032,7 +1035,7 @@ export default function ChatbotPage() {
                   </div>
                 ))}
               {!tilesLoading && tileResults?.items.length === 0 && (
-                <p className="py-2 text-xs text-muted">No tiles match that search.</p>
+                <p className="py-2 text-xs text-muted">{t("chatbot.pendingPhoto.noTiles")}</p>
               )}
               {!tilesLoading &&
                 tileResults?.items.map((product) => {
@@ -1044,7 +1047,7 @@ export default function ChatbotPage() {
                     disabled={isSendingPreview}
                     onClick={() => setSelectedTile({ id: product.id, name: product.name, image: product.image })}
                     aria-pressed={isSelected}
-                    aria-label={`Select ${product.name}`}
+                    aria-label={t("chatbot.pendingPhoto.selectTileAria", { name: product.name })}
                     className="w-16 shrink-0 text-left"
                   >
                     <span
@@ -1077,7 +1080,7 @@ export default function ChatbotPage() {
             accept="image/*"
             onChange={pickRoomPhoto}
             className="sr-only"
-            aria-label="Attach a photo of your room"
+            aria-label={t("chatbot.attachPhotoAria")}
           />
           <Textarea
             ref={textareaRef}
@@ -1086,7 +1089,7 @@ export default function ChatbotPage() {
             onKeyDown={handleInputKeyDown}
             disabled={isTyping || isSendingPreview}
             rows={1}
-            placeholder={pendingPhoto ? "Add a note about your room (optional)…" : "Type your message here..."}
+            placeholder={pendingPhoto ? t("chatbot.notePlaceholder") : t("chatbot.inputPlaceholder")}
             className="h-14 min-h-14 max-h-35 overflow-y-hidden rounded-xl bg-white px-3 py-3.5 pr-26 text-sm leading-normal"
           />
           <Button
@@ -1095,7 +1098,7 @@ export default function ChatbotPage() {
             variant="ghost"
             onClick={() => fileInputRef.current?.click()}
             disabled={isTyping || isSendingPreview}
-            aria-label="Attach a photo of your room"
+            aria-label={t("chatbot.attachPhotoAria")}
             className="absolute bottom-3 right-14 top-auto size-9 rounded-full text-muted hover:bg-secondary hover:text-ink"
           >
             <Paperclip className="size-4" />
@@ -1103,7 +1106,7 @@ export default function ChatbotPage() {
           <Button
             type="submit"
             size="icon"
-            aria-label="Send message"
+            aria-label={t("chatbot.sendAria")}
             disabled={
               isTyping ||
               isSendingPreview ||
@@ -1122,12 +1125,14 @@ export default function ChatbotPage() {
           )}
         >
           <p className={showCharacterCount ? "hidden sm:flex" : ""}>
-            Press Enter to submit · Shift + Enter for a new line · Attach a room photo to preview a
-            tile on its floor
+            {t("chatbot.inputHint")}
           </p>
           {showCharacterCount && (
             <p className={input.length > MAX_MESSAGE_LENGTH ? "font-semibold text-red-500" : ""}>
-              {input.length.toLocaleString()} / {MAX_MESSAGE_LENGTH.toLocaleString()} characters
+              {t("chatbot.charCount", {
+                current: input.length.toLocaleString(),
+                max: MAX_MESSAGE_LENGTH.toLocaleString(),
+              })}
             </p>
           )}
         </div>

@@ -4,6 +4,7 @@ import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Bookmark, Check, Layers3, Search, ShoppingCart } from "lucide-react";
 import type { Product } from "@/components/product-card";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
@@ -40,11 +41,17 @@ type Surface = "floor" | "walls";
  * for the rest). A room with no backing `Room` row is filtered out below
  * rather than shown as a tab that goes nowhere.
  */
-const ROOM_TABS: { label: string; type: RoomType }[] = [
-  { label: "Kitchen", type: "KITCHEN" },
-  { label: "Living Room", type: "LIVING_ROOM" },
-  { label: "Bathroom", type: "BATHROOM" },
-  { label: "Bedroom", type: "BEDROOM" },
+type RoomTabKey =
+  | "catalog.roomTypes.kitchen"
+  | "catalog.roomTypes.livingRoom"
+  | "catalog.roomTypes.bathroom"
+  | "catalog.roomTypes.bedroom";
+
+const ROOM_TABS: { labelKey: RoomTabKey; type: RoomType }[] = [
+  { labelKey: "catalog.roomTypes.kitchen", type: "KITCHEN" },
+  { labelKey: "catalog.roomTypes.livingRoom", type: "LIVING_ROOM" },
+  { labelKey: "catalog.roomTypes.bathroom", type: "BATHROOM" },
+  { labelKey: "catalog.roomTypes.bedroom", type: "BEDROOM" },
 ];
 
 const surfaceToRoomSurface: Record<Surface, "FLOOR" | "WALL"> = {
@@ -113,7 +120,10 @@ const TilePickerCard = ({
   product: Product;
   selected: boolean;
   onSelect: () => void;
-}) => (
+}) => {
+  const { t } = useTranslation();
+
+  return (
   <button
     type="button"
     onClick={onSelect}
@@ -122,7 +132,7 @@ const TilePickerCard = ({
       selected && "opacity-100",
     )}
     aria-pressed={selected}
-    aria-label={`Select ${product.name}`}
+    aria-label={t("visualizer.selectTileAria", { name: product.name })}
   >
     <div
       className={cn(
@@ -146,7 +156,8 @@ const TilePickerCard = ({
     </div>
     <p className="mt-2 truncate text-xs font-medium text-ink">{product.name}</p>
   </button>
-);
+  );
+};
 
 const SurfaceToggle = ({
   activeSurface,
@@ -154,11 +165,14 @@ const SurfaceToggle = ({
 }: {
   activeSurface: Surface;
   onChange: (surface: Surface) => void;
-}) => (
+}) => {
+  const { t } = useTranslation();
+
+  return (
   <div
     className="relative grid grid-cols-2 rounded-full bg-muted-background p-1"
     role="tablist"
-    aria-label="Surface type"
+    aria-label={t("visualizer.surfaceTypeAria")}
   >
     <span
       aria-hidden="true"
@@ -181,13 +195,20 @@ const SurfaceToggle = ({
             : "text-muted hover:text-ink",
         )}
       >
-        {surface === "floor" ? "Floor" : "Walls"}
+        {surface === "floor" ? t("visualizer.surface.floor") : t("visualizer.surface.walls")}
       </button>
     ))}
   </div>
-);
+  );
+};
 
 const formatPrice = (value: number) => `RWF ${value.toLocaleString()}`;
+
+const SURFACE_LABEL_KEYS = {
+  floor: "visualizer.surfaceLabel.floor",
+  wall: "visualizer.surfaceLabel.wall",
+  floorAndWall: "visualizer.surfaceLabel.floorAndWall",
+} as const;
 
 /**
  * The tiles currently applied in the 3D preview, each addable to the cart
@@ -205,19 +226,20 @@ const AppliedTilesCart = ({
   wallTile?: Product;
   onAddToCart: (product: Product) => void;
 }) => {
+  const { t } = useTranslation();
   const sameTile = !!floorTile && floorTile.id === wallTile?.id;
-  const rows: { product: Product; label: string }[] = [];
-  if (floorTile) rows.push({ product: floorTile, label: sameTile ? "Floor & Wall" : "Floor" });
-  if (wallTile && !sameTile) rows.push({ product: wallTile, label: "Wall" });
+  const rows: { product: Product; labelKey: (typeof SURFACE_LABEL_KEYS)[keyof typeof SURFACE_LABEL_KEYS] }[] = [];
+  if (floorTile) rows.push({ product: floorTile, labelKey: sameTile ? SURFACE_LABEL_KEYS.floorAndWall : SURFACE_LABEL_KEYS.floor });
+  if (wallTile && !sameTile) rows.push({ product: wallTile, labelKey: SURFACE_LABEL_KEYS.wall });
 
   if (rows.length === 0) return null;
 
   return (
     <div className="mt-4 shrink-0 space-y-2 border-t border-slate-100 pt-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted">In this design</p>
-      {rows.map(({ product, label }) => (
+      <p className="text-xs font-medium uppercase tracking-wide text-muted">{t("visualizer.inThisDesign")}</p>
+      {rows.map(({ product, labelKey }) => (
         <div
-          key={label}
+          key={labelKey}
           className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-2"
         >
           <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted-background">
@@ -226,7 +248,7 @@ const AppliedTilesCart = ({
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-ink">{product.name}</p>
             <p className="text-xs text-muted">
-              {label} · {formatPrice(product.price)} / sqm
+              {t(labelKey)} · {formatPrice(product.price)} {t("visualizer.pricePerSqm")}
             </p>
           </div>
           <Button
@@ -236,7 +258,7 @@ const AppliedTilesCart = ({
             className="h-9 shrink-0 gap-1.5 px-3 text-xs font-bold text-ink bg-primary hover:bg-primary/90 disabled:opacity-60"
           >
             <ShoppingCart className="size-3.5" strokeWidth={2} />
-            {product.stockStatus === "out_of_stock" ? "Sold out" : "Add"}
+            {product.stockStatus === "out_of_stock" ? t("visualizer.soldOut") : t("visualizer.add")}
           </Button>
         </div>
       ))}
@@ -276,12 +298,15 @@ const ConfigureSpacePanel = ({
   floorTile?: Product;
   wallTile?: Product;
   onAddTileToCart: (product: Product) => void;
-}) => (
+}) => {
+  const { t } = useTranslation();
+
+  return (
   <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
     <div className="relative z-10 shrink-0 space-y-3 bg-background pb-3">
       <div className="flex items-center gap-2">
         <Layers3 className="size-5 text-ink" strokeWidth={2} />
-        <h2 className="text-lg font-bold text-ink">Configure Space</h2>
+        <h2 className="text-lg font-bold text-ink">{t("visualizer.configureSpace")}</h2>
       </div>
 
       <SurfaceToggle activeSurface={activeSurface} onChange={onSurfaceChange} />
@@ -294,7 +319,7 @@ const ConfigureSpacePanel = ({
         <Input
           value={searchQuery}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search by name or size..."
+          placeholder={t("visualizer.searchPlaceholder")}
           className="h-10 rounded-xl bg-white py-0 pl-10 leading-10"
         />
       </div>
@@ -302,10 +327,10 @@ const ConfigureSpacePanel = ({
 
     <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-y-contain border-t border-slate-100 pt-2">
       {productsLoading ? (
-        <ApiLoading label="Loading tiles…" className="py-8" />
+        <ApiLoading label={t("visualizer.loadingTiles")} className="py-8" />
       ) : filteredCollections.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted">
-          No tiles match your search.
+          {t("visualizer.noSearchResults")}
         </p>
       ) : (
         <div className="pb-8">
@@ -322,7 +347,7 @@ const ConfigureSpacePanel = ({
                 <AccordionContent className="pb-4">
                   {collectionProducts.length === 0 ? (
                     <p className="text-sm text-muted">
-                      No tiles in this collection yet.
+                      {t("visualizer.noTilesInCollection")}
                     </p>
                   ) : (
                     <div className="scrollbar-hide flex gap-3 overflow-x-auto pb-1">
@@ -354,12 +379,13 @@ const ConfigureSpacePanel = ({
           className="h-11 w-full gap-2 px-4 text-sm font-bold text-ink bg-primary hover:bg-primary/90"
         >
           <Bookmark className="size-4" strokeWidth={2} />
-          Save Design
+          {t("visualizer.saveDesign")}
         </Button>
       </div>
     )}
   </div>
-);
+  );
+};
 
 const MobileTilePickerSheet = ({
   open,
@@ -372,6 +398,8 @@ const MobileTilePickerSheet = ({
   onClose: () => void;
   children: React.ReactNode;
 }) => {
+  const { t } = useTranslation();
+
   if (!open) return null;
 
   return (
@@ -382,7 +410,7 @@ const MobileTilePickerSheet = ({
       )}
       role="dialog"
       aria-modal="true"
-      aria-label="Choose tiles"
+      aria-label={t("visualizer.chooseTilesAria")}
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -407,7 +435,7 @@ const MobileTilePickerSheet = ({
           className="h-auto shrink-0 justify-center py-4 text-sm text-amber"
           onClick={onClose}
         >
-          Close
+          {t("visualizer.close")}
         </Button>
       </div>
     </div>
@@ -430,6 +458,7 @@ const SaveDesignDialog = ({
   saving: boolean;
   onSave: (name: string, sharedWithSales: boolean) => void;
 }) => {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [shared, setShared] = useState(false);
   const [wasOpen, setWasOpen] = useState(open);
@@ -440,7 +469,7 @@ const SaveDesignDialog = ({
   if (open !== wasOpen) {
     setWasOpen(open);
     if (open) {
-      setName(`${roomLabel} design`);
+      setName(t("visualizer.saveDialog.nameDefault", { room: roomLabel }));
       setShared(false);
     }
   }
@@ -448,41 +477,40 @@ const SaveDesignDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showClose>
-        <DialogTitle>Save design</DialogTitle>
+        <DialogTitle>{t("visualizer.saveDialog.title")}</DialogTitle>
         <DialogDescription>
-          Save this room to your account, or share it with our sales team so they can turn it into a
-          quotation with the exact quantities you need.
+          {t("visualizer.saveDialog.description")}
         </DialogDescription>
 
         <div className="mt-4 space-y-4">
           <Field>
-            <FieldLabel htmlFor="design-name">Design name</FieldLabel>
+            <FieldLabel htmlFor="design-name">{t("visualizer.saveDialog.nameLabel")}</FieldLabel>
             <Input
               id="design-name"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="e.g. My living room"
+              placeholder={t("visualizer.saveDialog.namePlaceholder")}
             />
           </Field>
 
           <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-100 bg-[#F9FAFB] px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-ink">Share with sales team</p>
+              <p className="text-sm font-semibold text-ink">{t("visualizer.saveDialog.shareTitle")}</p>
               <p className="mt-0.5 text-xs text-muted">
-                They can turn this into a quotation with exact quantities.
+                {t("visualizer.saveDialog.shareHint")}
               </p>
             </div>
             <Switch
               checked={shared}
               onCheckedChange={setShared}
-              aria-label="Share with sales team"
+              aria-label={t("visualizer.saveDialog.shareAria")}
             />
           </div>
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("visualizer.saveDialog.cancel")}
           </Button>
           <Button
             type="button"
@@ -490,7 +518,7 @@ const SaveDesignDialog = ({
             onClick={() => onSave(name.trim(), shared)}
             className="bg-primary text-ink hover:bg-primary/90"
           >
-            {saving ? "Saving…" : "Save design"}
+            {saving ? t("visualizer.saveDialog.saving") : t("visualizer.saveDialog.save")}
           </Button>
         </div>
       </DialogContent>
@@ -499,6 +527,7 @@ const SaveDesignDialog = ({
 };
 
 const VisualizerPage = () => {
+  const { t } = useTranslation();
   const router = useRouter();
   const cart = useCart();
   const searchParams = useSearchParams();
@@ -768,21 +797,21 @@ const VisualizerPage = () => {
 
   const openSaveDialog = () => {
     if (!tokenStore.getAccessToken()) {
-      toast.error("Sign in required", {
-        description: "Create a free account or log in to save your design.",
+      toast.error(t("visualizer.toast.signInRequiredTitle"), {
+        description: t("visualizer.toast.signInToSave"),
       });
       router.push("/auth");
       return;
     }
     if (!selections.floor && !selections.walls) {
-      toast.error("Choose a tile first", {
-        description: "Apply at least one tile to the floor or walls before saving.",
+      toast.error(t("visualizer.toast.chooseTileTitle"), {
+        description: t("visualizer.toast.chooseTileBody"),
       });
       return;
     }
     if (!activeRoomRow) {
-      toast.error("Room not ready", {
-        description: "Please wait for the room to finish loading, then try again.",
+      toast.error(t("visualizer.toast.roomNotReadyTitle"), {
+        description: t("visualizer.toast.roomNotReadyBody"),
       });
       return;
     }
@@ -802,15 +831,15 @@ const VisualizerPage = () => {
     setSaving(true);
     try {
       await roomsApi.saveDesign({ roomId: activeRoomRow.id, name, tiles, sharedWithSales });
-      toast.success("Design saved", {
+      toast.success(t("visualizer.toast.savedTitle"), {
         description: sharedWithSales
-          ? "Saved to your account and shared with our sales team."
-          : "Saved to your account.",
+          ? t("visualizer.toast.savedShared")
+          : t("visualizer.toast.savedPrivate"),
       });
       setSaveDialogOpen(false);
     } catch (cause) {
-      toast.error("Couldn't save this design", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("visualizer.toast.saveFailedTitle"), {
+        description: cause instanceof ApiError ? cause.message : t("visualizer.toast.tryAgain"),
       });
     } finally {
       setSaving(false);
@@ -823,8 +852,8 @@ const VisualizerPage = () => {
   // sign in first, same as everywhere else the cart is touched.
   const addTileToCart = (product: Product) => {
     if (!tokenStore.getAccessToken()) {
-      toast.error("Sign in required", {
-        description: "Create a free account or log in to add tiles to your cart.",
+      toast.error(t("visualizer.toast.signInRequiredTitle"), {
+        description: t("visualizer.toast.signInToAddToCart"),
       });
       router.push("/auth");
       return;
@@ -832,8 +861,8 @@ const VisualizerPage = () => {
     const existing = cart.lines.find((line) => line.productId === product.id);
     const nextArea = Math.round(((existing?.areaSqm ?? 0) + product.boxCoverage) * 100) / 100;
     cart.setQuantity(product, nextArea);
-    toast.success("Added to cart", {
-      description: `${product.name} — now ${nextArea} m² in your cart.`,
+    toast.success(t("visualizer.toast.addedTitle"), {
+      description: t("visualizer.toast.addedBody", { name: product.name, area: nextArea }),
     });
   };
 
@@ -855,7 +884,7 @@ const VisualizerPage = () => {
   };
 
   if (roomsLoading || collectionsLoading) {
-    return <ApiLoading label="Loading the visualizer…" className="py-24" />;
+    return <ApiLoading label={t("visualizer.loading")} className="py-24" />;
   }
 
   if (roomsError) {
@@ -869,7 +898,7 @@ const VisualizerPage = () => {
   if (visibleTabs.length === 0) {
     return (
       <ApiEmptyState
-        message="No rooms are configured for the visualizer yet. Check back soon."
+        message={t("visualizer.empty")}
         className="my-16"
       />
     );
@@ -899,7 +928,7 @@ const VisualizerPage = () => {
                         : "text-ink hover:bg-muted-background",
                     )}
                   >
-                    {tab.label}
+                    {t(tab.labelKey)}
                   </Button>
                 ))}
               </div>
@@ -932,13 +961,13 @@ const VisualizerPage = () => {
                 className="h-11 flex-1 gap-2 bg-primary text-sm font-bold text-ink hover:bg-primary/90"
               >
                 <Layers3 className="size-4" strokeWidth={2} />
-                {selectedProduct ? "Change Tile" : "Choose Tiles"}
+                {selectedProduct ? t("visualizer.changeTile") : t("visualizer.chooseTiles")}
               </Button>
               <Button
                 type="button"
                 onClick={openSaveDialog}
                 className="h-11 shrink-0 gap-2 bg-primary px-3 text-sm font-bold text-ink hover:bg-primary/90"
-                aria-label="Save design"
+                aria-label={t("visualizer.saveDesignAria")}
               >
                 <Bookmark className="size-4" strokeWidth={2} />
               </Button>
@@ -967,7 +996,7 @@ const VisualizerPage = () => {
       <SaveDesignDialog
         open={saveDialogOpen}
         onOpenChange={setSaveDialogOpen}
-        roomLabel={activeTab?.label ?? "Room"}
+        roomLabel={activeTab ? t(activeTab.labelKey) : t("visualizer.roomFallback")}
         saving={saving}
         onSave={(name, sharedWithSales) => void handleSaveDesign(name, sharedWithSales)}
       />
