@@ -58,14 +58,16 @@ const toNumber = (value: string | number): number => {
  * Maps an API product onto the `Product` shape the cards, catalog and
  * calculator already consume. `collectionTitle` is optional because the
  * products endpoint returns the collection's `size` but not its title — pass it
- * in when the collection has already been fetched, otherwise the size stands in.
+ * in when the collection has already been fetched. The nested collection is
+ * available on product responses as well; the size fallback is only for older
+ * cached responses that predate the nested collection metadata.
  */
 export const toProduct = (product: ApiProduct, collectionTitle?: string): Product => ({
   id: product.id,
   sku: product.sku,
   name: product.name,
   collectionId: product.collectionId,
-  collection: collectionTitle ?? product.size,
+  collection: collectionTitle ?? product.collection?.title ?? product.size,
   size: product.size,
   tileArea: product.tileAreaSqm,
   boxCoverage: toNumber(product.boxCoverageSqm),

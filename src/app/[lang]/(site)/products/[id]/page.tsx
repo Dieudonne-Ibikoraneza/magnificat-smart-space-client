@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   ArrowRight,
@@ -15,12 +16,18 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import { ApiErrorState } from "@/components/api-state";
-import { stockLabels, stockStyles } from "@/components/product-card";
+import { stockStyles } from "@/components/product-card";
 import { ProductDetailSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { QuantityCalculator } from "@/components/quantity-calculator";
-import { eventsApi, favoritesApi, productsApi, toProduct, tokenStore } from "@/lib/api";
+import {
+  eventsApi,
+  favoritesApi,
+  productsApi,
+  toProduct,
+  tokenStore,
+} from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { useApi } from "@/lib/api/use-api";
 import { useCart } from "@/lib/cart-store";
@@ -30,19 +37,44 @@ import ProductNotFound from "./not-found";
 
 const formatPrice = (value: number) => `RWF ${value.toLocaleString()}`;
 
+/** Product room types arrive as display labels (see `toProduct`); map them back to translation keys. */
+const ROOM_LABEL_KEYS = {
+  "Living Room (Saloon)": "catalog.roomTypes.livingRoom",
+  Bedroom: "catalog.roomTypes.bedroom",
+  Bathroom: "catalog.roomTypes.bathroom",
+  Kitchen: "catalog.roomTypes.kitchen",
+} as const;
+
 const getSuitableForBadges = (suitableFor: Product["suitableFor"]) => {
-  const badges: { label: string; icon: typeof Layers3 }[] = [];
+  const badges: {
+    labelKey:
+      | "catalog.suitableForOptions.floor"
+      | "catalog.suitableForOptions.wall";
+    icon: typeof Layers3;
+  }[] = [];
 
   if (suitableFor === "floor" || suitableFor === "both") {
-    badges.push({ label: "Floor", icon: Layers3 });
+    badges.push({
+      labelKey: "catalog.suitableForOptions.floor",
+      icon: Layers3,
+    });
   }
 
   if (suitableFor === "wall" || suitableFor === "both") {
-    badges.push({ label: "Wall", icon: Maximize2 });
+    badges.push({
+      labelKey: "catalog.suitableForOptions.wall",
+      icon: Maximize2,
+    });
   }
 
   return badges;
 };
+
+const STOCK_KEYS = {
+  in_stock: "product.stock.in_stock",
+  low_stock: "product.stock.low_stock",
+  out_of_stock: "product.stock.out_of_stock",
+} as const;
 
 const errorMessage = (cause: unknown, fallback: string) =>
   cause instanceof ApiError ? cause.message : fallback;
@@ -64,18 +96,34 @@ const visualizerHref = (product: Product) => {
   return query ? `/visualizer?${query}` : "/visualizer";
 };
 
-const ProductDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => {
+const ProductDetailsPage = ({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) => {
+  const { t } = useTranslation();
   const { id } = use(params);
   const router = useRouter();
   const cart = useCart();
-  const { data: apiProduct, loading, error, reload } = useApi(() => productsApi.get(id), [id]);
+  const {
+    data: apiProduct,
+    loading,
+    error,
+    reload,
+  } = useApi(() => productsApi.get(id), [id]);
 
   // Feeds "Top Viewed Tiles" / Tiles Analytics — fire-and-forget, anonymous-safe
   // (see `events.controller.ts`), and only once the product actually resolves
   // so a 404 or a mistyped id never counts as a view.
   useEffect(() => {
     if (!apiProduct) return;
-    void eventsApi.tile({ sessionId: getSessionId(), productId: apiProduct.id, type: "VIEWED" }).catch(() => undefined);
+    void eventsApi
+      .tile({
+        sessionId: getSessionId(),
+        productId: apiProduct.id,
+        type: "VIEWED",
+      })
+      .catch(() => undefined);
   }, [apiProduct]);
 
   const [requiredArea, setRequiredArea] = useState("26");
@@ -90,7 +138,8 @@ const ProductDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => 
     favoritesApi
       .list()
       .then((favorites) => {
-        if (active) setIsFavorited(favorites.some((item) => item.productId === id));
+        if (active)
+          setIsFavorited(favorites.some((item) => item.productId === id));
       })
       .catch(() => undefined);
     return () => {
@@ -112,8 +161,8 @@ const ProductDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => 
   /** Favorites and cart both need an account — anonymous visitors get sent to sign in instead of a 401. */
   const requireAuth = () => {
     if (tokenStore.getAccessToken()) return true;
-    toast.error("Sign in required", {
-      description: "Create a free account or log in to save favorites and build your cart.",
+    toast.error(t("productDetail.toast.signInRequiredTitle"), {
+      description: t("productDetail.toast.signInBody"),
     });
     router.push("/auth");
     return false;
@@ -126,14 +175,16 @@ const ProductDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => 
       if (isFavorited) {
         await favoritesApi.remove(product.id);
         setIsFavorited(false);
-        toast.success("Removed from favorites");
+        toast.success(t("productDetail.toast.removedFavorite"));
       } else {
         await favoritesApi.add(product.id);
         setIsFavorited(true);
-        toast.success("Added to favorites");
+        toast.success(t("productDetail.toast.addedFavorite"));
       }
     } catch (cause) {
-      toast.error("Something went wrong", { description: errorMessage(cause, "Please try again.") });
+      toast.error(t("productDetail.toast.somethingWrong"), {
+        description: errorMessage(cause, t("productDetail.toast.tryAgain")),
+      });
     } finally {
       setFavoriteBusy(false);
     }
@@ -143,97 +194,168 @@ const ProductDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => 
     if (!requireAuth()) return;
     const area = Number(requiredArea);
     if (!Number.isFinite(area) || area <= 0) {
-      toast.error("Enter a valid area", {
-        description: "Set the area you need in the calculator below before adding to cart.",
+      toast.error(t("productDetail.toast.invalidAreaTitle"), {
+        description: t("productDetail.toast.invalidAreaBody"),
       });
       return;
     }
     // Updates on screen immediately; the actual save happens in the
     // background (see `useCart`) — no wait, no spinner needed here.
     cart.setQuantity(product, area);
-    toast.success("Added to cart", { description: `${product.name} — ${area} m² is in your cart.` });
+    toast.success(t("productDetail.toast.addedToCartTitle"), {
+      description: t("productDetail.toast.addedToCartBody", {
+        name: product.name,
+        area,
+      }),
+    });
   };
 
   return (
     <div className="pb-6">
       <div className="mb-6">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-muted transition-colors hover:text-ink">
-          <ArrowLeft className="size-4" /> Back to Catalog
-        </Link>
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="inline-flex items-center gap-2 text-sm font-semibold text-muted transition-colors hover:text-ink"
+        >
+          <ArrowLeft className="size-4" /> {t("productDetail.back")}
+        </button>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_0.9fr] lg:items-start lg:gap-12">
         <div className="space-y-8">
-          <div className="relative aspect-square overflow-hidden rounded-3xl bg-muted-background shadow-sm sm:aspect-[4/3] lg:aspect-square">
-            <Image src={product.image} alt={product.name} fill unoptimized className="object-cover" sizes="(max-width: 1024px) 100vw, 55vw" />
+          <div className="relative aspect-square overflow-hidden rounded-3xl bg-muted-background shadow-sm sm:aspect-4/3 lg:aspect-square">
+            <Image
+              src={product.image}
+              alt={product.name}
+              fill
+              unoptimized
+              className="object-cover"
+              sizes="(max-width: 1024px) 100vw, 55vw"
+            />
           </div>
           {product.description && (
             <section className="rounded-2xl bg-white p-6 shadow-sm sm:p-8">
-              <h2 className="mb-4 border-b border-slate-100 pb-4 text-xl font-bold text-ink">Product Story</h2>
-              <p className="text-sm leading-6 text-muted">{product.description}</p>
+              <h2 className="mb-4 border-b border-slate-100 pb-4 text-xl font-bold text-ink">
+                {t("productDetail.productStory")}
+              </h2>
+              <p className="text-sm leading-6 text-muted">
+                {product.description}
+              </p>
             </section>
           )}
         </div>
 
         <div className="space-y-8">
           <section>
-            <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-muted">Catalog <span className="text-amber">›</span> {product.size}</p>
-            <h1 className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">{product.name}</h1>
+            <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-muted">
+              {t("productDetail.catalog")} <span className="text-amber">›</span>{" "}
+              {product.collection}
+            </p>
+            <h1 className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+              {product.name}
+            </h1>
             <div className="mt-6 flex items-center gap-4 border-b border-slate-200 pb-5">
-              <p className="text-2xl font-bold text-ink">{formatPrice(product.price)} <span className="text-sm font-medium text-muted">/ sqm</span></p>
-              <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold uppercase ${stockStyles[product.stockStatus]}`}>
-                <Check className="size-3.5" /> {stockLabels[product.stockStatus]}
+              <p className="text-2xl font-bold text-ink">
+                {formatPrice(product.price)}{" "}
+                <span className="text-sm font-medium text-muted">
+                  {t("productDetail.pricePerSqm")}
+                </span>
+              </p>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold uppercase ${stockStyles[product.stockStatus]}`}
+              >
+                <Check className="size-3.5" />{" "}
+                {t(STOCK_KEYS[product.stockStatus])}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-x-8 gap-y-5 py-6 sm:grid-cols-2">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted">Size</p>
-                <p className="mt-1 text-sm font-bold text-ink">{product.size}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                  {t("productDetail.specs.size")}
+                </p>
+                <p className="mt-1 text-sm font-bold text-ink">
+                  {product.size}
+                </p>
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted">Per box</p>
-                <p className="mt-1 text-sm font-bold text-ink">{product.boxCoverage} m² ({product.piecesPerBox} pcs)</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                  {t("productDetail.specs.perBox")}
+                </p>
+                <p className="mt-1 text-sm font-bold text-ink">
+                  {t("productDetail.specs.perBoxValue", {
+                    area: product.boxCoverage,
+                    pcs: product.piecesPerBox,
+                  })}
+                </p>
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted">SKU</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                  {t("productDetail.specs.sku")}
+                </p>
                 <p className="mt-1 text-sm font-bold text-ink">{product.sku}</p>
               </div>
             </div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">Suitable for</p>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+              {t("productDetail.suitableFor")}
+            </p>
             <div className="flex flex-wrap gap-3">
-              {getSuitableForBadges(product.suitableFor).map(({ label, icon: Icon }) => (
-                <span
-                  key={label}
-                  className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-4 py-2 text-xs font-bold text-green-700"
-                >
-                  <Icon className="size-4" /> {label}
-                </span>
-              ))}
+              {getSuitableForBadges(product.suitableFor).map(
+                ({ labelKey, icon: Icon }) => (
+                  <span
+                    key={labelKey}
+                    className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-4 py-2 text-xs font-bold text-green-700"
+                  >
+                    <Icon className="size-4" /> {t(labelKey)}
+                  </span>
+                ),
+              )}
             </div>
             {product.roomTypes.length > 0 && (
               <>
-                <p className="mt-5 mb-2 text-xs font-medium uppercase tracking-wide text-muted">Recommended rooms</p>
+                <p className="mt-5 mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+                  {t("productDetail.recommendedRooms")}
+                </p>
                 <div className="flex flex-wrap gap-2">
-                  {product.roomTypes.map((roomType) => (
-                    <span
-                      key={roomType}
-                      className="rounded-full bg-muted-background px-3 py-1.5 text-xs font-semibold text-ink"
-                    >
-                      {roomType}
-                    </span>
-                  ))}
+                  {product.roomTypes.map((roomType) => {
+                    const key =
+                      ROOM_LABEL_KEYS[roomType as keyof typeof ROOM_LABEL_KEYS];
+                    return (
+                      <span
+                        key={roomType}
+                        className="rounded-full bg-muted-background px-3 py-1.5 text-xs font-semibold text-ink"
+                      >
+                        {key ? t(key) : roomType}
+                      </span>
+                    );
+                  })}
                 </div>
               </>
             )}
           </section>
 
           <section className="rounded-2xl bg-ink p-7 text-center text-white shadow-sm sm:p-8">
-            <h2 className="text-xl font-bold">See it in your room</h2>
-            <p className="mx-auto mt-3 max-w-md text-sm leading-5 text-white/70">Use our AI-powered 3D visualizer to see how these tiles look in your space before you buy.</p>
-            <Button nativeButton={false} render={<Link href={visualizerHref(product)} />} className="group mt-6 h-14 min-h-14 px-7 py-3 font-bold bg-primary text-ink hover:bg-primary/90">Start Visualizing <ArrowRight className="transition-transform duration-300 group-hover:translate-x-1" /></Button>
+            <h2 className="text-xl font-bold">
+              {t("productDetail.visualizer.title")}
+            </h2>
+            <p className="mx-auto mt-3 max-w-md text-sm leading-5 text-white/70">
+              {t("productDetail.visualizer.body")}
+            </p>
+            <Button
+              nativeButton={false}
+              render={<Link href={visualizerHref(product)} />}
+              className="group mt-6 h-14 min-h-14 px-7 py-3 font-bold bg-primary text-ink hover:bg-primary/90"
+            >
+              {t("productDetail.visualizer.cta")}{" "}
+              <ArrowRight className="transition-transform duration-300 group-hover:translate-x-1" />
+            </Button>
           </section>
 
-          <QuantityCalculator product={product} value={requiredArea} onChange={setRequiredArea} />
+          <QuantityCalculator
+            product={product}
+            value={requiredArea}
+            onChange={setRequiredArea}
+          />
 
           {/* The only three actions this page offers: save it, cart it, or compare it. */}
           <div className="grid gap-3 sm:grid-cols-3">
@@ -245,15 +367,19 @@ const ProductDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => 
               aria-pressed={isFavorited}
               className="h-14 min-h-14 w-full gap-2 py-3 font-bold disabled:opacity-60"
             >
-              <Heart className={isFavorited ? "fill-red-500 text-red-500" : ""} />
-              {isFavorited ? "Favorited" : "Add to Favorites"}
+              <Heart
+                className={isFavorited ? "fill-red-500 text-red-500" : ""}
+              />
+              {isFavorited
+                ? t("productDetail.favorited")
+                : t("productDetail.addToFavorites")}
             </Button>
             <Button
               type="button"
               onClick={addToCart}
               className="h-14 min-h-14 w-full gap-2 py-3 font-bold bg-primary text-ink hover:bg-primary/90"
             >
-              <ShoppingCart className="size-5" /> Add to Cart
+              <ShoppingCart className="size-5" /> {t("productDetail.addToCart")}
             </Button>
             <Button
               type="button"
@@ -262,7 +388,7 @@ const ProductDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => 
               render={<Link href={`/compare?ids=${product.id}`} />}
               className="h-14 min-h-14 w-full gap-2 py-3 font-bold"
             >
-              <Scale className="size-5" /> Compare
+              <Scale className="size-5" /> {t("productDetail.compare")}
             </Button>
           </div>
         </div>

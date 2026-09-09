@@ -143,6 +143,74 @@
       "addedBody": "{{name}} — ubu ni {{area}} m² mu gatebo kawe."
     }
   },
+  "collections": {
+    "badge": "Menya igikwiriye umushinga wawe",
+    "title": "Amakusanyirizo Yatoranyijwe <accent>Ku Ngano.</accent>",
+    "intro": "Ingano ni ingenzi. Reba amakusanyirizo yacu yateguwe neza ashyizwe mu byiciro by'ingano kugira ngo ubone amakaro nyayo ahuza n'ibisabwa n'ubwiza bw'umushinga wawe.",
+    "exploreAll": "Reba Ibicuruzwa Byose",
+    "bannerImageAlt": "Ikusanyirizo ry'amakaro afite imiterere",
+    "cardImageAlt": "Ikusanyirizo rya {{title}}",
+    "viewCollection": "Reba Ikusanyirizo",
+    "empty": "Nta makusanyirizo yatangajwe.",
+    "breadcrumb": "Amakusanyirizo",
+    "notFound": {
+      "title": "Ikusanyirizo ntiryabonetse",
+      "body": "Ikusanyirizo ushaka ntiribaho cyangwa rishobora kuba ryarimuwe.",
+      "browse": "Reba Amakusanyirizo"
+    }
+  },
+  "productDetail": {
+    "back": "Subira Inyuma",
+    "productStory": "Ibiranga Igicuruzwa",
+    "catalog": "Urutonde",
+    "pricePerSqm": "/ m²",
+    "specs": {
+      "size": "Ingano",
+      "perBox": "Mu ikarito",
+      "perBoxValue": "{{area}} m² (ibice {{pcs}})",
+      "sku": "SKU"
+    },
+    "suitableFor": "Bibereye",
+    "recommendedRooms": "Ibyumba ryajyamo",
+    "visualizer": {
+      "title": "Birebe mu cyumba",
+      "body": "Koresha igikoresho cyacu cya 3D gishingiye kuri AI kugira ngo urebe uko aya makaro agaragara mu cyumba mbere yo kugura.",
+      "cta": "Reba iri karo mu cyumba"
+    },
+    "favorited": "Byakunzwe",
+    "addToFavorites": "Kunda iri karo",
+    "addToCart": "Shyira mu Gatebo",
+    "compare": "Gereranya",
+    "notFound": {
+      "title": "Igicuruzwa nticyabonetse",
+      "body": "Ikaro urimo gushaka ntiribaho cyangwa rishobora kuba ryarakuweho.",
+      "browse": "Reba Ibicuruzwa"
+    },
+    "toast": {
+      "signInRequiredTitle": "Ugomba kwinjira",
+      "signInBody": "Fungura konti y'ubuntu cyangwa winjire kugira ngo ubike ibyakunzwe kandi wubake agatebo kawe.",
+      "removedFavorite": "Byavanywe mu byakunzwe",
+      "addedFavorite": "Byongewe mu byakunzwe",
+      "somethingWrong": "Hari ikitagenze neza",
+      "tryAgain": "Ongera ugerageze.",
+      "invalidAreaTitle": "Andika ubuso bwemewe",
+      "invalidAreaBody": "Shyiraho ubuso ukeneye mu mubarizi wo hepfo mbere yo kongera mu gatebo.",
+      "addedToCartTitle": "Byashyizwe mu gatebo",
+      "addedToCartBody": "{{name}} — {{area}} m² biri mu gatebo kawe."
+    }
+  },
+  "quantityCalculator": {
+    "title": "Umubarizi w'Ingano",
+    "requiredArea": "Ubuso bukenewe (m²)",
+    "spec": "{{size}}: {{tileArea}} m² ku ipiece · {{boxCoverage}} m² mu ikarito · amapiece {{pcs}} mu ikarito",
+    "totalQuantity": "Ingano yose",
+    "totalQuantityValue": "{{area}} m²",
+    "completeBoxes": "Amakarito yuzuye",
+    "remainingArea": "Ubuso busigaye",
+    "additionalPieces": "Amapiece y'inyongera",
+    "equivalent": "Bingana (ihindura)",
+    "equivalentValue": "amakarito {{boxes}} + amapiece {{pieces}} · amapiece {{total}} yose hamwe"
+  },
   "auth": {
     "logoAlt": "Ikirango cya Magnificat Smart Space",
     "showroomAlt": "Aho baragurishiriza amakaro y'umutamenwa",

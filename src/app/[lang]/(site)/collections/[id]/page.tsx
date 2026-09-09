@@ -2,6 +2,7 @@
 
 import { use } from "react";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import { ApiErrorState } from "@/components/api-state";
 import {
   Breadcrumb,
@@ -24,6 +25,7 @@ import CollectionNotFound from "./not-found";
  * title to label each card.
  */
 const CollectionDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => {
+  const { t } = useTranslation();
   const { id } = use(params);
 
   const { data, loading, error, reload } = useApi(
@@ -58,7 +60,7 @@ const CollectionDetailsPage = ({ params }: { params: Promise<{ id: string }> }) 
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink render={<Link href="/collections" />}>Collections</BreadcrumbLink>
+              <BreadcrumbLink render={<Link href="/collections" />}>{t("collections.breadcrumb")}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>

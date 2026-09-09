@@ -2,6 +2,7 @@
 
 import { Calculator } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { calculateTileQuantity } from "@/lib/tile-calculator";
 import type { Product } from "@/components/product-card";
@@ -23,6 +24,7 @@ export const QuantityCalculator = ({
   value?: string;
   onChange?: (value: string) => void;
 }) => {
+  const { t } = useTranslation();
   const [internalArea, setInternalArea] = useState("26");
   const requiredArea = value ?? internalArea;
   const setRequiredArea = onChange ?? setInternalArea;
@@ -35,10 +37,10 @@ export const QuantityCalculator = ({
     <section className="rounded-2xl bg-white p-6 shadow-sm sm:p-7">
       <div className="mb-6 flex items-center gap-2">
         <Calculator className="size-5 text-ink" />
-        <h2 className="text-lg font-bold text-ink">Quantity Calculator</h2>
+        <h2 className="text-lg font-bold text-ink">{t("quantityCalculator.title")}</h2>
       </div>
       <label className="text-xs font-medium uppercase tracking-wide text-muted">
-        Required area (m²)
+        {t("quantityCalculator.requiredArea")}
         <Input
           type="number"
           min="0"
@@ -50,14 +52,19 @@ export const QuantityCalculator = ({
         />
       </label>
       <p className="mt-3 text-xs text-muted">
-        {product.size}: {formatNumber(product.tileArea)} m² per piece · {formatNumber(product.boxCoverage)} m² per box · {product.piecesPerBox} pcs per box
+        {t("quantityCalculator.spec", {
+          size: product.size,
+          tileArea: formatNumber(product.tileArea),
+          boxCoverage: formatNumber(product.boxCoverage),
+          pcs: product.piecesPerBox,
+        })}
       </p>
       <dl className="mt-6 space-y-4 border-t border-slate-100 pt-6 text-sm">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4"><dt className="text-base font-bold text-ink">Total quantity</dt><dd className="text-xl font-bold text-ink">{formatNumber(calculation.purchasedArea)} sqm</dd></div>
-        <div className="flex justify-between"><dt className="text-muted">Complete boxes</dt><dd className="font-bold text-ink">{calculation.completeBoxes}</dd></div>
-        <div className="flex justify-between"><dt className="text-muted">Remaining area</dt><dd className="font-bold text-ink">{formatNumber(calculation.remainingArea)} m²</dd></div>
-        <div className="flex justify-between"><dt className="text-muted">Additional pieces</dt><dd className="font-bold text-ink">{calculation.remainingPieces}</dd></div>
-        <div className="flex justify-between text-xs text-muted"><dt>Equivalent (conversion)</dt><dd>{calculation.completeBoxes} boxes + {calculation.remainingPieces} pcs · {calculation.totalPieces} pieces total</dd></div>
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4"><dt className="text-base font-bold text-ink">{t("quantityCalculator.totalQuantity")}</dt><dd className="text-xl font-bold text-ink">{t("quantityCalculator.totalQuantityValue", { area: formatNumber(calculation.purchasedArea) })}</dd></div>
+        <div className="flex justify-between"><dt className="text-muted">{t("quantityCalculator.completeBoxes")}</dt><dd className="font-bold text-ink">{calculation.completeBoxes}</dd></div>
+        <div className="flex justify-between"><dt className="text-muted">{t("quantityCalculator.remainingArea")}</dt><dd className="font-bold text-ink">{formatNumber(calculation.remainingArea)} m²</dd></div>
+        <div className="flex justify-between"><dt className="text-muted">{t("quantityCalculator.additionalPieces")}</dt><dd className="font-bold text-ink">{calculation.remainingPieces}</dd></div>
+        <div className="flex justify-between text-xs text-muted"><dt>{t("quantityCalculator.equivalent")}</dt><dd>{t("quantityCalculator.equivalentValue", { boxes: calculation.completeBoxes, pieces: calculation.remainingPieces, total: calculation.totalPieces })}</dd></div>
       </dl>
     </section>
   );

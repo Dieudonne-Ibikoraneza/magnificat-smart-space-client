@@ -143,6 +143,74 @@
       "addedBody": "{{name}} — now {{area}} m² in your cart."
     }
   },
+  "collections": {
+    "badge": "Discover the perfect fit",
+    "title": "Curated Collections <accent>By Dimension.</accent>",
+    "intro": "Scale matters. Browse our meticulously organized collections grouped by size to find the precise tiles that meet the technical and aesthetic demands of your project.",
+    "exploreAll": "Explore All Products",
+    "bannerImageAlt": "Textured tile collection",
+    "cardImageAlt": "{{title}} collection",
+    "viewCollection": "View Collection",
+    "empty": "No collections have been published yet.",
+    "breadcrumb": "Collections",
+    "notFound": {
+      "title": "Collection not found",
+      "body": "The collection you are looking for does not exist or may have been moved.",
+      "browse": "Browse Collections"
+    }
+  },
+  "productDetail": {
+    "back": "Back",
+    "productStory": "Product Story",
+    "catalog": "Catalog",
+    "pricePerSqm": "/ sqm",
+    "specs": {
+      "size": "Size",
+      "perBox": "Per box",
+      "perBoxValue": "{{area}} m² ({{pcs}} pcs)",
+      "sku": "SKU"
+    },
+    "suitableFor": "Suitable for",
+    "recommendedRooms": "Recommended rooms",
+    "visualizer": {
+      "title": "See it in your room",
+      "body": "Use our AI-powered 3D visualizer to see how these tiles look in your space before you buy.",
+      "cta": "Start Visualizing"
+    },
+    "favorited": "Favorited",
+    "addToFavorites": "Add to Favorites",
+    "addToCart": "Add to Cart",
+    "compare": "Compare",
+    "notFound": {
+      "title": "Product not found",
+      "body": "The tile you are looking for does not exist or may have been removed.",
+      "browse": "Browse Products"
+    },
+    "toast": {
+      "signInRequiredTitle": "Sign in required",
+      "signInBody": "Create a free account or log in to save favorites and build your cart.",
+      "removedFavorite": "Removed from favorites",
+      "addedFavorite": "Added to favorites",
+      "somethingWrong": "Something went wrong",
+      "tryAgain": "Please try again.",
+      "invalidAreaTitle": "Enter a valid area",
+      "invalidAreaBody": "Set the area you need in the calculator below before adding to cart.",
+      "addedToCartTitle": "Added to cart",
+      "addedToCartBody": "{{name}} — {{area}} m² is in your cart."
+    }
+  },
+  "quantityCalculator": {
+    "title": "Quantity Calculator",
+    "requiredArea": "Required area (m²)",
+    "spec": "{{size}}: {{tileArea}} m² per piece · {{boxCoverage}} m² per box · {{pcs}} pcs per box",
+    "totalQuantity": "Total quantity",
+    "totalQuantityValue": "{{area}} sqm",
+    "completeBoxes": "Complete boxes",
+    "remainingArea": "Remaining area",
+    "additionalPieces": "Additional pieces",
+    "equivalent": "Equivalent (conversion)",
+    "equivalentValue": "{{boxes}} boxes + {{pieces}} pcs · {{total}} pieces total"
+  },
   "auth": {
     "logoAlt": "Magnificat Smart Space logo",
     "showroomAlt": "Luxury tile showroom",
