@@ -1,0 +1,119 @@
+{
+  "app": {
+    "name": "Magnificat Smart Space",
+    "tagline": "Umwanya wo kubamo w'ubwenge kandi woroshye."
+  },
+  "nav": {
+    "products": "Ibicuruzwa",
+    "collections": "Amakusanyirizo",
+    "visualizer": "Igaragaza",
+    "calculator": "Kubara",
+    "compare": "Kugereranya",
+    "assistant": "Umufasha",
+    "account": "Konti",
+    "cart": "Agatebo",
+    "favorites": "Ibyakunzwe"
+  },
+  "actions": {
+    "addToCart": "Shyira mu gatebo",
+    "save": "Bika",
+    "cancel": "Hagarika",
+    "confirm": "Emeza",
+    "search": "Shakisha",
+    "signIn": "Injira",
+    "signOut": "Sohoka",
+    "loadMore": "Erekana byinshi"
+  },
+  "common": {
+    "loading": "Biratunganywa…",
+    "empty": "Nta kintu kirahari",
+    "error": "Hari ikitagenze neza",
+    "retry": "Ongera ugerageze"
+  },
+  "languageGate": {
+    "title": "Hitamo ururimi rwawe",
+    "description": "Hitamo ururimi ushaka gukoresha muri Magnificat Smart Space. Ushobora kuruhindura igihe icyo ari cyo cyose.",
+    "hint": "Iri hitamo ribikwa kuri iki gikoresho."
+  },
+  "language": {
+    "label": "Ururimi",
+    "select": "Hitamo ururimi"
+  },
+  "auth": {
+    "logoAlt": "Ikirango cya Magnificat Smart Space",
+    "showroomAlt": "Aho baragurishiriza amakaro y'umutamenwa",
+    "tabs": {
+      "login": "Kwinjira",
+      "signup": "Kwiyandikisha"
+    },
+    "login": {
+      "title": "Murakaza neza",
+      "subtitle": "Ushobora kwinjira ukoresheje imeri yawe gusa — tuzakoherereza kode y'inshuro imwe.",
+      "emailHint": "Nta ijambobanga rikenewe — imeri yawe gusa niyo ikenewe kwinjira.",
+      "submit": "Saba Kode",
+      "submitting": "Gusaba Kode..."
+    },
+    "signup": {
+      "title": "Fungura konti yawe",
+      "subtitle": "Gufungura konti bitwara munsi y'umunota umwe.",
+      "submit": "Fungura konti",
+      "submitting": "Gufungura Konti..."
+    },
+    "otp": {
+      "title": "Kwemeza imeri",
+      "subtitle": "Andika kode y'imibare 4 yoherejwe kuri imeri yawe.",
+      "sentTo": "Andika kode y'imibare 4 yoherejwe kuri",
+      "editEmail": "Hindura imeri",
+      "codeGroupLabel": "Kode yo kwemeza y'imibare 4",
+      "digitLabel": "Umubare wo kwemeza wa {{index}}",
+      "noCode": "Ntiwakiriye kode?",
+      "resend": "Ongera wohereze kode",
+      "resendIn": "Ongera wohereze kode ({{seconds}}s)",
+      "submit": "Emeza kode",
+      "submitting": "Kwemeza…"
+    },
+    "fields": {
+      "fullName": "Amazina yombi",
+      "fullNamePlaceholder": "Mugisha Jean",
+      "fullNameError": "Andika amazina yawe yombi.",
+      "email": "Imeri Aderesi",
+      "emailPlaceholder": "wowe@urugero.com",
+      "emailError": "Andika imeri aderesi yemewe.",
+      "phoneNumber": "Nimero ya telefone",
+      "phoneNumberError": "Shyiramo nimero ya telefone yemewe y'imibare 9.",
+      "discovery": "Watumenyeye he?",
+      "discoveryPlaceholder": "Hitamo…"
+    },
+    "discoverySources": {
+      "REFERRAL": "Wahawe Ubutumire nundi",
+      "SOCIAL_MEDIA": "Imbuga nkoranyambaga",
+      "SEARCH_ENGINE": "Urubuga rushakisha",
+      "ADVERTISEMENT": "Kwamamaza",
+      "OTHER": "Ibindi"
+    },
+    "footer": {
+      "default": "Turakoherereza kode kuri imeri kugira ngo twemeze ko ari wowe",
+      "otp": "Bishobora gufata amasegonda make ngo ikugereho — reba muri spam niba itaboneka muri inbox yawe."
+    },
+    "toast": {
+      "invalidEmailTitle": "Andika imeri aderesi yemewe",
+      "invalidEmailBody": "Ntitwashoboye kumenya imiterere y'iyo imeri.",
+      "codeSentTitle": "Kode yo kwemeza yoherejwe",
+      "codeSentBody": "Twohereje kode y'imibare 4 kuri {{email}}.",
+      "codeSendFailedTitle": "Ntitwashoboye kohereza kode",
+      "checkFieldsTitle": "Reba imyanya yerekanwe",
+      "checkFieldsBody": "Amazina yombi, imeri, nimero ya telefone n'aho watumenyeye byose birakenewe.",
+      "accountFailedTitle": "Ntitwashoboye gufungura konti yawe",
+      "incompleteCodeTitle": "Andika kode yuzuye y'imibare 4",
+      "incompleteCodeBody": "Imibare 4 yose irakenewe kugira ngo wemeze imeri yawe.",
+      "successTitle": "Kwinjira byagenze neza",
+      "successBody": "Murakaza neza muri Magnificat Smart Space.",
+      "verifyFailedTitle": "Kwemeza byanze",
+      "codeResentTitle": "Kode yo kwemeza yongeye koherezwa",
+      "codeResentBody": "Twohereje kode nshya kuri {{email}}.",
+      "resendFailedTitle": "Ntitwashoboye kongera kohereza kode",
+      "cooldownBody": "Tegereza mbere yo kongera gusaba indi kode.",
+      "tryAgain": "Ongera ugerageze."
+    }
+  }
+}

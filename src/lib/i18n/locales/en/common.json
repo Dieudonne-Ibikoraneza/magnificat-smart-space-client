@@ -1,0 +1,119 @@
+{
+  "app": {
+    "name": "Magnificat Smart Space",
+    "tagline": "Your smarter, simpler living space."
+  },
+  "nav": {
+    "products": "Products",
+    "collections": "Collections",
+    "visualizer": "Visualizer",
+    "calculator": "Calculator",
+    "compare": "Compare",
+    "assistant": "Assistant",
+    "account": "Account",
+    "cart": "Cart",
+    "favorites": "Favorites"
+  },
+  "actions": {
+    "addToCart": "Add to cart",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "search": "Search",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "loadMore": "Load more"
+  },
+  "common": {
+    "loading": "Loading…",
+    "empty": "Nothing here yet",
+    "error": "Something went wrong",
+    "retry": "Try again"
+  },
+  "languageGate": {
+    "title": "Choose your language",
+    "description": "Pick the language you'd like to use across Magnificat Smart Space. You can change it any time.",
+    "hint": "This choice is remembered on this device."
+  },
+  "language": {
+    "label": "Language",
+    "select": "Choose a language"
+  },
+  "auth": {
+    "logoAlt": "Magnificat Smart Space logo",
+    "showroomAlt": "Luxury tile showroom",
+    "tabs": {
+      "login": "Login",
+      "signup": "Sign up"
+    },
+    "login": {
+      "title": "Welcome back",
+      "subtitle": "You can log in with just your email — we'll send a one-time code to it.",
+      "emailHint": "No password needed — just your email to log in.",
+      "submit": "Send code",
+      "submitting": "Sending…"
+    },
+    "signup": {
+      "title": "Create your account",
+      "subtitle": "Setting up an account takes less than 1 minute.",
+      "submit": "Create account",
+      "submitting": "Sending…"
+    },
+    "otp": {
+      "title": "Email verification",
+      "subtitle": "Please enter the 4-digit code sent to your email.",
+      "sentTo": "Enter the 4-digit code sent to",
+      "editEmail": "Edit email",
+      "codeGroupLabel": "4-digit verification code",
+      "digitLabel": "Verification digit {{index}}",
+      "noCode": "Didn't receive a code?",
+      "resend": "Resend code",
+      "resendIn": "Resend code ({{seconds}}s)",
+      "submit": "Verify code",
+      "submitting": "Verifying…"
+    },
+    "fields": {
+      "fullName": "Full names",
+      "fullNamePlaceholder": "John Doe",
+      "fullNameError": "Enter your first and last name.",
+      "email": "Email address",
+      "emailPlaceholder": "you@example.com",
+      "emailError": "Enter a valid email address.",
+      "phoneNumber": "Phone number",
+      "phoneNumberError": "Enter a valid 9-digit phone number.",
+      "discovery": "Where did you hear about us?",
+      "discoveryPlaceholder": "Select…"
+    },
+    "discoverySources": {
+      "REFERRAL": "Referral",
+      "SOCIAL_MEDIA": "Social media",
+      "SEARCH_ENGINE": "Search engine",
+      "ADVERTISEMENT": "Advertisement",
+      "OTHER": "Other"
+    },
+    "footer": {
+      "default": "We'll send a one-time code to verify it's you",
+      "otp": "It may take a few seconds to arrive — check your spam folder if it isn't in your inbox."
+    },
+    "toast": {
+      "invalidEmailTitle": "Enter a valid email address",
+      "invalidEmailBody": "We couldn't recognize that email format.",
+      "codeSentTitle": "Verification code sent",
+      "codeSentBody": "We sent a 4-digit code to {{email}}.",
+      "codeSendFailedTitle": "Couldn't send the code",
+      "checkFieldsTitle": "Check the highlighted fields",
+      "checkFieldsBody": "Full name, email, phone number and referral source are all required.",
+      "accountFailedTitle": "Couldn't create your account",
+      "incompleteCodeTitle": "Enter the full 4-digit code",
+      "incompleteCodeBody": "All 4 digits are required to verify your email.",
+      "successTitle": "Login successful",
+      "successBody": "Welcome back to Magnificat Smart Space.",
+      "verifyFailedTitle": "Verification failed",
+      "codeResentTitle": "Verification code resent",
+      "codeResentBody": "We sent a new code to {{email}}.",
+      "resendFailedTitle": "Couldn't resend the code",
+      "cooldownBody": "Please wait before requesting another code.",
+      "tryAgain": "Please try again."
+    }
+  }
+}

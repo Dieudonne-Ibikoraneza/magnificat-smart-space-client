@@ -2,7 +2,14 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type KeyboardEvent, type ClipboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ClipboardEvent,
+} from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowRight,
   CheckCircle2,
@@ -23,13 +30,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
-import { authApi, usersApi, type DiscoverySource, type HearAboutUs } from "@/lib/api";
+import {
+  authApi,
+  usersApi,
+  type DiscoverySource,
+  type HearAboutUs,
+} from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { useApi } from "@/lib/api/use-api";
 import { roleHomePath } from "@/lib/auth-routes";
 import { useCart } from "@/lib/cart-store";
 import { useCurrentUser } from "@/lib/current-user";
-import { isValidEmail, isValidFullName, isValidRwandaMobileDigits } from "@/lib/validation";
+import {
+  isValidEmail,
+  isValidFullName,
+  isValidRwandaMobileDigits,
+} from "@/lib/validation";
 import { PhoneField, RWANDA_PREFIX } from "@/components/phone-field";
 
 /** Matches the server's default `OTP_RESEND_COOLDOWN_SECONDS` — see server/.env. */
@@ -38,6 +54,15 @@ const RESEND_COOLDOWN_SECONDS = 60;
 /** Server messages are shown as-is; anything else (a dropped connection) gets a generic fallback. */
 const errorMessage = (cause: unknown, fallback: string) =>
   cause instanceof ApiError ? cause.message : fallback;
+
+const authErrorMessage = (
+  cause: unknown,
+  fallback: string,
+  cooldownMessage: string,
+) =>
+  cause instanceof ApiError && cause.status === 429
+    ? cooldownMessage
+    : errorMessage(cause, fallback);
 
 type ViewState = "login" | "signup" | "otp";
 
@@ -53,6 +78,18 @@ const fallbackDiscoverySources: DiscoverySource[] = [
   { value: "ADVERTISEMENT", label: "Advertisement" },
   { value: "OTHER", label: "Other" },
 ];
+
+/**
+ * Translation keys for the known discovery-source values. Anything the
+ * server sends that isn't in here falls back to the server's own label.
+ */
+const DISCOVERY_SOURCE_KEYS = {
+  REFERRAL: "auth.discoverySources.REFERRAL",
+  SOCIAL_MEDIA: "auth.discoverySources.SOCIAL_MEDIA",
+  SEARCH_ENGINE: "auth.discoverySources.SEARCH_ENGINE",
+  ADVERTISEMENT: "auth.discoverySources.ADVERTISEMENT",
+  OTHER: "auth.discoverySources.OTHER",
+} as const;
 
 const fieldClassName = "h-11 pl-11 text-sm";
 
@@ -111,7 +148,9 @@ const ValidatedField = ({
           />
         )}
       </div>
-      {showError && <p className="text-xs font-medium text-red-600">{errorMessage}</p>}
+      {showError && (
+        <p className="text-xs font-medium text-red-600">{errorMessage}</p>
+      )}
     </Field>
   );
 };
@@ -126,20 +165,23 @@ const EmailField = ({
   value: string;
   onChange: (value: string) => void;
   autoFocus?: boolean;
-}) => (
-  <ValidatedField
-    icon={Mail}
-    label={label}
-    placeholder="you@example.com"
-    type="email"
-    autoComplete="email"
-    autoFocus={autoFocus}
-    value={value}
-    onChange={onChange}
-    isValid={isValidEmail}
-    errorMessage="Enter a valid email address."
-  />
-);
+}) => {
+  const { t } = useTranslation();
+  return (
+    <ValidatedField
+      icon={Mail}
+      label={label}
+      placeholder={t("auth.fields.emailPlaceholder")}
+      type="email"
+      autoComplete="email"
+      autoFocus={autoFocus}
+      value={value}
+      onChange={onChange}
+      isValid={isValidEmail}
+      errorMessage={t("auth.fields.emailError")}
+    />
+  );
+};
 
 const OtpFields = ({
   code,
@@ -148,6 +190,7 @@ const OtpFields = ({
   code: string[];
   onChange: (code: string[]) => void;
 }) => {
+  const { t } = useTranslation();
   const refs = useRef<Array<HTMLInputElement | null>>([]);
 
   const updateCode = (index: number, value: string) => {
@@ -157,14 +200,20 @@ const OtpFields = ({
     if (next[index] && index < 3) refs.current[index + 1]?.focus();
   };
 
-  const handleKeyDown = (index: number, event: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (
+    index: number,
+    event: KeyboardEvent<HTMLInputElement>,
+  ) => {
     if (event.key === "Backspace" && !code[index] && index > 0) {
       refs.current[index - 1]?.focus();
     }
   };
 
   const handlePaste = (event: ClipboardEvent<HTMLInputElement>) => {
-    const pasted = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
+    const pasted = event.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 4);
     if (!pasted) return;
     event.preventDefault();
     onChange(pasted.padEnd(4, "").split(""));
@@ -172,14 +221,14 @@ const OtpFields = ({
   };
 
   return (
-    <div className="flex gap-3" aria-label="4-digit verification code">
+    <div className="flex gap-3" aria-label={t("auth.otp.codeGroupLabel")}>
       {code.map((value, index) => (
         <Input
           key={index}
           ref={(element) => {
             refs.current[index] = element;
           }}
-          aria-label={`Verification digit ${index + 1}`}
+          aria-label={t("auth.otp.digitLabel", { index: index + 1 })}
           className="size-14 rounded-xl border-x border-y bg-transparent text-center text-xl text-ink focus-visible:ring-2 focus-visible:ring-primary"
           inputMode="numeric"
           maxLength={1}
@@ -191,34 +240,52 @@ const OtpFields = ({
       ))}
     </div>
   );
-}
+};
 
 const AuthPage = () => {
+  const { t } = useTranslation();
   const [view, setView] = useState<ViewState>("login");
   const [discoverySource, setDiscoverySource] = useState("");
   // The list of options is public, so it loads without a session.
-  const { data: fetchedDiscoverySources } = useApi(() => authApi.discoverySources());
+  const { data: fetchedDiscoverySources } = useApi(() =>
+    authApi.discoverySources(),
+  );
   const discoverySources = fetchedDiscoverySources ?? fallbackDiscoverySources;
+  const discoveryLabel = (source: DiscoverySource): string => {
+    const key =
+      DISCOVERY_SOURCE_KEYS[source.value as keyof typeof DISCOVERY_SOURCE_KEYS];
+    return key ? t(key) : source.label;
+  };
   const [loginEmail, setLoginEmail] = useState("");
   const [signupName, setSignupName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
   const [otpCode, setOtpCode] = useState(["", "", "", ""]);
-  const [otpSourceView, setOtpSourceView] = useState<"login" | "signup">("login");
+  const [otpSourceView, setOtpSourceView] = useState<"login" | "signup">(
+    "login",
+  );
   const [submitting, setSubmitting] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const router = useRouter();
-  const { user: currentUser, loading: currentUserLoading, refresh: refreshCurrentUser } = useCurrentUser();
+  const {
+    user: currentUser,
+    loading: currentUserLoading,
+    refresh: refreshCurrentUser,
+  } = useCurrentUser();
   const { refresh: refreshCart } = useCart();
 
   // Already have a working session? Skip straight past the login form.
   useEffect(() => {
-    if (!currentUserLoading && currentUser) router.replace(roleHomePath(currentUser.role));
+    if (!currentUserLoading && currentUser)
+      router.replace(roleHomePath(currentUser.role));
   }, [currentUser, currentUserLoading, router]);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
-    const timer = window.setInterval(() => setResendCooldown((seconds) => Math.max(0, seconds - 1)), 1000);
+    const timer = window.setInterval(
+      () => setResendCooldown((seconds) => Math.max(0, seconds - 1)),
+      1000,
+    );
     return () => window.clearInterval(timer);
   }, [resendCooldown]);
 
@@ -240,23 +307,29 @@ const AuthPage = () => {
   const handleSubmit = async () => {
     if (view === "login") {
       if (!loginEmailValid) {
-        toast.error("Enter a valid email address", {
-          description: "We couldn't recognize that email format.",
+        toast.error(t("auth.toast.invalidEmailTitle"), {
+          description: t("auth.toast.invalidEmailBody"),
         });
         return;
       }
       setSubmitting(true);
       try {
         await authApi.login(loginEmail.trim());
-        toast.success("Verification code sent", {
-          description: `We sent a 4-digit code to ${loginEmail.trim()}.`,
+        toast.success(t("auth.toast.codeSentTitle"), {
+          description: t("auth.toast.codeSentBody", {
+            email: loginEmail.trim(),
+          }),
         });
         setOtpSourceView("login");
         setResendCooldown(RESEND_COOLDOWN_SECONDS);
         setView("otp");
       } catch (cause) {
-        toast.error("Couldn't send the code", {
-          description: errorMessage(cause, "Please try again."),
+        toast.error(t("auth.toast.codeSendFailedTitle"), {
+          description: authErrorMessage(
+            cause,
+            t("auth.toast.tryAgain"),
+            t("auth.toast.cooldownBody"),
+          ),
         });
       } finally {
         setSubmitting(false);
@@ -266,8 +339,8 @@ const AuthPage = () => {
 
     if (view === "signup") {
       if (!signupValid) {
-        toast.error("Check the highlighted fields", {
-          description: "Full name, email, phone number and referral source are all required.",
+        toast.error(t("auth.toast.checkFieldsTitle"), {
+          description: t("auth.toast.checkFieldsBody"),
         });
         return;
       }
@@ -279,15 +352,21 @@ const AuthPage = () => {
           phone: `${RWANDA_PREFIX}${signupPhone}`,
           heardAboutUs: discoverySource as HearAboutUs,
         });
-        toast.success("Verification code sent", {
-          description: `We sent a 4-digit code to ${signupEmail.trim()}.`,
+        toast.success(t("auth.toast.codeSentTitle"), {
+          description: t("auth.toast.codeSentBody", {
+            email: signupEmail.trim(),
+          }),
         });
         setOtpSourceView("signup");
         setResendCooldown(RESEND_COOLDOWN_SECONDS);
         setView("otp");
       } catch (cause) {
-        toast.error("Couldn't create your account", {
-          description: errorMessage(cause, "Please try again."),
+        toast.error(t("auth.toast.accountFailedTitle"), {
+          description: authErrorMessage(
+            cause,
+            t("auth.toast.tryAgain"),
+            t("auth.toast.cooldownBody"),
+          ),
         });
       } finally {
         setSubmitting(false);
@@ -296,8 +375,8 @@ const AuthPage = () => {
     }
 
     if (!otpComplete) {
-      toast.error("Enter the full 4-digit code", {
-        description: "All 4 digits are required to verify your email.",
+      toast.error(t("auth.toast.incompleteCodeTitle"), {
+        description: t("auth.toast.incompleteCodeBody"),
       });
       return;
     }
@@ -311,13 +390,13 @@ const AuthPage = () => {
       // on their next navigation.
       refreshCurrentUser();
       refreshCart();
-      toast.success("Login successful", {
-        description: "Welcome back to Magnificat Smart Space.",
+      toast.success(t("auth.toast.successTitle"), {
+        description: t("auth.toast.successBody"),
       });
       router.push(roleHomePath(user.role));
     } catch (cause) {
-      toast.error("Verification failed", {
-        description: errorMessage(cause, "Please try again."),
+      toast.error(t("auth.toast.verifyFailedTitle"), {
+        description: errorMessage(cause, t("auth.toast.tryAgain")),
       });
       setOtpCode(["", "", "", ""]);
     } finally {
@@ -331,12 +410,18 @@ const AuthPage = () => {
       await authApi.resendOtp(verifiedEmail.trim());
       setOtpCode(["", "", "", ""]);
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
-      toast.info("Verification code resent", {
-        description: `We sent a new code to ${verifiedEmail.trim()}.`,
+      toast.info(t("auth.toast.codeResentTitle"), {
+        description: t("auth.toast.codeResentBody", {
+          email: verifiedEmail.trim(),
+        }),
       });
     } catch (cause) {
-      toast.error("Couldn't resend the code", {
-        description: errorMessage(cause, "Please try again."),
+      toast.error(t("auth.toast.resendFailedTitle"), {
+        description: authErrorMessage(
+          cause,
+          t("auth.toast.tryAgain"),
+          t("auth.toast.cooldownBody"),
+        ),
       });
     }
   };
@@ -347,6 +432,31 @@ const AuthPage = () => {
     (view === "signup" && !signupValid) ||
     (view === "otp" && !otpComplete);
 
+  const title =
+    view === "login"
+      ? t("auth.login.title")
+      : view === "signup"
+        ? t("auth.signup.title")
+        : t("auth.otp.title");
+  const subtitle =
+    view === "login"
+      ? t("auth.login.subtitle")
+      : view === "signup"
+        ? t("auth.signup.subtitle")
+        : t("auth.otp.subtitle");
+  const submitLabel =
+    view === "login"
+      ? submitting
+        ? t("auth.login.submitting")
+        : t("auth.login.submit")
+      : view === "signup"
+        ? submitting
+          ? t("auth.signup.submitting")
+          : t("auth.signup.submit")
+        : submitting
+          ? t("auth.otp.submitting")
+          : t("auth.otp.submit");
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted-background p-4 font-sans text-ink sm:p-8">
       <section className="flex h-[calc(100vh-2rem)] min-h-150 w-full max-w-5xl flex-col overflow-hidden rounded-2xl  bg-white shadow-[0_0_40px_rgba(15,39,71,0.05)] md:h-200 md:max-h-[90vh] md:flex-row">
@@ -355,7 +465,7 @@ const AuthPage = () => {
             <div className="mb-4 flex w-full justify-center">
               <Image
                 src="/images/logo.png"
-                alt="Magnificat Smart Space Logo"
+                alt={t("auth.logoAlt")}
                 width={140}
                 height={140}
                 className="object-contain"
@@ -365,14 +475,10 @@ const AuthPage = () => {
 
             <div className="mb-8 mt-auto">
               <h1 className="mb-2 text-2xl font-bold tracking-tight text-ink md:text-3xl">
-                {view === "login" && "Welcome Back"}
-                {view === "signup" && "Create your account"}
-                {view === "otp" && "Email Verification"}
+                {title}
               </h1>
-              <p className="h-10 text-sm leading-5 text-muted">
-                {view === "login" && <>You can log in with just your email —<br />we&apos;ll send a one-time code to it.</>}
-                {view === "signup" && <>Setting up an account takes less<br />than 1 minute.</>}
-                {view === "otp" && <>Please enter the 4-digit code sent to<br />your email.</>}
+              <p className="min-h-10 text-sm leading-5 text-muted">
+                {subtitle}
               </p>
             </div>
 
@@ -384,7 +490,7 @@ const AuthPage = () => {
                   onClick={() => switchView("login")}
                   className={`h-10 rounded-full px-6 text-sm ${view === "login" ? "bg-primary text-ink shadow-sm hover:bg-primary" : "text-muted hover:text-ink"}`}
                 >
-                  Login
+                  {t("auth.tabs.login")}
                 </Button>
                 <Button
                   type="button"
@@ -392,38 +498,78 @@ const AuthPage = () => {
                   onClick={() => switchView("signup")}
                   className={`h-10 rounded-full px-6 text-sm ${view === "signup" ? "bg-primary text-ink shadow-sm hover:bg-primary" : "text-muted hover:text-ink"}`}
                 >
-                  Sign up
+                  {t("auth.tabs.signup")}
                 </Button>
               </div>
             )}
 
-            <form className="flex flex-grow flex-col" onSubmit={(event) => { event.preventDefault(); void handleSubmit(); }}>
+            <form
+              className="flex grow flex-col"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleSubmit();
+              }}
+            >
               <div className="space-y-5">
                 {view === "signup" && (
                   <>
                     <ValidatedField
                       icon={UserRound}
-                      label="Full Names"
-                      placeholder="John Doe"
+                      label={t("auth.fields.fullName")}
+                      placeholder={t("auth.fields.fullNamePlaceholder")}
                       autoComplete="name"
                       value={signupName}
                       onChange={setSignupName}
                       isValid={isValidFullName}
-                      errorMessage="Enter your first and last name."
+                      errorMessage={t("auth.fields.fullNameError")}
                     />
-                    <EmailField label="Email Address" value={signupEmail} onChange={setSignupEmail} />
-                    <PhoneField value={signupPhone} onChange={setSignupPhone} />
+                    <EmailField
+                      label={t("auth.fields.email")}
+                      value={signupEmail}
+                      onChange={setSignupEmail}
+                    />
+                    <PhoneField
+                      label={t("auth.fields.phoneNumber")}
+                      value={signupPhone}
+                      onChange={setSignupPhone}
+                    />
                     <Field className="gap-1.5">
-                      <FieldLabel className="text-sm font-medium text-ink">Where did you hear about us?</FieldLabel>
+                      <FieldLabel className="text-sm font-medium text-ink">
+                        {t("auth.fields.discovery")}
+                      </FieldLabel>
                       <div className="relative">
-                        <Globe2 className="absolute left-3.5 top-1/2 z-10 size-4 -translate-y-1/2 text-muted" strokeWidth={1.5} />
-                        <Select value={discoverySource} onValueChange={(value) => setDiscoverySource(value ?? "")}>
+                        <Globe2
+                          className="absolute left-3.5 top-1/2 z-10 size-4 -translate-y-1/2 text-muted"
+                          strokeWidth={1.5}
+                        />
+                        <Select
+                          value={discoverySource}
+                          onValueChange={(value) =>
+                            setDiscoverySource(value ?? "")
+                          }
+                        >
                           <SelectTrigger className="relative h-11 pl-11 pr-10 text-sm [&>svg]:absolute [&>svg]:right-3.5">
                             <SelectValue>
-                              {(value) => discoverySources.find((source) => source.value === value)?.label ?? "Select..."}
+                              {(value) => {
+                                const source = discoverySources.find(
+                                  (item) => item.value === value,
+                                );
+                                return source
+                                  ? discoveryLabel(source)
+                                  : t("auth.fields.discoveryPlaceholder");
+                              }}
                             </SelectValue>
                           </SelectTrigger>
-                          <SelectContent>{discoverySources.map((source) => <SelectItem key={source.value} value={source.value}>{source.label}</SelectItem>)}</SelectContent>
+                          <SelectContent>
+                            {discoverySources.map((source) => (
+                              <SelectItem
+                                key={source.value}
+                                value={source.value}
+                              >
+                                {discoveryLabel(source)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
                         </Select>
                       </div>
                     </Field>
@@ -431,19 +577,42 @@ const AuthPage = () => {
                 )}
                 {view === "login" && (
                   <div className="space-y-2">
-                    <EmailField label="Email Address" value={loginEmail} onChange={setLoginEmail} autoFocus />
-                    <p className="text-xs text-muted">No password needed — just your email to log in.</p>
+                    <EmailField
+                      label={t("auth.fields.email")}
+                      value={loginEmail}
+                      onChange={setLoginEmail}
+                      autoFocus
+                    />
+                    <p className="text-xs text-muted">
+                      {t("auth.login.emailHint")}
+                    </p>
                   </div>
                 )}
                 {view === "otp" && (
                   <div className="mt-4 space-y-8">
                     <div className="space-y-3">
-                      <p className="text-sm font-normal text-ink">Enter the 4-digit code sent to</p>
-                      <div className="flex items-center gap-2"><span className="font-semibold text-ink">{verifiedEmail.trim()}</span><Button type="button" variant="ghost" size="icon-xs" onClick={() => switchView(otpSourceView)} className="ml-1 text-muted hover:text-ink" aria-label="Edit email"><Pencil className="size-4 text-muted" /></Button></div>
+                      <p className="text-sm font-normal text-ink">
+                        {t("auth.otp.sentTo")}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-ink">
+                          {verifiedEmail.trim()}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => switchView(otpSourceView)}
+                          className="ml-1 text-muted hover:text-ink"
+                          aria-label={t("auth.otp.editEmail")}
+                        >
+                          <Pencil className="size-4 text-muted" />
+                        </Button>
+                      </div>
                     </div>
                     <OtpFields code={otpCode} onChange={setOtpCode} />
                     <p className="mt-2 text-sm text-muted">
-                      Didn&apos;t receive code?{" "}
+                      {t("auth.otp.noCode")}{" "}
                       <Button
                         type="button"
                         variant="link"
@@ -451,7 +620,9 @@ const AuthPage = () => {
                         className="h-auto p-0 text-sm font-medium text-ink hover:underline disabled:no-underline disabled:opacity-60"
                         onClick={() => void resendOtp()}
                       >
-                        {resendCooldown > 0 ? `Resend OTP (${resendCooldown}s)` : "Resend OTP"}
+                        {resendCooldown > 0
+                          ? t("auth.otp.resendIn", { seconds: resendCooldown })
+                          : t("auth.otp.resend")}
                       </Button>
                     </p>
                   </div>
@@ -459,14 +630,18 @@ const AuthPage = () => {
               </div>
 
               <div className="mt-auto px-0 pb-6 pt-8">
-                <Button type="submit" disabled={submitDisabled} className="group relative h-12 w-full rounded-lg px-4 text-base font-semibold disabled:opacity-60">
-                  {view === "login" && (submitting ? "Sending..." : "Send Code")}
-                  {view === "signup" && (submitting ? "Sending..." : "Create Account")}
-                  {view === "otp" && (submitting ? "Verifying..." : "Verify code")}
+                <Button
+                  type="submit"
+                  disabled={submitDisabled}
+                  className="group relative h-12 w-full rounded-lg px-4 text-base font-semibold disabled:opacity-60"
+                >
+                  {submitLabel}
                   <ArrowRight className="absolute right-4 size-5 -translate-x-3 transition-transform duration-500 group-hover:translate-x-0 group-hover:rotate-360" />
                 </Button>
                 <p className="mt-4 text-center text-xs text-muted">
-                  {view === "otp" ? "It may take a few seconds to arrive, please check your spam if not found in inbox" : "We'll send a one-time code to verify it's you"}
+                  {view === "otp"
+                    ? t("auth.footer.otp")
+                    : t("auth.footer.default")}
                 </p>
               </div>
             </form>
@@ -475,12 +650,19 @@ const AuthPage = () => {
 
         <div className="hidden w-1/2 p-4 md:block">
           <div className="relative h-full w-full overflow-hidden rounded-xl shadow-inner">
-            <Image src="/showroom.jpg" alt="Luxury Tile Showroom" fill className="object-cover transition-transform duration-700 hover:scale-105" priority sizes="50vw" />
+            <Image
+              src="/showroom.jpg"
+              alt={t("auth.showroomAlt")}
+              fill
+              className="object-cover transition-transform duration-700 hover:scale-105"
+              priority
+              sizes="50vw"
+            />
           </div>
         </div>
       </section>
     </main>
   );
-}
+};
 
 export default AuthPage;
