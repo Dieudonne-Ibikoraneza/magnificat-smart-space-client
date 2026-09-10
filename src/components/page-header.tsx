@@ -3,6 +3,7 @@
 import { Menu } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 export type PageHeaderAction = {
   label: string;
@@ -18,6 +19,7 @@ export type PageHeaderProps = {
 };
 
 export const PageHeader = ({ title, subtitle, onOpenMenu, action, children }: PageHeaderProps) => {
+  const { t } = useTranslation();
   const ActionIcon = action?.icon;
 
   return (
@@ -25,7 +27,7 @@ export const PageHeader = ({ title, subtitle, onOpenMenu, action, children }: Pa
       <div className="flex min-w-0 items-center gap-3">
         <button
           type="button"
-          aria-label="Open menu"
+          aria-label={t("staff.header.openMenu")}
           onClick={onOpenMenu}
           className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-ink hover:bg-secondary lg:hidden"
         >

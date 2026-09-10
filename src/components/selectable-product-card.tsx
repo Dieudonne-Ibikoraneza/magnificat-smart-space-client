@@ -2,24 +2,22 @@
 
 import Image from "next/image";
 import { Check } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { ApiProduct, StockStatus } from "@/lib/api/types";
 
-const statusStyles: Record<StockStatus, { label: string; dot: string; badge: string; quantity: string }> = {
+const statusStyles: Record<StockStatus, { dot: string; badge: string; quantity: string }> = {
   in_stock: {
-    label: "In stock",
     dot: "bg-green-500",
     badge: "border-green-200 bg-green-50 text-green-700",
     quantity: "text-ink",
   },
   low_stock: {
-    label: "Low stock",
     dot: "bg-amber-500",
     badge: "border-amber/30 bg-white/95 text-amber",
     quantity: "text-amber-600",
   },
   out_of_stock: {
-    label: "Out of stock",
     dot: "bg-red-500",
     badge: "border-red-200 bg-red-50 text-red-700",
     quantity: "text-red-600",
@@ -40,6 +38,7 @@ export const SelectableProductCard = ({
   selected?: boolean;
   onToggle?: () => void;
 }) => {
+  const { t } = useTranslation();
   const status = statusStyles[product.stockStatus];
   const quantity = product.quantityOnHandSqm ?? 0;
 
@@ -67,14 +66,18 @@ export const SelectableProductCard = ({
           )}
         >
           <span className={cn("size-2 rounded-full", status.dot)} />
-          {status.label}
+          {t(`staff.stockStatus.${product.stockStatus}`)}
         </span>
 
         <button
           type="button"
           onClick={onToggle}
           aria-pressed={selected}
-          aria-label={selected ? `Remove ${product.name} from order` : `Select ${product.name}`}
+          aria-label={
+            selected
+              ? t("staff.selectableProduct.removeAria", { name: product.name })
+              : t("staff.selectableProduct.selectAria", { name: product.name })
+          }
           className={cn(
             "absolute top-3 right-3 z-10 inline-flex size-9 items-center justify-center rounded-full shadow-sm transition-transform hover:scale-105",
             selected ? "bg-primary text-ink" : "bg-white/95 text-transparent hover:bg-white",
@@ -90,12 +93,12 @@ export const SelectableProductCard = ({
         </p>
         <h2 className="mb-1 text-base font-bold text-ink sm:text-xl">{product.name}</h2>
         <p className="line-clamp-2 min-h-10 text-sm leading-5 text-muted">
-          {product.description || "No description yet."}
+          {product.description || t("staff.selectableProduct.noDescription")}
         </p>
 
         <div className="mt-auto flex items-center justify-between gap-3 pt-4 sm:pt-5">
           <p className={cn("text-xl font-bold", status.quantity)}>
-            {quantity.toLocaleString()} <span className="text-sm font-medium text-muted">sqm</span>
+            {quantity.toLocaleString()} <span className="text-sm font-medium text-muted">{t("staff.selectableProduct.sqm")}</span>
           </p>
         </div>
       </div>

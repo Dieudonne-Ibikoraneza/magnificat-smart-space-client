@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Bar,
   BarChart,
@@ -25,6 +26,8 @@ const CreatorTooltip = ({
   payload?: Array<{ dataKey?: string; value: number; color?: string }>;
   label?: string;
 }) => {
+  const { t } = useTranslation();
+
   if (!active || !payload?.length) return null;
 
   return (
@@ -35,7 +38,9 @@ const CreatorTooltip = ({
           <p key={entry.dataKey} className="flex items-center justify-between gap-5">
             <span className="flex items-center gap-2">
               <span className="size-2 rounded-full" style={{ backgroundColor: entry.color }} />
-              {entry.dataKey === "customer" ? "Customer-placed" : "Staff-placed"}
+              {entry.dataKey === "customer"
+                ? t("staff.ordersByCreator.customerPlaced")
+                : t("staff.ordersByCreator.staffPlaced")}
             </span>
             <span>{formatRWF(entry.value)}</span>
           </p>
@@ -63,14 +68,15 @@ export const OrdersByCreatorChart = ({
   data: CreatorTrendPoint[];
   className?: string;
 }) => {
+  const { t } = useTranslation();
   const [hovered, setHovered] = useState<number | null>(null);
 
   return (
     <div className={className}>
       <div>
-        <h2 className="text-lg font-bold text-ink">Orders by Creator</h2>
+        <h2 className="text-lg font-bold text-ink">{t("staff.ordersByCreator.title")}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Customer-placed vs staff-placed sales over the selected period
+          {t("staff.ordersByCreator.subtitle")}
         </p>
       </div>
       <div className="mt-6 h-65 w-full font-data sm:mt-8 sm:h-80">
@@ -133,9 +139,9 @@ export const OrdersByCreatorChart = ({
       </div>
       <div className="mt-2 flex items-center justify-center gap-2">
         <span className="size-3 rounded-sm bg-chart-blue" />
-        <span className="font-data text-sm text-data-ink">Customer-placed</span>
+        <span className="font-data text-sm text-data-ink">{t("staff.ordersByCreator.customerPlaced")}</span>
         <span className="ml-3 size-3 rounded-sm bg-primary" />
-        <span className="font-data text-sm text-data-ink">Staff-placed</span>
+        <span className="font-data text-sm text-data-ink">{t("staff.ordersByCreator.staffPlaced")}</span>
       </div>
     </div>
   );

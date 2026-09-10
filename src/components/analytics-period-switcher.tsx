@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarDays } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 
 export const analyticsPeriods = [
@@ -29,7 +30,10 @@ export const AnalyticsPeriodSwitcher = ({
 }: {
   period: AnalyticsPeriodDays;
   onChange: (value: AnalyticsPeriodDays) => void;
-}) => (
+}) => {
+  const { t } = useTranslation();
+
+  return (
   <div className="flex h-11 shrink-0 items-center gap-1 rounded-xl border border-[#edf0eb] bg-white p-1 shadow-sm">
     {analyticsPeriods.map(([value]) => (
       <Button
@@ -44,13 +48,13 @@ export const AnalyticsPeriodSwitcher = ({
             <>
               12
               <br />
-              MONTHS
+              {t("staff.period.months")}
             </>
           ) : (
             <>
               {value}
               <br />
-              DAYS
+              {t("staff.period.days")}
             </>
           )}
         </span>
@@ -65,4 +69,5 @@ export const AnalyticsPeriodSwitcher = ({
       <CalendarDays className="size-5" />
     </Button>
   </div>
-);
+  );
+};
