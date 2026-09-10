@@ -3,6 +3,7 @@
 import { use } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useTranslation } from "react-i18next";
 import {
   Boxes,
   Eye,
@@ -19,17 +20,23 @@ import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Button } from "@/components/ui/button";
 import { QuantityCalculator } from "@/components/quantity-calculator";
 import { analyticsApi, productsApi } from "@/lib/api";
-import { toProduct, roomTypeLabels } from "@/lib/api/mappers";
+import { toProduct } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
 import { formatCompactNumber } from "@/lib/utils";
-import type { StockStatus } from "@/lib/api/types";
+import type { RoomType, StockStatus } from "@/lib/api/types";
 
 type TileDetailPageProps = { params: Promise<{ id: string }> };
 
-const stockLabels: Record<StockStatus, string> = {
-  in_stock: "In stock",
-  low_stock: "Low stock",
-  out_of_stock: "Out of stock",
+const STOCK_KEYS: Record<StockStatus, string> = {
+  in_stock: "staff.stockStatus.in_stock",
+  low_stock: "staff.stockStatus.low_stock",
+  out_of_stock: "staff.stockStatus.out_of_stock",
+};
+const ROOM_TYPE_KEYS: Record<RoomType, string> = {
+  LIVING_ROOM: "catalog.roomTypes.livingRoom",
+  BEDROOM: "catalog.roomTypes.bedroom",
+  BATHROOM: "catalog.roomTypes.bathroom",
+  KITCHEN: "catalog.roomTypes.kitchen",
 };
 const stockStyles: Record<StockStatus, string> = {
   in_stock: "border-green-200 bg-green-50 text-green-700",
@@ -38,14 +45,15 @@ const stockStyles: Record<StockStatus, string> = {
 };
 
 const getSuitableFor = (suitableFor: "floor" | "wall" | "both") => {
-  const badges: { label: string; icon: typeof Layers3 }[] = [];
-  if (suitableFor === "floor" || suitableFor === "both") badges.push({ label: "Floor", icon: Layers3 });
-  if (suitableFor === "wall" || suitableFor === "both") badges.push({ label: "Wall", icon: Maximize2 });
+  const badges: { labelKey: string; icon: typeof Layers3 }[] = [];
+  if (suitableFor === "floor" || suitableFor === "both") badges.push({ labelKey: "analytics.tileDetail.floor", icon: Layers3 });
+  if (suitableFor === "wall" || suitableFor === "both") badges.push({ labelKey: "analytics.tileDetail.wall", icon: Maximize2 });
   return badges;
 };
 
 /** Analyst view — read-only: interaction stats + the same product details staff see elsewhere, no edit/action controls. */
 const TileDetailPage = ({ params }: TileDetailPageProps) => {
+  const { t } = useTranslation();
   const { id } = use(params);
   const { data: apiProduct, loading: productLoading, error: productError, reload: reloadProduct } = useApi(
     () => productsApi.get(id),
@@ -56,16 +64,16 @@ const TileDetailPage = ({ params }: TileDetailPageProps) => {
     [id],
   );
 
-  if (productLoading && !apiProduct) return <ApiLoading label="Loading tile…" className="py-32" />;
+  if (productLoading && !apiProduct) return <ApiLoading label={t("analytics.tileDetail.loading")} className="py-32" />;
 
   if (productError) {
     if (productError.toLowerCase().includes("not found")) {
       return (
         <div className="mx-auto max-w-md py-24 text-center">
-          <h1 className="text-xl font-bold text-ink">Tile not found</h1>
-          <p className="mt-2 text-sm text-muted-foreground">This product doesn&apos;t exist.</p>
+          <h1 className="text-xl font-bold text-ink">{t("analytics.tileDetail.notFound")}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{t("analytics.tileDetail.notFoundBody")}</p>
           <Button nativeButton={false} render={<Link href="/analytics/tiles" />} className="mt-6 h-11 gap-2 px-5">
-            Back to Tiles Analytics
+            {t("analytics.tileDetail.back")}
           </Button>
         </div>
       );
@@ -80,19 +88,19 @@ const TileDetailPage = ({ params }: TileDetailPageProps) => {
   const breakdown = apiProduct.onHandBreakdown;
 
   const interactionStats = [
-    { icon: Eye, label: "Views", value: rates ? formatCompactNumber(rates.viewed) : "—" },
-    { icon: MousePointerSquareDashed, label: "Applications", value: rates ? formatCompactNumber(rates.applied) : "—" },
-    { icon: ShoppingBasket, label: "Purchases", value: rates ? formatCompactNumber(rates.purchased) : "—" },
-    { icon: MousePointerClick, label: "Selection Rate", value: rates ? `${rates.selectionRate.toFixed(1)}%` : "—" },
-    { icon: Wallet, label: "Purchase Conversion", value: rates ? `${rates.purchaseConversion.toFixed(1)}%` : "—" },
+    { key: "views", icon: Eye, label: t("analytics.tileDetail.views"), value: rates ? formatCompactNumber(rates.viewed) : "—" },
+    { key: "applications", icon: MousePointerSquareDashed, label: t("analytics.tileDetail.applications"), value: rates ? formatCompactNumber(rates.applied) : "—" },
+    { key: "purchases", icon: ShoppingBasket, label: t("analytics.tileDetail.purchases"), value: rates ? formatCompactNumber(rates.purchased) : "—" },
+    { key: "selectionRate", icon: MousePointerClick, label: t("analytics.tileDetail.selectionRate"), value: rates ? `${rates.selectionRate.toFixed(1)}%` : "—" },
+    { key: "purchaseConversion", icon: Wallet, label: t("analytics.tileDetail.purchaseConversion"), value: rates ? `${rates.purchaseConversion.toFixed(1)}%` : "—" },
   ];
 
   return (
     <>
       <AnalyticsDetailHeader
         breadcrumbs={[
-          { label: "Dashboard", href: "/analytics/overview" },
-          { label: "Tiles Analytics", href: "/analytics/tiles" },
+          { label: t("analytics.tileDetail.crumbDashboard"), href: "/analytics/overview" },
+          { label: t("analytics.tileDetail.crumbTiles"), href: "/analytics/tiles" },
           { label: product.name },
         ]}
         title={product.name}
@@ -108,9 +116,9 @@ const TileDetailPage = ({ params }: TileDetailPageProps) => {
                   <div className="mt-2 h-6 w-16 animate-pulse rounded bg-muted-background" />
                 </article>
               ))
-            : interactionStats.map(({ icon: Icon, label, value }) => (
+            : interactionStats.map(({ key, icon: Icon, label, value }) => (
                 <article
-                  key={label}
+                  key={key}
                   className="flex flex-col rounded-2xl bg-card p-5 transition-transform duration-200 active:scale-95 sm:p-6"
                 >
                   <Icon className="size-5 stroke-2 text-ink" />
@@ -139,10 +147,10 @@ const TileDetailPage = ({ params }: TileDetailPageProps) => {
             </div>
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <h2 className="border-b border-slate-100 pb-4 text-xl font-bold text-ink">
-                Product Story
+                {t("analytics.tileDetail.productStory")}
               </h2>
               <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                {product.description || "No description yet."}
+                {product.description || t("analytics.tileDetail.noDescription")}
               </p>
             </section>
           </div>
@@ -160,21 +168,21 @@ const TileDetailPage = ({ params }: TileDetailPageProps) => {
                 <span
                   className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold uppercase ${stockStyles[product.stockStatus]}`}
                 >
-                  {stockLabels[product.stockStatus]}
+                  {t(STOCK_KEYS[product.stockStatus])}
                 </span>
               </div>
               <p className="mt-6 text-2xl font-bold text-ink">
                 {product.price.toLocaleString("en-US")} RWF{" "}
                 <span className="text-sm font-medium text-muted-foreground">
-                  / sqm
+                  {t("analytics.tileDetail.perSqm")}
                 </span>
               </p>
               <div className="mt-5 border-b border-slate-100 pb-6">
                 <div className="rounded-xl border border-border bg-secondary/50 px-4 py-4">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-semibold text-ink">Current Stock Level</span>
+                    <span className="text-sm font-semibold text-ink">{t("analytics.tileDetail.currentStockLevel")}</span>
                     <span className="font-data text-xl font-bold text-ink">
-                      {currentStock.toLocaleString()} <span className="text-sm font-normal">sqm</span>
+                      {currentStock.toLocaleString()} <span className="text-sm font-normal">{t("analytics.common.sqm")}</span>
                     </span>
                   </div>
                 </div>
@@ -182,7 +190,7 @@ const TileDetailPage = ({ params }: TileDetailPageProps) => {
               <div className="grid grid-cols-2 gap-5 py-6">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Size
+                    {t("analytics.tileDetail.size")}
                   </p>
                   <p className="mt-1 text-sm font-bold text-ink">
                     {product.size}
@@ -190,27 +198,27 @@ const TileDetailPage = ({ params }: TileDetailPageProps) => {
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Per box
+                    {t("analytics.tileDetail.perBox")}
                   </p>
                   <p className="mt-1 text-sm font-bold text-ink">
-                    {product.boxCoverage} m² ({product.piecesPerBox} pcs)
+                    {t("analytics.tileDetail.perBoxValue", { coverage: product.boxCoverage, pieces: product.piecesPerBox })}
                   </p>
                 </div>
                 {breakdown && (
                   <div>
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                      On hand (boxes)
+                      {t("analytics.tileDetail.onHandBoxes")}
                     </p>
                     <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-ink">
                       <Boxes className="size-4" />
-                      {breakdown.completeBoxes} + {breakdown.remainingPieces} pcs
+                      {t("analytics.tileDetail.onHandBoxesValue", { boxes: breakdown.completeBoxes, pieces: breakdown.remainingPieces })}
                     </p>
                   </div>
                 )}
                 {apiProduct.averageCostPrice !== undefined && (
                   <div>
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Avg. cost / sqm
+                      {t("analytics.tileDetail.avgCost")}
                     </p>
                     <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-ink">
                       <Package className="size-4" />
@@ -220,23 +228,23 @@ const TileDetailPage = ({ params }: TileDetailPageProps) => {
                 )}
               </div>
               <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
-                Suitable for
+                {t("analytics.tileDetail.suitableFor")}
               </p>
               <div className="flex flex-wrap gap-3">
-                {getSuitableFor(product.suitableFor).map(({ label, icon: Icon }) => (
+                {getSuitableFor(product.suitableFor).map(({ labelKey, icon: Icon }) => (
                   <span
-                    key={label}
+                    key={labelKey}
                     className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-4 py-2 text-xs font-bold text-green-700"
                   >
                     <Icon className="size-4" />
-                    {label}
+                    {t(labelKey)}
                   </span>
                 ))}
               </div>
               {apiProduct.roomTypes.length > 0 && (
                 <>
                   <p className="mt-5 mb-2 text-xs uppercase tracking-wide text-muted-foreground">
-                    Room types
+                    {t("analytics.tileDetail.roomTypes")}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {apiProduct.roomTypes.map((roomType) => (
@@ -244,7 +252,7 @@ const TileDetailPage = ({ params }: TileDetailPageProps) => {
                         key={roomType}
                         className="inline-flex items-center rounded-full border border-border bg-secondary/50 px-3 py-1.5 text-xs font-semibold text-ink"
                       >
-                        {roomTypeLabels[roomType]}
+                        {ROOM_TYPE_KEYS[roomType] ? t(ROOM_TYPE_KEYS[roomType]) : roomType}
                       </span>
                     ))}
                   </div>

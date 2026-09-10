@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import {
   ArrowRight,
   ExternalLink,
@@ -26,8 +27,14 @@ import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import { cn, formatCompactCurrency } from "@/lib/utils";
 import { analyticsApi, ordersApi } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
-import { roomTypeLabels } from "@/lib/api/mappers";
-import type { ApiOrder } from "@/lib/api/types";
+import type { ApiOrder, RoomType } from "@/lib/api/types";
+
+const ROOM_TYPE_KEYS: Record<RoomType, string> = {
+  LIVING_ROOM: "catalog.roomTypes.livingRoom",
+  BEDROOM: "catalog.roomTypes.bedroom",
+  BATHROOM: "catalog.roomTypes.bathroom",
+  KITCHEN: "catalog.roomTypes.kitchen",
+};
 
 type SalesKpi =
   | {
@@ -57,6 +64,7 @@ const axisFor = (values: number[]) => {
 const formatRWF = (value: string | number) => `RWF ${Math.round(Number(value)).toLocaleString("en-US")}`;
 
 const KpiCard = (kpi: SalesKpi) => {
+  const { t } = useTranslation();
   const Icon = kpi.icon;
 
   return (
@@ -96,7 +104,7 @@ const KpiCard = (kpi: SalesKpi) => {
       </div>
       {"transportFees" in kpi && kpi.transportFees !== undefined && (
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3 text-xs">
-          <span className="text-muted-foreground">Transport fees (not included)</span>
+          <span className="text-muted-foreground">{t("analytics.sales.transportFeesNote")}</span>
           <span className="font-data font-semibold text-ink">{formatCompactCurrency(kpi.transportFees)}</span>
         </div>
       )}
@@ -127,6 +135,7 @@ const TileListSkeleton = () => (
 );
 
 const RecentOrders = ({ orders, loading, error, onRetry }: { orders: ApiOrder[]; loading: boolean; error?: string; onRetry: () => void }) => {
+  const { t } = useTranslation();
   const [status, setStatus] = useState("all");
   const [sort, setSort] = useState("newest");
   const [query, setQuery] = useState("");
@@ -146,52 +155,46 @@ const RecentOrders = ({ orders, loading, error, onRetry }: { orders: ApiOrder[];
 
   return (
     <section>
-      <h2 className="text-lg font-bold text-ink">Recent Orders</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Latest Orders across all channels</p>
+      <h2 className="text-lg font-bold text-ink">{t("analytics.sales.recentOrders")}</h2>
+      <p className="mt-1 text-sm text-muted-foreground">{t("analytics.sales.recentOrdersSub")}</p>
 
       <div className="mt-5 rounded-2xl bg-card p-4 sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
           <div className="flex shrink-0 items-center gap-2 text-sm font-medium text-ink">
             <ListFilter className="size-5 shrink-0" strokeWidth={1.8} />
-            <span>Filter by:</span>
+            <span>{t("analytics.common.filterBy")}</span>
           </div>
           <div className="grid w-full min-w-0 grid-cols-2 gap-3 sm:min-w-[320px] sm:flex-1 lg:w-auto lg:flex-none lg:gap-5">
             <div className="min-w-0">
-              <span className="sr-only">Status</span>
+              <span className="sr-only">{t("analytics.customers.status")}</span>
               <Select value={status} onValueChange={(value) => setStatus(value ?? "all")}>
                 <SelectTrigger className="h-10 w-full min-w-0 border-border bg-transparent text-sm font-medium">
                   <SelectValue className="min-w-0 truncate">
                     {(value) =>
-                      value === "PROCESSING"
-                        ? "Status: Processing"
-                        : value === "SHIPPED"
-                          ? "Status: Shipped"
-                          : value === "DELIVERED"
-                            ? "Status: Delivered"
-                            : value === "CANCELLED"
-                              ? "Status: Cancelled"
-                              : "Status: All"
+                      value === "all" || !value
+                        ? t("analytics.sales.statusAll")
+                        : t("analytics.sales.statusValue", { status: t(`staff.orderStatus.${value}`) })
                     }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Status: All</SelectItem>
-                  <SelectItem value="PROCESSING">Status: Processing</SelectItem>
-                  <SelectItem value="SHIPPED">Status: Shipped</SelectItem>
-                  <SelectItem value="DELIVERED">Status: Delivered</SelectItem>
-                  <SelectItem value="CANCELLED">Status: Cancelled</SelectItem>
+                  <SelectItem value="all">{t("analytics.sales.statusAll")}</SelectItem>
+                  <SelectItem value="PROCESSING">{t("analytics.sales.statusValue", { status: t("staff.orderStatus.PROCESSING") })}</SelectItem>
+                  <SelectItem value="SHIPPED">{t("analytics.sales.statusValue", { status: t("staff.orderStatus.SHIPPED") })}</SelectItem>
+                  <SelectItem value="DELIVERED">{t("analytics.sales.statusValue", { status: t("staff.orderStatus.DELIVERED") })}</SelectItem>
+                  <SelectItem value="CANCELLED">{t("analytics.sales.statusValue", { status: t("staff.orderStatus.CANCELLED") })}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="min-w-0">
-              <span className="sr-only">Order date</span>
+              <span className="sr-only">{t("analytics.sales.orderDate")}</span>
               <Select value={sort} onValueChange={(value) => setSort(value ?? "newest")}>
                 <SelectTrigger className="h-10 w-full min-w-0 border-border bg-transparent text-sm font-medium">
-                  <SelectValue className="min-w-0 truncate">{(value) => (value === "oldest" ? "Order Date: Oldest" : "Order Date: Newest")}</SelectValue>
+                  <SelectValue className="min-w-0 truncate">{(value) => (value === "oldest" ? t("analytics.sales.orderDateOldest") : t("analytics.sales.orderDateNewest"))}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="newest">Order Date: Newest</SelectItem>
-                  <SelectItem value="oldest">Order Date: Oldest</SelectItem>
+                  <SelectItem value="newest">{t("analytics.sales.orderDateNewest")}</SelectItem>
+                  <SelectItem value="oldest">{t("analytics.sales.orderDateOldest")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -201,13 +204,13 @@ const RecentOrders = ({ orders, loading, error, onRetry }: { orders: ApiOrder[];
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by customer name, email..."
-              aria-label="Search orders"
+              placeholder={t("analytics.sales.searchPlaceholder")}
+              aria-label={t("analytics.sales.searchAria")}
               className="w-full rounded-full border border-border bg-[#F9FAFB] py-3 pr-4 pl-11 text-sm text-ink outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/40"
             />
           </div>
           <p className="shrink-0 text-xs font-semibold tracking-wider text-muted-foreground uppercase lg:hidden xl:inline">
-            Showing {results.length} result{results.length === 1 ? "" : "s"}
+            {t("analytics.common.showingResults", { count: results.length })}
           </p>
         </div>
       </div>
@@ -225,7 +228,7 @@ const RecentOrders = ({ orders, loading, error, onRetry }: { orders: ApiOrder[];
       ) : error ? (
         <ApiErrorState message={error} onRetry={onRetry} className="mt-5" />
       ) : results.length === 0 ? (
-        <ApiEmptyState message="No orders match your filters." className="mt-5 py-16" />
+        <ApiEmptyState message={t("analytics.sales.noOrders")} className="mt-5 py-16" />
       ) : (
         <ul className="mt-5 grid gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
           {results.map((order) => {
@@ -236,31 +239,31 @@ const RecentOrders = ({ orders, loading, error, onRetry }: { orders: ApiOrder[];
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate font-data text-xs text-muted-foreground">#{order.orderNumber}</p>
-                    <h3 className="mt-0.5 truncate text-xl font-bold text-ink">{order.customer?.fullName ?? "Unknown customer"}</h3>
+                    <h3 className="mt-0.5 truncate text-xl font-bold text-ink">{order.customer?.fullName ?? t("analytics.common.unknownCustomer")}</h3>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {order.createdByType === "STAFF" && (
-                      <StaffCreatedIndicator createdByName={order.createdBy?.fullName ?? "Staff"} />
+                      <StaffCreatedIndicator createdByName={order.createdBy?.fullName ?? t("analytics.common.staffFallback")} />
                     )}
                     <OrderStatusBadge status={order.status} />
                   </div>
                 </div>
                 <dl className="mt-5 space-y-3 border-t border-[#E5E7EB] pt-4 text-sm">
                   <div className="flex items-start justify-between gap-3">
-                    <dt className="shrink-0 text-muted-foreground">Summary</dt>
+                    <dt className="shrink-0 text-muted-foreground">{t("analytics.sales.summary")}</dt>
                     <dd className="min-w-0 text-right font-data text-ink">
-                      <span className="block">{items.length} Product types</span>
+                      <span className="block">{t("analytics.sales.productTypes", { count: items.length })}</span>
                       <span className="block whitespace-nowrap">{totalVolume.toLocaleString()} sqm</span>
                     </dd>
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <dt className="text-muted-foreground">Order Date</dt>
+                    <dt className="text-muted-foreground">{t("analytics.sales.orderDateLabel")}</dt>
                     <dd className="whitespace-nowrap font-data text-ink">
                       {new Date(order.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between gap-3 border-t border-[#E5E7EB] pt-3">
-                    <dt className="text-muted-foreground">Total Spend</dt>
+                    <dt className="text-muted-foreground">{t("analytics.sales.totalSpend")}</dt>
                     <dd className="font-data text-xl font-semibold whitespace-nowrap text-ink">{formatRWF(order.total)}</dd>
                   </div>
                 </dl>
@@ -268,7 +271,7 @@ const RecentOrders = ({ orders, loading, error, onRetry }: { orders: ApiOrder[];
                   href={`/analytics/orders/${order.id}`}
                   className="mt-5 flex items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-bold text-ink transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95"
                 >
-                  View Details
+                  {t("analytics.common.viewDetails")}
                   <ArrowRight className="size-4" />
                 </Link>
               </li>
@@ -281,6 +284,7 @@ const RecentOrders = ({ orders, loading, error, onRetry }: { orders: ApiOrder[];
 };
 
 const AnalyticsSalesPage = () => {
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<AnalyticsPeriodDays>(7);
   const range = periodToRange[period];
 
@@ -292,29 +296,29 @@ const AnalyticsSalesPage = () => {
   const kpis: SalesKpi[] = sales
     ? [
         {
-          label: "Total Sales",
+          label: t("analytics.sales.kpiTotalSales"),
           value: formatCompactCurrency(sales.totalSales),
           icon: Wallet,
           trend: `${sales.percentChangeVsLastPeriod > 0 ? "+" : ""}${sales.percentChangeVsLastPeriod.toFixed(1)}%`,
           transportFees: sales.totalTransportFees,
         },
-        { label: "Average Order Value", value: formatRWF(sales.averageOrderValue), icon: ShoppingBasket },
-        { label: "Total Orders", value: sales.totalOrders.toLocaleString(), icon: ShoppingBasket },
+        { label: t("analytics.sales.kpiAvgOrderValue"), value: formatRWF(sales.averageOrderValue), icon: ShoppingBasket },
+        { label: t("analytics.sales.kpiTotalOrders"), value: sales.totalOrders.toLocaleString(), icon: ShoppingBasket },
         sales.topPerformer
           ? {
-              label: "Best Selling Tile",
+              label: t("analytics.sales.kpiBestSelling"),
               value: sales.topPerformer.name,
               icon: Target,
-              badge: "Top Performer",
-              subtitle: sales.totalSales > 0 ? `${((sales.topPerformer.revenue / sales.totalSales) * 100).toFixed(0)}% of total revenue` : "",
+              badge: t("analytics.sales.topPerformer"),
+              subtitle: sales.totalSales > 0 ? t("analytics.sales.ofTotalRevenue", { value: ((sales.topPerformer.revenue / sales.totalSales) * 100).toFixed(0) }) : "",
             }
-          : { label: "Best Selling Tile", value: "No sales yet", icon: Target },
+          : { label: t("analytics.sales.kpiBestSelling"), value: t("analytics.sales.noSalesYet"), icon: Target },
       ]
     : [];
 
   const projectTypeRevenue: CategoryDatum[] = useMemo(
-    () => (customerAnalytics?.projectTypes ?? []).map((row) => ({ category: roomTypeLabels[row.roomType], value: row.revenue })),
-    [customerAnalytics],
+    () => (customerAnalytics?.projectTypes ?? []).map((row) => ({ category: t(ROOM_TYPE_KEYS[row.roomType]), value: row.revenue })),
+    [customerAnalytics, t],
   );
   const projectTypeAxis = axisFor(projectTypeRevenue.map((row) => row.value));
 
@@ -326,8 +330,8 @@ const AnalyticsSalesPage = () => {
   return (
     <>
       <AnalyticsPageHeader
-        title="Sales Analytics"
-        subtitle="Review revenue performances, order trends and top-selling products."
+        title={t("analytics.sales.title")}
+        subtitle={t("analytics.sales.subtitle")}
       >
         <AnalyticsPeriodSwitcher period={period} onChange={setPeriod} />
       </AnalyticsPageHeader>
@@ -356,14 +360,14 @@ const AnalyticsSalesPage = () => {
             </section>
           ) : sales.trend.length === 0 ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
-              <h2 className="text-lg font-bold text-ink">Revenue Trends</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Total Sales over selected period in RWF</p>
-              <ApiEmptyState message="No sales in this period yet." className="py-16" />
+              <h2 className="text-lg font-bold text-ink">{t("analytics.sales.revenueTrends")}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{t("analytics.sales.revenueTrendsSub")}</p>
+              <ApiEmptyState message={t("analytics.sales.noSales")} className="py-16" />
             </section>
           ) : (
             <RevenueTrendChart
-              title="Revenue Trends"
-              subtitle="Total Sales over selected period in RWF"
+              title={t("analytics.sales.revenueTrends")}
+              subtitle={t("analytics.sales.revenueTrendsSub")}
               range={range}
               data={sales.trend.map((point) => ({ day: point.label, value: point.value }))}
             />
@@ -375,16 +379,16 @@ const AnalyticsSalesPage = () => {
             </section>
           ) : projectTypeRevenue.every((row) => row.value === 0) ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
-              <h2 className="text-lg font-bold text-ink">Project Types</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Revenue distribution across room types</p>
-              <ApiEmptyState message="No project revenue yet." className="py-16" />
+              <h2 className="text-lg font-bold text-ink">{t("analytics.sales.projectTypes")}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{t("analytics.sales.projectTypesSub")}</p>
+              <ApiEmptyState message={t("analytics.sales.noProjectRevenue")} className="py-16" />
             </section>
           ) : (
             <CategoryBarChart
-              title="Project Types"
-              subtitle="Revenue distribution across room types"
+              title={t("analytics.sales.projectTypes")}
+              subtitle={t("analytics.sales.projectTypesSub")}
               data={projectTypeRevenue}
-              tooltipLabel="Revenue"
+              tooltipLabel={t("analytics.sales.tooltipRevenue")}
               tooltipValueFormatter={(value) => formatRWF(value)}
               yTicks={projectTypeAxis.yTicks}
               yDomainMax={projectTypeAxis.yDomainMax}
@@ -397,20 +401,20 @@ const AnalyticsSalesPage = () => {
           <section className="rounded-2xl bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <h2 className="text-lg font-bold text-ink">Top Performing Tiles</h2>
-                <p className="mt-1 text-sm text-muted-foreground">By revenue volume</p>
+                <h2 className="text-lg font-bold text-ink">{t("analytics.sales.topPerformingTiles")}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{t("analytics.sales.byRevenueVolume")}</p>
               </div>
               <Link
                 href="/analytics/tiles"
                 className="flex shrink-0 items-center gap-1.5 self-start text-xs font-semibold text-ink hover:underline"
               >
-                <ExternalLink className="size-3.5" /> View All
+                <ExternalLink className="size-3.5" /> {t("analytics.common.viewAll")}
               </Link>
             </div>
             {salesLoading ? (
               <TileListSkeleton />
             ) : topPerformingTiles.length === 0 ? (
-              <ApiEmptyState message="No tile revenue yet." className="py-10" />
+              <ApiEmptyState message={t("analytics.sales.noTileRevenue")} className="py-10" />
             ) : (
               <ul className="mt-4">
                 {topPerformingTiles.map((tile, index) => (
@@ -421,7 +425,7 @@ const AnalyticsSalesPage = () => {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-ink">{tile.name}</p>
-                        <p className="truncate text-xs text-muted-foreground">{tile.pieces.toLocaleString()} pieces sold</p>
+                        <p className="truncate text-xs text-muted-foreground">{t("analytics.sales.piecesSold", { value: tile.pieces.toLocaleString() })}</p>
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="font-data text-sm font-semibold text-ink">{formatCompactCurrency(tile.revenue)}</p>
@@ -436,20 +440,20 @@ const AnalyticsSalesPage = () => {
           <section className="rounded-2xl bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <h2 className="text-lg font-bold text-ink">Top Applied Tiles</h2>
-                <p className="mt-1 text-sm text-muted-foreground">By selection rate in rooms display.</p>
+                <h2 className="text-lg font-bold text-ink">{t("analytics.sales.topAppliedTiles")}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{t("analytics.sales.bySelectionRate")}</p>
               </div>
               <Link
                 href="/analytics/tiles"
                 className="flex shrink-0 items-center gap-1.5 self-start text-xs font-semibold text-ink hover:underline"
               >
-                <ExternalLink className="size-3.5" /> View All
+                <ExternalLink className="size-3.5" /> {t("analytics.common.viewAll")}
               </Link>
             </div>
             {tilesLoading ? (
               <TileListSkeleton />
             ) : topAppliedTiles.length === 0 ? (
-              <ApiEmptyState message="No tile applications yet." className="py-10" />
+              <ApiEmptyState message={t("analytics.sales.noTileApplications")} className="py-10" />
             ) : (
               <ul className="mt-4">
                 {topAppliedTiles.map((tile, index) => (
@@ -462,7 +466,7 @@ const AnalyticsSalesPage = () => {
                         <p className="truncate text-sm font-semibold text-ink">{tile.name}</p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="font-data text-sm font-semibold text-ink">{tile.count.toLocaleString()} Applications</p>
+                        <p className="font-data text-sm font-semibold text-ink">{t("analytics.sales.applicationsCount", { value: tile.count.toLocaleString() })}</p>
                       </div>
                     </div>
                   </li>

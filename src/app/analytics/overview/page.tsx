@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Coins, CircleCheckBig, ExternalLink, Repeat2, Truck, UsersRound } from "lucide-react";
 import { AnalyticsPageHeader } from "@/app/analytics/layout";
@@ -39,6 +40,7 @@ const RecommendationsTooltip = ({
   payload?: Array<{ name?: string; value: number }>;
   label?: string;
 }) => {
+  const { t } = useTranslation();
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
@@ -46,7 +48,10 @@ const RecommendationsTooltip = ({
       <div className="mt-1 space-y-0.5 font-data text-sm text-ink">
         {payload.map((entry) => (
           <p key={entry.name}>
-            {entry.name === "acceptance" ? "Acceptance" : "Match Score"}: {entry.value.toFixed(0)}%
+            {t("analytics.overview.matchScoreValue", {
+              name: entry.name === "acceptance" ? t("analytics.overview.acceptance") : t("analytics.overview.matchScore"),
+              value: entry.value.toFixed(0),
+            })}
           </p>
         ))}
       </div>
@@ -80,52 +85,57 @@ const AiRecommendationsPanel = ({
   acceptanceRate: number;
   averageMatchScore: number;
   trend: RecommendationTrendPoint[];
-}) => (
+}) => {
+  const { t } = useTranslation();
+
+  return (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
     <div className="flex items-center justify-between gap-3">
       <div>
-        <h2 className="text-lg font-bold text-ink">AI Recommendations</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Tile-matching performance this period</p>
+        <h2 className="text-lg font-bold text-ink">{t("analytics.overview.aiRecommendations")}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t("analytics.overview.aiRecommendationsSub")}</p>
       </div>
       <Link href="/analytics/ai" className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline">
-        <ExternalLink className="size-3.5" /> View All
+        <ExternalLink className="size-3.5" /> {t("analytics.common.viewAll")}
       </Link>
     </div>
     <div className="mt-6 grid grid-cols-3 gap-4">
       <div>
-        <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">Recommendations</p>
+        <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">{t("analytics.overview.recommendations")}</p>
         <p className="mt-2 text-2xl font-black text-ink">{totalRecommendations.toLocaleString()}</p>
       </div>
       <div>
-        <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">Acceptance Rate</p>
+        <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">{t("analytics.overview.acceptanceRate")}</p>
         <p className="mt-2 text-2xl font-black text-ink">{acceptanceRate.toFixed(0)}%</p>
       </div>
       <div>
-        <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">Avg. Match Score</p>
+        <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">{t("analytics.overview.avgMatchScore")}</p>
         <p className="mt-2 text-2xl font-black text-ink">{averageMatchScore.toFixed(0)}%</p>
       </div>
     </div>
     <div className="mt-6 border-t border-border pt-5">
       {totalRecommendations === 0 ? (
-        <ApiEmptyState message="No AI recommendations shown in this period yet." className="py-6" />
+        <ApiEmptyState message={t("analytics.overview.noAiRecs")} className="py-6" />
       ) : (
         <>
           <RecommendationsTrendChart data={trend} />
           <div className="mt-2 flex items-center justify-center gap-4 text-xs font-medium text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#d1d5db]" /> Match Score
+              <span className="size-2 rounded-full bg-[#d1d5db]" /> {t("analytics.overview.matchScore")}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-primary" /> Acceptance
+              <span className="size-2 rounded-full bg-primary" /> {t("analytics.overview.acceptance")}
             </span>
           </div>
         </>
       )}
     </div>
   </section>
-);
+  );
+};
 
 const AnalyticsOverviewPage = () => {
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<AnalyticsPeriodDays>(7);
   const range = periodToRange[period];
 
@@ -153,16 +163,16 @@ const AnalyticsOverviewPage = () => {
 
   const kpis: KpiCardData[] = overview
     ? [
-        { label: "Total Sales (RWF)", value: formatCompactCurrency(overview.totalSales), icon: Coins },
+        { label: t("analytics.overview.kpiTotalSales"), value: formatCompactCurrency(overview.totalSales), icon: Coins },
         {
-          label: "Transport Fees (excl. from Sales)",
+          label: t("analytics.overview.kpiTransportFees"),
           value: formatCompactCurrency(overview.totalTransportFees),
           icon: Truck,
         },
-        { label: "Total Customers", value: overview.totalCustomers.toLocaleString(), icon: UsersRound },
-        { label: "Repeat Purchase Rate", value: `${overview.repeatPurchaseRate.toFixed(0)}%`, icon: Repeat2 },
+        { label: t("analytics.overview.kpiTotalCustomers"), value: overview.totalCustomers.toLocaleString(), icon: UsersRound },
+        { label: t("analytics.overview.kpiRepeatRate"), value: `${overview.repeatPurchaseRate.toFixed(0)}%`, icon: Repeat2 },
         {
-          label: "Recommendation Acceptance Rate",
+          label: t("analytics.overview.kpiRecAcceptance"),
           value: `${overview.recommendationAcceptanceRate.toFixed(0)}%`,
           icon: CircleCheckBig,
         },
@@ -184,8 +194,8 @@ const AnalyticsOverviewPage = () => {
   return (
     <>
       <AnalyticsPageHeader
-        title="Overview"
-        subtitle="High-level performance metrics and trends across the Magnificat ecosystem."
+        title={t("analytics.overview.title")}
+        subtitle={t("analytics.overview.subtitle")}
       >
         <AnalyticsPeriodSwitcher period={period} onChange={setPeriod} />
       </AnalyticsPageHeader>
@@ -214,20 +224,20 @@ const AnalyticsOverviewPage = () => {
         <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
           {overviewLoading || !overview ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
-              <h2 className="text-lg font-bold text-ink">Sales Overview</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Revenue Performance</p>
+              <h2 className="text-lg font-bold text-ink">{t("analytics.overview.salesOverview")}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{t("analytics.overview.revenuePerformance")}</p>
               <Skeleton className="mt-6 h-65 w-full sm:mt-8 sm:h-80" />
             </section>
           ) : overview.revenueTrend.length === 0 ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
-              <h2 className="text-lg font-bold text-ink">Sales Overview</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Revenue Performance</p>
-              <ApiEmptyState message="No sales in this period yet." className="py-16" />
+              <h2 className="text-lg font-bold text-ink">{t("analytics.overview.salesOverview")}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{t("analytics.overview.revenuePerformance")}</p>
+              <ApiEmptyState message={t("analytics.overview.noSales")} className="py-16" />
             </section>
           ) : (
             <RevenueTrendChart
-              title="Sales Overview"
-              subtitle="Revenue Performance"
+              title={t("analytics.overview.salesOverview")}
+              subtitle={t("analytics.overview.revenuePerformance")}
               range={range}
               data={overview.revenueTrend.map((point) => ({ day: point.label, value: point.value }))}
             />
@@ -254,9 +264,9 @@ const AnalyticsOverviewPage = () => {
         <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
           <section className="rounded-2xl bg-card p-5 sm:p-6">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-ink">Top Viewed Tiles</h2>
+              <h2 className="text-lg font-bold text-ink">{t("analytics.overview.topViewedTiles")}</h2>
               <Link href="/analytics/tiles" className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline">
-                <ExternalLink className="size-3.5" /> View All
+                <ExternalLink className="size-3.5" /> {t("analytics.common.viewAll")}
               </Link>
             </div>
             {tilesLoading ? (
@@ -272,7 +282,7 @@ const AnalyticsOverviewPage = () => {
                 ))}
               </div>
             ) : topTiles.length === 0 ? (
-              <ApiEmptyState message="No tile activity yet." className="py-10" />
+              <ApiEmptyState message={t("analytics.overview.noTileActivity")} className="py-10" />
             ) : (
               <ul className="mt-4">
                 {topTiles.map((tile, index) => (
@@ -286,8 +296,8 @@ const AnalyticsOverviewPage = () => {
                         <p className="truncate text-xs text-muted-foreground">{tile.collection}</p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="text-sm font-semibold text-ink">{formatCompactNumber(tile.viewed)} views</p>
-                        <p className="mt-0.5 text-xs font-semibold text-green-600">{tile.selectionRate.toFixed(1)}% selection</p>
+                        <p className="text-sm font-semibold text-ink">{t("analytics.common.views", { value: formatCompactNumber(tile.viewed) })}</p>
+                        <p className="mt-0.5 text-xs font-semibold text-green-600">{t("analytics.common.selectionPct", { value: tile.selectionRate.toFixed(1) })}</p>
                       </div>
                     </Link>
                   </li>
@@ -298,9 +308,9 @@ const AnalyticsOverviewPage = () => {
 
           <section className="rounded-2xl bg-card p-5 sm:p-6">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-ink">Top Customers</h2>
+              <h2 className="text-lg font-bold text-ink">{t("analytics.overview.topCustomers")}</h2>
               <Link href="/analytics/customers" className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline">
-                <ExternalLink className="size-3.5" /> View All
+                <ExternalLink className="size-3.5" /> {t("analytics.common.viewAll")}
               </Link>
             </div>
             {customersLoading ? (
@@ -316,7 +326,7 @@ const AnalyticsOverviewPage = () => {
                 ))}
               </div>
             ) : topCustomers.length === 0 ? (
-              <ApiEmptyState message="No customers yet." className="py-10" />
+              <ApiEmptyState message={t("analytics.overview.noCustomers")} className="py-10" />
             ) : (
               <ul className="mt-4">
                 {topCustomers.map((customer, index) => (
@@ -332,7 +342,7 @@ const AnalyticsOverviewPage = () => {
                             ? customer.firstOrderAt === customer.lastOrderAt
                               ? formatShortDate(customer.firstOrderAt)
                               : `${formatShortDate(customer.firstOrderAt)} – ${formatShortDate(customer.lastOrderAt)}`
-                            : "No orders yet"}
+                            : t("analytics.overview.noOrdersYet")}
                         </p>
                       </div>
                       <span className="shrink-0 font-data text-sm font-semibold text-ink">

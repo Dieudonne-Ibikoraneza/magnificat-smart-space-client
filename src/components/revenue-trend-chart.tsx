@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ChartAxisTick } from "@/components/chart-axis-tick";
 import { cn, formatCompactNumber } from "@/lib/utils";
@@ -53,13 +54,14 @@ const RevenueTooltip = ({
   payload?: Array<{ value: number }>;
   label?: string;
 }) => {
+  const { t } = useTranslation();
   if (!active || !payload?.length) return null;
 
   return (
     <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
       <p className="font-data text-xs font-semibold tracking-widest text-data-ink">{label}</p>
       <p className="mt-1 font-data text-sm text-ink">
-        Revenue: RWF {payload[0].value.toLocaleString()}
+        {t("analytics.revenueChart.revenue", { value: payload[0].value.toLocaleString() })}
       </p>
     </div>
   );

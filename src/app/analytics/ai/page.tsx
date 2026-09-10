@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import {
   ArrowUpRight,
   ChevronsLeft,
@@ -90,18 +91,21 @@ type RecommendationSortOption =
   | "name_asc"
   | "name_desc";
 
-const recommendationSortLabels: Record<RecommendationSortOption, string> = {
-  displayed_desc: "Most Recommended",
-  displayed_asc: "Least Recommended",
-  accepted_desc: "Most Accepted",
-  accepted_asc: "Least Accepted",
-  acceptanceRate_desc: "Best Acceptance Rate",
-  acceptanceRate_asc: "Worst Acceptance Rate",
-  averageMatchScore_desc: "Best Match Score",
-  averageMatchScore_asc: "Worst Match Score",
-  name_asc: "Name (A–Z)",
-  name_desc: "Name (Z–A)",
+const RECOMMENDATION_SORT_KEYS: Record<RecommendationSortOption, string> = {
+  displayed_desc: "analytics.ai.sort.displayed_desc",
+  displayed_asc: "analytics.ai.sort.displayed_asc",
+  accepted_desc: "analytics.ai.sort.accepted_desc",
+  accepted_asc: "analytics.ai.sort.accepted_asc",
+  acceptanceRate_desc: "analytics.ai.sort.acceptanceRate_desc",
+  acceptanceRate_asc: "analytics.ai.sort.acceptanceRate_asc",
+  averageMatchScore_desc: "analytics.ai.sort.averageMatchScore_desc",
+  averageMatchScore_asc: "analytics.ai.sort.averageMatchScore_asc",
+  name_asc: "analytics.ai.sort.name_asc",
+  name_desc: "analytics.ai.sort.name_desc",
 };
+const RECOMMENDATION_SORT_OPTIONS = Object.keys(
+  RECOMMENDATION_SORT_KEYS,
+) as RecommendationSortOption[];
 
 const sortRecommendations = (
   items: FilterableRecommendation[],
@@ -167,9 +171,9 @@ const filterRecommendations = (
   });
 
 const stockStatusMeta = {
-  in_stock: { label: "In stock", dot: "bg-green-500", text: "text-green-700" },
-  low_stock: { label: "Low stock", dot: "bg-amber-500", text: "text-amber-600" },
-  out_of_stock: { label: "Out of stock", dot: "bg-red-500", text: "text-red-600" },
+  in_stock: { labelKey: "staff.stockStatus.in_stock", dot: "bg-green-500", text: "text-green-700" },
+  low_stock: { labelKey: "staff.stockStatus.low_stock", dot: "bg-amber-500", text: "text-amber-600" },
+  out_of_stock: { labelKey: "staff.stockStatus.out_of_stock", dot: "bg-red-500", text: "text-red-600" },
 } as const;
 
 const KpiSkeleton = () => (
@@ -183,6 +187,7 @@ const KpiSkeleton = () => (
 );
 
 const KpiCards = ({ summary, loading }: { summary: TileRecommendations["summary"] | undefined; loading: boolean }) => {
+  const { t } = useTranslation();
   if (loading && !summary) {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -196,9 +201,9 @@ const KpiCards = ({ summary, loading }: { summary: TileRecommendations["summary"
   if (!summary) return null;
 
   const kpis = [
-    { label: "Total Recommendations", value: formatCompactNumber(summary.displayed), icon: BroomSparkles },
-    { label: "Acceptance Rate", value: `${summary.acceptanceRate.toFixed(1)}%`, icon: BadgeCheck },
-    { label: "Avg. Match Score", value: `${summary.averageMatchScore.toFixed(1)}%`, icon: TrendingUpDown },
+    { label: t("analytics.ai.kpiTotalRecommendations"), value: formatCompactNumber(summary.displayed), icon: BroomSparkles },
+    { label: t("analytics.ai.kpiAcceptanceRate"), value: `${summary.acceptanceRate.toFixed(1)}%`, icon: BadgeCheck },
+    { label: t("analytics.ai.kpiAvgMatchScore"), value: `${summary.averageMatchScore.toFixed(1)}%`, icon: TrendingUpDown },
   ];
 
   const pending = Math.max(summary.displayed - summary.accepted - summary.rejected, 0);
@@ -252,7 +257,7 @@ const KpiCards = ({ summary, loading }: { summary: TileRecommendations["summary"
       <article className="flex h-full flex-col rounded-2xl bg-card p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-            Recommendation Outcomes
+            {t("analytics.ai.recommendationOutcomes")}
           </p>
           <Smile className="size-5 shrink-0 stroke-2 text-ink" />
         </div>
@@ -297,23 +302,25 @@ const TableRowSkeleton = ({ columns }: { columns: number }) => (
   </TableRow>
 );
 
-const TopRecommendedProducts = ({ rows, loading }: { rows: RecommendationRow[]; loading: boolean }) => (
+const TopRecommendedProducts = ({ rows, loading }: { rows: RecommendationRow[]; loading: boolean }) => {
+  const { t } = useTranslation();
+  return (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-lg font-bold text-ink">Top Recommended Products</h2>
-      <Badge variant="secondary">Top 5 products</Badge>
+      <h2 className="text-lg font-bold text-ink">{t("analytics.ai.topRecommendedProducts")}</h2>
+      <Badge variant="secondary">{t("analytics.common.top5")}</Badge>
     </div>
     <div className="mt-5 overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Product</TableHead>
-            <TableHead>SKU / Code</TableHead>
-            <TableHead>Current Stock</TableHead>
-            <TableHead>Match Score</TableHead>
-            <TableHead>Displayed</TableHead>
-            <TableHead>Accepted</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead>{t("analytics.common.colProduct")}</TableHead>
+            <TableHead>{t("analytics.common.colSku")}</TableHead>
+            <TableHead>{t("analytics.common.colStock")}</TableHead>
+            <TableHead>{t("analytics.ai.colMatchScore")}</TableHead>
+            <TableHead>{t("analytics.ai.colDisplayed")}</TableHead>
+            <TableHead>{t("analytics.ai.colAccepted")}</TableHead>
+            <TableHead>{t("analytics.common.colActions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -322,7 +329,7 @@ const TopRecommendedProducts = ({ rows, loading }: { rows: RecommendationRow[]; 
           ) : rows.length === 0 ? (
             <TableRow>
               <TableCell colSpan={7}>
-                <ApiEmptyState message="No recommendations recorded yet for this period." />
+                <ApiEmptyState message={t("analytics.ai.noRecommendations")} />
               </TableCell>
             </TableRow>
           ) : (
@@ -358,7 +365,7 @@ const TopRecommendedProducts = ({ rows, loading }: { rows: RecommendationRow[]; 
                   <TableCell className="whitespace-nowrap">
                     <span className="inline-flex items-center gap-1.5 font-data text-ink">
                       <span className={cn("size-2 rounded-full", status.dot)} />
-                      {product.quantityOnHandSqm.toLocaleString()} sqm
+                      {product.quantityOnHandSqm.toLocaleString()} {t("analytics.common.sqm")}
                     </span>
                   </TableCell>
                   <TableCell className="whitespace-nowrap font-data text-ink">
@@ -367,7 +374,7 @@ const TopRecommendedProducts = ({ rows, loading }: { rows: RecommendationRow[]; 
                   <TableCell className="whitespace-nowrap text-ink">
                     {formatCompactNumber(product.displayed)}
                     <span className="mt-0.5 block text-xs font-semibold text-green-600">
-                      {product.acceptanceRate.toFixed(1)}% accepted
+                      {t("analytics.common.acceptedPct", { value: product.acceptanceRate.toFixed(1) })}
                     </span>
                   </TableCell>
                   <TableCell className="whitespace-nowrap font-data text-ink">
@@ -378,7 +385,7 @@ const TopRecommendedProducts = ({ rows, loading }: { rows: RecommendationRow[]; 
                       href={`/analytics/tiles/${product.productId}`}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold whitespace-nowrap text-ink hover:-translate-y-0.5 hover:shadow-md active:scale-95"
                     >
-                      View Details <ArrowUpRight className="size-3.5" />
+                      {t("analytics.common.viewDetails")} <ArrowUpRight className="size-3.5" />
                     </Link>
                   </TableCell>
                 </TableRow>
@@ -389,22 +396,24 @@ const TopRecommendedProducts = ({ rows, loading }: { rows: RecommendationRow[]; 
       </Table>
     </div>
   </section>
-);
+  );
+};
 
 const TileCard = ({ product }: { product: FilterableRecommendation }) => {
+  const { t } = useTranslation();
   const status = {
     in_stock: {
-      label: "In stock",
+      labelKey: "staff.stockStatus.in_stock",
       dot: "bg-green-500",
       badge: "border-green-200 bg-green-50 text-green-700",
     },
     low_stock: {
-      label: "Low stock",
+      labelKey: "staff.stockStatus.low_stock",
       dot: "bg-amber-500",
       badge: "border-amber/30 bg-white/95 text-amber",
     },
     out_of_stock: {
-      label: "Out of stock",
+      labelKey: "staff.stockStatus.out_of_stock",
       dot: "bg-red-500",
       badge: "border-red-200 bg-red-50 text-red-700",
     },
@@ -428,7 +437,7 @@ const TileCard = ({ product }: { product: FilterableRecommendation }) => {
           )}
         >
           <span className={cn("size-2 rounded-full", status.dot)} />
-          {status.label}
+          {t(status.labelKey)}
         </span>
         <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-ink/35 via-ink/10 to-transparent px-3 pb-3 pt-10 sm:px-4 sm:pb-4">
           <div className="flex items-center justify-between gap-3 rounded-full bg-white/95 px-3.5 py-2.5 shadow-[0_8px_24px_rgba(15,39,71,0.18)] backdrop-blur-sm sm:px-4 sm:py-3">
@@ -437,11 +446,11 @@ const TileCard = ({ product }: { product: FilterableRecommendation }) => {
                 className="size-4 shrink-0"
                 strokeWidth={2.25}
               />
-              <span className="truncate">{formatCompactNumber(product.displayed)} recommendations</span>
+              <span className="truncate">{t("analytics.common.recommendationsCount", { value: formatCompactNumber(product.displayed) })}</span>
             </span>
             <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-bold tracking-wide text-red-500 uppercase sm:text-[11px]">
               <Heart className="size-3.5" strokeWidth={2.5} />
-              {product.acceptanceRate.toFixed(0)}% accepted
+              {t("analytics.common.acceptedPct", { value: product.acceptanceRate.toFixed(0) })}
             </span>
           </div>
         </div>
@@ -462,11 +471,11 @@ const TileCard = ({ product }: { product: FilterableRecommendation }) => {
         <div className="mt-auto flex items-center justify-between gap-3 pt-4 sm:pt-5">
           <p className="text-xl font-bold text-ink">
             {product.quantityOnHandSqm.toLocaleString()}{" "}
-            <span className="text-sm font-medium text-muted">sqm</span>
+            <span className="text-sm font-medium text-muted">{t("analytics.common.sqm")}</span>
           </p>
           <Link
             href={`/analytics/tiles/${product.productId}`}
-            aria-label={`View ${product.name}`}
+            aria-label={t("analytics.common.viewName", { name: product.name })}
             className="inline-flex size-11 items-center justify-center rounded-full border border-slate-100 bg-muted-background text-ink hover:bg-primary"
           >
             <ArrowUpRight className="size-5" />
@@ -490,6 +499,7 @@ const TileCardSkeleton = () => (
 );
 
 const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; loading: boolean }) => {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
@@ -534,9 +544,9 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
 
   return (
     <section>
-      <h2 className="text-lg font-bold text-ink">All Products</h2>
+      <h2 className="text-lg font-bold text-ink">{t("analytics.common.allProducts")}</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        {results.length.toLocaleString()} Products currently managed
+        {t("analytics.common.productsManaged", { count: results.length.toLocaleString() })}
       </p>
 
       <div className="relative mt-5 flex flex-col gap-3 rounded-xl border border-[#E5E7EB] bg-card p-4 shadow-sm sm:flex-row sm:items-center">
@@ -548,12 +558,12 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
               setQuery(event.target.value);
               setCurrentPage(1);
             }}
-            placeholder="Search products, SKUs..."
+            placeholder={t("analytics.common.searchProducts")}
             className="h-11 rounded-lg pl-11"
           />
         </div>
         <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
-          <span className="hidden sm:inline">Sort by:</span>
+          <span className="hidden sm:inline">{t("analytics.common.sortBy")}</span>
           <Select
             value={sortBy}
             onValueChange={(value) => {
@@ -562,12 +572,12 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
             }}
           >
             <SelectTrigger className="h-11 w-full min-w-0 border-border sm:w-52">
-              <SelectValue>{(value) => recommendationSortLabels[value as RecommendationSortOption]}</SelectValue>
+              <SelectValue>{(value) => t(RECOMMENDATION_SORT_KEYS[value as RecommendationSortOption])}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {(Object.keys(recommendationSortLabels) as RecommendationSortOption[]).map((option) => (
+              {RECOMMENDATION_SORT_OPTIONS.map((option) => (
                 <SelectItem key={option} value={option}>
-                  {recommendationSortLabels[option]}
+                  {t(RECOMMENDATION_SORT_KEYS[option])}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -581,7 +591,7 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
             onClick={() => setFiltersOpen((open) => !open)}
             aria-pressed={filtersOpen}
           >
-            <Filter className="size-4" /> Filters
+            <Filter className="size-4" /> {t("analytics.common.filters")}
             {hasActiveFilters(filters) && (
               <span className="ml-0.5 inline-flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-ink">
                 {Object.values(filters).reduce((sum, group) => sum + group.length, 0)}
@@ -594,7 +604,7 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
           <>
             <button
               type="button"
-              aria-label="Close filters"
+              aria-label={t("analytics.common.closeFilters")}
               className="fixed inset-0 z-20 cursor-default"
               onClick={() => setFiltersOpen(false)}
             />
@@ -619,7 +629,7 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
         </div>
       ) : pageItems.length === 0 ? (
         <p className="mt-6 rounded-2xl bg-card p-10 text-center text-sm text-muted-foreground">
-          No products match your search.
+          {t("analytics.common.noProductMatch")}
         </p>
       ) : (
         <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -631,8 +641,11 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
 
       <footer className="mt-8 flex flex-col gap-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <p>
-          Showing {showingStart} to {showingEnd} of{" "}
-          {results.length.toLocaleString()} results
+          {t("analytics.common.showingRange", {
+            start: showingStart,
+            end: showingEnd,
+            total: results.length.toLocaleString(),
+          })}
         </p>
         <Pagination className="mx-0 w-auto justify-start py-0 sm:justify-end">
           <PaginationContent className="gap-1 sm:gap-2">
@@ -648,7 +661,7 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
                 }}
               >
                 <ChevronsLeft className="size-4" />
-                <span className="hidden sm:inline">First</span>
+                <span className="hidden sm:inline">{t("analytics.common.first")}</span>
               </PaginationLink>
             </PaginationItem>
             <PaginationItem>
@@ -710,7 +723,7 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
                   goToPage(totalPages);
                 }}
               >
-                <span className="hidden sm:inline">Last</span>
+                <span className="hidden sm:inline">{t("analytics.common.last")}</span>
                 <ChevronsRight className="size-4" />
               </PaginationLink>
             </PaginationItem>
@@ -722,6 +735,7 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
 };
 
 const AnalyticsAiPage = () => {
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<AnalyticsPeriodDays>(30);
   const range = periodToRange[period];
 
@@ -761,8 +775,8 @@ const AnalyticsAiPage = () => {
   return (
     <>
       <AnalyticsPageHeader
-        title="AI Analytics"
-        subtitle="Monitor how automated suggestions drive customer engagement and product discovery across the platform."
+        title={t("analytics.ai.title")}
+        subtitle={t("analytics.ai.subtitle")}
       >
         <AnalyticsPeriodSwitcher period={period} onChange={setPeriod} />
       </AnalyticsPageHeader>

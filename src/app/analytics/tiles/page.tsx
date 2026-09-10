@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import {
   ArrowUpRight,
   ChevronsLeft,
@@ -83,18 +84,19 @@ type TileSortOption =
   | "name_asc"
   | "name_desc";
 
-const tileSortLabels: Record<TileSortOption, string> = {
-  viewed_desc: "Most Viewed",
-  viewed_asc: "Least Viewed",
-  saved_desc: "Most Liked",
-  saved_asc: "Least Liked",
-  purchased_desc: "Best Selling",
-  purchased_asc: "Least Selling",
-  selectionRate_desc: "Best Selection Rate",
-  selectionRate_asc: "Worst Selection Rate",
-  name_asc: "Name (A–Z)",
-  name_desc: "Name (Z–A)",
+const TILE_SORT_KEYS: Record<TileSortOption, string> = {
+  viewed_desc: "analytics.tiles.sort.viewed_desc",
+  viewed_asc: "analytics.tiles.sort.viewed_asc",
+  saved_desc: "analytics.tiles.sort.saved_desc",
+  saved_asc: "analytics.tiles.sort.saved_asc",
+  purchased_desc: "analytics.tiles.sort.purchased_desc",
+  purchased_asc: "analytics.tiles.sort.purchased_asc",
+  selectionRate_desc: "analytics.tiles.sort.selectionRate_desc",
+  selectionRate_asc: "analytics.tiles.sort.selectionRate_asc",
+  name_asc: "analytics.tiles.sort.name_asc",
+  name_desc: "analytics.tiles.sort.name_desc",
 };
+const TILE_SORT_OPTIONS = Object.keys(TILE_SORT_KEYS) as TileSortOption[];
 
 const sortTiles = (items: FilterableTile[], sortBy: TileSortOption): FilterableTile[] => {
   const sorted = [...items];
@@ -158,51 +160,57 @@ const filterTiles = (items: FilterableTile[], filters: CatalogFilters): Filterab
     return true;
   });
 
-type TilesKpi = { label: string; value: string; sub: string; icon: typeof Eye };
+type TFn = (key: string, opts?: Record<string, unknown>) => string;
+type TilesKpi = { key: string; label: string; value: string; sub: string; icon: typeof Eye };
 
-const getKpis = (tiles: TileAnalytics): TilesKpi[] => {
+const getKpis = (tiles: TileAnalytics, t: TFn): TilesKpi[] => {
   const topViewed = tiles.leaderboards.mostViewed[0];
   const topApplied = tiles.leaderboards.mostApplied[0];
   const topPurchased = tiles.leaderboards.mostPurchased[0];
 
   return [
     {
-      label: "Most Viewed",
-      value: topViewed?.name ?? "No data yet",
-      sub: topViewed ? `${formatCompactNumber(topViewed.count)} views` : "0 views",
+      key: "mostViewed",
+      label: t("analytics.tiles.kpiMostViewed"),
+      value: topViewed?.name ?? t("analytics.tiles.noDataYet"),
+      sub: t("analytics.tiles.subViews", { value: formatCompactNumber(topViewed?.count ?? 0) }),
       icon: Eye,
     },
     {
-      label: "Most Applied",
-      value: topApplied?.name ?? "No data yet",
-      sub: topApplied ? `${formatCompactNumber(topApplied.count)} applications` : "0 applications",
+      key: "mostApplied",
+      label: t("analytics.tiles.kpiMostApplied"),
+      value: topApplied?.name ?? t("analytics.tiles.noDataYet"),
+      sub: t("analytics.tiles.subApplications", { value: formatCompactNumber(topApplied?.count ?? 0) }),
       icon: MousePointerSquareDashed,
     },
     {
-      label: "Most Purchased",
-      value: topPurchased?.name ?? "No data yet",
-      sub: topPurchased ? `${formatCompactNumber(topPurchased.count)} sales` : "0 sales",
+      key: "mostPurchased",
+      label: t("analytics.tiles.kpiMostPurchased"),
+      value: topPurchased?.name ?? t("analytics.tiles.noDataYet"),
+      sub: t("analytics.tiles.subSales", { value: formatCompactNumber(topPurchased?.count ?? 0) }),
       icon: ShoppingBasket,
     },
     {
-      label: "Avg. Selection Rate",
+      key: "avgSelectionRate",
+      label: t("analytics.tiles.kpiAvgSelectionRate"),
       value: `${tiles.summary.averageSelectionRate.toFixed(1)}%`,
-      sub: `${formatCompactNumber(tiles.summary.totalViews)} total views`,
+      sub: t("analytics.tiles.subTotalViews", { value: formatCompactNumber(tiles.summary.totalViews) }),
       icon: MousePointerClick,
     },
     {
-      label: "Avg. Conversion",
+      key: "avgConversion",
+      label: t("analytics.tiles.kpiAvgConversion"),
       value: `${tiles.summary.averagePurchaseConversion.toFixed(1)}%`,
-      sub: "Views to purchase",
+      sub: t("analytics.tiles.subViewsToPurchase"),
       icon: Wallet,
     },
   ];
 };
 
-const stockStatusMeta = {
-  in_stock: { label: "In stock", dot: "bg-green-500", text: "text-green-700" },
-  low_stock: { label: "Low stock", dot: "bg-amber-500", text: "text-amber-600" },
-  out_of_stock: { label: "Out of stock", dot: "bg-red-500", text: "text-red-600" },
+const STOCK_STATUS_META = {
+  in_stock: { labelKey: "staff.stockStatus.in_stock", dot: "bg-green-500", text: "text-green-700" },
+  low_stock: { labelKey: "staff.stockStatus.low_stock", dot: "bg-amber-500", text: "text-amber-600" },
+  out_of_stock: { labelKey: "staff.stockStatus.out_of_stock", dot: "bg-red-500", text: "text-red-600" },
 } as const;
 
 const KpiSkeleton = () => (
@@ -215,6 +223,7 @@ const KpiSkeleton = () => (
 );
 
 const KpiCards = ({ tiles, loading }: { tiles: TileAnalytics | undefined; loading: boolean }) => {
+  const { t } = useTranslation();
   if (loading && !tiles) {
     return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -229,11 +238,11 @@ const KpiCards = ({ tiles, loading }: { tiles: TileAnalytics | undefined; loadin
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-      {getKpis(tiles).map((kpi) => {
+      {getKpis(tiles, t).map((kpi) => {
         const Icon = kpi.icon;
         return (
           <article
-            key={kpi.label}
+            key={kpi.key}
             className="flex flex-col rounded-2xl bg-card p-5 sm:p-6"
           >
             <div className="flex items-start justify-between gap-3">
@@ -270,25 +279,26 @@ const TileListSkeleton = () => (
 );
 
 const InteractionOverview = ({ tiles, loading }: { tiles: TileAnalytics | undefined; loading: boolean }) => {
+  const { t } = useTranslation();
   const mostViewed = tiles?.leaderboards.mostViewed.slice(0, 3) ?? [];
   const mostApplied = tiles?.leaderboards.mostApplied.slice(0, 3) ?? [];
 
   return (
     <section>
-      <h2 className="text-lg font-bold text-ink">Interaction Overview</h2>
+      <h2 className="text-lg font-bold text-ink">{t("analytics.tiles.interactionOverview")}</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Snapshot of most viewed and applied tiles.
+        {t("analytics.tiles.interactionOverviewSub")}
       </p>
       <div className="mt-5 grid gap-5 sm:gap-6 xl:grid-cols-2">
         <div className="rounded-2xl bg-card p-5 sm:p-6">
-          <h3 className="text-lg font-bold text-ink">Most Viewed Tiles</h3>
+          <h3 className="text-lg font-bold text-ink">{t("analytics.tiles.mostViewedTiles")}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Top picks based on viewer popularity
+            {t("analytics.tiles.mostViewedTilesSub")}
           </p>
           {loading && !tiles ? (
             <TileListSkeleton />
           ) : mostViewed.length === 0 ? (
-            <ApiEmptyState message="No views recorded yet for this period." className="mt-4" />
+            <ApiEmptyState message={t("analytics.tiles.noViews")} className="mt-4" />
           ) : (
             <ul className="mt-4">
               {mostViewed.map((tile, index) => (
@@ -319,7 +329,7 @@ const InteractionOverview = ({ tiles, loading }: { tiles: TileAnalytics | undefi
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="font-data text-sm font-semibold text-ink">
-                        {formatCompactNumber(tile.count)} views
+                        {t("analytics.common.views", { value: formatCompactNumber(tile.count) })}
                       </p>
                     </div>
                   </Link>
@@ -329,14 +339,14 @@ const InteractionOverview = ({ tiles, loading }: { tiles: TileAnalytics | undefi
           )}
         </div>
         <div className="rounded-2xl bg-card p-5 sm:p-6">
-          <h3 className="text-lg font-bold text-ink">Most Applied in 3D Rooms</h3>
+          <h3 className="text-lg font-bold text-ink">{t("analytics.tiles.mostApplied3d")}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            By selection rate in rooms display.
+            {t("analytics.tiles.mostApplied3dSub")}
           </p>
           {loading && !tiles ? (
             <TileListSkeleton />
           ) : mostApplied.length === 0 ? (
-            <ApiEmptyState message="No room applications recorded yet for this period." className="mt-4" />
+            <ApiEmptyState message={t("analytics.tiles.noApplications")} className="mt-4" />
           ) : (
             <ul className="mt-4">
               {mostApplied.map((tile, index) => (
@@ -367,7 +377,7 @@ const InteractionOverview = ({ tiles, loading }: { tiles: TileAnalytics | undefi
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="font-data text-sm font-semibold text-ink">
-                        {formatCompactNumber(tile.count)} Applications
+                        {t("analytics.sales.applicationsCount", { value: formatCompactNumber(tile.count) })}
                       </p>
                     </div>
                   </Link>
@@ -391,24 +401,27 @@ const TableRowSkeleton = ({ columns }: { columns: number }) => (
   </TableRow>
 );
 
-const PerformanceMetrics = ({ rows, loading }: { rows: TilePerformanceRow[]; loading: boolean }) => (
+const PerformanceMetrics = ({ rows, loading }: { rows: TilePerformanceRow[]; loading: boolean }) => {
+  const { t } = useTranslation();
+
+  return (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-lg font-bold text-ink">Performance Metrics</h2>
-      <Badge variant="secondary">Top 5 products</Badge>
+      <h2 className="text-lg font-bold text-ink">{t("analytics.tiles.performanceMetrics")}</h2>
+      <Badge variant="secondary">{t("analytics.common.top5")}</Badge>
     </div>
     <div className="mt-5 overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Product</TableHead>
-            <TableHead>SKU / Code</TableHead>
-            <TableHead>Current Stock</TableHead>
-            <TableHead>Sold</TableHead>
-            <TableHead>Views</TableHead>
-            <TableHead>Applications</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead>{t("analytics.common.colProduct")}</TableHead>
+            <TableHead>{t("analytics.common.colSku")}</TableHead>
+            <TableHead>{t("analytics.common.colStock")}</TableHead>
+            <TableHead>{t("analytics.tiles.colSold")}</TableHead>
+            <TableHead>{t("analytics.common.colViews")}</TableHead>
+            <TableHead>{t("analytics.common.colApplications")}</TableHead>
+            <TableHead>{t("analytics.common.colStatus")}</TableHead>
+            <TableHead>{t("analytics.common.colActions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -417,12 +430,12 @@ const PerformanceMetrics = ({ rows, loading }: { rows: TilePerformanceRow[]; loa
           ) : rows.length === 0 ? (
             <TableRow>
               <TableCell colSpan={8}>
-                <ApiEmptyState message="No product activity recorded yet for this period." />
+                <ApiEmptyState message={t("analytics.tiles.noProductActivity")} />
               </TableCell>
             </TableRow>
           ) : (
             rows.map((product) => {
-              const status = stockStatusMeta[product.stockStatus];
+              const status = STOCK_STATUS_META[product.stockStatus];
               return (
                 <TableRow key={product.productId}>
                   <TableCell className="min-w-64">
@@ -453,24 +466,24 @@ const PerformanceMetrics = ({ rows, loading }: { rows: TilePerformanceRow[]; loa
                   <TableCell className="whitespace-nowrap">
                     <span className="inline-flex items-center gap-1.5 font-data text-ink">
                       <span className={cn("size-2 rounded-full", status.dot)} />
-                      {product.quantityOnHandSqm.toLocaleString()} sqm
+                      {t("analytics.common.pcs", { value: product.quantityOnHandSqm.toLocaleString() }).replace(t("analytics.common.pcs", { value: "" }).trim(), "") + product.quantityOnHandSqm.toLocaleString()}
                     </span>
                   </TableCell>
                   <TableCell className="whitespace-nowrap font-data text-ink">
-                    {product.purchased.toLocaleString()} pcs
+                    {t("analytics.common.pcs", { value: product.purchased.toLocaleString() })}
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-ink">
-                    {formatCompactNumber(product.viewed)} views
+                    {t("analytics.common.views", { value: formatCompactNumber(product.viewed) })}
                     <span className="mt-0.5 block text-xs font-semibold text-green-600">
-                      {product.selectionRate.toFixed(1)}% selection
+                      {t("analytics.common.selectionPct", { value: product.selectionRate.toFixed(1) })}
                     </span>
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-ink">
-                    {formatCompactNumber(product.applied)} Apps.
+                    {t("analytics.common.apps", { value: formatCompactNumber(product.applied) })}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     <span className={cn("inline-flex items-center gap-1.5", status.text)}>
-                      <span className={cn("size-2 rounded-full", status.dot)} /> {status.label}
+                      <span className={cn("size-2 rounded-full", status.dot)} /> {t(status.labelKey)}
                     </span>
                   </TableCell>
                   <TableCell>
@@ -478,7 +491,7 @@ const PerformanceMetrics = ({ rows, loading }: { rows: TilePerformanceRow[]; loa
                       href={`/analytics/tiles/${product.productId}`}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold whitespace-nowrap text-ink hover:-translate-y-0.5 hover:shadow-md active:scale-95"
                     >
-                      View Details <ArrowUpRight className="size-3.5" />
+                      {t("analytics.common.viewDetails")} <ArrowUpRight className="size-3.5" />
                     </Link>
                   </TableCell>
                 </TableRow>
@@ -489,25 +502,29 @@ const PerformanceMetrics = ({ rows, loading }: { rows: TilePerformanceRow[]; loa
       </Table>
     </div>
   </section>
-);
+  );
+};
 
-const MostLikedProducts = ({ rows, loading }: { rows: TilePerformanceRow[]; loading: boolean }) => (
+const MostLikedProducts = ({ rows, loading }: { rows: TilePerformanceRow[]; loading: boolean }) => {
+  const { t } = useTranslation();
+
+  return (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-lg font-bold text-ink">Most Liked Products</h2>
-      <Badge variant="secondary">Top 5 products</Badge>
+      <h2 className="text-lg font-bold text-ink">{t("analytics.tiles.mostLikedProducts")}</h2>
+      <Badge variant="secondary">{t("analytics.common.top5")}</Badge>
     </div>
     <div className="mt-5 overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Product</TableHead>
-            <TableHead>SKU / Code</TableHead>
-            <TableHead>Views</TableHead>
-            <TableHead>Applications</TableHead>
-            <TableHead>Likes</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead>{t("analytics.common.colProduct")}</TableHead>
+            <TableHead>{t("analytics.common.colSku")}</TableHead>
+            <TableHead>{t("analytics.common.colViews")}</TableHead>
+            <TableHead>{t("analytics.common.colApplications")}</TableHead>
+            <TableHead>{t("analytics.common.colLikes")}</TableHead>
+            <TableHead>{t("analytics.common.colStatus")}</TableHead>
+            <TableHead>{t("analytics.common.colActions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -516,12 +533,12 @@ const MostLikedProducts = ({ rows, loading }: { rows: TilePerformanceRow[]; load
           ) : rows.length === 0 ? (
             <TableRow>
               <TableCell colSpan={7}>
-                <ApiEmptyState message="No saved tiles recorded yet for this period." />
+                <ApiEmptyState message={t("analytics.tiles.noSavedTiles")} />
               </TableCell>
             </TableRow>
           ) : (
             rows.map((product) => {
-              const status = stockStatusMeta[product.stockStatus];
+              const status = STOCK_STATUS_META[product.stockStatus];
               return (
                 <TableRow key={product.productId}>
                   <TableCell className="min-w-64">
@@ -550,20 +567,20 @@ const MostLikedProducts = ({ rows, loading }: { rows: TilePerformanceRow[]; load
                     {product.sku}
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-ink">
-                    {formatCompactNumber(product.viewed)} views
+                    {t("analytics.common.views", { value: formatCompactNumber(product.viewed) })}
                     <span className="mt-0.5 block text-xs font-semibold text-green-600">
-                      {product.selectionRate.toFixed(1)}% selection
+                      {t("analytics.common.selectionPct", { value: product.selectionRate.toFixed(1) })}
                     </span>
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-ink">
-                    {formatCompactNumber(product.applied)} Apps.
+                    {t("analytics.common.apps", { value: formatCompactNumber(product.applied) })}
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-ink">
-                    {formatCompactNumber(product.saved)} Likes
+                    {t("analytics.common.likesCount", { value: formatCompactNumber(product.saved) })}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     <span className={cn("inline-flex items-center gap-1.5", status.text)}>
-                      <span className={cn("size-2 rounded-full", status.dot)} /> {status.label}
+                      <span className={cn("size-2 rounded-full", status.dot)} /> {t(status.labelKey)}
                     </span>
                   </TableCell>
                   <TableCell>
@@ -571,7 +588,7 @@ const MostLikedProducts = ({ rows, loading }: { rows: TilePerformanceRow[]; load
                       href={`/analytics/tiles/${product.productId}`}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold whitespace-nowrap text-ink hover:-translate-y-0.5 hover:shadow-md active:scale-95"
                     >
-                      View Details <ArrowUpRight className="size-3.5" />
+                      {t("analytics.common.viewDetails")} <ArrowUpRight className="size-3.5" />
                     </Link>
                   </TableCell>
                 </TableRow>
@@ -582,22 +599,24 @@ const MostLikedProducts = ({ rows, loading }: { rows: TilePerformanceRow[]; load
       </Table>
     </div>
   </section>
-);
+  );
+};
 
 const TileCard = ({ product }: { product: FilterableTile }) => {
+  const { t } = useTranslation();
   const status = {
     in_stock: {
-      label: "In stock",
+      labelKey: "staff.stockStatus.in_stock",
       dot: "bg-green-500",
       badge: "border-green-200 bg-green-50 text-green-700",
     },
     low_stock: {
-      label: "Low stock",
+      labelKey: "staff.stockStatus.low_stock",
       dot: "bg-amber-500",
       badge: "border-amber/30 bg-white/95 text-amber",
     },
     out_of_stock: {
-      label: "Out of stock",
+      labelKey: "staff.stockStatus.out_of_stock",
       dot: "bg-red-500",
       badge: "border-red-200 bg-red-50 text-red-700",
     },
@@ -621,7 +640,7 @@ const TileCard = ({ product }: { product: FilterableTile }) => {
           )}
         >
           <span className={cn("size-2 rounded-full", status.dot)} />
-          {status.label}
+          {t(status.labelKey)}
         </span>
         <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-ink/35 via-ink/10 to-transparent px-3 pb-3 pt-10 sm:px-4 sm:pb-4">
           <div className="flex items-center justify-between gap-3 rounded-full bg-white/95 px-3.5 py-2.5 shadow-[0_8px_24px_rgba(15,39,71,0.18)] backdrop-blur-sm sm:px-4 sm:py-3">
@@ -630,11 +649,11 @@ const TileCard = ({ product }: { product: FilterableTile }) => {
                 className="size-4 shrink-0"
                 strokeWidth={2.25}
               />
-              <span className="truncate">{formatCompactNumber(product.viewed)} views</span>
+              <span className="truncate">{t("analytics.common.views", { value: formatCompactNumber(product.viewed) })}</span>
             </span>
             <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-bold tracking-wide text-red-500 uppercase sm:text-[11px]">
               <Heart className="size-3.5" strokeWidth={2.5} />
-              {formatCompactNumber(product.saved)} likes
+              {t("analytics.common.likesLower", { value: formatCompactNumber(product.saved) })}
             </span>
           </div>
         </div>
@@ -655,11 +674,11 @@ const TileCard = ({ product }: { product: FilterableTile }) => {
         <div className="mt-auto flex items-center justify-between gap-3 pt-4 sm:pt-5">
           <p className="text-xl font-bold text-ink">
             {product.quantityOnHandSqm.toLocaleString()}{" "}
-            <span className="text-sm font-medium text-muted">sqm</span>
+            <span className="text-sm font-medium text-muted">{t("analytics.common.sqm")}</span>
           </p>
           <Link
             href={`/analytics/tiles/${product.productId}`}
-            aria-label={`View ${product.name}`}
+            aria-label={t("analytics.common.viewName", { name: product.name })}
             className="inline-flex size-11 items-center justify-center rounded-full border border-slate-100 bg-muted-background text-ink hover:bg-primary"
           >
             <ArrowUpRight className="size-5" />
@@ -683,6 +702,7 @@ const TileCardSkeleton = () => (
 );
 
 const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boolean }) => {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
@@ -727,9 +747,9 @@ const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boole
 
   return (
     <section>
-      <h2 className="text-lg font-bold text-ink">All Products</h2>
+      <h2 className="text-lg font-bold text-ink">{t("analytics.common.allProducts")}</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        {results.length.toLocaleString()} Products currently managed
+        {t("analytics.common.productsManaged", { count: results.length.toLocaleString() })}
       </p>
 
       <div className="relative mt-5 flex flex-col gap-3 rounded-xl border border-[#E5E7EB] bg-card p-4 shadow-sm sm:flex-row sm:items-center">
@@ -741,20 +761,20 @@ const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boole
               setQuery(event.target.value);
               setCurrentPage(1);
             }}
-            placeholder="Search products, SKUs..."
+            placeholder={t("analytics.common.searchProducts")}
             className="h-11 rounded-lg pl-11"
           />
         </div>
         <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
-          <span className="hidden sm:inline">Sort by:</span>
+          <span className="hidden sm:inline">{t("analytics.common.sortBy")}</span>
           <Select value={sortBy} onValueChange={(value) => { setSortBy(value as TileSortOption); setCurrentPage(1); }}>
             <SelectTrigger className="h-11 w-full min-w-0 border-border sm:w-52">
-              <SelectValue>{(value) => tileSortLabels[value as TileSortOption]}</SelectValue>
+              <SelectValue>{(value) => t(TILE_SORT_KEYS[value as TileSortOption])}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {(Object.keys(tileSortLabels) as TileSortOption[]).map((option) => (
+              {TILE_SORT_OPTIONS.map((option) => (
                 <SelectItem key={option} value={option}>
-                  {tileSortLabels[option]}
+                  {t(TILE_SORT_KEYS[option])}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -768,7 +788,7 @@ const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boole
             onClick={() => setFiltersOpen((open) => !open)}
             aria-pressed={filtersOpen}
           >
-            <Filter className="size-4" /> Filters
+            <Filter className="size-4" /> {t("analytics.common.filters")}
             {hasActiveFilters(filters) && (
               <span className="ml-0.5 inline-flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-ink">
                 {Object.values(filters).reduce((sum, group) => sum + group.length, 0)}
@@ -781,7 +801,7 @@ const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boole
           <>
             <button
               type="button"
-              aria-label="Close filters"
+              aria-label={t("analytics.common.closeFilters")}
               className="fixed inset-0 z-20 cursor-default"
               onClick={() => setFiltersOpen(false)}
             />
@@ -806,7 +826,7 @@ const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boole
         </div>
       ) : pageItems.length === 0 ? (
         <p className="mt-6 rounded-2xl bg-card p-10 text-center text-sm text-muted-foreground">
-          No products match your search.
+          {t("analytics.common.noProductMatch")}
         </p>
       ) : (
         <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -818,8 +838,11 @@ const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boole
 
       <footer className="mt-8 flex flex-col gap-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <p>
-          Showing {showingStart} to {showingEnd} of{" "}
-          {results.length.toLocaleString()} results
+          {t("analytics.common.showingRange", {
+            start: showingStart,
+            end: showingEnd,
+            total: results.length.toLocaleString(),
+          })}
         </p>
         <Pagination className="mx-0 w-auto justify-start py-0 sm:justify-end">
           <PaginationContent className="gap-1 sm:gap-2">
@@ -835,7 +858,7 @@ const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boole
                 }}
               >
                 <ChevronsLeft className="size-4" />
-                <span className="hidden sm:inline">First</span>
+                <span className="hidden sm:inline">{t("analytics.common.first")}</span>
               </PaginationLink>
             </PaginationItem>
             <PaginationItem>
@@ -897,7 +920,7 @@ const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boole
                   goToPage(totalPages);
                 }}
               >
-                <span className="hidden sm:inline">Last</span>
+                <span className="hidden sm:inline">{t("analytics.common.last")}</span>
                 <ChevronsRight className="size-4" />
               </PaginationLink>
             </PaginationItem>
@@ -909,6 +932,7 @@ const AllProducts = ({ rows, loading }: { rows: FilterableTile[]; loading: boole
 };
 
 const AnalyticsTilesPage = () => {
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<AnalyticsPeriodDays>(30);
   const range = periodToRange[period];
 
@@ -952,8 +976,8 @@ const AnalyticsTilesPage = () => {
   return (
     <>
       <AnalyticsPageHeader
-        title="Tiles Analytics"
-        subtitle="Monitor engagement and conversion performance across the tile catalog"
+        title={t("analytics.tiles.title")}
+        subtitle={t("analytics.tiles.subtitle")}
       >
         <AnalyticsPeriodSwitcher period={period} onChange={setPeriod} />
       </AnalyticsPageHeader>
