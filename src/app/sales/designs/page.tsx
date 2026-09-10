@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, Layers3, Mail, Phone, Search, Sparkles, Users } from "lucide-react";
 import { SalesPageHeader } from "@/app/sales/layout";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
@@ -23,9 +24,13 @@ import type { ApiRoomDesign } from "@/lib/api/types";
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
-const surfaceLabels: Record<string, string> = { FLOOR: "Floor", WALL: "Walls" };
+const SURFACE_KEYS: Record<string, string> = {
+  FLOOR: "sales.designs.surfaceFloor",
+  WALL: "sales.designs.surfaceWalls",
+};
 
 const DesignCard = ({ design }: { design: ApiRoomDesign }) => {
+  const { t } = useTranslation();
   const preview = design.previewImageUrl || design.room?.thumbnail || "/showroom.jpg";
   const tiles = design.tiles.flatMap((tile) =>
     tile.product ? [{ surface: tile.surface, product: toProduct(tile.product, tile.product.collection?.title) }] : [],
@@ -36,7 +41,7 @@ const DesignCard = ({ design }: { design: ApiRoomDesign }) => {
       <div className="relative aspect-[16/10] bg-muted-background">
         <Image
           src={preview}
-          alt={`Preview of ${design.name}`}
+          alt={t("sales.designs.previewAlt", { name: design.name })}
           fill
           unoptimized
           className="object-cover"
@@ -71,12 +76,12 @@ const DesignCard = ({ design }: { design: ApiRoomDesign }) => {
           </p>
         )}
 
-        <p className="mt-2 text-xs text-muted-foreground">Shared {formatDate(design.createdAt)}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{t("sales.designs.shared", { date: formatDate(design.createdAt) })}</p>
 
         <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <div>
             <dt className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-              <Layers3 className="size-3" /> Surfaces
+              <Layers3 className="size-3" /> {t("sales.designs.surfaces")}
             </dt>
             <dd className="mt-1 font-data font-semibold text-ink">{design.tiles.length}</dd>
           </div>
@@ -97,7 +102,7 @@ const DesignCard = ({ design }: { design: ApiRoomDesign }) => {
                     {tile.product.name}
                   </Link>
                   <span className="block text-xs text-muted-foreground">
-                    {surfaceLabels[tile.surface] ?? tile.surface}
+                    {SURFACE_KEYS[tile.surface] ? t(SURFACE_KEYS[tile.surface]) : tile.surface}
                     {tile.product.size ? ` · ${tile.product.size}` : ""}
                   </span>
                 </span>
@@ -111,7 +116,7 @@ const DesignCard = ({ design }: { design: ApiRoomDesign }) => {
           render={<Link href={design.user ? `/sales/orders/new?customer=${design.user.id}` : "/sales/orders/new"} />}
           className="group mt-5 h-10 w-full gap-2 text-xs font-bold"
         >
-          Start order for this customer
+          {t("sales.designs.startOrder")}
           <ArrowRight className="size-3.5 transition-transform duration-300 group-hover:translate-x-1" />
         </Button>
       </div>
@@ -121,6 +126,7 @@ const DesignCard = ({ design }: { design: ApiRoomDesign }) => {
 
 /** Shared designs come from `GET /rooms/designs/shared` — see `src/lib/api/endpoints.ts`. */
 export default function SalesDesignsPage() {
+  const { t } = useTranslation();
   const { data, loading, error, reload } = useApi(() => roomsApi.sharedDesigns());
   const designs = useMemo(() => data ?? [], [data]);
   const [search, setSearch] = useState("");
@@ -140,8 +146,8 @@ export default function SalesDesignsPage() {
   return (
     <div className="pb-10">
       <SalesPageHeader
-        title="Shared Designs"
-        subtitle="Rooms customers styled in the 3D visualizer and shared with you for a quotation."
+        title={t("sales.designs.title")}
+        subtitle={t("sales.designs.subtitle")}
       />
 
       <div className="relative mt-6 max-w-md">
@@ -149,15 +155,15 @@ export default function SalesDesignsPage() {
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search by customer, room or design name..."
-          aria-label="Search shared designs"
+          placeholder={t("sales.designs.searchPlaceholder")}
+          aria-label={t("sales.designs.searchAria")}
           className="h-11 rounded-lg pl-10 text-sm"
         />
       </div>
 
       <div className="mt-6">
         {loading ? (
-          <ApiLoading label="Loading shared designs…" className="py-24" />
+          <ApiLoading label={t("sales.designs.loading")} className="py-24" />
         ) : error ? (
           <ApiErrorState message={error} onRetry={reload} className="my-16" />
         ) : designs.length === 0 ? (
@@ -165,14 +171,13 @@ export default function SalesDesignsPage() {
             <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-secondary text-ink">
               <Sparkles className="size-6" />
             </span>
-            <h2 className="mt-5 text-lg font-bold text-ink">No shared designs yet</h2>
+            <h2 className="mt-5 text-lg font-bold text-ink">{t("sales.designs.emptyTitle")}</h2>
             <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-              Once a customer saves a design in the 3D visualizer and shares it with sales, it&apos;ll show
-              up here with their contact details and the exact tiles they chose.
+              {t("sales.designs.emptyBody")}
             </p>
           </div>
         ) : filtered.length === 0 ? (
-          <ApiEmptyState message="No shared designs match that search." className="py-16" />
+          <ApiEmptyState message={t("sales.designs.noSearchResults")} className="py-16" />
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {filtered.map((design) => (
