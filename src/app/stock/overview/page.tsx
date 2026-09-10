@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AlertTriangle,
   ArrowDown,
@@ -125,6 +126,7 @@ const FulfillmentSkeleton = () => (
 );
 
 const StockOverviewPage = () => {
+  const { t } = useTranslation();
   const overview = useApi(() => analyticsApi.overview());
   const fulfillment = useApi(() => reportsApi.fulfillmentQueue());
   const lowStock = useApi(() => reportsApi.lowStock());
@@ -138,8 +140,8 @@ const StockOverviewPage = () => {
   return (
     <>
       <StockPageHeader
-        title="Overview"
-        subtitle="Real-time inventory metrics and critical alerts."
+        title={t("stock.overview.title")}
+        subtitle={t("stock.overview.subtitle")}
       >
         <div className="flex flex-wrap gap-3">
           <Link
@@ -147,14 +149,14 @@ const StockOverviewPage = () => {
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-[#dce2e9] bg-card px-4 py-3 text-sm font-semibold text-ink shadow-sm hover:bg-secondary"
           >
             <PencilLine className="size-4" />
-            Manual Adjust
+            {t("stock.overview.manualAdjust")}
           </Link>
           <Link
             href="/stock/inventory/new"
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-sm hover:-translate-y-0.5 hover:shadow-md"
           >
             <Plus className="size-4" />
-            Add Product
+            {t("stock.overview.addProduct")}
           </Link>
         </div>
       </StockPageHeader>
@@ -163,7 +165,7 @@ const StockOverviewPage = () => {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
             icon={WalletCards}
-            label="Total Inventory Value"
+            label={t("stock.overview.totalInventoryValue")}
             value={
               overview.loading
                 ? <OverviewKpiSkeleton />
@@ -172,17 +174,17 @@ const StockOverviewPage = () => {
           />
           <KpiCard
             icon={ShelvingUnit}
-            label="Active Products"
+            label={t("stock.overview.activeProducts")}
             value={overview.loading ? <OverviewKpiSkeleton /> : (overview.data?.activeProducts.toLocaleString() ?? "0")}
           />
           <KpiCard
             icon={ClipboardClock}
-            label="Pending Fulfillments"
+            label={t("stock.overview.pendingFulfillments")}
             value={fulfillment.loading ? <OverviewKpiSkeleton /> : pendingFulfillments.toLocaleString()}
           />
           <KpiCard
             icon={AlertTriangle}
-            label="Low Stock Items"
+            label={t("stock.overview.lowStockItems")}
             value={overview.loading ? <OverviewKpiSkeleton /> : (overview.data?.lowStockItems.toLocaleString() ?? "0")}
             valueTone="text-[#b86a00]"
           />
@@ -193,20 +195,20 @@ const StockOverviewPage = () => {
             <div className="flex min-w-0 items-center gap-3">
               <AlertTriangle className="size-6 shrink-0 text-red-500" />
               <h2 className="truncate text-xl font-bold text-ink sm:text-2xl">
-                Critical Low Stock Alerts
+                {t("stock.overview.criticalAlerts")}
               </h2>
             </div>
             {!lowStock.loading && !lowStock.error && (
               <span className="hidden items-center gap-2 text-xs font-bold text-ink sm:flex">
                 <span className="size-2 rounded-full bg-red-500" />
-                {lowStock.data?.length ?? 0} Action{(lowStock.data?.length ?? 0) === 1 ? "" : "s"} Required
+                {t("stock.overview.actionsRequired", { count: lowStock.data?.length ?? 0 })}
               </span>
             )}
             <Link
               href="/stock/inventory"
               className="shrink-0 text-xs font-bold text-ink hover:underline"
             >
-              View all alerts in Inventory
+              {t("stock.overview.viewAllAlerts")}
             </Link>
           </div>
           <div className="p-5 sm:p-6">
@@ -215,7 +217,7 @@ const StockOverviewPage = () => {
             ) : lowStock.error ? (
               <ApiErrorState message={lowStock.error} onRetry={lowStock.reload} />
             ) : criticalAlerts.length === 0 ? (
-              <ApiEmptyState message="No products are currently low on stock." />
+              <ApiEmptyState message={t("stock.overview.noLowStock")} />
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
                 {criticalAlerts.map((alert) => (
@@ -229,7 +231,7 @@ const StockOverviewPage = () => {
                     />
                     <div className="min-w-0 flex-1">
                       <h3 className="truncate text-sm font-bold text-ink">{alert.name}</h3>
-                      <p className="mt-0.5 text-xs text-muted-foreground">SKU {alert.sku}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{t("stock.overview.sku", { sku: alert.sku })}</p>
                       <div className="mt-2">
                         <AdjustStockDialog
                           productId={alert.productId}
@@ -246,7 +248,7 @@ const StockOverviewPage = () => {
                               className="inline-block rounded-md bg-primary px-3 py-2 text-[11px] font-bold tracking-wide text-primary-foreground uppercase hover:brightness-95"
                             />
                           }
-                          triggerContent="Adjust Stock"
+                          triggerContent={t("stock.overview.adjustStock")}
                         />
                       </div>
                     </div>
@@ -257,7 +259,7 @@ const StockOverviewPage = () => {
                           : "text-amber-700 bg-amber-50"
                       }`}
                     >
-                      {alert.quantityOnHandSqm.toLocaleString()} sqm
+                      {t("stock.overview.sqm", { value: alert.quantityOnHandSqm.toLocaleString() })}
                     </span>
                   </article>
                 ))}
@@ -271,17 +273,17 @@ const StockOverviewPage = () => {
             <div className="flex items-center justify-between gap-3 px-5 py-6 sm:px-6">
               <div>
                 <h2 className="text-2xl font-bold text-ink">
-                  Recent Movements
+                  {t("stock.overview.recentMovements")}
                 </h2>
                 <p className="mt-0.5 text-xs text-[#71809a]">
-                  Latest inbound/outbound/adjustment activity.
+                  {t("stock.overview.recentMovementsSub")}
                 </p>
               </div>
               <Link
                 href="/stock/reports"
                 className="text-xs font-bold text-ink hover:underline"
               >
-                View All
+                {t("stock.overview.viewAll")}
               </Link>
             </div>
             {movements.loading ? (
@@ -289,17 +291,17 @@ const StockOverviewPage = () => {
             ) : movements.error ? (
               <ApiErrorState message={movements.error} onRetry={movements.reload} className="mx-5 mb-6" />
             ) : (movements.data?.items.length ?? 0) === 0 ? (
-              <ApiEmptyState message="No stock movements yet." className="mx-5 mb-6" />
+              <ApiEmptyState message={t("stock.overview.noMovements")} className="mx-5 mb-6" />
             ) : (
               <>
                 <div className="hidden overflow-x-auto md:block">
                   <Table className="min-w-140">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Item</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Qty (sqm)</TableHead>
-                        <TableHead>Time</TableHead>
+                        <TableHead>{t("stock.overview.colItem")}</TableHead>
+                        <TableHead>{t("stock.overview.colType")}</TableHead>
+                        <TableHead>{t("stock.overview.colQty")}</TableHead>
+                        <TableHead>{t("stock.overview.colTime")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -318,7 +320,7 @@ const StockOverviewPage = () => {
                                 className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${movementTone[movement.type]}`}
                               >
                                 <Icon className="size-3.5" />
-                                {movement.type}
+                                {t(`staff.movementType.${movement.type}`)}
                               </span>
                             </TableCell>
                             <TableCell
@@ -352,7 +354,7 @@ const StockOverviewPage = () => {
                             className={`mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${movementTone[movement.type]}`}
                           >
                             <Icon className="size-3.5" />
-                            {movement.type}
+                            {t(`staff.movementType.${movement.type}`)}
                           </span>
                         </div>
                         <span className="font-data text-sm font-semibold text-ink">
@@ -370,15 +372,15 @@ const StockOverviewPage = () => {
             <div className="flex items-center justify-between gap-3 px-5 py-6 sm:px-6">
               <div>
                 <h2 className="text-2xl font-bold text-ink">
-                  Fulfillment Queue
+                  {t("stock.overview.fulfillmentQueue")}
                 </h2>
                 <p className="mt-0.5 text-xs text-[#71809a]">
-                  Orders requiring warehouse processing.
+                  {t("stock.overview.fulfillmentQueueSub")}
                 </p>
               </div>
               <Link
                 href="/stock/orders"
-                aria-label="Filter fulfillment queue"
+                aria-label={t("stock.overview.filterQueueAria")}
                 className="rounded-lg border border-border p-2 text-ink hover:bg-secondary"
               >
                 <Filter className="size-4" />
@@ -390,7 +392,7 @@ const StockOverviewPage = () => {
               ) : fulfillment.error ? (
                 <ApiErrorState message={fulfillment.error} onRetry={fulfillment.reload} />
               ) : queuedOrders.length === 0 ? (
-                <ApiEmptyState message="Nothing awaiting fulfilment." />
+                <ApiEmptyState message={t("stock.overview.nothingAwaiting")} />
               ) : (
                 <ul className="space-y-4">
                   {queuedOrders.map((order, index) => (
@@ -407,13 +409,13 @@ const StockOverviewPage = () => {
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-bold text-ink">{order.orderNumber}</p>
                           <p className="mt-0.5 truncate text-xs text-[#71809a]">
-                            {order.items?.length ?? 0} item{(order.items?.length ?? 0) === 1 ? "" : "s"}
+                            {t("stock.overview.itemCount", { count: order.items?.length ?? 0 })}
                           </p>
                         </div>
                         <span
                           className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${index === 0 ? "bg-primary text-primary-foreground" : "text-ink"}`}
                         >
-                          {order.status.replace(/_/g, " ")}
+                          {t(`staff.orderStatus.${order.status}`)}
                         </span>
                       </div>
                       <div className="mt-3 flex items-center justify-between border-t border-[#e5e7eb] pt-3 text-xs">
@@ -425,7 +427,7 @@ const StockOverviewPage = () => {
                           href={`/stock/orders/${order.id}`}
                           className="font-bold text-ink hover:underline"
                         >
-                          Process <ChevronRight className="inline size-3.5" />
+                          {t("stock.overview.process")} <ChevronRight className="inline size-3.5" />
                         </Link>
                       </div>
                     </li>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import { Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ export const DeleteProductButton = ({
   productName: string;
   redirectTo: string;
 }) => {
+  const { t } = useTranslation();
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
 
@@ -25,11 +27,13 @@ export const DeleteProductButton = ({
     setDeleting(true);
     try {
       await productsApi.remove(productId);
-      toast.success("Product deleted", { description: `${productName} was removed from inventory.` });
+      toast.success(t("staff.deleteProduct.toastDeletedTitle"), {
+        description: t("staff.deleteProduct.toastDeletedBody", { name: productName }),
+      });
       router.push(redirectTo);
     } catch (cause) {
-      toast.error("Couldn't delete product", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("staff.deleteProduct.toastFailedTitle"), {
+        description: cause instanceof ApiError ? cause.message : t("staff.deleteProduct.toastTryAgain"),
       });
       setDeleting(false);
     }
@@ -40,12 +44,12 @@ export const DeleteProductButton = ({
       trigger={
         <Button type="button" variant="destructive" disabled={deleting} className="h-12 w-full gap-2 text-sm font-semibold">
           <Trash2 className="size-4 stroke-2.5" />
-          {deleting ? "Deleting…" : "Delete"}
+          {deleting ? t("staff.deleteProduct.deleting") : t("staff.deleteProduct.delete")}
         </Button>
       }
-      title={`Delete ${productName}?`}
-      description="This removes the product from inventory and the catalog. This can't be undone."
-      confirmLabel="Delete product"
+      title={t("staff.deleteProduct.confirmTitle", { name: productName })}
+      description={t("staff.deleteProduct.confirmDescription")}
+      confirmLabel={t("staff.deleteProduct.confirmLabel")}
       onConfirm={() => void handleDelete()}
     />
   );

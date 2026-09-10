@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactElement, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { ClipboardCheck, Coins, Minus, Plus } from "lucide-react";
 import {
   Dialog,
@@ -30,12 +31,15 @@ import { cn } from "@/lib/utils";
 
 type AdjustmentDirection = "add" | "remove";
 
-const reasons = [
-  "Restock delivery",
-  "Damaged / write-off",
-  "Stock count correction",
-  "Reserved for order",
-] as const;
+/** Canonical reason values stored on the stock adjustment record; the map keys drive display only. */
+const REASON_KEYS = {
+  "Restock delivery": "staff.adjustStock.reasons.restock",
+  "Damaged / write-off": "staff.adjustStock.reasons.damage",
+  "Stock count correction": "staff.adjustStock.reasons.correction",
+  "Reserved for order": "staff.adjustStock.reasons.reserved",
+} as const;
+
+const reasons = Object.keys(REASON_KEYS) as (keyof typeof REASON_KEYS)[];
 
 /** Adjusts on-hand stock, tracked in sqm (the unit the business sells in). */
 export const AdjustStockDialog = ({
@@ -56,6 +60,7 @@ export const AdjustStockDialog = ({
   /** Custom trigger content — defaults to a "Adjust Stock" icon + label. */
   triggerContent?: ReactNode;
 }) => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [direction, setDirection] = useState<AdjustmentDirection>("add");
   const [amount, setAmount] = useState("");
@@ -87,9 +92,18 @@ export const AdjustStockDialog = ({
         costPrice: direction === "add" && costPrice.trim() !== "" ? parsedCostPrice : undefined,
       });
       onAdjusted();
-      const costNote = direction === "add" && costPrice.trim() !== "" ? ` at RWF ${parsedCostPrice.toLocaleString()}/sqm` : "";
-      toast.success("Stock adjusted", {
-        description: `${productName}: ${changeSqm >= 0 ? "+" : ""}${changeSqm} sqm${costNote} (${reason}) · Now ${nextStock.toLocaleString()} sqm on hand.`,
+      const costNote =
+        direction === "add" && costPrice.trim() !== ""
+          ? t("staff.adjustStock.toastCostNote", { value: parsedCostPrice.toLocaleString() })
+          : "";
+      toast.success(t("staff.adjustStock.toastAdjustedTitle"), {
+        description: t("staff.adjustStock.toastAdjustedBody", {
+          name: productName,
+          change: `${changeSqm >= 0 ? "+" : ""}${changeSqm}`,
+          costNote,
+          reason: t(REASON_KEYS[reason as keyof typeof REASON_KEYS] ?? reason),
+          qty: nextStock.toLocaleString(),
+        }),
       });
       setOpen(false);
       setAmount("");
@@ -97,8 +111,8 @@ export const AdjustStockDialog = ({
       setNote("");
       setDirection("add");
     } catch (cause) {
-      toast.error("Couldn't adjust stock", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("staff.adjustStock.toastFailedTitle"), {
+        description: cause instanceof ApiError ? cause.message : t("staff.adjustStock.toastTryAgain"),
       });
     } finally {
       setSubmitting(false);
@@ -123,15 +137,15 @@ export const AdjustStockDialog = ({
         {triggerContent ?? (
           <>
             <ClipboardCheck className="size-5" />
-            Adjust Stock
+            {t("staff.adjustStock.trigger")}
           </>
         )}
       </DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Adjust stock</DialogTitle>
+          <DialogTitle>{t("staff.adjustStock.title")}</DialogTitle>
           <DialogDescription>
-            {productName} · Currently {currentStockSqm.toLocaleString()} sqm on hand.
+            {t("staff.adjustStock.description", { name: productName, qty: currentStockSqm.toLocaleString() })}
           </DialogDescription>
         </DialogHeader>
 
@@ -145,7 +159,7 @@ export const AdjustStockDialog = ({
                 direction === "add" ? "bg-primary text-ink" : "text-muted-foreground hover:bg-secondary",
               )}
             >
-              <Plus className="size-4" /> Add
+              <Plus className="size-4" /> {t("staff.adjustStock.add")}
             </button>
             <button
               type="button"
@@ -158,12 +172,12 @@ export const AdjustStockDialog = ({
                 direction === "remove" ? "bg-primary text-ink" : "text-muted-foreground hover:bg-secondary",
               )}
             >
-              <Minus className="size-4" /> Remove
+              <Minus className="size-4" /> {t("staff.adjustStock.remove")}
             </button>
           </div>
 
           <Field>
-            <FieldLabel htmlFor="adjust-amount">Amount (sqm)</FieldLabel>
+            <FieldLabel htmlFor="adjust-amount">{t("staff.adjustStock.amountLabel")}</FieldLabel>
             <Input
               id="adjust-amount"
               type="number"
@@ -177,7 +191,7 @@ export const AdjustStockDialog = ({
 
           {direction === "add" && (
             <Field>
-              <FieldLabel htmlFor="adjust-cost-price">Cost Price (RWF / sqm)</FieldLabel>
+              <FieldLabel htmlFor="adjust-cost-price">{t("staff.adjustStock.costPriceLabel")}</FieldLabel>
               <div className="relative">
                 <Coins
                   aria-hidden="true"
@@ -196,21 +210,21 @@ export const AdjustStockDialog = ({
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                What we paid per m² for this batch — feeds the running average cost. Optional.
+                {t("staff.adjustStock.costPriceHint")}
               </p>
             </Field>
           )}
 
           <Field>
-            <FieldLabel htmlFor="adjust-reason">Reason</FieldLabel>
+            <FieldLabel htmlFor="adjust-reason">{t("staff.adjustStock.reasonLabel")}</FieldLabel>
             <Select value={reason} onValueChange={(value) => setReason(value ?? reasons[0])}>
               <SelectTrigger id="adjust-reason">
-                <SelectValue>{(value: string) => value}</SelectValue>
+                <SelectValue>{(value: string) => t(REASON_KEYS[value as keyof typeof REASON_KEYS] ?? value)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {reasons.map((item) => (
                   <SelectItem key={item} value={item}>
-                    {item}
+                    {t(REASON_KEYS[item])}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -218,29 +232,29 @@ export const AdjustStockDialog = ({
           </Field>
 
           <Field>
-            <FieldLabel htmlFor="adjust-note">Note (optional)</FieldLabel>
+            <FieldLabel htmlFor="adjust-note">{t("staff.adjustStock.noteLabel")}</FieldLabel>
             <Textarea
               id="adjust-note"
               rows={2}
               value={note}
               onChange={(event) => setNote(event.target.value)}
-              placeholder="Delivery reference, count discrepancy, etc."
+              placeholder={t("staff.adjustStock.notePlaceholder")}
             />
           </Field>
 
           {valid && (
             <p className="rounded-lg bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
-              New stock level: <strong className="text-ink">{nextStock.toLocaleString()} sqm</strong>
+              {t("staff.adjustStock.newLevel", { qty: nextStock.toLocaleString() })}
             </p>
           )}
         </div>
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
-            Cancel
+            {t("staff.adjustStock.cancel")}
           </Button>
           <Button type="button" disabled={!valid || submitting} onClick={() => void handleSubmit()} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
-            {submitting ? "Saving…" : "Save adjustment"}
+            {submitting ? t("staff.adjustStock.saving") : t("staff.adjustStock.save")}
           </Button>
         </DialogFooter>
       </DialogContent>

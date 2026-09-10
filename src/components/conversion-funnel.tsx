@@ -1,3 +1,5 @@
+"use client";
+
 import {
   BadgeCheck,
   BarChart3,
@@ -11,8 +13,23 @@ import {
   Eye,
   type LucideIcon,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type { JourneyStage } from "@/lib/api/types";
+
+/** Stage title translation keys — display only; `JOURNEY_STAGE_META.title` keeps the canonical English for non-localized surfaces. */
+export const JOURNEY_STAGE_TITLE_KEYS: Record<JourneyStage, string> = {
+  OPENED_SYSTEM: "staff.journeyStage.OPENED_SYSTEM",
+  CREATED_ROOM: "staff.journeyStage.CREATED_ROOM",
+  ENTERED_DIMENSIONS: "staff.journeyStage.ENTERED_DIMENSIONS",
+  VIEWED_TILE: "staff.journeyStage.VIEWED_TILE",
+  APPLIED_TILE: "staff.journeyStage.APPLIED_TILE",
+  SAVED_DESIGN: "staff.journeyStage.SAVED_DESIGN",
+  REQUESTED_QUOTATION: "staff.journeyStage.REQUESTED_QUOTATION",
+  NEGOTIATED: "staff.journeyStage.NEGOTIATED",
+  PLACED_ORDER: "staff.journeyStage.PLACED_ORDER",
+  PURCHASED: "staff.journeyStage.PURCHASED",
+};
 
 /** The backend's 10 `JourneyStage` values, in funnel order, with their display label/icon — shared with Journey Analytics so stage names read the same everywhere. */
 export const JOURNEY_STAGE_META: Record<JourneyStage, { title: string; icon: LucideIcon }> = {
@@ -56,17 +73,18 @@ const mockFunnel: ConversionFunnelStage[] = [
  * screens not yet wired to the real endpoint still render something.
  */
 export const ConversionFunnel = ({ stages = mockFunnel }: { stages?: ConversionFunnelStage[] }) => {
+  const { t } = useTranslation();
   const maxCustomers = Math.max(1, ...stages.map((row) => row.customers));
 
   const funnel = stages.map(({ stage, customers, conversionFromPrevious }, index) => {
     const meta = JOURNEY_STAGE_META[stage];
     return [
-      meta.title,
+      t(JOURNEY_STAGE_TITLE_KEYS[stage]),
       "",
       customers.toLocaleString(),
       index === 0 || conversionFromPrevious === undefined
         ? ""
-        : `${conversionFromPrevious.toFixed(0)}% conversion`,
+        : t("staff.conversionFunnel.conversion", { value: conversionFromPrevious.toFixed(0) }),
       meta.icon,
       // Bar width reads as an actual funnel — each stage's share of the
       // widest (first) stage — floored so even a near-zero stage stays
@@ -77,8 +95,8 @@ export const ConversionFunnel = ({ stages = mockFunnel }: { stages?: ConversionF
 
   return (
   <section className="rounded-[14px] bg-white p-6 shadow-sm sm:p-8">
-    <h2 className="text-2xl font-extrabold text-ink">Conversion Funnel</h2>
-    <p className="mt-1 text-sm text-muted">User progression through the digital catalog</p>
+    <h2 className="text-2xl font-extrabold text-ink">{t("staff.conversionFunnel.title")}</h2>
+    <p className="mt-1 text-sm text-muted">{t("staff.conversionFunnel.subtitle")}</p>
 
     {/* Below sm: straight connector line with uniform-width rows. */}
     <div className="relative mt-7 space-y-3 pl-13 sm:hidden">
@@ -211,19 +229,20 @@ export const ConversionFunnel = ({ stages = mockFunnel }: { stages?: ConversionF
  * page uses the icon-circle `ConversionFunnel` above instead.
  */
 export const CustomerConversionFunnel = ({ stages = mockFunnel }: { stages?: ConversionFunnelStage[] }) => {
+  const { t } = useTranslation();
   const maxCustomers = Math.max(1, ...stages.map((row) => row.customers));
 
   return (
     <section className="rounded-2xl bg-card p-5 sm:p-6">
-      <h2 className="text-lg font-bold text-ink">Conversion Funnel</h2>
-      <p className="mt-1 text-sm text-muted-foreground">User progression through the digital catalog</p>
+      <h2 className="text-lg font-bold text-ink">{t("staff.conversionFunnel.title")}</h2>
+      <p className="mt-1 text-sm text-muted-foreground">{t("staff.conversionFunnel.subtitle")}</p>
       <div className="mt-7 space-y-4">
         {stages.map(({ stage, customers, conversionFromPrevious }, index) => {
           // Floored so even a near-zero stage stays visible instead of collapsing to nothing.
           const widthPercent = Math.max((customers / maxCustomers) * 100, 4);
           return (
             <div key={stage} className="flex items-center justify-between gap-3 font-data text-sm">
-              <p className="w-32 shrink-0 text-right font-data font-medium text-ink sm:w-40">{JOURNEY_STAGE_META[stage].title}</p>
+              <p className="w-32 shrink-0 text-right font-data font-medium text-ink sm:w-40">{t(JOURNEY_STAGE_TITLE_KEYS[stage])}</p>
               <div className="min-w-8 flex-1">
                 <div className="h-6 bg-chart-blue transition-all duration-500" style={{ width: `${widthPercent}%` }} />
               </div>

@@ -3,6 +3,7 @@
 import { use } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useTranslation } from "react-i18next";
 import { Boxes, Layers3, Maximize2, Package } from "lucide-react";
 import { StockDetailHeader } from "@/app/stock/layout";
 import { ApiErrorState, ApiLoading } from "@/components/api-state";
@@ -12,32 +13,41 @@ import { StockLevelPanel } from "@/components/stock-level-panel";
 import { EditProductDialog } from "@/components/edit-product-dialog";
 import { DeleteProductButton } from "@/components/delete-product-button";
 import { productsApi } from "@/lib/api";
-import { toProduct, roomTypeLabels } from "@/lib/api/mappers";
+import { toProduct } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
 import { staffStockDisplay } from "@/lib/stock-display";
+import type { RoomType } from "@/lib/api/types";
 
 type StockProductDetailsProps = { params: Promise<{ id: string }> };
 
+const ROOM_TYPE_KEYS: Record<RoomType, string> = {
+  LIVING_ROOM: "catalog.roomTypes.livingRoom",
+  BEDROOM: "catalog.roomTypes.bedroom",
+  BATHROOM: "catalog.roomTypes.bathroom",
+  KITCHEN: "catalog.roomTypes.kitchen",
+};
+
 const getSuitableFor = (suitableFor: "floor" | "wall" | "both") => {
-  const badges: { label: string; icon: typeof Layers3 }[] = [];
-  if (suitableFor === "floor" || suitableFor === "both") badges.push({ label: "Floor", icon: Layers3 });
-  if (suitableFor === "wall" || suitableFor === "both") badges.push({ label: "Wall", icon: Maximize2 });
+  const badges: { labelKey: string; icon: typeof Layers3 }[] = [];
+  if (suitableFor === "floor" || suitableFor === "both") badges.push({ labelKey: "stock.inventoryDetail.floor", icon: Layers3 });
+  if (suitableFor === "wall" || suitableFor === "both") badges.push({ labelKey: "stock.inventoryDetail.wall", icon: Maximize2 });
   return badges;
 };
 
 const StockProductDetailsPage = ({ params }: StockProductDetailsProps) => {
+  const { t } = useTranslation();
   const { id } = use(params);
   const { data: apiProduct, loading, error, reload } = useApi(() => productsApi.get(id), [id]);
 
-  if (loading && !apiProduct) return <ApiLoading label="Loading product…" className="py-32" />;
+  if (loading && !apiProduct) return <ApiLoading label={t("stock.inventoryDetail.loading")} className="py-32" />;
 
   if (error) {
     if (error.toLowerCase().includes("not found")) {
       return (
         <div className="mx-auto max-w-md py-24 text-center">
-          <h1 className="text-xl font-bold text-ink">Product not found</h1>
+          <h1 className="text-xl font-bold text-ink">{t("stock.inventoryDetail.notFound")}</h1>
           <Button nativeButton={false} render={<Link href="/stock/inventory" />} className="mt-6 h-11 gap-2 px-5">
-            Back to Inventory
+            {t("stock.inventoryDetail.backToInventory")}
           </Button>
         </div>
       );
@@ -56,8 +66,8 @@ const StockProductDetailsPage = ({ params }: StockProductDetailsProps) => {
     <>
       <StockDetailHeader
         breadcrumbs={[
-          { label: "Overview", href: "/stock/overview" },
-          { label: "Inventory", href: "/stock/inventory" },
+          { label: t("stock.inventoryDetail.crumbOverview"), href: "/stock/overview" },
+          { label: t("stock.inventoryDetail.crumbInventory"), href: "/stock/inventory" },
           { label: product.name },
         ]}
         title={product.name}
@@ -78,10 +88,10 @@ const StockProductDetailsPage = ({ params }: StockProductDetailsProps) => {
           </div>
           <section className="rounded-2xl bg-card p-5 sm:p-6">
             <h2 className="border-b border-slate-100 pb-4 text-xl font-bold text-ink">
-              Product Story
+              {t("stock.inventoryDetail.productStory")}
             </h2>
             <p className="mt-4 text-sm leading-6 text-muted-foreground">
-              {product.description || "No description yet."}
+              {product.description || t("stock.inventoryDetail.noDescription")}
             </p>
           </section>
         </div>
@@ -99,13 +109,13 @@ const StockProductDetailsPage = ({ params }: StockProductDetailsProps) => {
               <span
                 className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold uppercase ${stock.badge}`}
               >
-                {stock.label}
+                {t(`staff.stockStatus.${stock.status}`)}
               </span>
             </div>
             <p className="mt-6 text-2xl font-bold text-ink">
               {product.price.toLocaleString("en-US")} RWF{" "}
               <span className="text-sm font-medium text-muted-foreground">
-                / sqm
+                {t("stock.inventoryDetail.perSqm")}
               </span>
             </p>
             <div className="mt-5 border-b border-slate-100 pb-6">
@@ -120,7 +130,7 @@ const StockProductDetailsPage = ({ params }: StockProductDetailsProps) => {
             <div className="grid grid-cols-2 gap-5 py-6">
               <div>
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Size
+                  {t("stock.inventoryDetail.size")}
                 </p>
                 <p className="mt-1 text-sm font-bold text-ink">
                   {product.size}
@@ -128,27 +138,27 @@ const StockProductDetailsPage = ({ params }: StockProductDetailsProps) => {
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Per box
+                  {t("stock.inventoryDetail.perBox")}
                 </p>
                 <p className="mt-1 text-sm font-bold text-ink">
-                  {product.boxCoverage} m² ({product.piecesPerBox} pcs)
+                  {t("stock.inventoryDetail.perBoxValue", { coverage: product.boxCoverage, pieces: product.piecesPerBox })}
                 </p>
               </div>
               {breakdown && (
                 <div>
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    On hand (boxes)
+                    {t("stock.inventoryDetail.onHandBoxes")}
                   </p>
                   <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-ink">
                     <Boxes className="size-4" />
-                    {breakdown.completeBoxes} + {breakdown.remainingPieces} pcs
+                    {t("stock.inventoryDetail.onHandBoxesValue", { boxes: breakdown.completeBoxes, pieces: breakdown.remainingPieces })}
                   </p>
                 </div>
               )}
               {apiProduct.averageCostPrice !== undefined && (
                 <div>
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Avg. cost / sqm
+                    {t("stock.inventoryDetail.avgCost")}
                   </p>
                   <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-ink">
                     <Package className="size-4" />
@@ -158,23 +168,23 @@ const StockProductDetailsPage = ({ params }: StockProductDetailsProps) => {
               )}
             </div>
             <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
-              Suitable for
+              {t("stock.inventoryDetail.suitableFor")}
             </p>
             <div className="flex flex-wrap gap-3">
-              {getSuitableFor(product.suitableFor).map(({ label, icon: Icon }) => (
+              {getSuitableFor(product.suitableFor).map(({ labelKey, icon: Icon }) => (
                 <span
-                  key={label}
+                  key={labelKey}
                   className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-4 py-2 text-xs font-bold text-green-700"
                 >
                   <Icon className="size-4" />
-                  {label}
+                  {t(labelKey)}
                 </span>
               ))}
             </div>
             {apiProduct.roomTypes.length > 0 && (
               <>
                 <p className="mt-5 mb-2 text-xs uppercase tracking-wide text-muted-foreground">
-                  Room types
+                  {t("stock.inventoryDetail.roomTypes")}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {apiProduct.roomTypes.map((roomType) => (
@@ -182,7 +192,7 @@ const StockProductDetailsPage = ({ params }: StockProductDetailsProps) => {
                       key={roomType}
                       className="inline-flex items-center rounded-full border border-border bg-secondary/50 px-3 py-1.5 text-xs font-semibold text-ink"
                     >
-                      {roomTypeLabels[roomType]}
+                      {ROOM_TYPE_KEYS[roomType] ? t(ROOM_TYPE_KEYS[roomType]) : roomType}
                     </span>
                   ))}
                 </div>

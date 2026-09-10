@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   ChevronDown,
@@ -58,15 +59,15 @@ const getInitials = (name: string) =>
     .slice(0, 2)
     .toUpperCase() || "?";
 
-const formatRelativeTime = (iso: string) => {
+const formatRelativeTime = (iso: string, t: (key: string, opts?: Record<string, unknown>) => string) => {
   const diffMs = Date.now() - new Date(iso).getTime();
   const minutes = Math.round(diffMs / 60_000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return t("stock.negotiations.justNow");
+  if (minutes < 60) return t("stock.negotiations.minutesAgo", { count: minutes });
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return t("stock.negotiations.hoursAgo", { count: hours });
   const days = Math.round(hours / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) return t("stock.negotiations.daysAgo", { count: days });
   return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 };
 
@@ -89,7 +90,9 @@ const lastMessageOf = (conversation: Conversation) =>
  * Fine for the current volumes; if either list gets large, the natural next
  * step is a backend endpoint that returns threads directly.
  */
-const loadConversations = async (): Promise<Conversation[]> => {
+type TFn = (key: string, opts?: Record<string, unknown>) => string;
+
+const loadConversations = async (t: TFn): Promise<Conversation[]> => {
   const [{ items: orders }, { items: cartNegotiations }] = await Promise.all([
     ordersApi.list({ limit: 100 }),
     cartNegotiationsApi.list({ limit: 100 }),
@@ -108,9 +111,9 @@ const loadConversations = async (): Promise<Conversation[]> => {
       .map(({ order, messages }): Conversation => ({
         id: order.id,
         kind: "order",
-        reference: `Order #${order.orderNumber}`,
+        reference: t("stock.negotiations.orderRef", { number: order.orderNumber }),
         linkHref: `/stock/orders/${order.id}`,
-        customerName: order.customer?.fullName || order.customer?.email || "Customer",
+        customerName: order.customer?.fullName || order.customer?.email || t("stock.negotiations.customerFallback"),
         messages,
       })),
     ...cartNegotiations
@@ -118,8 +121,8 @@ const loadConversations = async (): Promise<Conversation[]> => {
       .map((negotiation): Conversation => ({
         id: negotiation.id,
         kind: "cart",
-        reference: "Pre-order inquiry",
-        customerName: negotiation.customer?.fullName || negotiation.customer?.email || "Customer",
+        reference: t("stock.negotiations.preOrderInquiry"),
+        customerName: negotiation.customer?.fullName || negotiation.customer?.email || t("stock.negotiations.customerFallback"),
         messages: negotiation.messages,
         items: negotiation.items,
       })),
@@ -137,8 +140,9 @@ const loadConversations = async (): Promise<Conversation[]> => {
  * the same bubble language as the customer-facing negotiation chats.
  */
 const StockNegotiationsPage = () => {
+  const { t } = useTranslation();
   const { user } = useCurrentUser();
-  const { data: conversations, loading, error, reload } = useApi(loadConversations);
+  const { data: conversations, loading, error, reload } = useApi(() => loadConversations(t), [t]);
   // `items` is only ever present for a cart thread and only set when a
   // refetch (below) actually picked up a fresher snapshot — absent otherwise,
   // so `merged` below falls back to the conversation's own last-known items.
@@ -316,8 +320,8 @@ const StockNegotiationsPage = () => {
         },
       }));
       setDraft(body);
-      toast.error("Message not sent", {
-        description: cause instanceof Error ? cause.message : "Please try again.",
+      toast.error(t("stock.negotiations.toastNotSentTitle"), {
+        description: cause instanceof Error ? cause.message : t("stock.negotiations.toastTryAgain"),
       });
     } finally {
       setPendingIds((current) => current.filter((id) => id !== tempId));
@@ -327,14 +331,14 @@ const StockNegotiationsPage = () => {
   return (
     <>
       <StockPageHeader
-        title="Negotiations"
-        subtitle="Chat with customers whose orders — or carts — exceeded stock on hand."
+        title={t("stock.negotiations.title")}
+        subtitle={t("stock.negotiations.subtitle")}
       />
       <div className="mt-6 sm:mt-8">
-        {loading && <ApiLoading label="Loading conversations…" />}
+        {loading && <ApiLoading label={t("stock.negotiations.loading")} />}
         {!loading && error && <ApiErrorState message={error} onRetry={reload} />}
         {!loading && !error && filtered.length === 0 && merged.length === 0 && (
-          <ApiEmptyState message="No negotiation threads yet — they open automatically when an order, or a cart, exceeds stock on hand." />
+          <ApiEmptyState message={t("stock.negotiations.empty")} />
         )}
         {!loading && !error && merged.length > 0 && (
           <div className="flex h-[calc(100dvh-10rem)] overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-black/5 sm:h-[calc(100dvh-11rem)] lg:h-[calc(100dvh-13rem)]">
@@ -351,8 +355,8 @@ const StockNegotiationsPage = () => {
                   <input
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Search by customer or order #..."
-                    aria-label="Search negotiations"
+                    placeholder={t("stock.negotiations.searchPlaceholder")}
+                    aria-label={t("stock.negotiations.searchAria")}
                     className="h-10 w-full rounded-full border border-border bg-[#F9FAFB] pr-4 pl-10 text-sm text-ink outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/40"
                   />
                 </div>
@@ -360,7 +364,7 @@ const StockNegotiationsPage = () => {
               <ul className="flex-1 divide-y divide-border overflow-y-auto">
                 {filtered.length === 0 ? (
                   <li className="px-4 py-8 text-center text-sm text-muted-foreground">
-                    No matches for &ldquo;{search}&rdquo;.
+                    {t("stock.negotiations.noMatches", { term: search })}
                   </li>
                 ) : (
                   filtered.map((conversation) => {
@@ -386,7 +390,7 @@ const StockNegotiationsPage = () => {
                                 {conversation.customerName}
                               </span>
                               <span className="shrink-0 text-[11px] text-muted-foreground">
-                                {formatRelativeTime(last.createdAt)}
+                                {formatRelativeTime(last.createdAt, t)}
                               </span>
                             </span>
                             <span className="mt-0.5 flex items-center justify-between gap-2">
@@ -396,13 +400,13 @@ const StockNegotiationsPage = () => {
                                   needsReply && "font-semibold text-ink",
                                 )}
                               >
-                                {last.author === "STAFF" ? "You: " : ""}
+                                {last.author === "STAFF" ? t("stock.negotiations.you") : ""}
                                 {last.body}
                               </span>
                               {needsReply && (
                                 <span
                                   className="size-2 shrink-0 rounded-full bg-primary"
-                                  aria-label="Awaiting reply"
+                                  aria-label={t("stock.negotiations.awaitingReply")}
                                 />
                               )}
                             </span>
@@ -426,7 +430,7 @@ const StockNegotiationsPage = () => {
                     <MessagesSquare className="size-6" />
                   </span>
                   <p className="text-sm font-medium text-muted-foreground">
-                    Select customer to view chat messages
+                    {t("stock.negotiations.selectToView")}
                   </p>
                 </div>
               ) : (
@@ -436,7 +440,7 @@ const StockNegotiationsPage = () => {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      aria-label="Back to conversations"
+                      aria-label={t("stock.negotiations.backToConversations")}
                       onClick={() => setSelectedId(null)}
                       className="size-9 sm:hidden"
                     >
@@ -458,7 +462,7 @@ const StockNegotiationsPage = () => {
                         render={<Link href={selected.linkHref} />}
                         className="h-9 shrink-0 gap-1.5 px-3 text-xs font-semibold"
                       >
-                        View order <ExternalLink className="size-3.5" />
+                        {t("stock.negotiations.viewOrder")} <ExternalLink className="size-3.5" />
                       </Button>
                     )}
                   </header>
@@ -470,7 +474,11 @@ const StockNegotiationsPage = () => {
                           key={item.id}
                           className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-800"
                         >
-                          {item.productName} · {item.requestedAreaSqm} sqm · {item.availabilityNote}
+                          {t("stock.negotiations.itemChip", {
+                            name: item.productName,
+                            area: item.requestedAreaSqm,
+                            note: item.availabilityNote,
+                          })}
                         </span>
                       ))}
                     </div>
@@ -526,7 +534,7 @@ const StockNegotiationsPage = () => {
                     <button
                       type="button"
                       onClick={() => scrollToBottom()}
-                      aria-label="Scroll to latest messages"
+                      aria-label={t("stock.negotiations.scrollToLatest")}
                       className="absolute right-4 bottom-[4.75rem] flex size-9 items-center justify-center rounded-full bg-ink text-white shadow-lg transition-transform hover:scale-105"
                     >
                       <ChevronDown className="size-4" />
@@ -543,8 +551,8 @@ const StockNegotiationsPage = () => {
                           void sendMessage();
                         }
                       }}
-                      placeholder="Type a message…"
-                      aria-label={`Message ${selected.customerName}`}
+                      placeholder={t("stock.negotiations.typeMessage")}
+                      aria-label={t("stock.negotiations.messageAria", { name: selected.customerName })}
                       className="h-11 flex-1 rounded-full border border-border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                     />
                     <Button
@@ -552,7 +560,7 @@ const StockNegotiationsPage = () => {
                       size="icon"
                       onClick={() => void sendMessage()}
                       disabled={draft.trim() === ""}
-                      aria-label="Send message"
+                      aria-label={t("stock.negotiations.sendMessage")}
                       className="size-11 shrink-0 rounded-full"
                     >
                       <Send className="size-4" />

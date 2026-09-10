@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   FileText,
   LayoutGrid,
@@ -20,18 +21,18 @@ import { getInitials } from "@/lib/utils";
 
 const navigation = [
   {
-    label: "Dashboard",
+    labelKey: "stock.nav.dashboard",
     href: "/stock/overview",
     icon: LayoutGrid,
     active: (pathname: string) => pathname.startsWith("/stock/overview"),
   },
-  { label: "Inventory", href: "/stock/inventory", icon: ShelvingUnit },
-  { label: "Orders", href: "/stock/orders", icon: ShoppingCart },
-  { label: "Customers", href: "/stock/customers", icon: User },
-  { label: "Negotiations", href: "/stock/negotiations", icon: MessagesSquare },
-  { label: "Collections", href: "/stock/collections", icon: Boxes },
-  { label: "Reports", href: "/stock/reports", icon: FileText },
-  { label: "Account Settings", href: "/stock/settings", icon: Settings },
+  { labelKey: "stock.nav.inventory", href: "/stock/inventory", icon: ShelvingUnit },
+  { labelKey: "stock.nav.orders", href: "/stock/orders", icon: ShoppingCart },
+  { labelKey: "stock.nav.customers", href: "/stock/customers", icon: User },
+  { labelKey: "stock.nav.negotiations", href: "/stock/negotiations", icon: MessagesSquare },
+  { labelKey: "stock.nav.collections", href: "/stock/collections", icon: Boxes },
+  { labelKey: "stock.nav.reports", href: "/stock/reports", icon: FileText },
+  { labelKey: "stock.nav.settings", href: "/stock/settings", icon: Settings },
 ] as const;
 
 type StockMenuContextValue = { openMenu: () => void };
@@ -54,9 +55,11 @@ export const StockDetailHeader = (props: Omit<DetailPageHeaderProps, "onOpenMenu
 };
 
 const StockLayout = ({ children }: { children: React.ReactNode }) => {
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuClosing, setMenuClosing] = useState(false);
   const { user, authorized } = useRequireRole(["STOCK_MANAGER", "ADMIN"]);
+  const navLinks = navigation.map((link) => ({ ...link, label: t(link.labelKey) }));
 
   const openMenu = () => {
     setMenuClosing(false);
@@ -74,7 +77,7 @@ const StockLayout = ({ children }: { children: React.ReactNode }) => {
   if (!authorized || !user) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
-        <ApiLoading label="Loading…" />
+        <ApiLoading label={t("staff.loading")} />
       </div>
     );
   }
@@ -84,18 +87,18 @@ const StockLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <StockMenuContext.Provider value={{ openMenu }}>
       <div className="min-h-dvh bg-background">
-        <DashboardSidebar links={navigation} ariaLabel="Stock manager navigation" user={sidebarUser} />
+        <DashboardSidebar links={navLinks} ariaLabel={t("stock.nav.navAria")} user={sidebarUser} />
         {menuOpen && (
           <>
             <button
               type="button"
-              aria-label="Close menu"
+              aria-label={t("stock.nav.closeMenu")}
               onClick={closeMenu}
               className="fixed inset-0 z-40 bg-ink/40 backdrop-blur-sm lg:hidden"
             />
             <DashboardSidebar
-              links={navigation}
-              ariaLabel="Stock manager navigation"
+              links={navLinks}
+              ariaLabel={t("stock.nav.navAria")}
               user={sidebarUser}
               close={closeMenu}
               className={`fixed inset-y-0 left-0 z-50 h-screen w-70 max-w-[85vw] bg-card shadow-2xl lg:hidden ${menuClosing ? "animate-out slide-out-to-left duration-300" : "animate-in slide-in-from-left duration-300"}`}

@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Bold,
   Boxes,
@@ -34,24 +35,29 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { collectionsApi, productsApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
-import { roomTypeLabels } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
 import type { RoomType, SuitableFor } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
-const roomTypeOptions = Object.keys(roomTypeLabels) as RoomType[];
-const suitableForOptions: { value: SuitableFor; label: string }[] = [
-  { value: "FLOOR", label: "Floor" },
-  { value: "WALL", label: "Wall" },
-  { value: "BOTH", label: "Floor & Wall" },
+const ROOM_TYPE_KEYS: Record<RoomType, string> = {
+  LIVING_ROOM: "catalog.roomTypes.livingRoom",
+  BEDROOM: "catalog.roomTypes.bedroom",
+  BATHROOM: "catalog.roomTypes.bathroom",
+  KITCHEN: "catalog.roomTypes.kitchen",
+};
+const roomTypeOptions = Object.keys(ROOM_TYPE_KEYS) as RoomType[];
+const SUITABLE_FOR_KEYS: { value: SuitableFor; labelKey: string }[] = [
+  { value: "FLOOR", labelKey: "stock.newProduct.floor" },
+  { value: "WALL", labelKey: "stock.newProduct.wall" },
+  { value: "BOTH", labelKey: "stock.newProduct.floorAndWall" },
 ];
 
 const LOW_STOCK_THRESHOLD = 10;
 
 const stockPreview = (quantity: number) => {
-  if (quantity <= 0) return { label: "Out of stock", className: "border-red-200 bg-red-50 text-red-700" };
-  if (quantity <= LOW_STOCK_THRESHOLD) return { label: "Low stock", className: "border-amber/30 bg-amber-50 text-amber-700" };
-  return { label: "In stock", className: "border-green-200 bg-green-50 text-green-700" };
+  if (quantity <= 0) return { labelKey: "stock.newProduct.stockOut", className: "border-red-200 bg-red-50 text-red-700" };
+  if (quantity <= LOW_STOCK_THRESHOLD) return { labelKey: "stock.newProduct.stockLow", className: "border-amber/30 bg-amber-50 text-amber-700" };
+  return { labelKey: "stock.newProduct.stockIn", className: "border-green-200 bg-green-50 text-green-700" };
 };
 
 const isValidName = (value: string) => value.trim().length >= 2 && value.trim().length <= 120;
@@ -137,12 +143,13 @@ const ImageDropzone = ({
   onSelect: (file: File) => void;
   onClear: () => void;
 }) => {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [dragging, setDragging] = useState(false);
 
   const handleFile = (file: File | undefined) => {
     if (!file || !file.type.startsWith("image/")) {
-      toast.error("Unsupported file", { description: "Please choose an image file (PNG, JPG, WEBP)." });
+      toast.error(t("stock.newProduct.unsupportedFile"), { description: t("stock.newProduct.unsupportedFileBody") });
       return;
     }
     onSelect(file);
@@ -158,13 +165,13 @@ const ImageDropzone = ({
     <div>
       {previewUrl ? (
         <div className="relative aspect-4/3 w-full overflow-hidden rounded-xl bg-muted-background">
-          <Image src={previewUrl} alt="Product preview" fill unoptimized className="object-cover" />
+          <Image src={previewUrl} alt={t("stock.newProduct.productPreviewAlt")} fill unoptimized className="object-cover" />
           <Button
             type="button"
             variant="secondary"
             size="icon-sm"
             onClick={onClear}
-            aria-label="Remove image"
+            aria-label={t("stock.newProduct.removeImageAria")}
             className="absolute top-3 right-3 rounded-full bg-white/95 text-ink shadow-sm hover:bg-white"
           >
             <X className="size-4" />
@@ -192,8 +199,8 @@ const ImageDropzone = ({
           <span className="flex size-11 items-center justify-center rounded-full bg-white text-ink shadow-sm">
             <ImagePlus className="size-5" strokeWidth={1.8} />
           </span>
-          <p className="text-sm font-semibold text-ink">Click to upload or drag and drop</p>
-          <p className="text-xs text-muted-foreground">PNG, JPG or WEBP · up to 10MB</p>
+          <p className="text-sm font-semibold text-ink">{t("stock.newProduct.clickToUpload")}</p>
+          <p className="text-xs text-muted-foreground">{t("stock.newProduct.imageHint")}</p>
         </div>
       )}
       <input
@@ -228,6 +235,7 @@ const BoldTextarea = ({
   onChange: (value: string) => void;
   placeholder: string;
 }) => {
+  const { t } = useTranslation();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const toggleBold = () => {
@@ -271,12 +279,12 @@ const BoldTextarea = ({
         <button
           type="button"
           onClick={toggleBold}
-          aria-label="Bold"
+          aria-label={t("stock.newProduct.boldAria")}
           className="inline-flex size-7 items-center justify-center rounded text-ink hover:bg-secondary"
         >
           <Bold className="size-4" strokeWidth={2.25} />
         </button>
-        <span className="ml-1 text-xs text-muted-foreground">Select text, then Bold</span>
+        <span className="ml-1 text-xs text-muted-foreground">{t("stock.newProduct.boldToolbarHint")}</span>
       </div>
       <Textarea
         ref={textareaRef}
@@ -301,6 +309,7 @@ const BoldTextarea = ({
 };
 
 const RegisterProductPage = () => {
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: collectionsData } = useApi(() => collectionsApi.list({ limit: 100 }));
@@ -370,8 +379,8 @@ const RegisterProductPage = () => {
 
   const handleSubmit = async () => {
     if (!formValid || !imageFile || !selectedCollection || piecesPerBox === null) {
-      toast.error("Check the highlighted fields", {
-        description: "All fields, including a product image, are required to register a product.",
+      toast.error(t("stock.newProduct.checkFieldsTitle"), {
+        description: t("stock.newProduct.checkFieldsBody"),
       });
       return;
     }
@@ -393,13 +402,13 @@ const RegisterProductPage = () => {
         initialAreaSqm: quantityValue ?? undefined,
         initialCostPrice: costPrice.trim() !== "" ? Number(costPrice) : undefined,
       });
-      toast.success("Product registered", {
-        description: `${name.trim()} (SKU ${sku.trim().toUpperCase()}) was added to the catalog.`,
+      toast.success(t("stock.newProduct.toastRegisteredTitle"), {
+        description: t("stock.newProduct.toastRegisteredBody", { name: name.trim(), sku: sku.trim().toUpperCase() }),
       });
       router.push("/stock/inventory");
     } catch (cause) {
-      toast.error("Couldn't register product", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("stock.newProduct.toastFailedTitle"), {
+        description: cause instanceof ApiError ? cause.message : t("stock.newProduct.toastTryAgain"),
       });
     } finally {
       setSubmitting(false);
@@ -410,14 +419,14 @@ const RegisterProductPage = () => {
     <>
       <StockDetailHeader
         breadcrumbs={[
-          { label: "Overview", href: "/stock/overview" },
-          { label: "Stock & Inventory", href: "/stock/inventory" },
-          { label: "Register Product" },
+          { label: t("stock.newProduct.crumbOverview"), href: "/stock/overview" },
+          { label: t("stock.newProduct.crumbInventory"), href: "/stock/inventory" },
+          { label: t("stock.newProduct.crumbRegister") },
         ]}
-        title="Register New Product"
+        title={t("stock.newProduct.title")}
         actions={
           <Button type="button" variant="outline" onClick={() => router.push("/stock/inventory")} className="h-11 px-5 text-sm font-bold">
-            Cancel
+            {t("stock.newProduct.cancel")}
           </Button>
         }
       />
@@ -431,42 +440,42 @@ const RegisterProductPage = () => {
       >
         <div className="grid items-start gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_1.4fr]">
           <section className="rounded-2xl bg-card p-5 sm:p-6">
-            <h2 className="text-lg font-bold text-ink">Product Image</h2>
-            <p className="mt-1 text-sm text-muted-foreground">A clear, well-lit photo of the tile.</p>
+            <h2 className="text-lg font-bold text-ink">{t("stock.newProduct.productImage")}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{t("stock.newProduct.productImageSub")}</p>
             <div className="mt-5">
               <ImageDropzone previewUrl={imagePreview} onSelect={handleImageSelect} onClear={clearImage} />
             </div>
           </section>
 
           <section className="rounded-2xl bg-card p-5 sm:p-6">
-            <h2 className="text-lg font-bold text-ink">Product Details</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Core identification and classification.</p>
+            <h2 className="text-lg font-bold text-ink">{t("stock.newProduct.productDetails")}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{t("stock.newProduct.productDetailsSub")}</p>
             <div className="mt-5 grid gap-5 sm:grid-cols-2">
               <ValidatedInput
-                label="Product Name"
-                placeholder="Calacatta Gold Polished"
+                label={t("stock.newProduct.name")}
+                placeholder={t("stock.newProduct.namePlaceholder")}
                 value={name}
                 onChange={setName}
                 isValid={isValidName}
-                errorMessage="Enter a name between 2 and 120 characters."
+                errorMessage={t("stock.newProduct.nameError")}
                 icon={Tag}
               />
               <ValidatedInput
-                label="SKU / Code"
-                placeholder="SLB-CG-001"
+                label={t("stock.newProduct.sku")}
+                placeholder={t("stock.newProduct.skuPlaceholder")}
                 value={sku}
                 onChange={(value) => setSku(value.toUpperCase())}
                 isValid={isValidSku}
-                errorMessage="Use the format ABC-DEF-000 (letters, numbers, dashes)."
-                hint="Unique code used to track this product in stock."
+                errorMessage={t("stock.newProduct.skuError")}
+                hint={t("stock.newProduct.skuHint")}
                 icon={ClipboardCheck}
               />
               <Field className="gap-1.5 sm:col-span-2">
-                <FieldLabel className="text-sm font-medium text-ink">Collection</FieldLabel>
+                <FieldLabel className="text-sm font-medium text-ink">{t("stock.newProduct.collection")}</FieldLabel>
                 <Select value={collectionId} onValueChange={(value) => setCollectionId(value ?? "")}>
                   <SelectTrigger className="h-11 text-sm">
                     <SelectValue>
-                      {(value) => collections.find((item) => item.id === value)?.title ?? "Select collection..."}
+                      {(value) => collections.find((item) => item.id === value)?.title ?? t("stock.newProduct.selectCollection")}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -484,15 +493,15 @@ const RegisterProductPage = () => {
               <div className="mt-5 flex items-center gap-2 rounded-xl border border-border bg-secondary/40 p-4">
                 <Ruler className="size-4 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
-                  Tile size for this collection: <span className="font-bold text-ink">{selectedCollection.size}</span>
+                  {t("stock.newProduct.tileSizeForCollection")} <span className="font-bold text-ink">{selectedCollection.size}</span>
                 </p>
               </div>
             )}
 
             <div className="mt-6 border-t border-border pt-5">
-              <FieldLabel className="text-sm font-medium text-ink">Suitable For</FieldLabel>
+              <FieldLabel className="text-sm font-medium text-ink">{t("stock.newProduct.suitableFor")}</FieldLabel>
               <div className="mt-2.5 flex flex-wrap gap-2">
-                {suitableForOptions.map((option) => (
+                {SUITABLE_FOR_KEYS.map((option) => (
                   <button
                     key={option.value}
                     type="button"
@@ -506,15 +515,15 @@ const RegisterProductPage = () => {
                     )}
                   >
                     {suitableFor === option.value && <Check className="size-3.5" />}
-                    {option.label}
+                    {t(option.labelKey)}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="mt-5">
-              <FieldLabel className="text-sm font-medium text-ink">Room Types</FieldLabel>
-              <p className="mt-0.5 text-xs text-muted-foreground">Select every room this tile suits (at least one).</p>
+              <FieldLabel className="text-sm font-medium text-ink">{t("stock.newProduct.roomTypes")}</FieldLabel>
+              <p className="mt-0.5 text-xs text-muted-foreground">{t("stock.newProduct.roomTypesHint")}</p>
               <div className="mt-2.5 flex flex-wrap gap-2">
                 {roomTypeOptions.map((option) => {
                   const checked = roomTypes.includes(option);
@@ -532,7 +541,7 @@ const RegisterProductPage = () => {
                       )}
                     >
                       {checked && <Check className="size-3.5" />}
-                      {roomTypeLabels[option]}
+                      {t(ROOM_TYPE_KEYS[option])}
                     </button>
                   );
                 })}
@@ -543,35 +552,34 @@ const RegisterProductPage = () => {
 
         <div className="grid items-start gap-5 sm:gap-6 xl:grid-cols-[1.6fr_1fr]">
           <section className="rounded-2xl bg-card p-5 sm:p-6">
-            <h2 className="text-lg font-bold text-ink">Price &amp; Box Coverage</h2>
+            <h2 className="text-lg font-bold text-ink">{t("stock.newProduct.priceBoxCoverage")}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Price is for this tile only. Pieces per box are auto-filled from the box coverage and the collection&apos;s
-              tile size.
+              {t("stock.newProduct.priceBoxCoverageSub")}
             </p>
             <div className="mt-5 grid gap-5 sm:grid-cols-3">
               <ValidatedInput
-                label="Price (RWF / sqm)"
-                placeholder="22000"
+                label={t("stock.newProduct.price")}
+                placeholder={t("stock.newProduct.pricePlaceholder")}
                 type="number"
                 value={price}
                 onChange={setPrice}
                 isValid={isPositiveNumber}
-                errorMessage="Enter a price greater than 0."
+                errorMessage={t("stock.newProduct.priceError")}
                 icon={Wallet}
               />
               <ValidatedInput
-                label="Box Coverage (m²)"
-                placeholder="10"
+                label={t("stock.newProduct.boxCoverage")}
+                placeholder={t("stock.newProduct.boxCoveragePlaceholder")}
                 type="number"
                 value={boxCoverage}
                 onChange={setBoxCoverage}
                 isValid={isPositiveNumber}
-                errorMessage="Enter the area a full box covers, in m²."
-                hint={!selectedCollection ? "Select a collection first to auto-fill pieces per box." : undefined}
+                errorMessage={t("stock.newProduct.boxCoverageError")}
+                hint={!selectedCollection ? t("stock.newProduct.boxCoverageHint") : undefined}
                 icon={Layers3}
               />
               <Field className="gap-1.5">
-                <FieldLabel className="text-sm font-medium text-ink">Pieces / Box</FieldLabel>
+                <FieldLabel className="text-sm font-medium text-ink">{t("stock.newProduct.piecesPerBox")}</FieldLabel>
                 <div className="relative">
                   <Boxes
                     aria-hidden="true"
@@ -580,25 +588,27 @@ const RegisterProductPage = () => {
                   />
                   <Input
                     className="h-11 bg-secondary/40 pl-11 text-sm font-bold"
-                    value={piecesPerBox !== null ? `${piecesPerBox} pcs` : ""}
-                    placeholder="Auto-filled"
+                    value={piecesPerBox !== null ? t("stock.newProduct.piecesValue", { count: piecesPerBox }) : ""}
+                    placeholder={t("stock.newProduct.autoFilled")}
                     readOnly
                     disabled
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {tileArea ? `${tileArea} m² per tile · box coverage ÷ tile area` : "Depends on the selected collection."}
+                  {tileArea
+                    ? t("stock.newProduct.piecesHintWithArea", { area: tileArea })
+                    : t("stock.newProduct.piecesHintNoCollection")}
                 </p>
               </Field>
             </div>
           </section>
 
           <section className="rounded-2xl bg-card p-5 sm:p-6">
-            <h2 className="text-lg font-bold text-ink">Inventory</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Starting stock level for this product.</p>
+            <h2 className="text-lg font-bold text-ink">{t("stock.newProduct.inventory")}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{t("stock.newProduct.inventorySub")}</p>
             <div className="mt-5 grid gap-5">
               <Field className="gap-1.5">
-                <FieldLabel className="text-sm font-medium text-ink">Initial Stock Quantity</FieldLabel>
+                <FieldLabel className="text-sm font-medium text-ink">{t("stock.newProduct.initialStock")}</FieldLabel>
                 <div className="relative">
                   <Sparkles
                     aria-hidden="true"
@@ -607,7 +617,7 @@ const RegisterProductPage = () => {
                   />
                   <Input
                     className="h-11 pl-11 text-sm"
-                    placeholder="1240"
+                    placeholder={t("stock.newProduct.initialStockPlaceholder")}
                     type="number"
                     min={0}
                     value={quantity}
@@ -616,14 +626,14 @@ const RegisterProductPage = () => {
                 </div>
               </Field>
               <ValidatedInput
-                label="Cost Price (RWF / sqm)"
-                placeholder="15000"
+                label={t("stock.newProduct.costPrice")}
+                placeholder={t("stock.newProduct.costPricePlaceholder")}
                 type="number"
                 value={costPrice}
                 onChange={setCostPrice}
                 isValid={(value) => value.trim() === "" || isPositiveNumber(value)}
-                errorMessage="Enter a cost price greater than 0, or leave it blank."
-                hint="What we paid per m² for this opening stock — feeds inventory valuation. Optional."
+                errorMessage={t("stock.newProduct.costPriceError")}
+                hint={t("stock.newProduct.costPriceHint")}
                 icon={Coins}
               />
               {status && (
@@ -633,7 +643,7 @@ const RegisterProductPage = () => {
                     status.className,
                   )}
                 >
-                  {status.label}
+                  {t(status.labelKey)}
                 </span>
               )}
             </div>
@@ -641,27 +651,27 @@ const RegisterProductPage = () => {
         </div>
 
         <section className="rounded-2xl bg-card p-5 sm:p-6">
-          <h2 className="text-lg font-bold text-ink">Description</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Shown on the product&apos;s detail page.</p>
+          <h2 className="text-lg font-bold text-ink">{t("stock.newProduct.description")}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t("stock.newProduct.descriptionSub")}</p>
           <div className="mt-5">
             <BoldTextarea
-              placeholder="Pre-cut polished granite step tiles with a bullnose edge. Ideal for creating stunning spaces."
+              placeholder={t("stock.newProduct.descriptionPlaceholder")}
               value={description}
               onChange={setDescription}
             />
             {description.length > 0 && !isValidDescription(description) && (
-              <p className="mt-1.5 text-xs font-medium text-red-600">Write at least 10 characters.</p>
+              <p className="mt-1.5 text-xs font-medium text-red-600">{t("stock.newProduct.descriptionError")}</p>
             )}
           </div>
         </section>
 
         <div className="flex flex-col-reverse items-stretch gap-3 pb-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" onClick={() => router.push("/stock/inventory")} className="h-12 px-6 text-sm font-bold">
-            Cancel
+            {t("stock.newProduct.cancel")}
           </Button>
           <Button type="submit" disabled={submitting || !formValid} className="h-12 gap-2 px-6 text-sm font-bold disabled:opacity-60">
             <Save className="size-4" />
-            {submitting ? "Registering..." : "Register Product"}
+            {submitting ? t("stock.newProduct.registering") : t("stock.newProduct.register")}
           </Button>
         </div>
       </form>

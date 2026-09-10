@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Bar,
   BarChart,
@@ -57,11 +58,11 @@ const movementIcon: Record<StockMovementType, typeof ArrowDown> = {
 };
 
 const movementFilters = ["ALL", "INBOUND", "OUTBOUND", "ADJUSTMENT"] as const;
-const movementFilterLabel: Record<(typeof movementFilters)[number], string> = {
-  ALL: "All",
-  INBOUND: "Inbound",
-  OUTBOUND: "Outbound",
-  ADJUSTMENT: "Adjustment",
+const MOVEMENT_FILTER_KEYS: Record<(typeof movementFilters)[number], string> = {
+  ALL: "stock.reports.filterAll",
+  INBOUND: "stock.reports.filterInbound",
+  OUTBOUND: "stock.reports.filterOutbound",
+  ADJUSTMENT: "stock.reports.filterAdjustment",
 };
 
 const formatSignedSqm = (changeAreaSqm: number) =>
@@ -76,11 +77,12 @@ const RevenueTooltip = ({
   payload?: Array<{ value: number }>;
   label?: string;
 }) => {
+  const { t } = useTranslation();
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
       <p className="text-xs font-semibold tracking-widest text-muted">{label}</p>
-      <p className="mt-1 text-sm text-ink">Revenue: {payload[0].value.toLocaleString()}</p>
+      <p className="mt-1 text-sm text-ink">{t("stock.reports.revenueTooltip", { value: payload[0].value.toLocaleString() })}</p>
     </div>
   );
 };
@@ -146,6 +148,7 @@ const FunnelSkeleton = () => (
 );
 
 export default function StockReportsPage() {
+  const { t } = useTranslation();
   const [periodDays, setPeriodDays] = useState<AnalyticsPeriodDays>(30);
   const period = periodToRange[periodDays];
   const [movementFilter, setMovementFilter] = useState<(typeof movementFilters)[number]>("ALL");
@@ -174,8 +177,8 @@ export default function StockReportsPage() {
   return (
     <div className="mx-auto w-full max-w-[1070px]">
       <StockPageHeader
-        title="Reports"
-        subtitle="Comprehensive analytics and performance metrics for the Magnificat ecosystem."
+        title={t("stock.reports.title")}
+        subtitle={t("stock.reports.subtitle")}
       >
         <AnalyticsPeriodSwitcher period={periodDays} onChange={setPeriodDays} />
       </StockPageHeader>
@@ -184,11 +187,11 @@ export default function StockReportsPage() {
         <section className="rounded-[14px] bg-white p-6 shadow-sm sm:p-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-bold text-ink">Sales Overview</h2>
-              <p className="text-sm text-muted">Revenue Performance</p>
+              <h2 className="text-2xl font-bold text-ink">{t("stock.reports.salesOverview")}</h2>
+              <p className="text-sm text-muted">{t("stock.reports.revenuePerformance")}</p>
             </div>
             <div className="text-right">
-              <p className="text-[10px] font-bold tracking-widest text-muted uppercase">Total Sales</p>
+              <p className="text-[10px] font-bold tracking-widest text-muted uppercase">{t("stock.reports.totalSales")}</p>
               <p className="text-4xl font-black text-ink sm:text-5xl">
                 {sales.loading ? (
                   <Skeleton className="ml-auto mt-2 h-12 w-36" />
@@ -205,11 +208,12 @@ export default function StockReportsPage() {
                     )}
                   >
                     {sales.data.percentChangeVsLastPeriod >= 0 ? "↗" : "↘"}{" "}
-                    {sales.data.percentChangeVsLastPeriod >= 0 ? "+" : ""}
-                    {sales.data.percentChangeVsLastPeriod.toFixed(1)}% vs last period
+                    {t("stock.reports.vsLastPeriod", {
+                      value: `${sales.data.percentChangeVsLastPeriod >= 0 ? "+" : ""}${sales.data.percentChangeVsLastPeriod.toFixed(1)}`,
+                    })}
                   </p>
                   <p className="mt-1 text-xs text-muted">
-                    Transport fees (not included): {formatCompactCurrency(sales.data.totalTransportFees)}
+                    {t("stock.reports.transportFeesNote", { value: formatCompactCurrency(sales.data.totalTransportFees) })}
                   </p>
                 </>
               )}
@@ -254,21 +258,21 @@ export default function StockReportsPage() {
           </div>
           <div className="mt-2 flex items-center justify-center gap-2">
             <span className="size-3 rounded-sm bg-chart-blue" />
-            <span className="font-data text-sm text-data-ink">Sales Performance</span>
+            <span className="font-data text-sm text-data-ink">{t("stock.reports.salesPerformance")}</span>
           </div>
         </section>
         <div className="grid items-start content-start gap-5 sm:grid-cols-2 xl:grid-cols-1">
           <section className="h-fit self-start rounded-[14px] bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3">
               <Bot className="size-6 text-ink" />
-              <h2 className="text-xl font-bold text-ink">AI Design Assistant</h2>
+              <h2 className="text-xl font-bold text-ink">{t("stock.reports.aiAssistant")}</h2>
             </div>
             {recommendations.error ? (
               <ApiErrorState message={recommendations.error} onRetry={recommendations.reload} className="mt-5" />
             ) : (
               <div className="mt-7 grid grid-cols-2 gap-5">
                 <div>
-                  <p className="text-[10px] font-bold uppercase text-muted">Recommendation Acceptance</p>
+                  <p className="text-[10px] font-bold uppercase text-muted">{t("stock.reports.recAcceptance")}</p>
                   <p className="mt-2 text-4xl font-black text-ink">
                     {recommendations.loading
                       ? <Skeleton className="mt-2 h-11 w-24" />
@@ -276,7 +280,7 @@ export default function StockReportsPage() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase text-muted">Avg. Match Score</p>
+                  <p className="text-[10px] font-bold uppercase text-muted">{t("stock.reports.avgMatchScore")}</p>
                   <p className="mt-2 text-4xl font-black text-ink">
                     {recommendations.loading ? (
                       <Skeleton className="mt-2 h-11 w-24" />
@@ -293,7 +297,7 @@ export default function StockReportsPage() {
           </section>
           <section className="h-fit self-start rounded-[14px] bg-linear-to-br from-ink to-[#304f3f] p-7 text-white shadow-sm">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold tracking-widest uppercase">Repeat Purchase Rate</p>
+              <p className="text-[10px] font-bold tracking-widest uppercase">{t("stock.reports.repeatRate")}</p>
               <RefreshCw className="size-7 text-primary" />
             </div>
             <p className="mt-2 text-5xl font-black text-primary">
@@ -306,9 +310,9 @@ export default function StockReportsPage() {
       <section className="mt-6 rounded-[14px] bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-ink">Stock Movements</h2>
+            <h2 className="text-2xl font-bold text-ink">{t("stock.reports.stockMovements")}</h2>
             <p className="text-sm text-muted">
-              Inbound, outbound and adjustment activity across the warehouse.
+              {t("stock.reports.stockMovementsSub")}
             </p>
           </div>
           <div className="flex h-9 items-center gap-1 rounded-lg border border-[#edf0eb] bg-white p-1 shadow-sm">
@@ -325,7 +329,7 @@ export default function StockReportsPage() {
                     : "text-[#514c4d] hover:bg-[#f5f5f5]",
                 )}
               >
-                {movementFilterLabel[filter]}
+                {t(MOVEMENT_FILTER_KEYS[filter])}
               </Button>
             ))}
           </div>
@@ -334,13 +338,13 @@ export default function StockReportsPage() {
         <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MovementSummaryCard
             icon={ArrowDownToLine}
-            label="Total Inbound"
+            label={t("stock.reports.totalInbound")}
             value={stockSummary.loading ? <Skeleton className="mt-3 h-8 w-24" /> : `+${(stockSummary.data?.totalInbound ?? 0).toLocaleString()} sqm`}
             valueTone="text-[#556500]"
           />
           <MovementSummaryCard
             icon={ArrowUpFromLine}
-            label="Total Outbound"
+            label={t("stock.reports.totalOutbound")}
             value={
                 stockSummary.loading
                 ? <Skeleton className="mt-3 h-8 w-24" />
@@ -349,12 +353,12 @@ export default function StockReportsPage() {
           />
           <MovementSummaryCard
             icon={PencilLine}
-            label="Adjustments"
+            label={t("stock.reports.adjustments")}
             value={stockSummary.loading ? <Skeleton className="mt-3 h-8 w-16" /> : adjustmentCount.toString()}
           />
           <MovementSummaryCard
             icon={Scale}
-            label="Net Change"
+            label={t("stock.reports.netChange")}
             value={
                 stockSummary.loading
                 ? <Skeleton className="mt-3 h-8 w-24" />
@@ -369,18 +373,18 @@ export default function StockReportsPage() {
         ) : movements.error ? (
           <ApiErrorState message={movements.error} onRetry={movements.reload} className="mt-6" />
         ) : (movements.data?.items.length ?? 0) === 0 ? (
-          <ApiEmptyState message="No movements for this filter." className="mt-6" />
+          <ApiEmptyState message={t("stock.reports.noMovements")} className="mt-6" />
         ) : (
           <>
             <div className="mt-6 hidden overflow-x-auto md:block">
               <Table className="min-w-160">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Item</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Qty (sqm)</TableHead>
-                    <TableHead>By</TableHead>
-                    <TableHead>Time</TableHead>
+                    <TableHead>{t("stock.reports.colItem")}</TableHead>
+                    <TableHead>{t("stock.reports.colType")}</TableHead>
+                    <TableHead>{t("stock.reports.colQty")}</TableHead>
+                    <TableHead>{t("stock.reports.colBy")}</TableHead>
+                    <TableHead>{t("stock.reports.colTime")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -402,7 +406,7 @@ export default function StockReportsPage() {
                             )}
                           >
                             <Icon className="size-3.5" />
-                            {movement.type}
+                            {t(`staff.movementType.${movement.type}`)}
                           </span>
                         </TableCell>
                         <TableCell
@@ -441,7 +445,7 @@ export default function StockReportsPage() {
                         )}
                       >
                         <Icon className="size-3.5" />
-                        {movement.type}
+                        {t(`staff.movementType.${movement.type}`)}
                       </span>
                     </div>
                     <span
