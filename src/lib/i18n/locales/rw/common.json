@@ -756,6 +756,39 @@
       "toastClearFailed": "Ntitwashoboye gusiba ikiganiro"
     }
   },
+  "chatCard": {
+    "match": "Bihuye {{score}}%",
+    "aiRoomViz": "Igaragaza ry'icyumba rya AI",
+    "viewFullScreenAria": "Reba igaragaza rya {{name}} ku rugero rwuzuye",
+    "vizTitle": "Igaragaza ry'icyumba rya {{name}}",
+    "vizDescription": "Igaragaza ry'icyumba ryakozwe na AI ryerekana ikaro ryasabwe.",
+    "vizImageAlt": "Igaragaza ry'icyumba rya {{name}} rya AI",
+    "perSqm": "/ m²",
+    "addToCartAria": "Shyira {{name}} mu gatebo",
+    "viewDetails": "Reba Ibisobanuro",
+    "toast": {
+      "signInRequiredTitle": "Ugomba kwinjira",
+      "signInBody": "Fungura konti y'ubuntu cyangwa winjire kugira ngo wongere amakaro mu gatebo.",
+      "addedTitle": "Byashyizwe mu gatebo",
+      "addedBody": "{{name}} — ubu ni {{area}} m² mu gatebo kawe.",
+      "addFailedTitle": "Ntitwashoboye kongera mu gatebo"
+    }
+  },
+  "orderAlert": {
+    "quotationTitle": "Ifatabuguzi ryawe ryiteguye",
+    "quotationBody": "Itumizo {{number}} rifite ifatabuguzi ryiteguye kurebwa. Jya ku itumizo urebe igiteranyo cya nyuma maze wishyure.",
+    "waitlistTitle": "Amakuru meza — itumizo ryawe ryiteguye kwishyurwa",
+    "waitlistBody": "Ubu hari ububiko buhagije kuri itumizo {{number}} — ryavuye ku rutonde rw'ategereje. Ufite akanya gato ko kurangiza ubwishyu mbere y'uko ryongera gufungurwa.",
+    "notNow": "Ubu oya",
+    "viewOrder": "Reba itumizo"
+  },
+  "pdfViewer": {
+    "loading": "Kuzana PDF…",
+    "loadFailed": "Ntibyashobotse kuzana PDF",
+    "checkUrl": "Reba URL ya PDF hanyuma wongere ugerageze.",
+    "page": "Ipaji {{num}}",
+    "ofTotal": "kuri {{total}}"
+  },
   "auth": {
     "logoAlt": "Ikirango cya Magnificat Smart Space",
     "showroomAlt": "Aho baragurishiriza amakaro y'umutamenwa",

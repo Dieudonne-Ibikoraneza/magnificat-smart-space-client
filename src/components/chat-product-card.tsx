@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -17,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 type ChatProductCardProps = { product: ChatRecommendation };
 
 export const ChatProductCard = ({ product }: ChatProductCardProps) => {
+  const { t } = useTranslation();
   const [adding, setAdding] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const cart = useCart();
@@ -30,8 +32,8 @@ export const ChatProductCard = ({ product }: ChatProductCardProps) => {
    */
   const handleAddToCart = async () => {
     if (!tokenStore.getAccessToken()) {
-      toast.error("Sign in required", {
-        description: "Create a free account or log in to add tiles to your cart.",
+      toast.error(t("chatCard.toast.signInRequiredTitle"), {
+        description: t("chatCard.toast.signInBody"),
       });
       router.push("/auth");
       return;
@@ -43,10 +45,10 @@ export const ChatProductCard = ({ product }: ChatProductCardProps) => {
       const existing = cart.lines.find((line) => line.productId === fullProduct.id);
       const nextArea = Math.round(((existing?.areaSqm ?? 0) + fullProduct.boxCoverage) * 100) / 100;
       cart.setQuantity(fullProduct, nextArea);
-      toast.success("Added to cart", { description: `${fullProduct.name} — now ${nextArea} m² in your cart.` });
+      toast.success(t("chatCard.toast.addedTitle"), { description: t("chatCard.toast.addedBody", { name: fullProduct.name, area: nextArea }) });
     } catch (cause) {
-      toast.error("Couldn't add to cart", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("chatCard.toast.addFailedTitle"), {
+        description: cause instanceof ApiError ? cause.message : t("dash.tryAgain"),
       });
     } finally {
       setAdding(false);
@@ -60,28 +62,28 @@ export const ChatProductCard = ({ product }: ChatProductCardProps) => {
         <button
           type="button"
           onClick={() => setIsFullScreen(true)}
-          aria-label={`View ${product.name} visualization full screen`}
+          aria-label={t("chatCard.viewFullScreenAria", { name: product.name })}
           className="absolute right-2 top-2 flex size-9 items-center justify-center rounded-full bg-ink/70 text-white shadow-sm transition hover:bg-ink"
         >
           <Expand className="size-4" />
         </button>
         <span className="absolute left-2 top-2 inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold text-ink shadow-sm">
-          {Math.round(product.matchScore)}% Match
+          {t("chatCard.match", { score: Math.round(product.matchScore) })}
         </span>
         <span className="absolute bottom-2 left-2 inline-flex items-center rounded-full bg-ink/75 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm">
-          AI room visualization
+          {t("chatCard.aiRoomViz")}
         </span>
       </div>
       <Dialog open={isFullScreen} onOpenChange={setIsFullScreen}>
         <DialogContent className="max-w-6xl bg-ink p-2 sm:p-3" showClose>
-          <DialogTitle className="sr-only">{product.name} room visualization</DialogTitle>
+          <DialogTitle className="sr-only">{t("chatCard.vizTitle", { name: product.name })}</DialogTitle>
           <DialogDescription className="sr-only">
-            AI-generated room visualization showing the recommended tile.
+            {t("chatCard.vizDescription")}
           </DialogDescription>
           <div className="relative flex min-h-[50vh] items-center justify-center overflow-hidden rounded-xl bg-black">
             {/* Data URLs returned by Gemini are intentionally rendered without Next image optimization. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={product.image} alt={`${product.name} AI room visualization`} className="max-h-[85vh] w-full object-contain" />
+            <img src={product.image} alt={t("chatCard.vizImageAlt", { name: product.name })} className="max-h-[85vh] w-full object-contain" />
           </div>
         </DialogContent>
       </Dialog>
@@ -94,7 +96,7 @@ export const ChatProductCard = ({ product }: ChatProductCardProps) => {
         </h3>
         <p className="mt-2 text-base font-bold text-ink">
           RWF {product.price.toLocaleString()}{" "}
-          <span className="ml-1 text-[11px] font-medium text-muted">/ sqm</span>
+          <span className="ml-1 text-[11px] font-medium text-muted">{t("chatCard.perSqm")}</span>
         </p>
         <div className="mt-3 flex items-center gap-2">
           <Button
@@ -103,7 +105,7 @@ export const ChatProductCard = ({ product }: ChatProductCardProps) => {
             variant="ghost"
             disabled={adding}
             onClick={() => void handleAddToCart()}
-            aria-label={`Add ${product.name} to cart`}
+            aria-label={t("chatCard.addToCartAria", { name: product.name })}
             className="size-10 shrink-0 rounded-full border border-slate-100 bg-muted-background text-ink hover:bg-primary disabled:pointer-events-none disabled:opacity-60"
           >
             {adding ? <Loader2 className="size-4 animate-spin" /> : <ShoppingCart className="size-4" />}
@@ -112,7 +114,7 @@ export const ChatProductCard = ({ product }: ChatProductCardProps) => {
             href={product.link}
             className="group/button flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground transition-all hover:bg-primary/90"
           >
-            View Details{" "}
+            {t("chatCard.viewDetails")}{" "}
             <ArrowUpRight className="size-4 transition-transform group-hover/button:translate-x-0.5 group-hover/button:-translate-y-0.5" />
           </Link>
         </div>

@@ -756,6 +756,39 @@
       "toastClearFailed": "Couldn't clear the chat"
     }
   },
+  "chatCard": {
+    "match": "{{score}}% Match",
+    "aiRoomViz": "AI room visualization",
+    "viewFullScreenAria": "View {{name}} visualization full screen",
+    "vizTitle": "{{name}} room visualization",
+    "vizDescription": "AI-generated room visualization showing the recommended tile.",
+    "vizImageAlt": "{{name}} AI room visualization",
+    "perSqm": "/ sqm",
+    "addToCartAria": "Add {{name}} to cart",
+    "viewDetails": "View Details",
+    "toast": {
+      "signInRequiredTitle": "Sign in required",
+      "signInBody": "Create a free account or log in to add tiles to your cart.",
+      "addedTitle": "Added to cart",
+      "addedBody": "{{name}} — now {{area}} m² in your cart.",
+      "addFailedTitle": "Couldn't add to cart"
+    }
+  },
+  "orderAlert": {
+    "quotationTitle": "Your quotation is ready",
+    "quotationBody": "Order {{number}} has a quotation ready for viewing. Head to the order to see the final total and pay.",
+    "waitlistTitle": "Good news — your order is ready to pay",
+    "waitlistBody": "Enough stock is now available for order {{number}} — it's been moved off the waitlist. You have a short window to complete payment before it's released again.",
+    "notNow": "Not now",
+    "viewOrder": "View order"
+  },
+  "pdfViewer": {
+    "loading": "Loading PDF…",
+    "loadFailed": "Failed to load PDF",
+    "checkUrl": "Please check the PDF URL and try again.",
+    "page": "Page {{num}}",
+    "ofTotal": "of {{total}}"
+  },
   "auth": {
     "logoAlt": "Magnificat Smart Space logo",
     "showroomAlt": "Luxury tile showroom",
