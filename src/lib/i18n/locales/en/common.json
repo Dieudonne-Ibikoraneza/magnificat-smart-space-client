@@ -284,12 +284,17 @@
       "materialPurchased": "Material purchased"
     },
     "estimatedCost": "Estimated material cost",
-    "stockSplit": "Stock split",
-    "availableFromStock": "Available from stock",
-    "toBeSourced": "To be sourced separately",
-    "pcs": "pcs",
-    "fullyAvailable": "Everything you need is on hand — this can be dispatched as soon as the quotation is settled.",
-    "partiallyAvailable": "Part of this order would come from the next batch. Our stock team will confirm lead times with you before you pay.",
+    "stockSplit": "Stock availability",
+    "stockStatus": {
+      "full": "Available from current stock",
+      "partial": "Partly available from current stock",
+      "none": "Sourced to order"
+    },
+    "availabilityNote": {
+      "full": "Everything you need is on hand — this can be dispatched as soon as the quotation is settled.",
+      "partial": "Part of this order would come from the next batch. Our stock team will confirm lead times with you before you pay.",
+      "none": "This would be sourced in for your order. Our stock team will confirm lead times with you before you pay."
+    },
     "viewThisTile": "View this tile",
     "addToOrder": "Add to an order"
   },

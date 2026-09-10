@@ -408,57 +408,37 @@ export default function FloorPlanCalculatorPage() {
             )}
           </section>
 
-          {result && (
+          {result && (() => {
+            // Deliberately qualitative — the calculator tells the customer
+            // whether their requirement is covered by current stock, never the
+            // shop's actual quantity on hand (the API doesn't send it).
+            const availability = result.stockSplit.fullyAvailableFromStock
+              ? "full"
+              : result.stockSplit.partiallyAvailableFromStock
+                ? "partial"
+                : "none";
+            const availabilityStyles = {
+              full: "border-green-200 bg-green-50 text-green-800",
+              partial: "border-amber/30 bg-amber-50 text-amber-900",
+              none: "border-slate-100 bg-[#F9FAFB] text-ink",
+            } as const;
+
+            return (
             <section className="rounded-2xl bg-white p-6 shadow-sm sm:p-7">
               <div className="mb-5 flex items-center gap-2">
                 <PackageCheck className="size-5 text-ink" />
                 <h2 className="text-lg font-bold text-ink">{t("calculator.stockSplit")}</h2>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <article className="rounded-xl border border-green-200 bg-green-50 p-4">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-green-700">
-                    {t("calculator.availableFromStock")}
-                  </p>
-                  <p className="mt-2 text-2xl font-black text-green-800">
-                    {result.stockSplit.fromStockPieces.toLocaleString()}
-                    <span className="ml-1 text-sm font-bold">{t("calculator.pcs")}</span>
-                  </p>
-                </article>
-
-                <article
-                  className={cn(
-                    "rounded-xl border p-4",
-                    result.stockSplit.toSourcePieces > 0
-                      ? "border-amber/30 bg-amber-50"
-                      : "border-slate-100 bg-[#F9FAFB]",
-                  )}
-                >
-                  <p
-                    className={cn(
-                      "text-[11px] font-bold uppercase tracking-wide",
-                      result.stockSplit.toSourcePieces > 0 ? "text-amber-800" : "text-muted",
-                    )}
-                  >
-                    {t("calculator.toBeSourced")}
-                  </p>
-                  <p
-                    className={cn(
-                      "mt-2 text-2xl font-black",
-                      result.stockSplit.toSourcePieces > 0 ? "text-amber-900" : "text-ink",
-                    )}
-                  >
-                    {result.stockSplit.toSourcePieces.toLocaleString()}
-                    <span className="ml-1 text-sm font-bold">{t("calculator.pcs")}</span>
-                  </p>
-                </article>
+              <div className={cn("rounded-xl border p-4", availabilityStyles[availability])}>
+                <p className="text-[11px] font-bold uppercase tracking-wide">
+                  {t(`calculator.stockStatus.${availability}`)}
+                </p>
               </div>
 
               <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-muted">
                 <Truck className="mt-0.5 size-3.5 shrink-0" />
-                {result.stockSplit.fullyAvailableFromStock
-                  ? t("calculator.fullyAvailable")
-                  : t("calculator.partiallyAvailable")}
+                {t(`calculator.availabilityNote.${availability}`)}
               </p>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -480,7 +460,8 @@ export default function FloorPlanCalculatorPage() {
                 </Button>
               </div>
             </section>
-          )}
+            );
+          })()}
         </div>
       </div>
     </div>

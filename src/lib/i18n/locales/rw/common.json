@@ -284,12 +284,17 @@
       "materialPurchased": "Ibikoresho byaguzwe"
     },
     "estimatedCost": "Igiciro cy'ibikoresho giteganyijwe",
-    "stockSplit": "Igabana ry'ububiko",
-    "availableFromStock": "Biboneka mu bubiko",
-    "toBeSourced": "Bizashakishwa ukundi",
-    "pcs": "ibice",
-    "fullyAvailable": "Ibyo ukeneye byose birahari — bishobora koherezwa bitangira igihe ifatabuguzi ryemejwe.",
-    "partiallyAvailable": "Igice cy'iri tumizo cyaturuka mu itsinda rikurikira. Itsinda ryacu ry'ububiko rizakwemeza igihe bizatwara mbere yo kwishyura.",
+    "stockSplit": "Kuboneka mu bubiko",
+    "stockStatus": {
+      "full": "Biraboneka mu bubiko buriho",
+      "partial": "Igice kiraboneka mu bubiko buriho",
+      "none": "Bizashakishwa ku bw’iri tumizo"
+    },
+    "availabilityNote": {
+      "full": "Ibyo ukeneye byose birahari — bishobora koherezwa bitangira igihe ifatabuguzi ryemejwe.",
+      "partial": "Igice cy'iri tumizo cyaturuka mu itsinda rikurikira. Itsinda ryacu ry'ububiko rizakwemeza igihe bizatwara mbere yo kwishyura.",
+      "none": "Ibi byashakishwa ku bw'iri tumizo ryawe. Itsinda ryacu ry'ububiko rizakwemeza igihe bizatwara mbere yo kwishyura."
+    },
     "viewThisTile": "Reba iri karo",
     "addToOrder": "Ongera mugaseke"
   },

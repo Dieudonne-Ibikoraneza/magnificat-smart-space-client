@@ -206,10 +206,11 @@ export type FloorPlanCalculation = {
   wastagePercent: number;
   requiredAreaSqm: number;
   quantity: TileQuantity;
+  // Qualitative only — the public `/calculator/floor-plan` endpoint never
+  // returns exact stock counts (see `calculator.service.ts`).
   stockSplit: {
-    fromStockPieces: number;
-    toSourcePieces: number;
     fullyAvailableFromStock: boolean;
+    partiallyAvailableFromStock: boolean;
   };
   estimatedCost: number;
   currency: string;
