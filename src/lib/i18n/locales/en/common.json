@@ -295,6 +295,7 @@
   },
   "visualizer": {
     "loading": "Loading the visualizer…",
+    "loadingRoom": "Loading the room…",
     "empty": "No rooms are configured for the visualizer yet. Check back soon.",
     "selectTileAria": "Select {{name}}",
     "surfaceTypeAria": "Surface type",
@@ -788,6 +789,18 @@
     "checkUrl": "Please check the PDF URL and try again.",
     "page": "Page {{num}}",
     "ofTotal": "of {{total}}"
+  },
+  "ui": {
+    "close": "Close",
+    "closeNotification": "Close notification",
+    "pagination": "pagination",
+    "previousPage": "Go to previous page",
+    "nextPage": "Go to next page",
+    "previous": "Previous",
+    "next": "Next",
+    "morePages": "More pages",
+    "breadcrumb": "breadcrumb",
+    "more": "More"
   },
   "auth": {
     "logoAlt": "Magnificat Smart Space logo",

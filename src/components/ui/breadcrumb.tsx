@@ -1,14 +1,18 @@
+"use client"
+
 import * as React from "react"
 import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
+import { useTranslation } from "react-i18next"
 
 import { cn } from "@/lib/utils"
 import { ChevronRight, MoreHorizontal } from "lucide-react"
 
 function Breadcrumb({ className, ...props }: React.ComponentProps<"nav">) {
+  const { t } = useTranslation()
   return (
     <nav
-      aria-label="breadcrumb"
+      aria-label={t("ui.breadcrumb")}
       data-slot="breadcrumb"
       className={cn(className)}
       {...props}
@@ -96,6 +100,7 @@ function BreadcrumbEllipsis({
   className,
   ...props
 }: React.ComponentProps<"span">) {
+  const { t } = useTranslation()
   return (
     <span
       data-slot="breadcrumb-ellipsis"
@@ -108,7 +113,7 @@ function BreadcrumbEllipsis({
       {...props}
     >
       <MoreHorizontal className="size-4 shrink-0" strokeWidth={2} aria-hidden="true" />
-      <span className="sr-only">More</span>
+      <span className="sr-only">{t("ui.more")}</span>
     </span>
   )
 }

@@ -72,27 +72,30 @@ const KITCHEN_MODEL_URL = "/models/rooms/modern_kitchen.glb";
 // three.js pulls in a WebGL renderer that can't run during SSR, and a room
 // GLB runs from several hundred KB to tens of MB — both are reasons to keep
 // it out of the initial page bundle and mount it only in the browser.
-const roomLoadingFallback = () => (
-  <div className="flex size-full items-center justify-center">
-    <p className="text-sm font-semibold text-muted">Loading the room…</p>
-  </div>
-);
+const RoomLoadingFallback = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex size-full items-center justify-center">
+      <p className="text-sm font-semibold text-muted">{t("visualizer.loadingRoom")}</p>
+    </div>
+  );
+};
 
 const RoomScene = dynamic(() => import("@/components/room-scene").then((mod) => mod.RoomScene), {
   ssr: false,
-  loading: roomLoadingFallback,
+  loading: RoomLoadingFallback,
 });
 const LivingRoom = dynamic(() => import("@/components/visualizer/living-room"), {
   ssr: false,
-  loading: roomLoadingFallback,
+  loading: RoomLoadingFallback,
 });
 const Bathroom = dynamic(() => import("@/components/visualizer/bathroom"), {
   ssr: false,
-  loading: roomLoadingFallback,
+  loading: RoomLoadingFallback,
 });
 const Bedroom = dynamic(() => import("@/components/visualizer/bedroom"), {
   ssr: false,
-  loading: roomLoadingFallback,
+  loading: RoomLoadingFallback,
 });
 
 const panelHeight =

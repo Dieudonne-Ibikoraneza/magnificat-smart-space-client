@@ -3,6 +3,7 @@
 import { Toast as ToastPrimitive } from "@base-ui/react/toast";
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
 export type ToastVariant = "success" | "error" | "warning" | "info";
@@ -38,6 +39,7 @@ export const toast = {
 
 const ToastList = () => {
   const { toasts } = ToastPrimitive.useToastManager();
+  const { t } = useTranslation();
 
   return toasts.map((item) => {
     const variant = (item.type as ToastVariant) in toastIcon ? (item.type as ToastVariant) : "info";
@@ -62,7 +64,7 @@ const ToastList = () => {
             <ToastPrimitive.Description className="mt-0.5 text-xs text-muted-foreground" />
           </div>
           <ToastPrimitive.Close
-            aria-label="Close notification"
+            aria-label={t("ui.closeNotification")}
             className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-ink"
           >
             <X className="size-4" />

@@ -295,6 +295,7 @@
   },
   "visualizer": {
     "loading": "Kuzana ibyumba..",
+    "loadingRoom": "Kuzana icyumba…",
     "empty": "Nta byumba byashyiriweho igaragaza. Garuka mukanya.",
     "selectTileAria": "Hitamo {{name}}",
     "surfaceTypeAria": "Ubwoko bw'ubuso",
@@ -788,6 +789,18 @@
     "checkUrl": "Reba URL ya PDF hanyuma wongere ugerageze.",
     "page": "Ipaji {{num}}",
     "ofTotal": "kuri {{total}}"
+  },
+  "ui": {
+    "close": "Funga",
+    "closeNotification": "Funga integuza",
+    "pagination": "impapuro",
+    "previousPage": "Jya ku ipaji ibanza",
+    "nextPage": "Jya ku ipaji ikurikira",
+    "previous": "Ibanza",
+    "next": "Ikurikira",
+    "morePages": "Izindi mpapuro",
+    "breadcrumb": "inzira",
+    "more": "Ibindi"
   },
   "auth": {
     "logoAlt": "Ikirango cya Magnificat Smart Space",
