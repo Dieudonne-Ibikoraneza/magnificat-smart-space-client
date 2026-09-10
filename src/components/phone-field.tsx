@@ -20,7 +20,7 @@ export const RWANDA_PREFIX = "+250";
  * before sending it to the server).
  */
 export const PhoneField = ({
-  label = "Phone Number",
+  label,
   value,
   onChange,
 }: {
@@ -36,7 +36,7 @@ export const PhoneField = ({
 
   return (
     <Field className="gap-1.5">
-      <FieldLabel className="text-sm font-medium text-ink">{label}</FieldLabel>
+      <FieldLabel className="text-sm font-medium text-ink">{label ?? t("auth.fields.phoneNumber")}</FieldLabel>
       <div className="relative">
         <span
           aria-hidden="true"
