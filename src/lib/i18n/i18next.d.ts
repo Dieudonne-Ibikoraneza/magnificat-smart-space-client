@@ -1,18 +1,19 @@
 import "i18next";
 
-import type common from "./locales/en/common.json";
 import type { DEFAULT_NAMESPACE } from "./resources";
 
 /**
- * Makes `t()` keys type-checked and auto-completed against the English
- * `common.json` (the reference locale). Add a namespace here when you add
- * one to `resources.ts`.
+ * `t()` returns a plain `string` and accepts any string key.
+ *
+ * We deliberately do NOT type `resources` against `common.json`: with ~700
+ * keys the generated key union makes TypeScript's `t()` overload resolution
+ * blow its instantiation-depth limit (TS2589) wherever a key is looked up
+ * from an `as const` map. A missing key just renders its own name at
+ * runtime, which surfaces immediately in testing.
  */
 declare module "i18next" {
   interface CustomTypeOptions {
     defaultNS: typeof DEFAULT_NAMESPACE;
-    resources: {
-      common: typeof common;
-    };
+    returnNull: false;
   }
 }

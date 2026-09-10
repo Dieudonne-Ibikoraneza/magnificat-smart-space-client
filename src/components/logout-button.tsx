@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import { LogOut } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { toast } from "@/components/ui/toast";
@@ -11,6 +12,7 @@ import { cn } from "@/lib/utils";
 
 /** Icon-only sign-out control with a confirmation dialog, shared by every sidebar. */
 export const LogoutButton = ({ className }: { className?: string }) => {
+  const { t } = useTranslation();
   const router = useRouter();
   const { refresh } = useCurrentUser();
   const { reset: resetCart } = useCart();
@@ -20,15 +22,15 @@ export const LogoutButton = ({ className }: { className?: string }) => {
       trigger={
         <button
           type="button"
-          aria-label="Log out"
+          aria-label={t("dash.logout.aria")}
           className={cn("rounded-md p-1.5 text-red-500 hover:bg-red-50 hover:text-red-600", className)}
         >
           <LogOut className="size-5" strokeWidth={1.8} />
         </button>
       }
-      title="Log out?"
-      description="You'll need to sign in again to access your account."
-      confirmLabel="Log out"
+      title={t("dash.logout.title")}
+      description={t("dash.logout.description")}
+      confirmLabel={t("dash.logout.confirm")}
       onConfirm={() => {
         // Revokes the refresh token server-side and clears local tokens either
         // way — a failed revoke must never strand the user in a signed-in UI.
@@ -37,7 +39,7 @@ export const LogoutButton = ({ className }: { className?: string }) => {
           // Not `clear()` — that would delete the cart server-side. Logging
           // out should only stop showing it on this device, not empty it.
           resetCart();
-          toast.success("Signed out", { description: "You've been logged out of Magnificat Smart Space." });
+          toast.success(t("dash.logout.toastTitle"), { description: t("dash.logout.toastBody") });
           router.push("/auth");
         });
       }}

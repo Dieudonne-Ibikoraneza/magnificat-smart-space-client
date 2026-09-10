@@ -3,11 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Layers3, Sparkles, Users } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Button } from "@/components/ui/button";
 import { roomsApi, toProduct } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
 import type { ApiRoomDesign } from "@/lib/api/types";
+
+const SURFACE_KEYS = { FLOOR: "dash.designs.surface.floor", WALL: "dash.designs.surface.wall" } as const;
 
 /**
  * Designs the customer saved from the 3D visualizer (doc 3.5: "the client can
@@ -19,9 +22,8 @@ import type { ApiRoomDesign } from "@/lib/api/types";
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
-const surfaceLabels: Record<string, string> = { FLOOR: "Floor", WALL: "Walls" };
-
 const DesignCard = ({ design }: { design: ApiRoomDesign }) => {
+  const { t } = useTranslation();
   const preview = design.previewImageUrl || design.room?.thumbnail || "/showroom.jpg";
   const tiles = design.tiles.flatMap((tile) =>
     tile.product ? [{ surface: tile.surface, product: toProduct(tile.product, tile.product.collection?.title) }] : [],
@@ -32,7 +34,7 @@ const DesignCard = ({ design }: { design: ApiRoomDesign }) => {
       <div className="relative aspect-[16/10] bg-muted-background">
         <Image
           src={preview}
-          alt={`Preview of ${design.name}`}
+          alt={t("dash.designs.previewAlt", { name: design.name })}
           fill
           unoptimized
           className="object-cover"
@@ -45,27 +47,27 @@ const DesignCard = ({ design }: { design: ApiRoomDesign }) => {
         )}
         {design.sharedWithSales && (
           <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-md bg-green-600/90 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white backdrop-blur-sm">
-            <Users className="size-3" /> Shared
+            <Users className="size-3" /> {t("dash.designs.shared")}
           </span>
         )}
       </div>
 
       <div className="p-5">
         <h2 className="text-base font-bold text-ink">{design.name}</h2>
-        <p className="mt-1 text-xs text-muted">Saved {formatDate(design.createdAt)}</p>
+        <p className="mt-1 text-xs text-muted">{t("dash.designs.savedOn", { date: formatDate(design.createdAt) })}</p>
 
         <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <div>
             <dt className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-muted">
-              <Layers3 className="size-3" /> Surfaces
+              <Layers3 className="size-3" /> {t("dash.designs.surfaces")}
             </dt>
             <dd className="mt-1 font-data font-semibold text-ink">{design.tiles.length}</dd>
           </div>
           <div>
             <dt className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-muted">
-              <Users className="size-3" /> Shared with sales
+              <Users className="size-3" /> {t("dash.designs.sharedWithSales")}
             </dt>
-            <dd className="mt-1 font-data font-semibold text-ink">{design.sharedWithSales ? "Yes" : "No"}</dd>
+            <dd className="mt-1 font-data font-semibold text-ink">{design.sharedWithSales ? t("dash.designs.yes") : t("dash.designs.no")}</dd>
           </div>
         </dl>
 
@@ -84,7 +86,10 @@ const DesignCard = ({ design }: { design: ApiRoomDesign }) => {
                     {tile.product.name}
                   </Link>
                   <span className="block text-xs text-muted">
-                    {surfaceLabels[tile.surface] ?? tile.surface}
+                    {(() => {
+                      const k = SURFACE_KEYS[tile.surface as keyof typeof SURFACE_KEYS];
+                      return k ? t(k) : tile.surface;
+                    })()}
                     {tile.product.size ? ` · ${tile.product.size}` : ""}
                   </span>
                 </span>
@@ -98,7 +103,7 @@ const DesignCard = ({ design }: { design: ApiRoomDesign }) => {
           render={<Link href={`/visualizer?design=${design.id}`} />}
           className="group mt-5 h-10 w-full gap-2 bg-primary text-xs font-bold text-ink hover:bg-primary/90"
         >
-          Open in visualizer
+          {t("dash.designs.openInVisualizer")}
           <ArrowRight className="transition-transform duration-300 group-hover:translate-x-1" />
         </Button>
       </div>
@@ -108,20 +113,20 @@ const DesignCard = ({ design }: { design: ApiRoomDesign }) => {
 
 /** Saved designs come from `GET /rooms/designs/mine` — see `src/lib/api/endpoints.ts`. */
 export default function AccountDesignsPage() {
+  const { t } = useTranslation();
   const { data, loading, error, reload } = useApi(() => roomsApi.myDesigns());
   const designs = data ?? [];
 
   return (
     <div className="pb-10">
       <header className="mb-7">
-        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">Saved designs</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">{t("dash.designs.title")}</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
-          Rooms you styled in the 3D visualizer. Share one with our sales team when you save it and
-          they&apos;ll turn it into a quotation with the exact quantities you need.
+          {t("dash.designs.subtitle")}
         </p>
       </header>
 
-      {loading && <ApiLoading label="Loading your designs…" />}
+      {loading && <ApiLoading label={t("dash.designs.loading")} />}
 
       {!loading && error && <ApiErrorState message={error} onRetry={reload} />}
 
@@ -130,17 +135,16 @@ export default function AccountDesignsPage() {
           <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-secondary text-ink">
             <Sparkles className="size-6" />
           </span>
-          <h2 className="mt-5 text-lg font-bold text-ink">No saved designs yet</h2>
+          <h2 className="mt-5 text-lg font-bold text-ink">{t("dash.designs.emptyTitle")}</h2>
           <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
-            Try tiles on a real room in the 3D visualizer, then save the ones you like to come back to
-            them later.
+            {t("dash.designs.emptyBody")}
           </p>
           <Button
             nativeButton={false}
             render={<Link href="/visualizer" />}
             className="mt-6 h-11 gap-2 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
           >
-            Open the 3D visualizer <ArrowRight className="size-4" />
+            {t("dash.designs.openVisualizer")} <ArrowRight className="size-4" />
           </Button>
         </div>
       )}

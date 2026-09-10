@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent, type ReactElement } from "react";
+import { useTranslation } from "react-i18next";
 import { Truck } from "lucide-react";
 import {
   Dialog,
@@ -36,7 +37,7 @@ export const DeliveryDetailsDialog = ({
   trigger,
   initialValue,
   onSubmit,
-  successDescription = "Attached to your order for the stock team to review.",
+  successDescription,
   defaultOpen = false,
 }: {
   trigger: ReactElement;
@@ -47,7 +48,9 @@ export const DeliveryDetailsDialog = ({
   /** Opens the dialog immediately on mount — e.g. right after a staff member creates an order, prompting for delivery details before they even look for the button. */
   defaultOpen?: boolean;
 }) => {
+  const { t } = useTranslation();
   const { user } = useCurrentUser();
+  const successText = successDescription ?? t("dash.deliveryDialog.defaultSuccess");
   // Defaults to the account's own name/phone (still freely editable — this
   // order might ship to someone else) so the customer isn't retyping what
   // we already have on file every time.
@@ -74,7 +77,7 @@ export const DeliveryDetailsDialog = ({
     if (!valid) return;
     onSubmit(values);
     setOpen(false);
-    toast.success("Delivery details saved", { description: successDescription });
+    toast.success(t("dash.deliveryDialog.toastSaved"), { description: successText });
   };
 
   return (
@@ -91,45 +94,45 @@ export const DeliveryDetailsDialog = ({
           <span className="flex size-10 items-center justify-center rounded-full bg-secondary text-ink">
             <Truck className="size-5" />
           </span>
-          <DialogTitle className="pt-3">Delivery details</DialogTitle>
+          <DialogTitle className="pt-3">{t("dash.deliveryDialog.title")}</DialogTitle>
           <DialogDescription>
-            Tell us where and when to deliver. These details are attached to your order for the stock team&apos;s quotation.
+            {t("dash.deliveryDialog.description")}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field>
-              <FieldLabel htmlFor="delivery-contact-name" className="text-sm font-medium text-ink">Contact name</FieldLabel>
-              <Input id="delivery-contact-name" required value={values.contactName} onChange={update("contactName")} placeholder="Full name" className={fieldClassName} />
+              <FieldLabel htmlFor="delivery-contact-name" className="text-sm font-medium text-ink">{t("dash.deliveryDialog.contactName")}</FieldLabel>
+              <Input id="delivery-contact-name" required value={values.contactName} onChange={update("contactName")} placeholder={t("dash.deliveryDialog.contactNamePlaceholder")} className={fieldClassName} />
             </Field>
-            <PhoneField value={phoneDigits} onChange={updatePhone} label="Phone number" />
+            <PhoneField value={phoneDigits} onChange={updatePhone} label={t("dash.deliveryDialog.phone")} />
           </div>
           <Field>
-            <FieldLabel htmlFor="delivery-address" className="text-sm font-medium text-ink">Delivery address</FieldLabel>
-            <Input id="delivery-address" required value={values.address} onChange={update("address")} placeholder="Street, plot, neighborhood" className={fieldClassName} />
+            <FieldLabel htmlFor="delivery-address" className="text-sm font-medium text-ink">{t("dash.deliveryDialog.address")}</FieldLabel>
+            <Input id="delivery-address" required value={values.address} onChange={update("address")} placeholder={t("dash.deliveryDialog.addressPlaceholder")} className={fieldClassName} />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field>
-              <FieldLabel htmlFor="delivery-city" className="text-sm font-medium text-ink">City</FieldLabel>
-              <Input id="delivery-city" required value={values.city} onChange={update("city")} placeholder="Kigali" className={fieldClassName} />
+              <FieldLabel htmlFor="delivery-city" className="text-sm font-medium text-ink">{t("dash.deliveryDialog.city")}</FieldLabel>
+              <Input id="delivery-city" required value={values.city} onChange={update("city")} placeholder={t("dash.deliveryDialog.cityPlaceholder")} className={fieldClassName} />
             </Field>
             <Field>
-              <FieldLabel htmlFor="delivery-date" className="text-sm font-medium text-ink">Preferred delivery date</FieldLabel>
-              <Input id="delivery-date" value={values.preferredDate ?? ""} onChange={update("preferredDate")} placeholder="e.g. Sep 5, 2026" className={fieldClassName} />
+              <FieldLabel htmlFor="delivery-date" className="text-sm font-medium text-ink">{t("dash.deliveryDialog.preferredDate")}</FieldLabel>
+              <Input id="delivery-date" value={values.preferredDate ?? ""} onChange={update("preferredDate")} placeholder={t("dash.deliveryDialog.preferredDatePlaceholder")} className={fieldClassName} />
             </Field>
           </div>
           <Field>
-            <FieldLabel htmlFor="delivery-notes" className="text-sm font-medium text-ink">Notes (optional)</FieldLabel>
-            <Textarea id="delivery-notes" value={values.notes ?? ""} onChange={update("notes")} placeholder="Access instructions, site contact, etc." rows={3} className="text-sm" />
+            <FieldLabel htmlFor="delivery-notes" className="text-sm font-medium text-ink">{t("dash.deliveryDialog.notes")}</FieldLabel>
+            <Textarea id="delivery-notes" value={values.notes ?? ""} onChange={update("notes")} placeholder={t("dash.deliveryDialog.notesPlaceholder")} rows={3} className="text-sm" />
           </Field>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)} className="h-10 px-5 text-sm font-bold">
-              Cancel
+              {t("dash.deliveryDialog.cancel")}
             </Button>
             <Button type="submit" disabled={!valid} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
-              Save delivery details
+              {t("dash.deliveryDialog.save")}
             </Button>
           </DialogFooter>
         </form>

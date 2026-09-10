@@ -4,6 +4,7 @@ import Image from "next/image";
 import { ArrowLeft, ArrowRight, Download, ListFilter } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -32,15 +33,15 @@ type DateFilter = "all" | "30" | "90" | "year";
 
 const formatPrice = (value: string | number) => `RWF ${Math.round(Number(value)).toLocaleString()}`;
 
-const statusLabels: Record<OrderStatus, string> = {
-  WAITLISTED: "Waitlisted",
-  PENDING: "Pending",
-  PROCESSING: "Processing",
-  READY_FOR_DISPATCH: "Ready for Dispatch",
-  SHIPPED: "Shipped",
-  DELIVERED: "Delivered",
-  CANCELLED: "Cancelled",
-};
+const STATUS_KEYS = {
+  WAITLISTED: "dash.orders.status.WAITLISTED",
+  PENDING: "dash.orders.status.PENDING",
+  PROCESSING: "dash.orders.status.PROCESSING",
+  READY_FOR_DISPATCH: "dash.orders.status.READY_FOR_DISPATCH",
+  SHIPPED: "dash.orders.status.SHIPPED",
+  DELIVERED: "dash.orders.status.DELIVERED",
+  CANCELLED: "dash.orders.status.CANCELLED",
+} as const;
 
 const statusStyles: Record<OrderStatus, string> = {
   WAITLISTED: "bg-[#fef3c7] text-[#92400e]",
@@ -62,6 +63,7 @@ const imagesOf = (order: ApiOrder) =>
   (order.items ?? []).map((item) => item.product?.image).filter((image): image is string => !!image);
 
 const OrdersPage = () => {
+  const { t } = useTranslation();
   const { data, loading, error, reload } = useApi(() => ordersApi.list({ limit: 100 }), []);
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
@@ -132,22 +134,22 @@ const OrdersPage = () => {
     <div className="mx-auto max-w-300">
       <div className="mb-6 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ink sm:text-3xl">My orders</h1>
-          <p className="mt-1 text-sm text-ink">Track and manage your past architectural material orders.</p>
+          <h1 className="text-2xl font-bold text-ink sm:text-3xl">{t("dash.orders.title")}</h1>
+          <p className="mt-1 text-sm text-ink">{t("dash.orders.subtitle")}</p>
         </div>
         <div className="flex flex-wrap gap-3 sm:justify-end">
           <div className="group relative w-44">
-            <span className="sr-only">Filter orders by status</span>
+            <span className="sr-only">{t("dash.orders.filterStatusAria")}</span>
             <ListFilter className="pointer-events-none absolute left-4 top-1/2 z-10 size-[18px] -translate-y-1/2 text-ink transition-transform duration-200 group-hover:translate-x-0.5" />
             <Select value={filter} onValueChange={changeFilter}>
               <SelectTrigger className="h-10 rounded-md border-slate-200 bg-transparent pl-10 pr-3 text-sm font-semibold hover:border-slate-300 hover:bg-white [&>svg]:size-4">
-                <SelectValue>{(value) => (value === "all" ? "Filter (All)" : `Filter (${statusLabels[value as OrderStatus]})`)}</SelectValue>
+                <SelectValue>{(value) => (value === "all" ? t("dash.orders.filterAll") : t("dash.orders.filterWith", { status: t(STATUS_KEYS[value as OrderStatus]) }))}</SelectValue>
               </SelectTrigger>
               <SelectContent className="w-48 rounded-xl border-slate-200 bg-white p-1.5 shadow-[0_14px_32px_rgba(15,39,71,0.16)]">
-                <SelectItem value="all" className="rounded-lg py-2 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20">All</SelectItem>
-                {(Object.keys(statusLabels) as OrderStatus[]).map((status) => (
+                <SelectItem value="all" className="rounded-lg py-2 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20">{t("dash.orders.all")}</SelectItem>
+                {(Object.keys(STATUS_KEYS) as OrderStatus[]).map((status) => (
                   <SelectItem key={status} value={status} className="rounded-lg py-2 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20">
-                    {statusLabels[status]}
+                    {t(STATUS_KEYS[status])}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -155,13 +157,13 @@ const OrdersPage = () => {
           </div>
           <Select value={dateFilter} onValueChange={changeDateFilter}>
             <SelectTrigger className="h-10 w-36 rounded-md border-slate-200 bg-transparent px-3 text-sm font-semibold hover:border-slate-300 hover:bg-white [&>svg]:size-4">
-              <SelectValue>{(value) => value === "all" ? "Date (All)" : value === "year" ? "This year" : `Last ${value} days`}</SelectValue>
+              <SelectValue>{(value) => value === "all" ? t("dash.orders.dateAll") : value === "year" ? t("dash.orders.dateThisYear") : t("dash.orders.dateLastDays", { days: value })}</SelectValue>
             </SelectTrigger>
             <SelectContent className="w-40 rounded-xl border-slate-200 bg-white p-1.5 shadow-[0_14px_32px_rgba(15,39,71,0.16)]">
-              <SelectItem value="all" className="rounded-lg py-2 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20">Date (All)</SelectItem>
-              <SelectItem value="30" className="rounded-lg py-2 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20">Last 30 days</SelectItem>
-              <SelectItem value="90" className="rounded-lg py-2 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20">Last 90 days</SelectItem>
-              <SelectItem value="year" className="rounded-lg py-2 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20">This year</SelectItem>
+              <SelectItem value="all" className="rounded-lg py-2 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20">{t("dash.orders.dateAll")}</SelectItem>
+              <SelectItem value="30" className="rounded-lg py-2 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20">{t("dash.orders.dateLastDays", { days: 30 })}</SelectItem>
+              <SelectItem value="90" className="rounded-lg py-2 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20">{t("dash.orders.dateLastDays", { days: 90 })}</SelectItem>
+              <SelectItem value="year" className="rounded-lg py-2 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20">{t("dash.orders.dateThisYear")}</SelectItem>
             </SelectContent>
           </Select>
           <Button
@@ -171,14 +173,14 @@ const OrdersPage = () => {
             className="group h-10 gap-2 px-4 text-sm font-bold disabled:pointer-events-auto disabled:cursor-not-allowed"
           >
             <Download className="size-[18px] transition-transform duration-200 group-hover:translate-y-0.5" />
-            <span className="hidden sm:inline">Download History</span>
-            <span className="sm:hidden">Download</span>
+            <span className="hidden sm:inline">{t("dash.orders.downloadHistory")}</span>
+            <span className="sm:hidden">{t("dash.orders.download")}</span>
           </Button>
         </div>
       </div>
 
       {orders.length === 0 ? (
-        <ApiEmptyState message="You haven't placed any orders yet." className="my-16" />
+        <ApiEmptyState message={t("dash.orders.empty")} className="my-16" />
       ) : (
         <>
           <div className="space-y-4">
@@ -191,7 +193,7 @@ const OrdersPage = () => {
                     <div className="flex h-24 w-fit shrink-0 gap-1 overflow-hidden">
                       {images.map((image, index) => (
                         <div key={`${order.id}-${index}`} className="relative size-24 shrink-0 bg-muted-background">
-                          <Image src={image} alt="Order product" fill unoptimized className="object-cover" sizes="120px" />
+                          <Image src={image} alt={t("dash.orders.orderImageAlt")} fill unoptimized className="object-cover" sizes="120px" />
                         </div>
                       ))}
                       {names.length > 2 && (
@@ -204,30 +206,30 @@ const OrdersPage = () => {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-4">
                         <span className={`rounded-md px-4 py-2 text-xs font-semibold ${statusStyles[order.status]}`}>
-                          {statusLabels[order.status].toUpperCase()}
+                          {t(STATUS_KEYS[order.status]).toUpperCase()}
                         </span>
                         <span className="text-sm text-muted">#{order.orderNumber}</span>
                       </div>
                       <h2 className="mt-3 text-lg font-bold text-ink">
                         {names.slice(0, 2).join(", ")}
-                        {names.length > 2 && <span className="text-base font-normal"> + {names.length - 2} more</span>}
+                        {names.length > 2 && <span className="text-base font-normal"> {t("dash.orders.andMore", { count: names.length - 2 })}</span>}
                       </h2>
                       <div className="mt-7 flex gap-14 text-sm">
                         <div>
-                          <p className="text-xs uppercase tracking-wide text-muted">Date</p>
+                          <p className="text-xs uppercase tracking-wide text-muted">{t("dash.orders.date")}</p>
                           <p className="mt-1 font-medium text-ink">
                             {new Date(order.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs uppercase tracking-wide text-muted">Total</p>
+                          <p className="text-xs uppercase tracking-wide text-muted">{t("dash.orders.total")}</p>
                           <p className="mt-1 font-bold text-ink">{formatPrice(order.total)}</p>
                         </div>
                       </div>
                     </div>
 
                     <Link href={`/account/orders/${order.id}`} className="group inline-flex h-10 w-full items-center justify-center gap-3 rounded-md border border-slate-200 bg-white px-4 text-sm font-bold text-ink transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-ink lg:max-w-44 lg:self-end">
-                      View Details <ArrowRight className="size-[18px] transition-transform duration-200 group-hover:translate-x-1" />
+                      {t("dash.orders.viewDetails")} <ArrowRight className="size-[18px] transition-transform duration-200 group-hover:translate-x-1" />
                     </Link>
                   </div>
                 </article>
@@ -236,7 +238,7 @@ const OrdersPage = () => {
           </div>
 
           {visibleOrders.length === 0 && (
-            <div className="rounded-3xl bg-white px-6 py-16 text-center text-sm text-muted">No orders found for this status.</div>
+            <div className="rounded-3xl bg-white px-6 py-16 text-center text-sm text-muted">{t("dash.orders.noneForStatus")}</div>
           )}
 
           {totalPages > 1 && (
@@ -244,7 +246,7 @@ const OrdersPage = () => {
               <PaginationContent className="gap-1 sm:gap-2">
                 <PaginationItem>
                   <PaginationLink href="#" size="sm" className="gap-1 text-ink hover:text-amber" aria-disabled={safePage === 1} onClick={(event) => { event.preventDefault(); goToPage(1); }}>
-                    <ArrowLeft className="size-4" /><span className="hidden sm:inline">First</span>
+                    <ArrowLeft className="size-4" /><span className="hidden sm:inline">{t("dash.orders.first")}</span>
                   </PaginationLink>
                 </PaginationItem>
                 <PaginationItem>
@@ -262,7 +264,7 @@ const OrdersPage = () => {
                 </PaginationItem>
                 <PaginationItem>
                   <PaginationLink href="#" size="sm" className="gap-1 text-ink hover:text-amber" aria-disabled={safePage === totalPages} onClick={(event) => { event.preventDefault(); goToPage(totalPages); }}>
-                    <span className="hidden sm:inline">Last</span><ArrowRight className="size-4" />
+                    <span className="hidden sm:inline">{t("dash.orders.last")}</span><ArrowRight className="size-4" />
                   </PaginationLink>
                 </PaginationItem>
               </PaginationContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CheckCircle2, Clock, FileText } from "lucide-react";
 import {
   Dialog,
@@ -27,12 +28,12 @@ const statusTone: Record<QuotationStatus, string> = {
   PAYMENT_VERIFIED: "bg-green-50 text-green-700",
 };
 
-const statusLabels: Record<QuotationStatus, string> = {
-  AWAITING_REVIEW: "Awaiting Review",
-  QUOTATION_SENT: "Quotation Sent",
-  PAYMENT_SUBMITTED: "Payment Submitted",
-  PAYMENT_VERIFIED: "Payment Verified",
-};
+const STATUS_KEYS = {
+  AWAITING_REVIEW: "dash.quotationCard.status.AWAITING_REVIEW",
+  QUOTATION_SENT: "dash.quotationCard.status.QUOTATION_SENT",
+  PAYMENT_SUBMITTED: "dash.quotationCard.status.PAYMENT_SUBMITTED",
+  PAYMENT_VERIFIED: "dash.quotationCard.status.PAYMENT_VERIFIED",
+} as const;
 
 /**
  * Customer-facing quotation + payment card shown on an account order detail page.
@@ -62,6 +63,7 @@ export const CustomerQuotationCard = ({
   /** Called after opening the quotation or confirming payment, so the parent can refetch the order. */
   onUpdated: () => void;
 }) => {
+  const { t } = useTranslation();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -87,7 +89,7 @@ export const CustomerQuotationCard = ({
       })
       .catch((cause) => {
         if (cancelled) return;
-        setPdfError(cause instanceof ApiError ? cause.message : "Couldn't open the quotation.");
+        setPdfError(cause instanceof ApiError ? cause.message : t("dash.quotationCard.pdfFailed"));
       })
       .finally(() => {
         if (!cancelled) setLoadingPdf(false);
@@ -95,7 +97,7 @@ export const CustomerQuotationCard = ({
     return () => {
       cancelled = true;
     };
-  }, [dialogOpen, orderId]);
+  }, [dialogOpen, orderId, t]);
 
   const handleDialogOpenChange = (open: boolean) => {
     setDialogOpen(open);
@@ -117,12 +119,12 @@ export const CustomerQuotationCard = ({
       await ordersApi.markPaymentSubmitted(orderId);
       handleDialogOpenChange(false);
       onUpdated();
-      toast.success("Payment marked as completed", {
-        description: "Our team will verify it and confirm your order shortly.",
+      toast.success(t("dash.quotationCard.toastPaidTitle"), {
+        description: t("dash.quotationCard.toastPaidBody"),
       });
     } catch (cause) {
-      toast.error("Couldn't record your payment", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("dash.quotationCard.toastPaidFailedTitle"), {
+        description: cause instanceof ApiError ? cause.message : t("dash.tryAgain"),
       });
     } finally {
       setSubmitting(false);
@@ -136,31 +138,31 @@ export const CustomerQuotationCard = ({
           <span className="flex size-9 items-center justify-center rounded-lg bg-secondary">
             <FileText className="size-5 text-ink" />
           </span>
-          <h2 className="text-lg font-bold text-ink sm:text-xl">Quotation</h2>
+          <h2 className="text-lg font-bold text-ink sm:text-xl">{t("dash.quotationCard.title")}</h2>
         </div>
         <span className={cn("shrink-0 rounded-md px-2.5 py-1 text-[11px] font-bold tracking-wide uppercase", statusTone[quotationStatus])}>
-          {statusLabels[quotationStatus]}
+          {t(STATUS_KEYS[quotationStatus])}
         </span>
       </div>
 
       {quotationStatus === "AWAITING_REVIEW" ? (
         <p className="mt-4 flex items-start gap-2 text-sm text-muted">
           <Clock className="mt-0.5 size-4 shrink-0" />
-          Our stock team is reviewing your order. Once ready, we&apos;ll send you a full quotation here, including transport fees and payment details.
+          {t("dash.quotationCard.awaitingBody")}
         </p>
       ) : (
         <>
           <dl className="mt-4 space-y-2 text-sm">
             <div className="flex items-center justify-between">
-              <dt className="text-muted">Items subtotal</dt>
+              <dt className="text-muted">{t("dash.quotationCard.itemsSubtotal")}</dt>
               <dd className="font-data font-semibold text-ink">{formatRWF(subtotalValue)}</dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-muted">Transport fee</dt>
+              <dt className="text-muted">{t("dash.quotationCard.transportFee")}</dt>
               <dd className="font-data font-semibold text-ink">{formatRWF(transportFee ?? 0)}</dd>
             </div>
             <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-base">
-              <dt className="font-bold text-ink">Total due</dt>
+              <dt className="font-bold text-ink">{t("dash.quotationCard.totalDue")}</dt>
               <dd className="font-data font-bold text-ink">{formatRWF(subtotalValue + (transportFee ?? 0))}</dd>
             </div>
           </dl>
@@ -168,14 +170,14 @@ export const CustomerQuotationCard = ({
           {quotationStatus === "QUOTATION_SENT" && (
             <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
               <DialogTrigger render={<Button type="button" variant="outline" className="mt-5 h-11 w-full gap-2 text-sm font-bold" />}>
-                <FileText className="size-4" /> View quotation & pay
+                <FileText className="size-4" /> {t("dash.quotationCard.viewAndPay")}
               </DialogTrigger>
               <DialogContent className="flex h-[calc(100dvh-1.5rem)] max-w-3xl flex-col sm:h-[85vh]" showClose>
                 <DialogHeader className="flex flex-row items-center justify-between gap-3 space-y-0 pr-8">
                   <div className="min-w-0">
-                    <DialogTitle>Quotation</DialogTitle>
+                    <DialogTitle>{t("dash.quotationCard.title")}</DialogTitle>
                     <DialogDescription className="truncate">
-                      Total due {formatRWF(subtotalValue + (transportFee ?? 0))} — MoMo and bank details are on the document below.
+                      {t("dash.quotationCard.dialogDescription", { total: formatRWF(subtotalValue + (transportFee ?? 0)) })}
                     </DialogDescription>
                   </div>
                   <Button
@@ -184,13 +186,13 @@ export const CustomerQuotationCard = ({
                     disabled={loadingPdf || !!pdfError || submitting}
                     className="h-10 shrink-0 gap-1.5 px-4 text-xs font-bold whitespace-nowrap disabled:opacity-60"
                   >
-                    <CheckCircle2 className="size-4" /> {submitting ? "Marking…" : "Done, I've paid"}
+                    <CheckCircle2 className="size-4" /> {submitting ? t("dash.quotationCard.marking") : t("dash.quotationCard.donePaid")}
                   </Button>
                 </DialogHeader>
 
                 <div className="mt-4 min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-100 bg-[#F9FAFB]">
                   {loadingPdf ? (
-                    <div className="flex h-full items-center justify-center text-sm text-muted">Loading quotation…</div>
+                    <div className="flex h-full items-center justify-center text-sm text-muted">{t("dash.quotationCard.loadingPdf")}</div>
                   ) : pdfError ? (
                     <div className="flex h-full items-center justify-center px-6 text-center text-sm text-red-600">{pdfError}</div>
                   ) : pdfUrl ? (
@@ -203,13 +205,13 @@ export const CustomerQuotationCard = ({
 
           {quotationStatus === "PAYMENT_SUBMITTED" && (
             <p className="mt-5 flex items-center gap-2 rounded-lg bg-violet-50 px-4 py-3 text-sm font-medium text-violet-700">
-              <Clock className="size-4 shrink-0" /> Payment submitted — pending verification by our team.
+              <Clock className="size-4 shrink-0" /> {t("dash.quotationCard.paymentSubmitted")}
             </p>
           )}
 
           {quotationStatus === "PAYMENT_VERIFIED" && (
             <p className="mt-5 flex items-center gap-2 rounded-lg bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
-              <CheckCircle2 className="size-4 shrink-0" /> Payment verified — your order is confirmed.
+              <CheckCircle2 className="size-4 shrink-0" /> {t("dash.quotationCard.paymentVerified")}
             </p>
           )}
         </>

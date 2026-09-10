@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { AlertTriangle, ArrowRight, CheckCircle2, ExternalLink, Plus, Minus, ShoppingCart, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CartSkeleton } from "@/components/skeletons";
 import { stockLabels } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ const errorMessage = (cause: unknown, fallback: string) =>
   cause instanceof ApiError ? cause.message : fallback;
 
 const CartPage = () => {
+  const { t } = useTranslation();
   const { user } = useCurrentUser();
   const cart = useCart();
   const [submitted, setSubmitted] = useState<{
@@ -109,9 +111,8 @@ const CartPage = () => {
         // itself is left untouched so the customer can adjust it themselves
         // instead.
         setNegotiationRefreshToken((token) => token + 1);
-        toast.warning("Couldn't place that order", {
-          description:
-            "Part of your cart is more than we have in stock — we've started a chat with our stock team below.",
+        toast.warning(t("dash.cart.toastCantPlaceTitle"), {
+          description: t("dash.cart.toastCantPlaceBody"),
         });
         return;
       }
@@ -128,13 +129,11 @@ const CartPage = () => {
       });
       cart.clear();
       setSubmitted({ deliveryDetails, orderId: order.id, waitlisted });
-      toast.success(waitlisted ? "Order accepted — waitlisted for stock" : "Order submitted", {
-        description: waitlisted
-          ? "Part of it isn't in stock right now. We'll email you the moment it's available."
-          : "Sent to our stock team for review. You'll find it under My Orders once it's confirmed.",
+      toast.success(waitlisted ? t("dash.cart.toastWaitlistedTitle") : t("dash.cart.toastSubmittedTitle"), {
+        description: waitlisted ? t("dash.cart.toastWaitlistedBody") : t("dash.cart.toastSubmittedBody"),
       });
     } catch (cause) {
-      toast.error("Couldn't place order", { description: errorMessage(cause, "Please try again.") });
+      toast.error(t("dash.cart.toastPlaceFailedTitle"), { description: errorMessage(cause, t("dash.tryAgain")) });
     } finally {
       setPlacingOrder(false);
     }
@@ -156,20 +155,18 @@ const CartPage = () => {
             <CheckCircle2 className="size-8" />
           </span>
           <h1 className="mt-5 text-2xl font-bold text-ink">
-            {submitted.waitlisted ? "Order accepted — waitlisted for stock" : "Order submitted"}
+            {submitted.waitlisted ? t("dash.cart.waitlistedTitle") : t("dash.cart.submittedTitle")}
           </h1>
           <p className="mt-2 max-w-md text-sm text-muted">
-            {submitted.waitlisted
-              ? "Thanks — we've accepted your order, but part of it isn't in stock right now. No action is needed from you yet: we'll email you the moment there's enough stock, and you'll then have a short window to complete payment."
-              : "Thanks — your order has been sent to our stock team for review. We'll prepare a full quotation, including transport fees and payment details, and notify you here once it's ready."}
+            {submitted.waitlisted ? t("dash.cart.waitlistedBody") : t("dash.cart.submittedBody")}
           </p>
           <div className="mt-6 w-full max-w-sm rounded-2xl bg-[#F9FAFB] p-4 text-left text-sm">
-            <p className="text-[11px] font-bold tracking-wider text-muted uppercase">Delivery to</p>
+            <p className="text-[11px] font-bold tracking-wider text-muted uppercase">{t("dash.cart.deliveryTo")}</p>
             <p className="mt-1 font-semibold text-ink">{submitted.deliveryDetails.contactName} · {submitted.deliveryDetails.phone}</p>
             <p className="text-muted">{submitted.deliveryDetails.address}, {submitted.deliveryDetails.city}</p>
           </div>
           <Button nativeButton={false} render={<Link href="/account/orders" />} className="mt-6 h-11 gap-2 px-5">
-            View My Orders <ArrowRight className="size-4" />
+            {t("dash.cart.viewMyOrders")} <ArrowRight className="size-4" />
           </Button>
         </div>
       </div>
@@ -186,8 +183,8 @@ const CartPage = () => {
     <div className="max-w-360 mx-auto">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-xl text-ink sm:text-2xl">
-          <strong>Your selection</strong>
-          {" "}<span className="font-normal">({cart.lines.length} items)</span>
+          <strong>{t("dash.cart.selectionTitle")}</strong>
+          {" "}<span className="font-normal">{t("dash.cart.itemsCount", { count: cart.lines.length })}</span>
         </h1>
         <ConfirmDialog
           trigger={
@@ -197,15 +194,15 @@ const CartPage = () => {
               disabled={cart.lines.length === 0}
               className="gap-2 px-0 text-red-500 hover:bg-transparent hover:text-red-600 disabled:opacity-40"
             >
-              <Trash2 className="size-5" /> Clear Cart
+              <Trash2 className="size-5" /> {t("dash.cart.clearCart")}
             </Button>
           }
-          title="Clear your cart?"
-          description="This removes every item from your selection. This can't be undone."
-          confirmLabel="Clear cart"
+          title={t("dash.cart.clearCartTitle")}
+          description={t("dash.cart.clearCartDescription")}
+          confirmLabel={t("dash.cart.clearCartConfirm")}
           onConfirm={() => {
             cart.clear();
-            toast.success("Cart cleared");
+            toast.success(t("dash.cart.toastCartCleared"));
           }}
         />
       </div>
@@ -215,14 +212,14 @@ const CartPage = () => {
             {cart.lines.length === 0 ? (
               <div className="flex min-h-64 flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center shadow-sm">
                 <span className="flex size-16 items-center justify-center rounded-full bg-primary/15 text-ink"><ShoppingCart className="size-8" /></span>
-                <h2 className="mt-5 text-xl font-bold text-ink">Your cart is empty</h2>
-                <p className="mt-2 max-w-sm text-sm text-muted">Explore our collection and add the perfect tiles for your next project.</p>
+                <h2 className="mt-5 text-xl font-bold text-ink">{t("dash.cart.emptyTitle")}</h2>
+                <p className="mt-2 max-w-sm text-sm text-muted">{t("dash.cart.emptyBody")}</p>
                 <Button
                   nativeButton={false}
                   render={<Link href="/" />}
                   className="mt-5 h-11 gap-2 px-5"
                 >
-                  Browse products <ArrowRight className="size-4" />
+                  {t("dash.cart.browseProducts")} <ArrowRight className="size-4" />
                 </Button>
               </div>
             ) : (
@@ -250,7 +247,7 @@ const CartPage = () => {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        aria-label="View product"
+                        aria-label={t("dash.cart.viewProductAria")}
                         className="size-8"
                       >
                         <ExternalLink className="size-5" />
@@ -259,7 +256,7 @@ const CartPage = () => {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        aria-label="Remove item"
+                        aria-label={t("dash.cart.removeItemAria")}
                         onClick={() => cart.removeItem(line.productId)}
                         className="size-8 text-red-500 hover:bg-red-50 hover:text-red-600"
                       >
@@ -272,10 +269,10 @@ const CartPage = () => {
                     <h2 className="mt-1 text-base font-bold text-ink">{line.product.name}</h2>
                     <div className="mt-2 flex flex-wrap gap-2 text-xs">
                       <span className="rounded-lg bg-muted-background px-3 py-2">
-                        <strong>Size:</strong> {line.product.size}
+                        <strong>{t("dash.cart.size")}</strong> {line.product.size}
                       </span>
                       <span className="rounded-lg bg-muted-background px-3 py-2">
-                        <strong>Coverage:</strong> {line.product.boxCoverage} m²/box
+                        <strong>{t("dash.cart.coverage")}</strong> {t("dash.cart.coverageValue", { value: line.product.boxCoverage })}
                       </span>
                     </div>
                     <div className="mt-2 flex w-fit flex-col items-start gap-2 text-sm font-semibold">
@@ -284,7 +281,7 @@ const CartPage = () => {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          aria-label="Decrease quantity"
+                          aria-label={t("dash.cart.decreaseAria")}
                           onClick={() => nudgeQuantity(line, -1)}
                           className="size-9 rounded-none"
                         >
@@ -299,14 +296,14 @@ const CartPage = () => {
                           onChange={(event) => setQuantityTyped(line, event.target.value)}
                           onBlur={() => clearDraft(line.productId)}
                           onFocus={(event) => event.target.select()}
-                          aria-label={`Quantity for ${line.product.name}, in sqm`}
+                          aria-label={t("dash.cart.quantityAria", { name: line.product.name })}
                           className="h-9 w-16 border-x border-slate-200 text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         />
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          aria-label="Increase quantity"
+                          aria-label={t("dash.cart.increaseAria")}
                           onClick={() => nudgeQuantity(line, 1)}
                           className="size-9 rounded-none"
                         >
@@ -315,7 +312,7 @@ const CartPage = () => {
                         <span className="px-2">sqm</span>
                       </div>
                       <p className="w-full text-right text-xs font-normal text-muted">
-                        {line.quantity.completeBoxes} boxes + {line.quantity.remainingPieces} pcs · {line.quantity.totalPieces} pcs total
+                        {t("dash.cart.boxesLine", { boxes: line.quantity.completeBoxes, pieces: line.quantity.remainingPieces, total: line.quantity.totalPieces })}
                       </p>
                     </div>
                     {shortage && (
@@ -323,17 +320,15 @@ const CartPage = () => {
                         <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                         <span>
                           <span className="font-bold">
-                            The full {shortage.requestedAreaSqm} m² requested isn&apos;t available right now.
+                            {t("dash.cart.shortageBold", { area: shortage.requestedAreaSqm })}
                           </span>{" "}
-                          Placing the order may waitlist this part until more stock frees up — or, if it&apos;s more
-                          than we have at all, we&apos;ll open a chat with our stock team below. You can also lower
-                          the quantity instead.
+                          {t("dash.cart.shortageBody")}
                         </span>
                       </p>
                     )}
                     <p className="mt-6 text-xs text-muted">
                       {formatPrice(line.product.price)}
-                      <span className="ml-1 font-normal">/ sqm</span>
+                      <span className="ml-1 font-normal">{t("dash.cart.perSqm")}</span>
                     </p>
                     <p className="text-xl font-bold text-ink">
                       {formatPrice(line.totalPrice)}
@@ -346,13 +341,13 @@ const CartPage = () => {
           </div>
         </section>
         <aside className="h-fit rounded-3xl bg-white p-6 sm:p-8">
-          <h2 className="text-xl font-bold text-ink">ORDER OVERVIEW</h2>
+          <h2 className="text-xl font-bold text-ink">{t("dash.cart.orderOverview")}</h2>
           <div className="mt-7 flex items-center justify-between border-b border-slate-200 pb-5 text-sm">
-            <span>Subtotal ({cart.lines.length} items)</span>
+            <span>{t("dash.cart.subtotalLine", { count: cart.lines.length })}</span>
             <strong className="text-xl">{formatPrice(cart.total)}</strong>
           </div>
           <div className="flex items-center justify-between py-5">
-            <strong>Total Cost</strong>
+            <strong>{t("dash.cart.totalCost")}</strong>
             <strong className="text-2xl">{formatPrice(cart.total)}</strong>
           </div>
           <DeliveryDetailsDialog
@@ -363,20 +358,20 @@ const CartPage = () => {
                 disabled={cart.lines.length === 0 || placingOrder}
                 className="relative h-14 w-full justify-center px-5 text-base font-bold disabled:pointer-events-auto disabled:cursor-not-allowed"
               >
-                {placingOrder ? "Placing order…" : "Place Order"} <ArrowRight className="absolute right-5 size-5" />
+                {placingOrder ? t("dash.cart.placingOrder") : t("dash.cart.placeOrder")} <ArrowRight className="absolute right-5 size-5" />
               </Button>
             }
           />
           {shortages.length > 0 && (
             <p className="mt-3 text-center text-xs font-medium text-amber-800">
-              {shortages.length === 1 ? "One item exceeds" : `${shortages.length} items exceed`} what&apos;s
-              currently available — if it can still be covered from stock on hand, we&apos;ll accept it and
-              waitlist that part; otherwise we&apos;ll open a chat with our stock team below.
+              {shortages.length === 1
+                ? t("dash.cart.shortagesOne")
+                : t("dash.cart.shortagesMany", { count: shortages.length })}
             </p>
           )}
           <div className="my-5 flex items-center gap-4 text-sm text-muted">
             <span className="h-px flex-1 bg-slate-200" />
-            OR
+            {t("dash.cart.or")}
             <span className="h-px flex-1 bg-slate-200" />
           </div>
           <Button
@@ -386,7 +381,7 @@ const CartPage = () => {
             onClick={printQuotation}
             className="h-14 w-full text-base text-muted disabled:pointer-events-auto disabled:cursor-not-allowed"
           >
-            Generate Quotation
+            {t("dash.cart.generateQuotation")}
           </Button>
         </aside>
       </div>
@@ -400,18 +395,18 @@ const CartPage = () => {
       <section id="quotation-print" aria-hidden="true" className="quotation-printable mx-auto max-w-4xl bg-white p-5 text-ink sm:p-10">
         <header className="flex items-start justify-between gap-8 border-b border-slate-200 pb-6">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#9f8355]">Quotation</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#9f8355]">{t("dash.cart.quote.eyebrow")}</p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Magnificat Smart Space</h2>
-            <p className="mt-2 text-sm text-muted">Design smart, live beautifully.</p>
+            <p className="mt-2 text-sm text-muted">{t("dash.cart.quote.brandTagline")}</p>
           </div>
           <div className="text-right text-sm">
-            <p className="font-semibold text-ink">Quotation date</p>
+            <p className="font-semibold text-ink">{t("dash.cart.quote.date")}</p>
             <p className="mt-1 text-muted">{quotationDate}</p>
           </div>
         </header>
 
         <section className="mt-7 border-b border-slate-200 pb-7">
-          <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-muted">Customer details</h3>
+          <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-muted">{t("dash.cart.quote.customerDetails")}</h3>
           <div className="mt-3 grid gap-1 text-sm">
             <p className="font-semibold">{user?.fullName ?? "—"}</p>
             <p className="text-muted">{[user?.email, user?.phone].filter(Boolean).join(" · ")}</p>
@@ -422,16 +417,16 @@ const CartPage = () => {
           <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-slate-300 text-[11px] uppercase tracking-[0.12em] text-muted">
-                <th className="pb-3 pr-4 font-bold">Item</th>
-                <th className="pb-3 px-4 text-right font-bold">Quantity</th>
-                <th className="pb-3 px-4 text-right font-bold">Total price</th>
+                <th className="pb-3 pr-4 font-bold">{t("dash.cart.quote.item")}</th>
+                <th className="pb-3 px-4 text-right font-bold">{t("dash.cart.quote.quantity")}</th>
+                <th className="pb-3 px-4 text-right font-bold">{t("dash.cart.quote.totalPrice")}</th>
               </tr>
             </thead>
             <tbody>
               {cart.lines.map((line) => (
                 <tr key={line.productId} className="border-b border-slate-100">
                   <td className="py-4 pr-4"><span className="font-semibold">{line.product.name}</span><span className="block text-xs text-muted">{line.product.collection} · {line.product.size}</span></td>
-                  <td className="px-4 py-4 text-right">{line.areaSqm} sqm</td>
+                  <td className="px-4 py-4 text-right">{line.areaSqm} {t("dash.cart.quote.sqm")}</td>
                   <td className="py-4 pl-4 text-right font-semibold">{formatPrice(line.totalPrice)}</td>
                 </tr>
               ))}
@@ -441,7 +436,7 @@ const CartPage = () => {
 
         <footer className="mt-7 flex justify-end border-t border-slate-300 pt-5">
           <div className="flex w-full max-w-xs items-center justify-between gap-8 text-lg font-bold">
-            <span>Total quotation</span>
+            <span>{t("dash.cart.quote.totalQuotation")}</span>
             <span>{formatPrice(cart.total)}</span>
           </div>
         </footer>

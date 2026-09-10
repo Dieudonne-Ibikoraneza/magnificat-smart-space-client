@@ -3,6 +3,7 @@
 import { use } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import {
   Boxes,
   CalendarDays,
@@ -45,15 +46,15 @@ type AccountOrderDetailsProps = { params: Promise<{ id: string }> };
 
 const ACTIVE_STEPS: OrderStatus[] = ["PENDING", "PROCESSING", "READY_FOR_DISPATCH", "SHIPPED", "DELIVERED"];
 
-const stepLabels: Record<OrderStatus, string> = {
-  WAITLISTED: "Waitlisted",
-  PENDING: "Order Placed",
-  PROCESSING: "Processing",
-  READY_FOR_DISPATCH: "Ready for Dispatch",
-  SHIPPED: "Shipped",
-  DELIVERED: "Delivered",
-  CANCELLED: "Cancelled",
-};
+const STEP_KEYS = {
+  WAITLISTED: "dash.orderDetail.step.WAITLISTED",
+  PENDING: "dash.orderDetail.step.PENDING",
+  PROCESSING: "dash.orderDetail.step.PROCESSING",
+  READY_FOR_DISPATCH: "dash.orderDetail.step.READY_FOR_DISPATCH",
+  SHIPPED: "dash.orderDetail.step.SHIPPED",
+  DELIVERED: "dash.orderDetail.step.DELIVERED",
+  CANCELLED: "dash.orderDetail.step.CANCELLED",
+} as const;
 
 const statusVariant: Record<OrderStatus, "outline" | "secondary" | "warning" | "primary" | "muted" | "destructive"> = {
   WAITLISTED: "warning",
@@ -71,6 +72,7 @@ const formatDateTime = (iso: string) =>
   new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
+  const { t } = useTranslation();
   const { id } = use(params);
   const { data: order, loading, error, reload } = useApi(() => ordersApi.get(id), [id]);
 
@@ -78,18 +80,18 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
   // (after saving delivery details, marking payment done, etc.) keeps the
   // order on screen and updates it in place once the fresh data lands,
   // instead of blanking the whole page back to a spinner.
-  if (loading && !order) return <ApiLoading label="Loading order…" className="py-32" />;
+  if (loading && !order) return <ApiLoading label={t("dash.orderDetail.loading")} className="py-32" />;
 
   if (error) {
     if (error.toLowerCase().includes("not found") || error.toLowerCase().includes("access")) {
       return (
         <div className="mx-auto max-w-md py-24 text-center">
-          <h1 className="text-xl font-bold text-ink">Order not found</h1>
+          <h1 className="text-xl font-bold text-ink">{t("dash.orderDetail.notFoundTitle")}</h1>
           <p className="mt-2 text-sm text-muted">
-            This order doesn&apos;t exist, or isn&apos;t one of yours.
+            {t("dash.orderDetail.notFoundBody")}
           </p>
           <Button nativeButton={false} render={<Link href="/account/orders" />} className="mt-6 h-11 gap-2 px-5">
-            Back to My Orders
+            {t("dash.orderDetail.backToOrders")}
           </Button>
         </div>
       );
@@ -112,9 +114,9 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
       <header className="border-b border-slate-200 pb-5 sm:pb-6">
         <Breadcrumb>
           <BreadcrumbList>
-            <BreadcrumbItem><BreadcrumbLink render={<Link href="/account" />}>Account</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbItem><BreadcrumbLink render={<Link href="/account" />}>{t("dash.orderDetail.crumbAccount")}</BreadcrumbLink></BreadcrumbItem>
             <BreadcrumbSeparator />
-            <BreadcrumbItem><BreadcrumbLink render={<Link href="/account/orders" />}>My Orders</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbItem><BreadcrumbLink render={<Link href="/account/orders" />}>{t("dash.orderDetail.crumbOrders")}</BreadcrumbLink></BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbPage>#{order.orderNumber}</BreadcrumbPage>
           </BreadcrumbList>
@@ -122,11 +124,11 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
         <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="truncate text-2xl font-bold text-ink sm:text-4xl">Order #{order.orderNumber}</h1>
-              <Badge variant={statusVariant[order.status]}>{stepLabels[order.status]}</Badge>
+              <h1 className="truncate text-2xl font-bold text-ink sm:text-4xl">{t("dash.orderDetail.heading", { number: order.orderNumber })}</h1>
+              <Badge variant={statusVariant[order.status]}>{t(STEP_KEYS[order.status])}</Badge>
             </div>
             <div className="mt-2 flex items-center gap-2 text-xs text-muted">
-              <Clock className="size-4" /> Placed on {formatDateTime(order.createdAt)}
+              <Clock className="size-4" /> {t("dash.orderDetail.placedOn", { date: formatDateTime(order.createdAt) })}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -134,12 +136,12 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
               reason="edit"
               trigger={
                 <Button type="button" variant="outline" className="h-auto gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase">
-                  <Headset className="size-4" /> Need Changes?
+                  <Headset className="size-4" /> {t("dash.orderDetail.needChanges")}
                 </Button>
               }
             />
             <Button type="button" variant="outline" onClick={() => window.print()} className="h-auto gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase">
-              <Printer className="size-4" /> Print Invoice
+              <Printer className="size-4" /> {t("dash.orderDetail.printInvoice")}
             </Button>
           </div>
         </div>
@@ -148,21 +150,20 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
       <div className="mt-6 space-y-5 sm:space-y-6">
         {order.status === "WAITLISTED" && (
           <div className="rounded-2xl bg-[#fef3c7] p-5 text-sm text-[#92400e] sm:p-6">
-            <p className="font-bold">Waitlisted — part of this order isn&apos;t in stock right now</p>
+            <p className="font-bold">{t("dash.orderDetail.waitlistedTitle")}</p>
             <p className="mt-1">
-              We&apos;ve accepted this order; no action is needed from you yet. We&apos;ll email you the
-              moment there&apos;s enough stock, and you&apos;ll then have a short window to complete payment.
+              {t("dash.orderDetail.waitlistedBody")}
             </p>
           </div>
         )}
 
         <div className="grid gap-4 sm:grid-cols-3 sm:gap-5">
           {[
-            { icon: Wallet, label: "Total Amount", value: formatPrice(order.total), note: null },
-            { icon: CalendarDays, label: "Order Date", value: formatDateTime(order.createdAt).split(",")[0], note: order.expectedDeliveryAt ? `Expected ${new Date(order.expectedDeliveryAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}` : null },
-            { icon: Boxes, label: "Total Items", value: `${items.length} ${items.length === 1 ? "Type" : "Types"}`, note: `${totalVolumeSqm.toLocaleString()} m² total` },
-          ].map(({ icon: Icon, label, value, note }) => (
-            <article key={label} className="rounded-2xl bg-white p-5 transition-transform duration-200 active:scale-95 sm:p-6">
+            { key: "amount", icon: Wallet, label: t("dash.orderDetail.totalAmount"), value: formatPrice(order.total), note: null },
+            { key: "date", icon: CalendarDays, label: t("dash.orderDetail.orderDate"), value: formatDateTime(order.createdAt).split(",")[0], note: order.expectedDeliveryAt ? t("dash.orderDetail.expected", { date: new Date(order.expectedDeliveryAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) }) : null },
+            { key: "items", icon: Boxes, label: t("dash.orderDetail.totalItems"), value: t("dash.orderDetail.types", { count: items.length }), note: t("dash.orderDetail.volumeTotal", { volume: totalVolumeSqm.toLocaleString() }) },
+          ].map(({ key, icon: Icon, label, value, note }) => (
+            <article key={key} className="rounded-2xl bg-white p-5 transition-transform duration-200 active:scale-95 sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <span className="text-[11px] font-bold tracking-wider text-muted uppercase">{label}</span>
                 <Icon className="size-5 text-muted" />
@@ -177,8 +178,8 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
           <div className="space-y-5 sm:space-y-6">
             <section className="overflow-hidden rounded-2xl bg-white">
               <div className="flex items-center justify-between gap-3 px-5 py-5 sm:px-6">
-                <h2 className="text-lg font-bold text-ink sm:text-2xl">Order Items</h2>
-                <Badge variant="secondary">{items.length} Items</Badge>
+                <h2 className="text-lg font-bold text-ink sm:text-2xl">{t("dash.orderDetail.orderItems")}</h2>
+                <Badge variant="secondary">{t("dash.orderDetail.itemsCount", { count: items.length })}</Badge>
               </div>
               <Separator className="bg-slate-100" />
               <div className="md:hidden">
@@ -190,9 +191,9 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
                           <Image src={item.product.image} alt={item.product.name} width={80} height={80} unoptimized className="size-16 shrink-0 rounded-sm object-cover sm:size-20" />
                         )}
                         <span className="min-w-0 flex-1">
-                          <span className="block font-medium text-ink uppercase">{item.product?.name ?? "Item"}</span>
+                          <span className="block font-medium text-ink uppercase">{item.product?.name ?? "—"}</span>
                           <span className="mt-1 block text-sm text-muted">
-                            {item.boxes} boxes{item.additionalPieces > 0 ? ` + ${item.additionalPieces} pcs` : ""} · Unit price {formatPrice(item.unitPrice)}
+                            {t("dash.orderDetail.boxes", { count: item.boxes })}{item.additionalPieces > 0 ? t("dash.orderDetail.plusPieces", { count: item.additionalPieces }) : ""} · {t("dash.orderDetail.unitPriceShort", { price: formatPrice(item.unitPrice) })}
                           </span>
                         </span>
                         <span className="shrink-0 text-right font-semibold text-ink">{formatPrice(item.totalPrice)}</span>
@@ -203,7 +204,7 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
               </div>
               <div className="hidden overflow-x-auto md:block">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Product</TableHead><TableHead>Quantity</TableHead><TableHead>Unit Price</TableHead><TableHead>Total</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>{t("dash.orderDetail.product")}</TableHead><TableHead>{t("dash.orderDetail.quantity")}</TableHead><TableHead>{t("dash.orderDetail.unitPrice")}</TableHead><TableHead>{t("dash.orderDetail.totalCol")}</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {items.map((item) => (
                       <TableRow key={item.id}>
@@ -212,12 +213,12 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
                             {item.product?.image && (
                               <Image src={item.product.image} alt={item.product.name} width={80} height={80} unoptimized className="size-16 shrink-0 rounded-sm object-cover" />
                             )}
-                            <span>{item.product?.name ?? "Item"}</span>
+                            <span>{item.product?.name ?? "—"}</span>
                           </Link>
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-ink">
                           <span className="block">{Number(item.requiredAreaSqm)} m²</span>
-                          <span className="mt-1 block text-xs text-muted">{item.boxes} boxes{item.additionalPieces > 0 ? ` + ${item.additionalPieces} pcs` : ""} ({item.totalPieces} pcs)</span>
+                          <span className="mt-1 block text-xs text-muted">{t("dash.orderDetail.boxes", { count: item.boxes })}{item.additionalPieces > 0 ? t("dash.orderDetail.plusPieces", { count: item.additionalPieces }) : ""} ({item.totalPieces} pcs)</span>
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-muted">{formatPrice(item.unitPrice)} / m²</TableCell>
                         <TableCell className="whitespace-nowrap font-semibold text-ink">{formatPrice(item.totalPrice)}</TableCell>
@@ -227,7 +228,7 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
                 </Table>
               </div>
               <div className="flex items-center justify-end gap-4 bg-primary px-5 py-5 sm:px-10">
-                <span className="text-lg font-semibold text-ink">Total</span>
+                <span className="text-lg font-semibold text-ink">{t("dash.orderDetail.total")}</span>
                 <span className="text-xl font-bold text-ink sm:text-2xl">{formatPrice(order.total)}</span>
               </div>
             </section>
@@ -253,7 +254,7 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
 
             {!isCancelled ? (
               <section className="rounded-2xl bg-white p-5 sm:p-6">
-                <div className="flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-lg bg-secondary"><History className="size-5" /></span><h2 className="text-lg font-bold text-ink sm:text-xl">Timeline</h2></div>
+                <div className="flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-lg bg-secondary"><History className="size-5" /></span><h2 className="text-lg font-bold text-ink sm:text-xl">{t("dash.orderDetail.timeline")}</h2></div>
                 <ol className="mt-5 space-y-6 border-l border-slate-200 pl-6">
                   {ACTIVE_STEPS.map((step, index) => {
                     const timestamp = eventAt(step);
@@ -264,16 +265,16 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
                           {state === "done" ? <Check className="size-2 text-ink" /> : null}
                         </span>
                         <div className={state === "current" ? "rounded-lg bg-primary p-3" : ""}>
-                          <p className={"text-[11px] font-bold tracking-wider uppercase " + (state === "pending" ? "text-muted" : "text-ink")}>{stepLabels[step]}</p>
+                          <p className={"text-[11px] font-bold tracking-wider uppercase " + (state === "pending" ? "text-muted" : "text-ink")}>{t(STEP_KEYS[step])}</p>
                           {timestamp ? <p className="mt-0.5 font-data text-xs text-muted">{formatDateTime(timestamp)}</p> : null}
                           <p className={"mt-1 text-xs " + (state === "pending" ? "text-muted" : "text-ink")}>
                             {state === "done"
-                              ? "Done"
+                              ? t("dash.orderDetail.stepDone")
                               : state === "current"
                                 ? timestamp
-                                  ? "Done"
-                                  : "In progress"
-                                : "Pending"}
+                                  ? t("dash.orderDetail.stepDone")
+                                  : t("dash.orderDetail.stepInProgress")
+                                : t("dash.orderDetail.stepPending")}
                           </p>
                         </div>
                       </li>
@@ -286,7 +287,7 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
                       reason="stuck"
                       trigger={
                         <button type="button" className="flex items-center gap-1.5 text-xs font-semibold text-ink hover:underline">
-                          <Headset className="size-3.5" /> Order not moving? Contact support
+                          <Headset className="size-3.5" /> {t("dash.orderDetail.notMoving")}
                         </button>
                       }
                     />
@@ -295,7 +296,7 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
               </section>
             ) : (
               <section className="rounded-2xl bg-red-50 p-5 text-sm font-medium text-red-700 sm:p-6">
-                This order was cancelled.
+                {t("dash.orderDetail.cancelled")}
               </section>
             )}
           </div>

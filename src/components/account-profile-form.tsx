@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ import { useCurrentUser } from "@/lib/current-user";
  * the surrounding page header differs.
  */
 export const AccountProfileForm = () => {
+  const { t } = useTranslation();
   const { user, loading, refresh } = useCurrentUser();
   const [fullName, setFullName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -40,10 +42,10 @@ export const AccountProfileForm = () => {
       setFullName(updated.fullName);
       refresh();
       setSaved(true);
-      toast.success("Profile updated", { description: "Your changes were saved." });
+      toast.success(t("dash.profile.toastSavedTitle"), { description: t("dash.profile.toastSavedBody") });
     } catch (cause) {
-      toast.error("Couldn't save changes", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("dash.profile.toastFailedTitle"), {
+        description: cause instanceof ApiError ? cause.message : t("dash.tryAgain"),
       });
     } finally {
       setSaving(false);
@@ -59,7 +61,7 @@ export const AccountProfileForm = () => {
   if (loading || !user) {
     return (
       <section className="rounded-3xl bg-white p-6 sm:p-8 lg:px-10 lg:py-9">
-        <h2 className="text-lg font-bold text-ink">Personal Profile</h2>
+        <h2 className="text-lg font-bold text-ink">{t("dash.profile.heading")}</h2>
         <div className="mt-7 grid gap-x-4 gap-y-7 sm:grid-cols-2">
           <Skeleton className="h-11 w-full rounded-lg" />
           <Skeleton className="h-11 w-full rounded-lg" />
@@ -71,10 +73,10 @@ export const AccountProfileForm = () => {
 
   return (
     <section className="rounded-3xl bg-white p-6 sm:p-8 lg:px-10 lg:py-9">
-      <h2 className="text-lg font-bold text-ink">Personal Profile</h2>
+      <h2 className="text-lg font-bold text-ink">{t("dash.profile.heading")}</h2>
       <div className="mt-7 grid gap-x-4 gap-y-7 sm:grid-cols-2">
         <label className="space-y-1.5 text-xs font-medium uppercase text-muted">
-          Full names
+          {t("dash.profile.fullName")}
           <Input
             value={fullName}
             onChange={(event) => {
@@ -84,11 +86,11 @@ export const AccountProfileForm = () => {
             className="h-11 rounded-lg px-4 text-sm normal-case text-ink"
           />
           {fullName.length > 0 && !nameValid && (
-            <p className="text-xs font-medium normal-case text-red-600">At least 2 characters.</p>
+            <p className="text-xs font-medium normal-case text-red-600">{t("dash.profile.nameMin")}</p>
           )}
         </label>
         <label className="space-y-1.5 text-xs font-medium uppercase text-muted">
-          Email address
+          {t("dash.profile.email")}
           <Input
             value={user.email ?? ""}
             disabled
@@ -96,11 +98,11 @@ export const AccountProfileForm = () => {
             className="h-11 rounded-lg px-4 text-sm normal-case text-ink disabled:opacity-70"
           />
           <span className="block text-[11px] font-normal normal-case text-muted-foreground">
-            Tied to sign-in — can&apos;t be changed here.
+            {t("dash.profile.emailNote")}
           </span>
         </label>
         <label className="space-y-1.5 text-xs font-medium uppercase text-muted sm:max-w-[calc(50%-8px)]">
-          Phone number
+          {t("dash.profile.phone")}
           <Input
             value={user.phone ?? "—"}
             disabled
@@ -108,7 +110,7 @@ export const AccountProfileForm = () => {
             className="h-11 rounded-lg px-4 text-sm normal-case text-ink disabled:opacity-70"
           />
           <span className="block text-[11px] font-normal normal-case text-muted-foreground">
-            Verified at sign-up — contact an administrator to change it.
+            {t("dash.profile.phoneNote")}
           </span>
         </label>
       </div>
@@ -119,7 +121,7 @@ export const AccountProfileForm = () => {
           disabled={!nameValid || saving}
           className="h-11 gap-2 px-6 text-sm font-bold disabled:opacity-60"
         >
-          <Save className="size-[18px]" /> {saving ? "Saving…" : "Save Changes"}
+          <Save className="size-[18px]" /> {saving ? t("dash.profile.saving") : t("dash.profile.save")}
         </Button>
         <Button
           type="button"
@@ -128,9 +130,9 @@ export const AccountProfileForm = () => {
           disabled={saving}
           className="h-11 gap-2 px-6 text-sm font-bold text-ink hover:bg-slate-50 hover:text-ink"
         >
-          <X className="size-[18px]" /> Cancel
+          <X className="size-[18px]" /> {t("dash.profile.cancel")}
         </Button>
-        {saved && <p className="self-center text-sm font-medium text-green-700">Changes saved.</p>}
+        {saved && <p className="self-center text-sm font-medium text-green-700">{t("dash.profile.savedInline")}</p>}
       </div>
     </section>
   );

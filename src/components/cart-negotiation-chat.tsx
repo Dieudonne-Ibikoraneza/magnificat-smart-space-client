@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AlertTriangle, ChevronDown, MessageCircle, Send, Share2, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -43,6 +44,7 @@ export const CartNegotiationChat = ({
   /** Bump this when a negotiation may have been opened server-side (see account/cart/page.tsx) to force a refetch. */
   refreshToken?: number;
 }) => {
+  const { t } = useTranslation();
   const { user } = useCurrentUser();
   const [open, setOpen] = useState(false);
   const [negotiation, setNegotiation] = useState<ApiCartNegotiation | null>(null);
@@ -189,8 +191,8 @@ export const CartNegotiationChat = ({
     } catch (cause) {
       setNegotiation((current) => current && { ...current, messages: current.messages.filter((m) => m.id !== tempId) });
       setDraft(body);
-      toast.error("Message not sent", {
-        description: cause instanceof Error ? cause.message : "Please try again.",
+      toast.error(t("dash.cartNegotiation.toastNotSent"), {
+        description: cause instanceof Error ? cause.message : t("dash.tryAgain"),
       });
     } finally {
       setPendingIds((current) => current.filter((id) => id !== tempId));
@@ -206,8 +208,8 @@ export const CartNegotiationChat = ({
       const updated = await cartNegotiationsApi.submit(cartItems, "Here's my current cart.");
       setNegotiation(updated);
     } catch (cause) {
-      toast.error("Couldn't share your cart", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("dash.cartNegotiation.toastShareFailed"), {
+        description: cause instanceof ApiError ? cause.message : t("dash.tryAgain"),
       });
     } finally {
       setSharing(false);
@@ -220,10 +222,10 @@ export const CartNegotiationChat = ({
     try {
       await cartNegotiationsApi.clearMine();
       setNegotiation(null);
-      toast.success("Chat cleared");
+      toast.success(t("dash.cartNegotiation.toastCleared"));
     } catch (cause) {
-      toast.error("Couldn't clear the chat", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("dash.cartNegotiation.toastClearFailed"), {
+        description: cause instanceof ApiError ? cause.message : t("dash.tryAgain"),
       });
     } finally {
       setClearing(false);
@@ -243,8 +245,8 @@ export const CartNegotiationChat = ({
                 <AlertTriangle className="size-4" />
               </span>
               <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-white">Stock Negotiation</p>
-                <p className="truncate text-[11px] text-muted">Chat with the stock team</p>
+                <p className="truncate text-sm font-bold text-white">{t("dash.cartNegotiation.title")}</p>
+                <p className="truncate text-[11px] text-muted">{t("dash.cartNegotiation.subtitle")}</p>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1">
@@ -252,8 +254,8 @@ export const CartNegotiationChat = ({
                 type="button"
                 onClick={() => void shareCart()}
                 disabled={sharing || cartItems.length === 0}
-                aria-label="Share my cart with the stock team"
-                title="Share my cart with the stock team"
+                aria-label={t("dash.cartNegotiation.shareCartAria")}
+                title={t("dash.cartNegotiation.shareCartAria")}
                 className="rounded-md p-1 text-white transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
               >
                 <Share2 className="size-4" />
@@ -263,22 +265,22 @@ export const CartNegotiationChat = ({
                   <button
                     type="button"
                     disabled={clearing || messages.length === 0}
-                    aria-label="Clear chat"
-                    title="Clear chat"
+                    aria-label={t("dash.cartNegotiation.clearChatAria")}
+                    title={t("dash.cartNegotiation.clearChatAria")}
                     className="rounded-md p-1 text-white transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
                   >
                     <Trash2 className="size-4" />
                   </button>
                 }
-                title="Clear this chat?"
-                description="This deletes the whole conversation with our stock team — it can't be undone. You can always start a new one."
-                confirmLabel="Clear chat"
+                title={t("dash.cartNegotiation.clearChatTitle")}
+                description={t("dash.cartNegotiation.clearChatDescription")}
+                confirmLabel={t("dash.cartNegotiation.clearChatConfirm")}
                 onConfirm={() => void clearChat()}
               />
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label="Minimize chat"
+                aria-label={t("dash.cartNegotiation.minimizeAria")}
                 className="rounded-md p-1 text-white transition-colors hover:bg-white/10 hover:text-white"
               >
                 <X className="size-4" />
@@ -290,8 +292,8 @@ export const CartNegotiationChat = ({
             {messages.length === 0 ? (
               <p className="mx-auto w-fit max-w-[85%] rounded-lg bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-800 break-words">
                 {shortages.length === 1
-                  ? `${shortages[0].productName}: the full ${shortages[0].requestedAreaSqm} m² requested isn't available right now. Send a message below to reach our stock team.`
-                  : `${shortages.length} items in your cart exceed what's currently in stock. Send a message below to reach our stock team.`}
+                  ? t("dash.cartNegotiation.emptyOne", { name: shortages[0].productName, area: shortages[0].requestedAreaSqm })
+                  : t("dash.cartNegotiation.emptyMany", { count: shortages.length })}
               </p>
             ) : (
               messages.map((message) => {
@@ -321,7 +323,7 @@ export const CartNegotiationChat = ({
             <button
               type="button"
               onClick={() => scrollToBottom()}
-              aria-label="Scroll to latest messages"
+              aria-label={t("dash.cartNegotiation.scrollLatestAria")}
               className="absolute right-4 bottom-[4.75rem] flex size-9 items-center justify-center rounded-full bg-ink text-white shadow-lg transition-transform hover:scale-105"
             >
               <ChevronDown className="size-4" />
@@ -338,7 +340,7 @@ export const CartNegotiationChat = ({
                   void sendMessage();
                 }
               }}
-              placeholder="Type a message…"
+              placeholder={t("dash.cartNegotiation.placeholder")}
               className="h-10 flex-1 rounded-full border border-border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             />
             <Button
@@ -346,7 +348,7 @@ export const CartNegotiationChat = ({
               size="icon"
               onClick={() => void sendMessage()}
               disabled={draft.trim() === ""}
-              aria-label="Send message"
+              aria-label={t("dash.cartNegotiation.sendAria")}
               className="size-10 shrink-0 rounded-full"
             >
               <Send className="size-4" />
@@ -360,7 +362,7 @@ export const CartNegotiationChat = ({
             stickToBottomRef.current = true;
             setOpen(true);
           }}
-          aria-label="Open stock negotiation chat"
+          aria-label={t("dash.cartNegotiation.openAria")}
           className="relative size-14 shrink-0 rounded-full bg-ink text-primary shadow-lg hover:bg-ink/90"
         >
           <MessageCircle className="size-6" />

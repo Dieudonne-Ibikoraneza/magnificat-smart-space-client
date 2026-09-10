@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { History, Menu, Settings, ShoppingCart, Sparkles, Star } from "lucide-react";
 import { ApiLoading } from "@/components/api-state";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
@@ -9,21 +10,23 @@ import { useRequireRole } from "@/lib/require-role";
 import { getInitials } from "@/lib/utils";
 
 const accountNavigation = [
-  { href: "/account/cart", label: "My Cart", icon: ShoppingCart },
-  { href: "/account/orders", label: "My Orders", icon: History },
-  { href: "/account/favorites", label: "Favorites", icon: Star },
-  { href: "/account/designs", label: "Saved Designs", icon: Sparkles },
+  { href: "/account/cart", labelKey: "dash.nav.cart", icon: ShoppingCart },
+  { href: "/account/orders", labelKey: "dash.nav.orders", icon: History },
+  { href: "/account/favorites", labelKey: "dash.nav.favorites", icon: Star },
+  { href: "/account/designs", labelKey: "dash.nav.designs", icon: Sparkles },
   {
     href: "/account/settings",
-    label: "Account Settings",
+    labelKey: "dash.nav.settings",
     icon: Settings,
     active: (pathname: string) => pathname === "/account" || pathname.startsWith("/account/settings"),
   },
 ] as const;
 
 const AccountLayout = ({ children }: { children: React.ReactNode }) => {
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, authorized } = useRequireRole(["CLIENT"]);
+  const navLinks = accountNavigation.map((link) => ({ ...link, label: t(link.labelKey) }));
 
   // Holds the whole area — sidebar included — until we know who this is: a
   // signed-out visitor or the wrong role would otherwise see a flash of a
@@ -31,7 +34,7 @@ const AccountLayout = ({ children }: { children: React.ReactNode }) => {
   if (!authorized || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <ApiLoading label="Loading your account…" />
+        <ApiLoading label={t("dash.loadingAccount")} />
       </div>
     );
   }
@@ -42,8 +45,8 @@ const AccountLayout = ({ children }: { children: React.ReactNode }) => {
     <div className="min-h-screen bg-background text-ink">
       <SiteHeader />
       <DashboardSidebar
-        links={accountNavigation}
-        ariaLabel="Account navigation"
+        links={navLinks}
+        ariaLabel={t("dash.nav.aria")}
         user={sidebarUser}
         className="fixed inset-y-0 left-0 top-20 z-30 hidden h-[calc(100vh-5rem)] w-70 bg-card lg:block xl:w-80"
       />
@@ -51,13 +54,13 @@ const AccountLayout = ({ children }: { children: React.ReactNode }) => {
         <>
           <button
             type="button"
-            aria-label="Close account menu"
+            aria-label={t("dash.nav.closeMenu")}
             onClick={() => setMenuOpen(false)}
             className="fixed inset-0 z-[55] bg-ink/40 backdrop-blur-sm lg:hidden"
           />
           <DashboardSidebar
-            links={accountNavigation}
-            ariaLabel="Account navigation"
+            links={navLinks}
+            ariaLabel={t("dash.nav.aria")}
             user={sidebarUser}
             close={() => setMenuOpen(false)}
             className="fixed left-4 right-4 top-24 z-[60] max-h-[calc(100vh-8rem)] w-auto animate-in fade-in slide-in-from-top-4 overflow-y-auto rounded-2xl bg-card shadow-2xl duration-200 sm:left-6 sm:right-auto sm:w-84 lg:hidden"
@@ -68,13 +71,13 @@ const AccountLayout = ({ children }: { children: React.ReactNode }) => {
         <div className="mb-6 flex items-center lg:hidden">
           <button
             type="button"
-            aria-label="Open account menu"
+            aria-label={t("dash.nav.openMenu")}
             onClick={() => setMenuOpen(true)}
             className="inline-flex size-10 items-center justify-center rounded-lg border border-border bg-card text-ink hover:bg-secondary"
           >
             <Menu className="size-5" />
           </button>
-          <span className="ml-3 text-sm font-semibold text-ink">Account menu</span>
+          <span className="ml-3 text-sm font-semibold text-ink">{t("dash.nav.menuLabel")}</span>
         </div>
         {children}
       </main>

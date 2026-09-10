@@ -48,38 +48,32 @@ const stockTone: Record<Product["stockStatus"], string> = {
   out_of_stock: "bg-red-50 text-red-700",
 };
 
-type TFunc = ReturnType<typeof useTranslation>["t"];
-
-const roomLabel = (t: TFunc, room: string): string => {
-  const key = ROOM_LABEL_KEYS[room as keyof typeof ROOM_LABEL_KEYS];
-  return key ? t(key) : room;
-};
-
-/**
- * Each comparison row pulls one attribute off a product. Keeping them in a list
- * means the table stays a single map over rows × products, and the "differs"
- * highlight is computed the same way for every attribute.
- */
-const buildComparisonRows = (t: TFunc): {
-  label: string;
-  value: (product: Product) => string;
-}[] => [
-  { label: t("compare.rows.pricePerSqm"), value: (p) => formatRWF(p.price) },
-  { label: t("compare.rows.pricePerBox"), value: (p) => formatRWF(p.price * p.boxCoverage) },
-  { label: t("compare.rows.tileSize"), value: (p) => p.size },
-  { label: t("compare.rows.areaPerPiece"), value: (p) => `${formatNumber(p.tileArea)} m²` },
-  { label: t("compare.rows.coveragePerBox"), value: (p) => `${formatNumber(p.boxCoverage)} m²` },
-  { label: t("compare.rows.piecesPerBox"), value: (p) => String(p.piecesPerBox) },
-  { label: t("compare.rows.suitableFor"), value: (p) => t(SUITABLE_FOR_KEYS[p.suitableFor]) },
-  { label: t("compare.rows.recommendedRooms"), value: (p) => p.roomTypes.map((room) => roomLabel(t, room)).join(", ") },
-  { label: t("compare.rows.availability"), value: (p) => t(STOCK_KEYS[p.stockStatus]) },
-  { label: t("compare.rows.sku"), value: (p) => p.sku },
-];
-
 const ComparePageContent = () => {
   const { t } = useTranslation();
   const searchParams = useSearchParams();
-  const comparisonRows = buildComparisonRows(t);
+
+  const roomLabel = (room: string): string => {
+    const key = ROOM_LABEL_KEYS[room as keyof typeof ROOM_LABEL_KEYS];
+    return key ? t(key) : room;
+  };
+
+  /**
+   * Each comparison row pulls one attribute off a product; the table is a single
+   * map over rows × products and the "differs" highlight is computed the same way
+   * for every attribute.
+   */
+  const comparisonRows: { label: string; value: (product: Product) => string }[] = [
+    { label: t("compare.rows.pricePerSqm"), value: (p) => formatRWF(p.price) },
+    { label: t("compare.rows.pricePerBox"), value: (p) => formatRWF(p.price * p.boxCoverage) },
+    { label: t("compare.rows.tileSize"), value: (p) => p.size },
+    { label: t("compare.rows.areaPerPiece"), value: (p) => `${formatNumber(p.tileArea)} m²` },
+    { label: t("compare.rows.coveragePerBox"), value: (p) => `${formatNumber(p.boxCoverage)} m²` },
+    { label: t("compare.rows.piecesPerBox"), value: (p) => String(p.piecesPerBox) },
+    { label: t("compare.rows.suitableFor"), value: (p) => t(SUITABLE_FOR_KEYS[p.suitableFor]) },
+    { label: t("compare.rows.recommendedRooms"), value: (p) => p.roomTypes.map(roomLabel).join(", ") },
+    { label: t("compare.rows.availability"), value: (p) => t(STOCK_KEYS[p.stockStatus]) },
+    { label: t("compare.rows.sku"), value: (p) => p.sku },
+  ];
   const { data, loading, error, reload } = useApi(() => productsApi.list({ limit: 100 }));
   const products = useMemo(() => data?.items.map((product) => toProduct(product)) ?? [], [data]);
 
