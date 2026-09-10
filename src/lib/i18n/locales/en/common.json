@@ -28,7 +28,15 @@
     "loading": "Loading…",
     "empty": "Nothing here yet",
     "error": "Something went wrong",
-    "retry": "Try again"
+    "retry": "Try again",
+    "relativeTime": {
+      "justNow": "Just now",
+      "minutesAgo": "{{count}} min ago",
+      "hoursAgo_one": "{{count}} hr ago",
+      "hoursAgo_other": "{{count}} hrs ago",
+      "yesterday": "Yesterday",
+      "daysAgo": "{{count}} days ago"
+    }
   },
   "languageGate": {
     "title": "Choose your language",

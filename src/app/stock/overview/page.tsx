@@ -329,7 +329,7 @@ const StockOverviewPage = () => {
                               {formatSignedSqm(movement.changeAreaSqm)}
                             </TableCell>
                             <TableCell className="text-xs text-[#71809a]">
-                              {formatRelativeTime(movement.createdAt)}
+                              {formatRelativeTime(movement.createdAt, t)}
                             </TableCell>
                           </TableRow>
                         );
@@ -348,7 +348,7 @@ const StockOverviewPage = () => {
                         <div>
                           <p className="text-sm font-semibold text-ink">{movement.product.name}</p>
                           <p className="mt-1 text-xs text-[#71809a]">
-                            {movement.reference ?? movement.product.sku} • {formatRelativeTime(movement.createdAt)}
+                            {movement.reference ?? movement.product.sku} • {formatRelativeTime(movement.createdAt, t)}
                           </p>
                           <span
                             className={`mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${movementTone[movement.type]}`}
@@ -421,7 +421,7 @@ const StockOverviewPage = () => {
                       <div className="mt-3 flex items-center justify-between border-t border-[#e5e7eb] pt-3 text-xs">
                         <span className="flex items-center gap-1.5 text-[#60718b]">
                           <Clock3 className="size-3.5" />
-                          {formatRelativeTime(order.createdAt)}
+                          {formatRelativeTime(order.createdAt, t)}
                         </span>
                         <Link
                           href={`/stock/orders/${order.id}`}

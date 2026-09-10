@@ -28,7 +28,15 @@
     "loading": "Biratunganywa…",
     "empty": "Nta kintu kirahari",
     "error": "Hari ikitagenze neza",
-    "retry": "Ongera ugerageze"
+    "retry": "Ongera ugerageze",
+    "relativeTime": {
+      "justNow": "Nonaha",
+      "minutesAgo": "hashize iminota {{count}}",
+      "hoursAgo_one": "hashize isaha {{count}}",
+      "hoursAgo_other": "hashize amasaha {{count}}",
+      "yesterday": "Ejo hashize",
+      "daysAgo": "hashize iminsi {{count}}"
+    }
   },
   "languageGate": {
     "title": "Hitamo ururimi rwawe",

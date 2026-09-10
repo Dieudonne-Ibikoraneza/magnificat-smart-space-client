@@ -130,7 +130,7 @@ const CustomersPage = () => {
                   <div className="flex items-center justify-between gap-3">
                     <dt className="text-muted-foreground">{t("sales.customers.lastOrder")}</dt>
                     <dd className="whitespace-nowrap text-ink">
-                      {customer.lastOrderAt ? formatRelativeTime(customer.lastOrderAt) : t("sales.customers.noOrdersYet")}
+                      {customer.lastOrderAt ? formatRelativeTime(customer.lastOrderAt, t) : t("sales.customers.noOrdersYet")}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between gap-3 border-t border-[#E5E7EB] pt-3">

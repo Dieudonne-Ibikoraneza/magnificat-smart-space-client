@@ -395,7 +395,7 @@ const CustomerStep = ({
                     <div className="flex items-center justify-between gap-3">
                       <dt className="text-muted-foreground">{t("sales.newOrder.customerStep.lastOrder")}</dt>
                       <dd className="whitespace-nowrap text-ink">
-                        {customer.lastOrderAt ? formatRelativeTime(customer.lastOrderAt) : t("sales.newOrder.customerStep.noOrdersYet")}
+                        {customer.lastOrderAt ? formatRelativeTime(customer.lastOrderAt, t) : t("sales.newOrder.customerStep.noOrdersYet")}
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-3 border-t border-[#E5E7EB] pt-3">

@@ -418,7 +418,7 @@ export default function StockReportsPage() {
                           {movement.adjustedBy?.fullName ?? "—"}
                         </TableCell>
                         <TableCell className="text-xs text-[#71809a]">
-                          {formatRelativeTime(movement.createdAt)}
+                          {formatRelativeTime(movement.createdAt, t)}
                         </TableCell>
                       </TableRow>
                     );
@@ -436,7 +436,7 @@ export default function StockReportsPage() {
                       <p className="text-sm font-semibold text-ink">{movement.product.name}</p>
                       <p className="mt-1 text-xs text-[#71809a]">
                         {movement.reference ?? movement.product.sku} •{" "}
-                        {movement.adjustedBy?.fullName ?? "—"} • {formatRelativeTime(movement.createdAt)}
+                        {movement.adjustedBy?.fullName ?? "—"} • {formatRelativeTime(movement.createdAt, t)}
                       </p>
                       <span
                         className={cn(
