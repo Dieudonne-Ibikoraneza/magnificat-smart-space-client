@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
 import {
   Bar,
@@ -65,12 +66,14 @@ const RevenueTooltip = ({
   payload?: Array<{ value: number }>;
   label?: string;
 }) => {
+  const { t } = useTranslation();
+
   if (!active || !payload?.length) return null;
 
   return (
     <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
       <p className="font-data text-xs font-semibold tracking-widest text-data-ink">{label}</p>
-      <p className="mt-1 font-data text-sm text-ink">Revenue: {formatRWF(payload[0].value)}</p>
+      <p className="mt-1 font-data text-sm text-ink">{t("sales.overview.revenueTooltip", { value: formatRWF(payload[0].value) })}</p>
     </div>
   );
 };
@@ -113,6 +116,7 @@ const KpiSkeleton = () => (
 );
 
 const SalesOverviewPage = () => {
+  const { t } = useTranslation();
   const router = useRouter();
   const [period, setPeriod] = useState<AnalyticsPeriodDays>(30);
   const range = periodToRange[period];
@@ -136,7 +140,7 @@ const SalesOverviewPage = () => {
 
   return (
     <>
-      <SalesPageHeader title="Overview" subtitle="Track your sales performance and daily tasks.">
+      <SalesPageHeader title={t("sales.overview.title")} subtitle={t("sales.overview.subtitle")}>
         <AnalyticsPeriodSwitcher period={period} onChange={setPeriod} />
       </SalesPageHeader>
 
@@ -156,14 +160,14 @@ const SalesOverviewPage = () => {
               <>
                 <article className="rounded-xl bg-white p-5 sm:p-6">
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm text-ink uppercase">Total Sales</p>
+                    <p className="text-sm text-ink uppercase">{t("sales.overview.totalSales")}</p>
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#FAFDE9] text-ink">
                       <Coins className="size-4" strokeWidth={1.8} />
                     </span>
                   </div>
                   <p className="mt-4 text-2xl font-bold text-ink">{formatCompactCurrency(sales.totalSales)}</p>
                   <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3 text-xs">
-                    <span className="text-muted-foreground">Transport fees (not included)</span>
+                    <span className="text-muted-foreground">{t("sales.overview.transportFeesNote")}</span>
                     <span className="font-data font-semibold text-ink">{formatCompactCurrency(sales.totalTransportFees)}</span>
                   </div>
                   <p
@@ -173,45 +177,46 @@ const SalesOverviewPage = () => {
                     )}
                   >
                     {sales.percentChangeVsLastPeriod < 0 ? <TrendingDown className="size-3" /> : <TrendingUp className="size-3" />}
-                    {sales.percentChangeVsLastPeriod > 0 ? "+" : ""}
-                    {sales.percentChangeVsLastPeriod.toFixed(1)}% vs last period
+                    {t("sales.overview.vsLastPeriod", {
+                      value: `${sales.percentChangeVsLastPeriod > 0 ? "+" : ""}${sales.percentChangeVsLastPeriod.toFixed(1)}`,
+                    })}
                   </p>
                 </article>
 
                 <article className="rounded-xl bg-white p-5 sm:p-6">
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm text-ink uppercase">Total Orders</p>
+                    <p className="text-sm text-ink uppercase">{t("sales.overview.totalOrders")}</p>
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#F3F4F6] text-ink">
                       <ShoppingBasket className="size-4" strokeWidth={1.8} />
                     </span>
                   </div>
                   <p className="mt-4 text-2xl font-bold text-ink">{sales.totalOrders.toLocaleString()}</p>
                   <p className="mt-4 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground sm:mt-5">
-                    Avg. {formatRWF(sales.averageOrderValue)} / order
+                    {t("sales.overview.avgPerOrder", { value: formatRWF(sales.averageOrderValue) })}
                   </p>
                 </article>
 
                 <article className="rounded-xl bg-white p-5 sm:p-6">
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm text-ink uppercase">Pending Orders</p>
+                    <p className="text-sm text-ink uppercase">{t("sales.overview.pendingOrders")}</p>
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#FEF3C7] text-ink">
                       <Clock3 className="size-4" strokeWidth={1.8} />
                     </span>
                   </div>
                   <p className="mt-4 text-2xl font-bold text-ink">{pendingOrders.toLocaleString()}</p>
-                  <p className="mt-4 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground sm:mt-5">Requires attention</p>
+                  <p className="mt-4 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground sm:mt-5">{t("sales.overview.requiresAttention")}</p>
                 </article>
 
                 <article className="rounded-xl bg-white p-5 sm:p-6">
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm text-ink uppercase">Total Customers</p>
+                    <p className="text-sm text-ink uppercase">{t("sales.overview.totalCustomers")}</p>
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#F3F4F6] text-ink">
                       <UsersRound className="size-4" strokeWidth={1.8} />
                     </span>
                   </div>
                   <p className="mt-4 text-2xl font-bold text-ink">{sales.totalCustomers.toLocaleString()}</p>
                   <p className="mt-4 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground sm:mt-5">
-                    {sales.repeatPurchaseRate.toFixed(0)}% repeat purchase rate
+                    {t("sales.overview.repeatRate", { value: sales.repeatPurchaseRate.toFixed(0) })}
                   </p>
                 </article>
               </>
@@ -223,15 +228,15 @@ const SalesOverviewPage = () => {
           <section className="rounded-2xl bg-card p-5 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="text-lg font-bold text-ink">Sales Performance</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Shipped &amp; delivered revenue (RWF) across the selected period</p>
+                <h2 className="text-lg font-bold text-ink">{t("sales.overview.salesPerformance")}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{t("sales.overview.salesPerformanceSub")}</p>
               </div>
             </div>
             <div className="mt-6 sm:mt-8">
               {salesLoading || !sales ? (
                 <Skeleton className="h-65 w-full sm:h-80" />
               ) : sales.trend.length === 0 ? (
-                <ApiEmptyState message="No sales in this period yet." className="py-16" />
+                <ApiEmptyState message={t("sales.overview.noSales")} className="py-16" />
               ) : (
                 <SalesTrendChart data={sales.trend} />
               )}
@@ -239,7 +244,7 @@ const SalesOverviewPage = () => {
           </section>
 
           <section className="flex min-w-0 flex-col overflow-hidden rounded-2xl bg-card p-5 sm:p-6">
-            <h2 className="text-lg font-bold text-ink">Top Customers</h2>
+            <h2 className="text-lg font-bold text-ink">{t("sales.overview.topCustomers")}</h2>
             {customersLoading ? (
               <div className="mt-4 flex-1 space-y-4">
                 {[0, 1, 2].map((item) => (
@@ -253,7 +258,7 @@ const SalesOverviewPage = () => {
                 ))}
               </div>
             ) : topCustomers.length === 0 ? (
-              <ApiEmptyState message="No customers yet." className="flex-1 py-10" />
+              <ApiEmptyState message={t("sales.overview.noCustomers")} className="flex-1 py-10" />
             ) : (
               <ul className="mt-4 flex-1">
                 {topCustomers.map((customer) => (
@@ -269,8 +274,12 @@ const SalesOverviewPage = () => {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-ink">{customer.fullName}</p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {customer.orderCount} Order{customer.orderCount === 1 ? "" : "s"}
-                          {customer.lastOrderAt ? ` • Last ${new Date(customer.lastOrderAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}` : ""}
+                          {t("sales.overview.orderCount", { count: customer.orderCount })}
+                          {customer.lastOrderAt
+                            ? t("sales.overview.lastOrderShort", {
+                                date: new Date(customer.lastOrderAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }),
+                              })
+                            : ""}
                         </p>
                       </div>
                       <span className="max-w-[38%] shrink-0 wrap-break-word text-right font-data text-sm font-semibold text-ink">
@@ -285,7 +294,7 @@ const SalesOverviewPage = () => {
               href="/sales/customers"
               className="mt-2 block w-full rounded-lg py-3 text-center text-sm font-medium text-ink transition-all duration-200 hover:bg-secondary active:scale-[0.98]"
             >
-              View All
+              {t("sales.overview.viewAll")}
             </Link>
           </section>
         </div>
@@ -301,12 +310,12 @@ const SalesOverviewPage = () => {
         <section className="rounded-2xl bg-card p-5 sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-bold text-ink">Best Selling Tiles</h2>
-              <p className="mt-1 text-sm text-muted-foreground">By revenue in the selected period</p>
+              <h2 className="text-lg font-bold text-ink">{t("sales.overview.bestSellingTiles")}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{t("sales.overview.bestSellingSub")}</p>
             </div>
             {sales?.topPerformer && (
               <span className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
-                <Target className="size-3.5" /> Top: {sales.topPerformer.name}
+                <Target className="size-3.5" /> {t("sales.overview.top", { name: sales.topPerformer.name })}
               </span>
             )}
           </div>
@@ -323,7 +332,7 @@ const SalesOverviewPage = () => {
               ))}
             </div>
           ) : sales.bestSellingTiles.length === 0 ? (
-            <ApiEmptyState message="No tiles sold in this period yet." className="py-10" />
+            <ApiEmptyState message={t("sales.overview.noTilesSold")} className="py-10" />
           ) : (
             <ul className="mt-4">
               {sales.bestSellingTiles.slice(0, 5).map((tile, index) => (
@@ -334,7 +343,7 @@ const SalesOverviewPage = () => {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-ink">{tile.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">{tile.pieces.toLocaleString()} pieces sold</p>
+                      <p className="truncate text-xs text-muted-foreground">{t("sales.overview.piecesSold", { count: tile.pieces })}</p>
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="font-data text-sm font-semibold text-ink">{formatCompactCurrency(tile.revenue)}</p>
@@ -348,9 +357,9 @@ const SalesOverviewPage = () => {
 
         <section className="animate-fade-in overflow-hidden rounded-2xl bg-card">
           <div className="flex items-center justify-between gap-3 px-5 py-5 sm:px-6">
-            <h2 className="truncate text-lg font-bold text-ink">Recent Orders</h2>
+            <h2 className="truncate text-lg font-bold text-ink">{t("sales.overview.recentOrders")}</h2>
             <Link href="/sales/orders" className="group flex shrink-0 items-center gap-1 text-xs font-semibold tracking-wider text-ink">
-              VIEW ALL
+              {t("sales.overview.viewAllCaps")}
               <ChevronRight className="size-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </div>
@@ -367,14 +376,21 @@ const SalesOverviewPage = () => {
           ) : ordersError ? (
             <ApiErrorState message={ordersError} onRetry={reloadOrders} className="mx-5 mb-6" />
           ) : recentOrders.length === 0 ? (
-            <ApiEmptyState message="No orders yet." className="mx-5 mb-6" />
+            <ApiEmptyState message={t("sales.overview.noOrders")} className="mx-5 mb-6" />
           ) : (
             <>
               <div className="hidden overflow-x-auto md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      {["Order ID", "Customer", "Date", "Amount", "Status", "Action"].map((head) => (
+                      {[
+                        t("sales.overview.colOrderId"),
+                        t("sales.overview.colCustomer"),
+                        t("sales.overview.colDate"),
+                        t("sales.overview.colAmount"),
+                        t("sales.overview.colStatus"),
+                        t("sales.overview.colAction"),
+                      ].map((head) => (
                         <TableHead key={head}>{head}</TableHead>
                       ))}
                     </TableRow>
@@ -384,7 +400,7 @@ const SalesOverviewPage = () => {
                       <TableRow
                         key={order.id}
                         tabIndex={0}
-                        aria-label={`View details for ${order.orderNumber}`}
+                        aria-label={t("sales.overview.viewDetailsAria", { number: order.orderNumber })}
                         onClick={() => router.push(`/sales/orders/${order.id}`)}
                         onKeyDown={(event) => {
                           if (event.key === "Enter" || event.key === " ") {
@@ -405,12 +421,12 @@ const SalesOverviewPage = () => {
                         <TableCell className="font-semibold whitespace-nowrap text-ink">{formatRWF(Number(order.total))}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap items-center gap-2">
-                            {order.createdByType === "STAFF" && <StaffCreatedIndicator createdByName={order.createdBy?.fullName ?? "Staff"} />}
+                            {order.createdByType === "STAFF" && <StaffCreatedIndicator createdByName={order.createdBy?.fullName ?? t("sales.overview.staffFallback")} />}
                             <OrderStatusBadge status={order.status} />
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Link href={`/sales/orders/${order.id}`} aria-label={`View ${order.orderNumber}`} className="rounded-md p-1.5 text-ink hover:bg-secondary">
+                          <Link href={`/sales/orders/${order.id}`} aria-label={t("sales.overview.viewAria", { number: order.orderNumber })} className="rounded-md p-1.5 text-ink hover:bg-secondary">
                             <MoreVertical className="size-4" />
                           </Link>
                         </TableCell>
@@ -433,7 +449,7 @@ const SalesOverviewPage = () => {
                       <div className="flex shrink-0 flex-col items-end gap-2">
                         <p className="text-sm font-semibold text-ink">{formatRWF(Number(order.total))}</p>
                         <div className="flex items-center gap-2">
-                          {order.createdByType === "STAFF" && <StaffCreatedIndicator createdByName={order.createdBy?.fullName ?? "Staff"} />}
+                          {order.createdByType === "STAFF" && <StaffCreatedIndicator createdByName={order.createdBy?.fullName ?? t("sales.overview.staffFallback")} />}
                           <OrderStatusBadge status={order.status} />
                         </div>
                       </div>
