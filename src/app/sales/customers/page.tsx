@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Eye, ListFilter, Search, ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SalesPageHeader } from "@/app/sales/layout";
@@ -20,6 +21,7 @@ const statusBadge: Record<UserStatus, "primary" | "muted" | "destructive"> = {
 };
 
 const CustomersPage = () => {
+  const { t } = useTranslation();
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | UserStatus>("all");
@@ -42,42 +44,44 @@ const CustomersPage = () => {
 
   return (
     <>
-      <SalesPageHeader title="Customers" subtitle="Manage profiles, track history, and initiate orders." />
+      <SalesPageHeader title={t("sales.customers.title")} subtitle={t("sales.customers.subtitle")} />
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
         <section className="rounded-2xl bg-card p-4 sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
             <div className="flex shrink-0 items-center gap-2 text-sm font-medium text-ink">
               <ListFilter className="size-5 shrink-0" strokeWidth={1.8} />
-              <span>Filter by:</span>
+              <span>{t("sales.customers.filterBy")}</span>
             </div>
             <div className="grid w-full min-w-0 grid-cols-2 gap-3 sm:min-w-[320px] sm:flex-1 lg:w-auto lg:flex-none lg:gap-5">
               <div className="min-w-0">
-                <span className="sr-only">Status</span>
+                <span className="sr-only">{t("sales.customers.status")}</span>
                 <Select value={status} onValueChange={(value) => setStatus((value ?? "all") as "all" | UserStatus)}>
                   <SelectTrigger className="h-10 w-full min-w-0 border-border bg-transparent text-sm font-medium">
                     <SelectValue className="min-w-0 truncate">
                       {(value) =>
-                        value === "all" ? "Status: All" : `Status: ${value === "ACTIVE" ? "Active" : value === "INACTIVE" ? "Inactive" : "Suspended"}`
+                        value === "all"
+                          ? t("sales.customers.statusAll")
+                          : t("sales.customers.statusValue", { status: t(`staff.userStatus.${value as UserStatus}`) })
                       }
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Status: All</SelectItem>
-                    <SelectItem value="ACTIVE">Status: Active</SelectItem>
-                    <SelectItem value="INACTIVE">Status: Inactive</SelectItem>
-                    <SelectItem value="SUSPENDED">Status: Suspended</SelectItem>
+                    <SelectItem value="all">{t("sales.customers.statusAll")}</SelectItem>
+                    <SelectItem value="ACTIVE">{t("sales.customers.statusValue", { status: t("staff.userStatus.ACTIVE") })}</SelectItem>
+                    <SelectItem value="INACTIVE">{t("sales.customers.statusValue", { status: t("staff.userStatus.INACTIVE") })}</SelectItem>
+                    <SelectItem value="SUSPENDED">{t("sales.customers.statusValue", { status: t("staff.userStatus.SUSPENDED") })}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="min-w-0">
-                <span className="sr-only">Joined date</span>
+                <span className="sr-only">{t("sales.customers.joinedDate")}</span>
                 <Select value={sort} onValueChange={(value) => setSort((value ?? "newest") as "newest" | "name")}>
                   <SelectTrigger className="h-10 w-full min-w-0 border-border bg-transparent text-sm font-medium">
-                    <SelectValue className="min-w-0 truncate">{(value) => (value === "name" ? "Name: A - Z" : "Joined: Newest")}</SelectValue>
+                    <SelectValue className="min-w-0 truncate">{(value) => (value === "name" ? t("sales.customers.nameAZ") : t("sales.customers.joinedNewest"))}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="newest">Joined Date: Newest</SelectItem>
-                    <SelectItem value="name">Name: A - Z</SelectItem>
+                    <SelectItem value="newest">{t("sales.customers.joinedDateNewest")}</SelectItem>
+                    <SelectItem value="name">{t("sales.customers.nameAZ")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -87,23 +91,23 @@ const CustomersPage = () => {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search by customer name, email..."
-                aria-label="Search customers"
+                placeholder={t("sales.customers.searchPlaceholder")}
+                aria-label={t("sales.customers.searchAria")}
                 className="w-full rounded-full border border-border bg-[#F9FAFB] py-3 pr-4 pl-11 text-sm text-ink outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/40"
               />
             </div>
             <p className="shrink-0 text-xs font-semibold tracking-wider text-muted-foreground uppercase lg:hidden xl:inline">
-              Showing {results.length} result{results.length === 1 ? "" : "s"}
+              {t("sales.customers.showingResults", { count: results.length })}
             </p>
           </div>
         </section>
 
         {loading ? (
-          <ApiLoading label="Loading customers…" className="py-24" />
+          <ApiLoading label={t("sales.customers.loading")} className="py-24" />
         ) : error ? (
           <ApiErrorState message={error} onRetry={reload} className="my-16" />
         ) : results.length === 0 ? (
-          <ApiEmptyState message="No customers match your filters." className="py-16" />
+          <ApiEmptyState message={t("sales.customers.noResults")} className="py-16" />
         ) : (
           <ul className="grid gap-4 sm:gap-5 md:grid-cols-2 2xl:grid-cols-3">
             {results.map((customer) => (
@@ -113,24 +117,24 @@ const CustomersPage = () => {
               >
                 <div className="flex items-start justify-between gap-3">
                   <h2 className="min-w-0 truncate text-xl font-bold text-ink">{customer.fullName}</h2>
-                  <Badge variant={statusBadge[customer.status]}>{customer.status}</Badge>
+                  <Badge variant={statusBadge[customer.status]}>{t(`staff.userStatus.${customer.status}`)}</Badge>
                 </div>
                 <dl className="mt-5 space-y-3 border-t border-[#E5E7EB] pt-4 font-data text-sm">
                   <div className="flex items-start justify-between gap-3">
-                    <dt className="shrink-0 text-muted-foreground">Contact</dt>
+                    <dt className="shrink-0 text-muted-foreground">{t("sales.customers.contact")}</dt>
                     <dd className="min-w-0 text-right text-ink">
                       <span className="block truncate">{customer.email ?? "—"}</span>
                       <span className="block whitespace-nowrap">{customer.phone ?? "—"}</span>
                     </dd>
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <dt className="text-muted-foreground">Last Order</dt>
+                    <dt className="text-muted-foreground">{t("sales.customers.lastOrder")}</dt>
                     <dd className="whitespace-nowrap text-ink">
-                      {customer.lastOrderAt ? formatRelativeTime(customer.lastOrderAt) : "No orders yet"}
+                      {customer.lastOrderAt ? formatRelativeTime(customer.lastOrderAt) : t("sales.customers.noOrdersYet")}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between gap-3 border-t border-[#E5E7EB] pt-3">
-                    <dt className="text-muted-foreground">Total Spend</dt>
+                    <dt className="text-muted-foreground">{t("sales.customers.totalSpend")}</dt>
                     <dd className="text-xl font-semibold whitespace-nowrap text-ink">{formatCompactCurrency(customer.lifetimeSpend)}</dd>
                   </div>
                 </dl>
@@ -142,7 +146,7 @@ const CustomersPage = () => {
                     className="h-auto rounded-md py-2.5 text-xs font-bold tracking-wider bg-transparent text-ink uppercase transition-all hover:bg-secondary active:scale-95"
                   >
                     <Eye className="size-4" strokeWidth={1.9} />
-                    View
+                    {t("sales.customers.view")}
                   </Button>
                   <Button
                     type="button"
@@ -151,7 +155,7 @@ const CustomersPage = () => {
                     className="h-auto rounded-md border-border py-2.5 text-xs font-bold tracking-wider text-ink uppercase transition-all hover:border-primary bg-transparent hover:bg-primary active:scale-95"
                   >
                     <ShoppingCart className="size-4" strokeWidth={1.9} />
-                    Order
+                    {t("sales.customers.order")}
                   </Button>
                 </div>
               </li>
