@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import {
   BookOpen,
   Bot,
@@ -51,9 +52,9 @@ type EntryDraft = {
 
 const emptyDraft: EntryDraft = { question: "", answer: "", tags: "", language: "EN" };
 
-const languageLabels: Record<KnowledgeBaseLanguage, string> = {
-  EN: "English",
-  RW: "Kinyarwanda",
+const LANGUAGE_KEYS: Record<KnowledgeBaseLanguage, string> = {
+  EN: "admin.knowledgeBase.languageEnglish",
+  RW: "admin.knowledgeBase.languageKinyarwanda",
 };
 
 const languageFilters = ["all", "EN", "RW"] as const;
@@ -64,6 +65,7 @@ const languageFilters = ["all", "EN", "RW"] as const;
  * the bilingual requirement in section 2 holds for chatbot answers too.
  */
 export default function AdminKnowledgeBasePage() {
+  const { t } = useTranslation();
   const [entries, setEntries] = useState(knowledgeBaseEntries);
   const [search, setSearch] = useState("");
   const [language, setLanguage] = useState<(typeof languageFilters)[number]>("all");
@@ -85,9 +87,9 @@ export default function AdminKnowledgeBasePage() {
   }, [entries, language, search]);
 
   const stats = [
-    { label: "Total entries", value: entries.length, icon: BookOpen },
-    { label: "Active", value: entries.filter((entry) => entry.isActive).length, icon: CircleCheck },
-    { label: "Kinyarwanda", value: entries.filter((entry) => entry.language === "RW").length, icon: Languages },
+    { key: "total", label: t("admin.knowledgeBase.statTotalEntries"), value: entries.length, icon: BookOpen },
+    { key: "active", label: t("admin.knowledgeBase.statActive"), value: entries.filter((entry) => entry.isActive).length, icon: CircleCheck },
+    { key: "rw", label: t("admin.knowledgeBase.statKinyarwanda"), value: entries.filter((entry) => entry.language === "RW").length, icon: Languages },
   ];
 
   const openCreate = () => {
@@ -136,7 +138,7 @@ export default function AdminKnowledgeBasePage() {
             : entry,
         ),
       );
-      toast.success("Entry updated");
+      toast.success(t("admin.knowledgeBase.toastEntryUpdated"));
     } else {
       setEntries((current) => [
         {
@@ -150,7 +152,7 @@ export default function AdminKnowledgeBasePage() {
         },
         ...current,
       ]);
-      toast.success("Entry added", { description: "The assistant can use it from the next conversation." });
+      toast.success(t("admin.knowledgeBase.toastEntryAdded"), { description: t("admin.knowledgeBase.toastEntryAddedDesc") });
     }
     closeDialog();
   };
@@ -164,28 +166,28 @@ export default function AdminKnowledgeBasePage() {
         return { ...entry, isActive: nowActive };
       }),
     );
-    toast.success(nowActive ? "Entry activated" : "Entry deactivated");
+    toast.success(nowActive ? t("admin.knowledgeBase.toastEntryActivated") : t("admin.knowledgeBase.toastEntryDeactivated"));
   };
 
   const remove = (id: string) => {
     setEntries((current) => current.filter((entry) => entry.id !== id));
-    toast.success("Entry deleted");
+    toast.success(t("admin.knowledgeBase.toastEntryDeleted"));
   };
 
   return (
     <div className="pb-10">
       <AdminPageHeader
-        title="Chatbot Knowledge Base"
-        subtitle="Answers the AI assistant is allowed to give word for word."
+        title={t("admin.knowledgeBase.title")}
+        subtitle={t("admin.knowledgeBase.subtitle")}
       >
         <Button type="button" onClick={openCreate} className="h-11 shrink-0 gap-2 font-bold">
-          <Plus className="size-4" /> Add entry
+          <Plus className="size-4" /> {t("admin.knowledgeBase.addEntry")}
         </Button>
       </AdminPageHeader>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        {stats.map(({ label, value, icon: Icon }) => (
-          <article key={label} className="rounded-2xl bg-card p-5">
+        {stats.map(({ key, label, value, icon: Icon }) => (
+          <article key={key} className="rounded-2xl bg-card p-5">
             <span className="flex size-10 items-center justify-center rounded-lg bg-muted-background text-ink">
               <Icon className="size-5" />
             </span>
@@ -201,8 +203,8 @@ export default function AdminKnowledgeBasePage() {
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search questions, answers or tags..."
-            aria-label="Search knowledge base"
+            placeholder={t("admin.knowledgeBase.searchPlaceholder")}
+            aria-label={t("admin.knowledgeBase.searchAria")}
             className="h-11 rounded-lg pl-10 text-sm"
           />
         </div>
@@ -218,7 +220,7 @@ export default function AdminKnowledgeBasePage() {
                 language === value ? "bg-ink text-primary hover:bg-ink/90" : "text-muted-foreground",
               )}
             >
-              {value === "all" ? "All" : value}
+              {value === "all" ? t("admin.knowledgeBase.filterAll") : value}
             </Button>
           ))}
         </div>
@@ -240,7 +242,7 @@ export default function AdminKnowledgeBasePage() {
               <div className="flex shrink-0 items-center gap-2">
                 <Badge variant="outline">{entry.language}</Badge>
                 <Badge variant={entry.isActive ? "primary" : "muted"}>
-                  {entry.isActive ? "Active" : "Inactive"}
+                  {entry.isActive ? t("admin.knowledgeBase.active") : t("admin.knowledgeBase.inactive")}
                 </Badge>
               </div>
             </div>
@@ -255,7 +257,7 @@ export default function AdminKnowledgeBasePage() {
                     #{tag}
                   </span>
                 ))}
-                <span className="ml-1 text-[11px] text-muted-foreground">Updated {entry.updatedAt}</span>
+                <span className="ml-1 text-[11px] text-muted-foreground">{t("admin.knowledgeBase.updated", { date: entry.updatedAt })}</span>
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
@@ -265,7 +267,7 @@ export default function AdminKnowledgeBasePage() {
                   onClick={() => openEdit(entry)}
                   className="h-9 gap-1.5 text-xs font-bold"
                 >
-                  <Pencil className="size-3.5" /> Edit
+                  <Pencil className="size-3.5" /> {t("admin.knowledgeBase.edit")}
                 </Button>
                 <Button
                   type="button"
@@ -274,19 +276,19 @@ export default function AdminKnowledgeBasePage() {
                   className="h-9 gap-1.5 text-xs font-bold"
                 >
                   {entry.isActive ? <CircleSlash className="size-3.5" /> : <CircleCheck className="size-3.5" />}
-                  {entry.isActive ? "Deactivate" : "Activate"}
+                  {entry.isActive ? t("admin.knowledgeBase.deactivate") : t("admin.knowledgeBase.activate")}
                 </Button>
                 <ConfirmDialog
-                  title="Delete this entry?"
-                  description="The assistant will stop using this answer. This cannot be undone."
-                  confirmLabel="Delete entry"
+                  title={t("admin.knowledgeBase.deleteEntryTitle")}
+                  description={t("admin.knowledgeBase.deleteEntryDescription")}
+                  confirmLabel={t("admin.knowledgeBase.deleteEntryConfirm")}
                   onConfirm={() => remove(entry.id)}
                   trigger={
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      aria-label="Delete entry"
+                      aria-label={t("admin.knowledgeBase.deleteEntryAria")}
                       className="text-red-600 hover:bg-red-50"
                     >
                       <Trash2 className="size-4" />
@@ -300,7 +302,7 @@ export default function AdminKnowledgeBasePage() {
 
         {filtered.length === 0 && (
           <p className="rounded-2xl bg-card p-10 text-center text-sm text-muted-foreground">
-            No entries match those filters.
+            {t("admin.knowledgeBase.noMatch")}
           </p>
         )}
       </div>
@@ -308,39 +310,39 @@ export default function AdminKnowledgeBasePage() {
       <Dialog open={creating || editing !== null} onOpenChange={(open: boolean) => !open && closeDialog()}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit entry" : "Add a knowledge base entry"}</DialogTitle>
+            <DialogTitle>{editing ? t("admin.knowledgeBase.dialogEditTitle") : t("admin.knowledgeBase.dialogAddTitle")}</DialogTitle>
             <DialogDescription>
-              Write the answer exactly as you want the assistant to give it.
+              {t("admin.knowledgeBase.dialogDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={submit} className="mt-5 space-y-4">
             <Field>
-              <FieldLabel htmlFor="kb-question">Question</FieldLabel>
+              <FieldLabel htmlFor="kb-question">{t("admin.knowledgeBase.questionLabel")}</FieldLabel>
               <Input
                 id="kb-question"
                 required
                 value={draft.question}
                 onChange={(event) => setDraft((current) => ({ ...current, question: event.target.value }))}
-                placeholder="e.g. Do you deliver outside Kigali?"
+                placeholder={t("admin.knowledgeBase.questionPlaceholder")}
               />
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="kb-answer">Answer</FieldLabel>
+              <FieldLabel htmlFor="kb-answer">{t("admin.knowledgeBase.answerLabel")}</FieldLabel>
               <Textarea
                 id="kb-answer"
                 required
                 rows={4}
                 value={draft.answer}
                 onChange={(event) => setDraft((current) => ({ ...current, answer: event.target.value }))}
-                placeholder="Keep it short, factual and specific."
+                placeholder={t("admin.knowledgeBase.answerPlaceholder")}
               />
             </Field>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
-                <FieldLabel htmlFor="kb-language">Language</FieldLabel>
+                <FieldLabel htmlFor="kb-language">{t("admin.knowledgeBase.languageLabel")}</FieldLabel>
                 <Select
                   value={draft.language}
                   onValueChange={(value) =>
@@ -351,12 +353,12 @@ export default function AdminKnowledgeBasePage() {
                   }
                 >
                   <SelectTrigger id="kb-language" className="h-10 w-full text-sm">
-                    <SelectValue>{(value) => languageLabels[value as KnowledgeBaseLanguage]}</SelectValue>
+                    <SelectValue>{(value) => t(LANGUAGE_KEYS[value as KnowledgeBaseLanguage])}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {(Object.keys(languageLabels) as KnowledgeBaseLanguage[]).map((code) => (
+                    {(Object.keys(LANGUAGE_KEYS) as KnowledgeBaseLanguage[]).map((code) => (
                       <SelectItem key={code} value={code}>
-                        {languageLabels[code]}
+                        {t(LANGUAGE_KEYS[code])}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -364,22 +366,22 @@ export default function AdminKnowledgeBasePage() {
               </Field>
 
               <Field>
-                <FieldLabel htmlFor="kb-tags">Tags</FieldLabel>
+                <FieldLabel htmlFor="kb-tags">{t("admin.knowledgeBase.tagsLabel")}</FieldLabel>
                 <Input
                   id="kb-tags"
                   value={draft.tags}
                   onChange={(event) => setDraft((current) => ({ ...current, tags: event.target.value }))}
-                  placeholder="bathroom, size"
+                  placeholder={t("admin.knowledgeBase.tagsPlaceholder")}
                 />
               </Field>
             </div>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeDialog} className="h-10 px-5 text-sm font-bold">
-                Cancel
+                {t("admin.knowledgeBase.cancel")}
               </Button>
               <Button type="submit" disabled={!valid} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
-                {editing ? "Save changes" : "Add entry"}
+                {editing ? t("admin.knowledgeBase.saveChanges") : t("admin.knowledgeBase.addEntry")}
               </Button>
             </DialogFooter>
           </form>

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { AdminPageHeader } from "@/app/admin/layout";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
@@ -20,15 +21,16 @@ const AdminCollectionCard = ({
   collection: ApiCollection;
   onDeleted: () => void;
 }) => {
+  const { t } = useTranslation();
   const handleDelete = async () => {
-    if (!window.confirm(`Delete "${collection.title}"? This can't be undone.`)) return;
+    if (!window.confirm(t("stock.collections.confirmDelete", { title: collection.title }))) return;
     try {
       await collectionsApi.remove(collection.id);
-      toast.success("Collection deleted", { description: `${collection.title} was removed.` });
+      toast.success(t("stock.collections.toastDeletedTitle"), { description: t("stock.collections.toastDeletedBody", { name: collection.title }) });
       onDeleted();
     } catch (cause) {
-      toast.error("Couldn't delete collection", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("stock.collections.toastFailedTitle"), {
+        description: cause instanceof ApiError ? cause.message : t("stock.collections.toastTryAgain"),
       });
     }
   };
@@ -60,7 +62,7 @@ const AdminCollectionCard = ({
             render={<Link href={`/admin/collections/${collection.id}`} />}
             className="group/cta h-12 min-h-12 min-w-0 flex-1 gap-3 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
           >
-            <span className="truncate">View Collection</span>
+            <span className="truncate">{t("stock.collections.viewCollection")}</span>
             <ArrowRight className="size-4 shrink-0 transition-transform duration-300 group-hover/cta:translate-x-1" />
           </Button>
 
@@ -72,7 +74,7 @@ const AdminCollectionCard = ({
               variant="ghost"
               size="icon-sm"
               className="h-12 w-10 rounded-none text-ink hover:bg-white/45"
-              aria-label={`Edit ${collection.title}`}
+              aria-label={t("stock.collections.editAria", { title: collection.title })}
             >
               <Pencil className="size-4" strokeWidth={2.25} />
             </Button>
@@ -83,7 +85,7 @@ const AdminCollectionCard = ({
               size="icon-sm"
               onClick={() => void handleDelete()}
               className="h-12 w-10 rounded-none text-ink hover:bg-white/45 hover:text-red-600"
-              aria-label={`Delete ${collection.title}`}
+              aria-label={t("stock.collections.deleteAria", { title: collection.title })}
             >
               <Trash2 className="size-4" strokeWidth={2.25} />
             </Button>
@@ -95,6 +97,7 @@ const AdminCollectionCard = ({
 };
 
 export default function AdminCollectionsPage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { data, loading, error, reload } = useApi(() => collectionsApi.list({ limit: 100 }));
   const collections = data?.items ?? [];
@@ -102,8 +105,8 @@ export default function AdminCollectionsPage() {
   return (
     <>
       <AdminPageHeader
-        title="Collections"
-        subtitle={loading ? "Loading collections…" : `${collections.length} product collections currently managed`}
+        title={t("stock.collections.title")}
+        subtitle={loading ? t("stock.collections.loading") : t("stock.collections.managed", { count: collections.length })}
       >
         <Button
           type="button"
@@ -111,17 +114,17 @@ export default function AdminCollectionsPage() {
           className="h-11 gap-2 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
         >
           <Plus className="size-4" />
-          Add New Collection
+          {t("stock.collections.addNew")}
         </Button>
       </AdminPageHeader>
 
       <div className="mt-6 sm:mt-8">
         {loading ? (
-          <ApiLoading label="Loading collections…" className="py-24" />
+          <ApiLoading label={t("stock.collections.loadingList")} className="py-24" />
         ) : error ? (
           <ApiErrorState message={error} onRetry={reload} className="my-16" />
         ) : collections.length === 0 ? (
-          <ApiEmptyState message="No collections yet." className="py-16" />
+          <ApiEmptyState message={t("stock.collections.empty")} className="py-16" />
         ) : (
           <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {collections.map((collection) => (

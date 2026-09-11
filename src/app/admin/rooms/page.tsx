@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useMemo, useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { Box, Boxes, Eye, EyeOff, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { AdminPageHeader } from "@/app/admin/layout";
 import { ApiErrorState, ApiLoading } from "@/components/api-state";
@@ -34,6 +35,12 @@ import { useApi } from "@/lib/api/use-api";
 import type { ApiRoom, RoomType } from "@/lib/api/types";
 
 const roomTypes = Object.keys(roomTypeLabels) as RoomType[];
+const ROOM_TYPE_KEYS: Record<RoomType, string> = {
+  LIVING_ROOM: "catalog.roomTypes.livingRoom",
+  BEDROOM: "catalog.roomTypes.bedroom",
+  BATHROOM: "catalog.roomTypes.bathroom",
+  KITCHEN: "catalog.roomTypes.kitchen",
+};
 
 type RoomDraft = { type: RoomType; name: string; description: string; thumbnail: string; modelUrl: string };
 
@@ -53,6 +60,7 @@ const emptyDraft: RoomDraft = {
  * references it (enforced server-side, not just by this page's own copy).
  */
 export default function AdminRoomsPage() {
+  const { t } = useTranslation();
   const { data: rooms, loading, error, reload } = useApi(() => roomsApi.listAdmin());
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<ApiRoom | null>(null);
@@ -110,16 +118,16 @@ export default function AdminRoomsPage() {
       };
       if (editing) {
         await roomsApi.update(editing.id, body);
-        toast.success("Room updated", { description: `${draft.name} has been saved.` });
+        toast.success(t("admin.rooms.toastRoomUpdated"), { description: t("admin.rooms.toastRoomUpdatedDesc", { name: draft.name }) });
       } else {
         await roomsApi.create(body);
-        toast.success("Room added", { description: `${draft.name} is now available in the visualizer.` });
+        toast.success(t("admin.rooms.toastRoomAdded"), { description: t("admin.rooms.toastRoomAddedDesc", { name: draft.name }) });
       }
       closeDialog();
       reload();
     } catch (cause) {
-      toast.error(editing ? "Couldn't update room" : "Couldn't add room", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(editing ? t("admin.rooms.toastUpdateFailed") : t("admin.rooms.toastAddFailed"), {
+        description: cause instanceof ApiError ? cause.message : t("admin.rooms.tryAgain"),
       });
     } finally {
       setSaving(false);
@@ -130,15 +138,15 @@ export default function AdminRoomsPage() {
     const nextActive = !room.isActive;
     try {
       await roomsApi.update(room.id, { isActive: nextActive });
-      toast.success(nextActive ? "Room published" : "Room hidden", {
+      toast.success(nextActive ? t("admin.rooms.toastRoomPublished") : t("admin.rooms.toastRoomHidden"), {
         description: nextActive
-          ? "Customers can now pick this room in the visualizer."
-          : "This room no longer appears in the visualizer.",
+          ? t("admin.rooms.toastRoomPublishedDesc")
+          : t("admin.rooms.toastRoomHiddenDesc"),
       });
       reload();
     } catch (cause) {
-      toast.error("Couldn't change visibility", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("admin.rooms.toastVisibilityFailed"), {
+        description: cause instanceof ApiError ? cause.message : t("admin.rooms.tryAgain"),
       });
     }
   };
@@ -146,11 +154,11 @@ export default function AdminRoomsPage() {
   const remove = async (room: ApiRoom) => {
     try {
       await roomsApi.remove(room.id);
-      toast.success("Room deleted");
+      toast.success(t("admin.rooms.toastRoomDeleted"));
       reload();
     } catch (cause) {
-      toast.error("Couldn't delete room", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("admin.rooms.toastDeleteFailed"), {
+        description: cause instanceof ApiError ? cause.message : t("admin.rooms.tryAgain"),
       });
     }
   };
@@ -158,8 +166,8 @@ export default function AdminRoomsPage() {
   if (loading) {
     return (
       <div className="pb-10">
-        <AdminPageHeader title="3D Rooms" subtitle="Manage the rooms customers can design in." />
-        <ApiLoading label="Loading rooms…" className="mt-10" />
+        <AdminPageHeader title={t("admin.rooms.title")} subtitle={t("admin.rooms.subtitle")} />
+        <ApiLoading label={t("admin.rooms.loadingRooms")} className="mt-10" />
       </div>
     );
   }
@@ -167,7 +175,7 @@ export default function AdminRoomsPage() {
   if (error) {
     return (
       <div className="pb-10">
-        <AdminPageHeader title="3D Rooms" subtitle="Manage the rooms customers can design in." />
+        <AdminPageHeader title={t("admin.rooms.title")} subtitle={t("admin.rooms.subtitle")} />
         <ApiErrorState message={error} onRetry={reload} className="mt-10" />
       </div>
     );
@@ -177,19 +185,19 @@ export default function AdminRoomsPage() {
 
   return (
     <div className="pb-10">
-      <AdminPageHeader title="3D Rooms" subtitle="Manage the rooms customers can design in.">
+      <AdminPageHeader title={t("admin.rooms.title")} subtitle={t("admin.rooms.subtitle")}>
         <Button type="button" onClick={openCreate} className="h-11 shrink-0 gap-2 font-bold">
-          <Plus className="size-4" /> Add room
+          <Plus className="size-4" /> {t("admin.rooms.addRoom")}
         </Button>
       </AdminPageHeader>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         {[
-          { label: "Total rooms", value: roomList.length, icon: Boxes },
-          { label: "Published", value: roomList.filter((room) => room.isActive).length, icon: Eye },
-          { label: "Hidden", value: roomList.filter((room) => !room.isActive).length, icon: EyeOff },
-        ].map(({ label, value, icon: Icon }) => (
-          <article key={label} className="rounded-2xl bg-card p-5">
+          { key: "total", label: t("admin.rooms.statTotalRooms"), value: roomList.length, icon: Boxes },
+          { key: "published", label: t("admin.rooms.statPublished"), value: roomList.filter((room) => room.isActive).length, icon: Eye },
+          { key: "hidden", label: t("admin.rooms.statHidden"), value: roomList.filter((room) => !room.isActive).length, icon: EyeOff },
+        ].map(({ key, label, value, icon: Icon }) => (
+          <article key={key} className="rounded-2xl bg-card p-5">
             <span className="flex size-10 items-center justify-center rounded-lg bg-muted-background text-ink">
               <Icon className="size-5" />
             </span>
@@ -206,8 +214,8 @@ export default function AdminRoomsPage() {
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search rooms by name or type..."
-          aria-label="Search rooms"
+          placeholder={t("admin.rooms.searchPlaceholder")}
+          aria-label={t("admin.rooms.searchAria")}
           className="h-11 rounded-lg pl-10 text-sm"
         />
       </div>
@@ -234,13 +242,13 @@ export default function AdminRoomsPage() {
                 variant={room.isActive ? "primary" : "muted"}
                 className="absolute right-3 top-3 backdrop-blur-sm"
               >
-                {room.isActive ? "Published" : "Hidden"}
+                {room.isActive ? t("admin.rooms.published") : t("admin.rooms.hidden")}
               </Badge>
             </div>
 
             <div className="p-5">
               <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                {roomTypeLabels[room.type]}
+                {t(ROOM_TYPE_KEYS[room.type])}
               </p>
               <h2 className="mt-1 text-base font-bold text-ink">{room.name}</h2>
               {room.description && (
@@ -255,7 +263,7 @@ export default function AdminRoomsPage() {
                   onClick={() => openEdit(room)}
                   className="h-9 gap-1.5 text-xs font-bold"
                 >
-                  <Pencil className="size-3.5" /> Edit
+                  <Pencil className="size-3.5" /> {t("admin.rooms.edit")}
                 </Button>
                 <Button
                   type="button"
@@ -264,12 +272,12 @@ export default function AdminRoomsPage() {
                   className="h-9 gap-1.5 text-xs font-bold"
                 >
                   {room.isActive ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                  {room.isActive ? "Hide" : "Publish"}
+                  {room.isActive ? t("admin.rooms.hide") : t("admin.rooms.publish")}
                 </Button>
                 <ConfirmDialog
-                  title="Delete this room?"
-                  description={`"${room.name}" and its 3D model reference will be removed. This is only allowed if no saved customer design still uses it.`}
-                  confirmLabel="Delete room"
+                  title={t("admin.rooms.deleteRoomTitle")}
+                  description={t("admin.rooms.deleteRoomDescription", { name: room.name })}
+                  confirmLabel={t("admin.rooms.deleteRoomConfirm")}
                   onConfirm={() => void remove(room)}
                   trigger={
                     <Button
@@ -277,7 +285,7 @@ export default function AdminRoomsPage() {
                       variant="ghost"
                       className="h-9 gap-1.5 text-xs font-bold text-red-600 hover:bg-red-50"
                     >
-                      <Trash2 className="size-3.5" /> Delete
+                      <Trash2 className="size-3.5" /> {t("admin.rooms.delete")}
                     </Button>
                   }
                 />
@@ -288,7 +296,7 @@ export default function AdminRoomsPage() {
 
         {filtered.length === 0 && (
           <p className="col-span-full rounded-2xl bg-card p-10 text-center text-sm text-muted-foreground">
-            No rooms match that search.
+            {t("admin.rooms.noMatch")}
           </p>
         )}
       </div>
@@ -296,26 +304,26 @@ export default function AdminRoomsPage() {
       <Dialog open={creating || editing !== null} onOpenChange={(open: boolean) => !open && closeDialog()}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit room" : "Add a 3D room"}</DialogTitle>
+            <DialogTitle>{editing ? t("admin.rooms.dialogEditTitle") : t("admin.rooms.dialogAddTitle")}</DialogTitle>
             <DialogDescription>
-              Rooms appear in the customer-facing visualizer once they&apos;re published.
+              {t("admin.rooms.dialogDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={(event) => void submit(event)} className="mt-5 space-y-4">
             <Field>
-              <FieldLabel htmlFor="room-name">Room name</FieldLabel>
+              <FieldLabel htmlFor="room-name">{t("admin.rooms.roomNameLabel")}</FieldLabel>
               <Input
                 id="room-name"
                 required
                 value={draft.name}
                 onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-                placeholder="e.g. Open-plan living room"
+                placeholder={t("admin.rooms.roomNamePlaceholder")}
               />
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="room-type">Room type</FieldLabel>
+              <FieldLabel htmlFor="room-type">{t("admin.rooms.roomTypeLabel")}</FieldLabel>
               <Select
                 value={draft.type}
                 onValueChange={(value) =>
@@ -323,12 +331,12 @@ export default function AdminRoomsPage() {
                 }
               >
                 <SelectTrigger id="room-type" className="h-10 w-full text-sm">
-                  <SelectValue>{(value) => roomTypeLabels[value as RoomType]}</SelectValue>
+                  <SelectValue>{(value) => t(ROOM_TYPE_KEYS[value as RoomType])}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {roomTypes.map((type) => (
                     <SelectItem key={type} value={type}>
-                      {roomTypeLabels[type]}
+                      {t(ROOM_TYPE_KEYS[type])}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -336,7 +344,7 @@ export default function AdminRoomsPage() {
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="room-description">Description</FieldLabel>
+              <FieldLabel htmlFor="room-description">{t("admin.rooms.descriptionLabel")}</FieldLabel>
               <Textarea
                 id="room-description"
                 rows={2}
@@ -344,12 +352,12 @@ export default function AdminRoomsPage() {
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, description: event.target.value }))
                 }
-                placeholder="What the space looks like and which surfaces can be tiled."
+                placeholder={t("admin.rooms.descriptionPlaceholder")}
               />
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="room-model">3D model URL</FieldLabel>
+              <FieldLabel htmlFor="room-model">{t("admin.rooms.modelUrlLabel")}</FieldLabel>
               <Input
                 id="room-model"
                 required
@@ -357,28 +365,28 @@ export default function AdminRoomsPage() {
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, modelUrl: event.target.value }))
                 }
-                placeholder="/models/rooms/living_room.glb"
+                placeholder={t("admin.rooms.modelUrlPlaceholder")}
               />
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="room-thumbnail">Thumbnail URL</FieldLabel>
+              <FieldLabel htmlFor="room-thumbnail">{t("admin.rooms.thumbnailLabel")}</FieldLabel>
               <Input
                 id="room-thumbnail"
                 value={draft.thumbnail}
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, thumbnail: event.target.value }))
                 }
-                placeholder="https://…"
+                placeholder={t("admin.rooms.thumbnailPlaceholder")}
               />
             </Field>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeDialog} className="h-10 px-5 text-sm font-bold">
-                Cancel
+                {t("admin.rooms.cancel")}
               </Button>
               <Button type="submit" disabled={!valid || saving} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
-                {saving ? "Saving…" : editing ? "Save changes" : "Add room"}
+                {saving ? t("admin.rooms.saving") : editing ? t("admin.rooms.saveChanges") : t("admin.rooms.addRoom")}
               </Button>
             </DialogFooter>
           </form>

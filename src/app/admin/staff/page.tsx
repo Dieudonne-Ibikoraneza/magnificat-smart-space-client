@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import {
   CheckCircle2,
   ChartPie,
@@ -79,12 +80,12 @@ const RWANDA_PREFIX = "+250";
 
 const STAFF_ROLES: Role[] = ["ADMIN", "SALES_PERSON", "STOCK_MANAGER", "DATA_ANALYST"];
 
-const ROLE_LABELS: Record<Role, string> = {
-  CLIENT: "Client",
-  ADMIN: "Admin",
-  SALES_PERSON: "Sales Person",
-  STOCK_MANAGER: "Stock Manager",
-  DATA_ANALYST: "Data Analyst",
+const ROLE_KEYS: Record<Role, string> = {
+  CLIENT: "admin.staff.roles.CLIENT",
+  ADMIN: "admin.staff.roles.ADMIN",
+  SALES_PERSON: "admin.staff.roles.SALES_PERSON",
+  STOCK_MANAGER: "admin.staff.roles.STOCK_MANAGER",
+  DATA_ANALYST: "admin.staff.roles.DATA_ANALYST",
 };
 
 const ROLE_ICONS: Partial<Record<Role, typeof ShieldCheck>> = {
@@ -121,7 +122,9 @@ const emptyDraft: StaffDraft = { fullName: "", email: "", phone: "", role: "SALE
 
 type EditDraft = { fullName: string; phone: string; role: Role };
 
-const PhoneInput = ({ value, onChange }: { value: string; onChange: (digits: string) => void }) => (
+const PhoneInput = ({ value, onChange }: { value: string; onChange: (digits: string) => void }) => {
+  const { t } = useTranslation();
+  return (
   <div className="relative">
     <span
       aria-hidden="true"
@@ -132,7 +135,7 @@ const PhoneInput = ({ value, onChange }: { value: string; onChange: (digits: str
     </span>
     <Input
       className="h-11 pr-4 pl-18.5"
-      placeholder="780 000 000"
+      placeholder={t("admin.staff.phonePlaceholder")}
       type="tel"
       inputMode="numeric"
       autoComplete="tel-national"
@@ -140,30 +143,43 @@ const PhoneInput = ({ value, onChange }: { value: string; onChange: (digits: str
       onChange={(event) => onChange(event.target.value.replace(/\D/g, "").slice(0, 9))}
     />
   </div>
-);
+  );
+};
 
-const RoleSelect = ({ value, onChange }: { value: Role; onChange: (role: Role) => void }) => (
+const RoleSelect = ({ value, onChange }: { value: Role; onChange: (role: Role) => void }) => {
+  const { t } = useTranslation();
+  return (
   <Select value={value} onValueChange={(next) => next && onChange(next as Role)}>
     <SelectTrigger className="h-11 w-full border-border">
-      <SelectValue>{() => ROLE_LABELS[value]}</SelectValue>
+      <SelectValue>{() => t(ROLE_KEYS[value])}</SelectValue>
     </SelectTrigger>
     <SelectContent>
       {STAFF_ROLES.map((role) => (
         <SelectItem key={role} value={role}>
-          {ROLE_LABELS[role]}
+          {t(ROLE_KEYS[role])}
         </SelectItem>
       ))}
     </SelectContent>
   </Select>
-);
+  );
+};
 
 const KpiCards = ({ byRole, total }: { byRole: { role: Role; count: number }[]; total: number }) => {
+  const { t } = useTranslation();
   const kpis = [
-    { label: "Total Staff", value: total.toLocaleString(), icon: Users },
+    { key: "total", label: t("admin.staff.kpiTotalStaff"), value: total.toLocaleString(), icon: Users },
     ...STAFF_ROLES.map((role) => {
       const count = byRole.find((row) => row.role === role)?.count ?? 0;
       return {
-        label: role === "SALES_PERSON" ? "Sales Team" : role === "STOCK_MANAGER" ? "Stock Managers" : role === "DATA_ANALYST" ? "Data Analysts" : "Administrators",
+        key: role,
+        label:
+          role === "SALES_PERSON"
+            ? t("admin.staff.kpiSalesTeam")
+            : role === "STOCK_MANAGER"
+              ? t("admin.staff.kpiStockManagers")
+              : role === "DATA_ANALYST"
+                ? t("admin.staff.kpiDataAnalysts")
+                : t("admin.staff.kpiAdministrators"),
         value: count,
         percent: total > 0 ? ((count / total) * 100).toFixed(0) : "0",
         icon: ROLE_ICONS[role]!,
@@ -176,7 +192,7 @@ const KpiCards = ({ byRole, total }: { byRole: { role: Role; count: number }[]; 
       {kpis.map((kpi) => {
         const Icon = kpi.icon;
         return (
-          <article key={kpi.label} className="flex h-full flex-col rounded-2xl bg-card p-5 sm:p-6">
+          <article key={kpi.key} className="flex h-full flex-col rounded-2xl bg-card p-5 sm:p-6">
             <Icon className="size-5 stroke-2 text-ink" />
             <div className="mt-4 flex flex-1 flex-col justify-end">
               <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
@@ -197,6 +213,7 @@ const KpiCards = ({ byRole, total }: { byRole: { role: Role; count: number }[]; 
 };
 
 const StaffManagementPage = () => {
+  const { t } = useTranslation();
   const { user: currentUser } = useCurrentUser();
 
   const [searchInput, setSearchInput] = useState("");
@@ -267,15 +284,15 @@ const StaffManagementPage = () => {
         phone: `${RWANDA_PREFIX}${createDraft.phone}`,
         role: createDraft.role,
       });
-      toast.success("Staff account created", {
-        description: `${createDraft.fullName.trim()} can now sign in with the OTP flow.`,
+      toast.success(t("admin.staff.toastCreated"), {
+        description: t("admin.staff.toastCreatedDesc", { name: createDraft.fullName.trim() }),
       });
       setCreateOpen(false);
       setCurrentPage(1);
       refreshAll();
     } catch (cause) {
-      toast.error("Couldn't create the staff account", {
-        description: errorMessage(cause, "Please check the details and try again."),
+      toast.error(t("admin.staff.toastCreateFailed"), {
+        description: errorMessage(cause, t("admin.staff.toastCreateFailedDesc")),
       });
     } finally {
       setCreating(false);
@@ -304,12 +321,12 @@ const StaffManagementPage = () => {
         phone: `${RWANDA_PREFIX}${editDraft.phone}`,
         role: editDraft.role,
       });
-      toast.success("Staff account updated");
+      toast.success(t("admin.staff.toastUpdated"));
       setEditing(null);
       refreshAll();
     } catch (cause) {
-      toast.error("Couldn't save changes", {
-        description: errorMessage(cause, "Please try again."),
+      toast.error(t("admin.staff.toastUpdateFailed"), {
+        description: errorMessage(cause, t("admin.staff.tryAgain")),
       });
     } finally {
       setSaving(false);
@@ -329,12 +346,12 @@ const StaffManagementPage = () => {
     try {
       await usersApi.setStaffStatus(statusTarget.staff.id, statusTarget.next);
       toast.success(
-        statusTarget.next === "ACTIVE" ? "Staff account activated" : "Staff account deactivated",
+        statusTarget.next === "ACTIVE" ? t("admin.staff.toastActivated") : t("admin.staff.toastDeactivated"),
       );
       setStatusTarget(null);
       reload();
     } catch (cause) {
-      toast.error("Couldn't update status", { description: errorMessage(cause, "Please try again.") });
+      toast.error(t("admin.staff.toastStatusFailed"), { description: errorMessage(cause, t("admin.staff.tryAgain")) });
     } finally {
       setChangingStatus(false);
     }
@@ -343,11 +360,11 @@ const StaffManagementPage = () => {
   return (
     <>
       <AdminPageHeader
-        title="Staff Management"
-        subtitle="Manage system users, roles, and administrative access permissions."
+        title={t("admin.staff.title")}
+        subtitle={t("admin.staff.subtitle")}
       >
         <Button type="button" onClick={openCreate} className="h-11 gap-2 px-5 text-sm font-bold">
-          <Plus className="size-[18px]" /> Add New Staff
+          <Plus className="size-[18px]" /> {t("admin.staff.addNewStaff")}
         </Button>
       </AdminPageHeader>
 
@@ -360,7 +377,7 @@ const StaffManagementPage = () => {
             <Input
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search by name, email or phone..."
+              placeholder={t("admin.staff.searchPlaceholder")}
               className="h-11 rounded-lg pl-11"
             />
           </div>
@@ -373,12 +390,12 @@ const StaffManagementPage = () => {
               }}
             >
               <SelectTrigger className="h-11 w-full min-w-0 border-border sm:w-44">
-                <SelectValue>{() => (roleFilter === "ALL" ? "Role: All" : `Role: ${ROLE_LABELS[roleFilter as Role]}`)}</SelectValue>
+                <SelectValue>{() => (roleFilter === "ALL" ? t("admin.staff.roleAll") : t("admin.staff.roleValue", { role: t(ROLE_KEYS[roleFilter as Role]) }))}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {roleFilterOptions.map((role) => (
                   <SelectItem key={role} value={role}>
-                    {role === "ALL" ? "Role: All" : ROLE_LABELS[role]}
+                    {role === "ALL" ? t("admin.staff.roleAll") : t(ROLE_KEYS[role])}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -391,12 +408,12 @@ const StaffManagementPage = () => {
               }}
             >
               <SelectTrigger className="h-11 w-full min-w-0 border-border sm:w-40">
-                <SelectValue>{() => (statusFilter === "ALL" ? "Status: All" : `Status: ${statusFilter === "ACTIVE" ? "Active" : "Inactive"}`)}</SelectValue>
+                <SelectValue>{() => (statusFilter === "ALL" ? t("admin.staff.statusAll") : t("admin.staff.statusValue", { status: t(`staff.userStatus.${statusFilter}`) }))}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {statusFilterOptions.map((status) => (
                   <SelectItem key={status} value={status}>
-                    {status === "ALL" ? "Status: All" : status === "ACTIVE" ? "Status: Active" : "Status: Inactive"}
+                    {status === "ALL" ? t("admin.staff.statusAll") : t("admin.staff.statusValue", { status: t(`staff.userStatus.${status}`) })}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -405,7 +422,7 @@ const StaffManagementPage = () => {
         </div>
 
         {loading && staff.length === 0 ? (
-          <ApiLoading label="Loading staff…" className="rounded-2xl bg-card py-16" />
+          <ApiLoading label={t("admin.staff.loadingStaff")} className="rounded-2xl bg-card py-16" />
         ) : error ? (
           <ApiErrorState message={error} onRetry={reload} />
         ) : (
@@ -414,12 +431,12 @@ const StaffManagementPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone Number</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Action</TableHead>
+                    <TableHead>{t("admin.staff.colName")}</TableHead>
+                    <TableHead>{t("admin.staff.colEmail")}</TableHead>
+                    <TableHead>{t("admin.staff.colPhone")}</TableHead>
+                    <TableHead>{t("admin.staff.colRole")}</TableHead>
+                    <TableHead>{t("admin.staff.colStatus")}</TableHead>
+                    <TableHead>{t("admin.staff.colAction")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -434,16 +451,16 @@ const StaffManagementPage = () => {
                             </span>
                             <span className="truncate text-sm font-semibold text-ink">
                               {member.fullName}
-                              {isSelf && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you)</span>}
+                              {isSelf && <span className="ml-1.5 text-xs font-normal text-muted-foreground">{t("admin.staff.you")}</span>}
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap text-ink">{member.email ?? "—"}</TableCell>
-                        <TableCell className="font-data whitespace-nowrap text-ink">{member.phone ?? "—"}</TableCell>
-                        <TableCell className="whitespace-nowrap text-ink">{ROLE_LABELS[member.role]}</TableCell>
+                        <TableCell className="whitespace-nowrap text-ink">{member.email ?? t("admin.staff.noValue")}</TableCell>
+                        <TableCell className="font-data whitespace-nowrap text-ink">{member.phone ?? t("admin.staff.noValue")}</TableCell>
+                        <TableCell className="whitespace-nowrap text-ink">{t(ROLE_KEYS[member.role])}</TableCell>
                         <TableCell>
                           <Badge variant={statusBadgeVariant[member.status]}>
-                            {member.status === "ACTIVE" ? "Active" : member.status === "INACTIVE" ? "Inactive" : "Suspended"}
+                            {t(`staff.userStatus.${member.status}`)}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -452,7 +469,7 @@ const StaffManagementPage = () => {
                               render={
                                 <button
                                   type="button"
-                                  aria-label={`Actions for ${member.fullName}`}
+                                  aria-label={t("admin.staff.actionsFor", { name: member.fullName })}
                                   className="rounded-md p-1.5 text-ink hover:bg-secondary"
                                 >
                                   <MoreVertical className="size-4" />
@@ -460,8 +477,8 @@ const StaffManagementPage = () => {
                               }
                             />
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => setViewing(member)}>View Profile</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openEdit(member)}>Edit Staff</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setViewing(member)}>{t("admin.staff.viewProfile")}</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEdit(member)}>{t("admin.staff.editStaff")}</DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 disabled={isSelf && member.status === "ACTIVE"}
@@ -473,7 +490,7 @@ const StaffManagementPage = () => {
                                   })
                                 }
                               >
-                                {member.status === "ACTIVE" ? "Deactivate" : "Activate"}
+                                {member.status === "ACTIVE" ? t("admin.staff.deactivate") : t("admin.staff.activate")}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -486,13 +503,13 @@ const StaffManagementPage = () => {
             </div>
 
             {staff.length === 0 && (
-              <ApiEmptyState message="No staff members match your search." className="shadow-none" />
+              <ApiEmptyState message={t("admin.staff.noStaffMatch")} className="shadow-none" />
             )}
 
             {staff.length > 0 && (
               <footer className="flex flex-col gap-4 border-t border-border p-5 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
                 <p>
-                  Showing {showingStart} to {showingEnd} of {totalResults.toLocaleString()} results
+                  {t("admin.staff.showingResults", { start: showingStart, end: showingEnd, total: totalResults.toLocaleString() })}
                 </p>
                 <Pagination className="mx-0 w-auto justify-start py-0 sm:justify-end">
                   <PaginationContent className="gap-1 sm:gap-2">
@@ -508,7 +525,7 @@ const StaffManagementPage = () => {
                         }}
                       >
                         <ChevronsLeft className="size-4" />
-                        <span className="hidden sm:inline">First</span>
+                        <span className="hidden sm:inline">{t("analytics.common.first")}</span>
                       </PaginationLink>
                     </PaginationItem>
                     <PaginationItem>
@@ -570,7 +587,7 @@ const StaffManagementPage = () => {
                           goToPage(totalPages);
                         }}
                       >
-                        <span className="hidden sm:inline">Last</span>
+                        <span className="hidden sm:inline">{t("analytics.common.last")}</span>
                         <ChevronsRight className="size-4" />
                       </PaginationLink>
                     </PaginationItem>
@@ -587,51 +604,51 @@ const StaffManagementPage = () => {
         <DialogContent className="max-w-md">
           <form onSubmit={submitCreate}>
             <DialogHeader>
-              <DialogTitle>Add New Staff</DialogTitle>
+              <DialogTitle>{t("admin.staff.dialogAddTitle")}</DialogTitle>
               <DialogDescription>
-                No password is set — they sign in with the same OTP flow as clients.
+                {t("admin.staff.dialogAddDescription")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2">
               <Field>
-                <FieldLabel htmlFor="staff-name">Full Name</FieldLabel>
+                <FieldLabel htmlFor="staff-name">{t("admin.staff.fullNameLabel")}</FieldLabel>
                 <Input
                   id="staff-name"
                   className="h-11"
                   value={createDraft.fullName}
                   onChange={(event) => setCreateDraft((draft) => ({ ...draft, fullName: event.target.value }))}
-                  placeholder="e.g. Aline Uwase"
+                  placeholder={t("admin.staff.fullNamePlaceholder")}
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="staff-email">Email</FieldLabel>
+                <FieldLabel htmlFor="staff-email">{t("admin.staff.emailLabel")}</FieldLabel>
                 <Input
                   id="staff-email"
                   type="email"
                   className="h-11"
                   value={createDraft.email}
                   onChange={(event) => setCreateDraft((draft) => ({ ...draft, email: event.target.value }))}
-                  placeholder="name@magnificat.rw"
+                  placeholder={t("admin.staff.emailPlaceholder")}
                 />
               </Field>
               <Field>
-                <FieldLabel>Phone Number</FieldLabel>
+                <FieldLabel>{t("admin.staff.phoneLabel")}</FieldLabel>
                 <PhoneInput
                   value={createDraft.phone}
                   onChange={(phone) => setCreateDraft((draft) => ({ ...draft, phone }))}
                 />
               </Field>
               <Field>
-                <FieldLabel>Role</FieldLabel>
+                <FieldLabel>{t("admin.staff.roleLabel")}</FieldLabel>
                 <RoleSelect value={createDraft.role} onChange={(role) => setCreateDraft((draft) => ({ ...draft, role }))} />
               </Field>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)} className="h-11 px-5 text-sm font-bold">
-                Cancel
+                {t("admin.staff.cancel")}
               </Button>
               <Button type="submit" disabled={!createValid || creating} className="h-11 px-5 text-sm font-bold">
-                {creating ? "Creating…" : "Create Staff"}
+                {creating ? t("admin.staff.creating") : t("admin.staff.createStaff")}
               </Button>
             </DialogFooter>
           </form>
@@ -643,12 +660,12 @@ const StaffManagementPage = () => {
         <DialogContent className="max-w-md">
           <form onSubmit={submitEdit}>
             <DialogHeader>
-              <DialogTitle>Edit Staff</DialogTitle>
-              <DialogDescription>{editing?.email ?? ""} — email can&apos;t be changed here.</DialogDescription>
+              <DialogTitle>{t("admin.staff.dialogEditTitle")}</DialogTitle>
+              <DialogDescription>{t("admin.staff.dialogEditDescription", { email: editing?.email ?? "" })}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2">
               <Field>
-                <FieldLabel htmlFor="edit-staff-name">Full Name</FieldLabel>
+                <FieldLabel htmlFor="edit-staff-name">{t("admin.staff.fullNameLabel")}</FieldLabel>
                 <Input
                   id="edit-staff-name"
                   className="h-11"
@@ -657,23 +674,23 @@ const StaffManagementPage = () => {
                 />
               </Field>
               <Field>
-                <FieldLabel>Phone Number</FieldLabel>
+                <FieldLabel>{t("admin.staff.phoneLabel")}</FieldLabel>
                 <PhoneInput
                   value={editDraft.phone}
                   onChange={(phone) => setEditDraft((draft) => ({ ...draft, phone }))}
                 />
               </Field>
               <Field>
-                <FieldLabel>Role</FieldLabel>
+                <FieldLabel>{t("admin.staff.roleLabel")}</FieldLabel>
                 <RoleSelect value={editDraft.role} onChange={(role) => setEditDraft((draft) => ({ ...draft, role }))} />
               </Field>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditing(null)} className="h-11 px-5 text-sm font-bold">
-                Cancel
+                {t("admin.staff.cancel")}
               </Button>
               <Button type="submit" disabled={!editValid || saving} className="h-11 px-5 text-sm font-bold">
-                {saving ? "Saving…" : "Save Changes"}
+                {saving ? t("admin.staff.saving") : t("admin.staff.saveChanges")}
               </Button>
             </DialogFooter>
           </form>
@@ -693,9 +710,9 @@ const StaffManagementPage = () => {
                   <div className="min-w-0">
                     <DialogTitle className="truncate">{viewing.fullName}</DialogTitle>
                     <div className="mt-1 flex items-center gap-2">
-                      <Badge variant="outline">{ROLE_LABELS[viewing.role]}</Badge>
+                      <Badge variant="outline">{t(ROLE_KEYS[viewing.role])}</Badge>
                       <Badge variant={statusBadgeVariant[viewing.status]}>
-                        {viewing.status === "ACTIVE" ? "Active" : viewing.status === "INACTIVE" ? "Inactive" : "Suspended"}
+                        {t(`staff.userStatus.${viewing.status}`)}
                       </Badge>
                     </div>
                   </div>
@@ -703,20 +720,20 @@ const StaffManagementPage = () => {
               </DialogHeader>
               <dl className="mt-2 space-y-3 border-t border-border pt-4 text-sm">
                 <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">Email</dt>
-                  <dd className="truncate text-ink">{viewing.email ?? "—"}</dd>
+                  <dt className="text-muted-foreground">{t("admin.staff.viewEmail")}</dt>
+                  <dd className="truncate text-ink">{viewing.email ?? t("admin.staff.noValue")}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">Phone</dt>
-                  <dd className="font-data text-ink">{viewing.phone ?? "—"}</dd>
+                  <dt className="text-muted-foreground">{t("admin.staff.viewPhone")}</dt>
+                  <dd className="font-data text-ink">{viewing.phone ?? t("admin.staff.noValue")}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">Joined</dt>
+                  <dt className="text-muted-foreground">{t("admin.staff.viewJoined")}</dt>
                   <dd className="text-ink">{formatDate(viewing.createdAt)}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">Last active</dt>
-                  <dd className="text-ink">{viewing.lastLoginAt ? formatDate(viewing.lastLoginAt) : "Never signed in"}</dd>
+                  <dt className="text-muted-foreground">{t("admin.staff.viewLastActive")}</dt>
+                  <dd className="text-ink">{viewing.lastLoginAt ? formatDate(viewing.lastLoginAt) : t("admin.staff.neverSignedIn")}</dd>
                 </div>
               </dl>
               <DialogFooter>
@@ -726,7 +743,7 @@ const StaffManagementPage = () => {
                   onClick={() => setViewing(null)}
                   className="h-11 px-5 text-sm font-bold"
                 >
-                  Close
+                  {t("admin.staff.close")}
                 </Button>
                 <Button
                   type="button"
@@ -737,7 +754,7 @@ const StaffManagementPage = () => {
                   }}
                   className="h-11 px-5 text-sm font-bold"
                 >
-                  Edit Staff
+                  {t("admin.staff.editStaff")}
                 </Button>
               </DialogFooter>
             </>
@@ -759,12 +776,12 @@ const StaffManagementPage = () => {
                   <CheckCircle2 className="size-5" />
                 </span>
                 <DialogTitle className="pt-3">
-                  {statusTarget.next === "INACTIVE" ? "Deactivate this account?" : "Activate this account?"}
+                  {statusTarget.next === "INACTIVE" ? t("admin.staff.deactivateTitle") : t("admin.staff.activateTitle")}
                 </DialogTitle>
                 <DialogDescription>
                   {statusTarget.next === "INACTIVE"
-                    ? `${statusTarget.staff.fullName} will no longer be able to sign in until reactivated.`
-                    : `${statusTarget.staff.fullName} will be able to sign in again.`}
+                    ? t("admin.staff.deactivateDescription", { name: statusTarget.staff.fullName })
+                    : t("admin.staff.activateDescription", { name: statusTarget.staff.fullName })}
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
@@ -774,7 +791,7 @@ const StaffManagementPage = () => {
                   onClick={() => setStatusTarget(null)}
                   className="h-10 px-5 text-sm font-bold"
                 >
-                  Cancel
+                  {t("admin.staff.cancel")}
                 </Button>
                 <Button
                   type="button"
@@ -786,7 +803,7 @@ const StaffManagementPage = () => {
                       : "h-10 px-5 text-sm font-bold"
                   }
                 >
-                  {changingStatus ? "Please wait…" : statusTarget.next === "INACTIVE" ? "Deactivate" : "Activate"}
+                  {changingStatus ? t("admin.staff.pleaseWait") : statusTarget.next === "INACTIVE" ? t("admin.staff.deactivate") : t("admin.staff.activate")}
                 </Button>
               </DialogFooter>
             </>

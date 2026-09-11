@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { Bold, CheckCircle2, ImagePlus, Layers3, Ruler, Save, Tag, X } from "lucide-react";
 import { AdminDetailHeader } from "@/app/admin/layout";
 import { Button } from "@/components/ui/button";
@@ -81,6 +82,7 @@ const ValidatedInput = ({ label, placeholder, value, onChange, isValid, errorMes
 };
 
 const ImageFileField = ({ file, onChange }: { file: File | null; onChange: (file: File | null) => void }) => {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -97,7 +99,7 @@ const ImageFileField = ({ file, onChange }: { file: File | null; onChange: (file
 
   const handleFile = (nextFile: File | undefined) => {
     if (!nextFile || !nextFile.type.startsWith("image/")) {
-      toast.error("Unsupported file", { description: "Please choose an image file (PNG, JPG, WEBP)." });
+      toast.error(t("stock.newCollection.unsupportedFile"), { description: t("stock.newCollection.unsupportedFileBody") });
       return;
     }
     onChange(nextFile);
@@ -113,13 +115,13 @@ const ImageFileField = ({ file, onChange }: { file: File | null; onChange: (file
     <div>
       {previewUrl ? (
         <div className="relative aspect-4/3 w-full overflow-hidden rounded-xl bg-muted-background">
-          <Image src={previewUrl} alt="Collection preview" fill unoptimized className="object-cover" />
+          <Image src={previewUrl} alt={t("stock.newCollection.previewAlt")} fill unoptimized className="object-cover" />
           <Button
             type="button"
             variant="secondary"
             size="icon-sm"
             onClick={() => onChange(null)}
-            aria-label="Clear image"
+            aria-label={t("stock.newCollection.clearImageAria")}
             className="absolute top-3 right-3 rounded-full bg-white/95 text-ink shadow-sm hover:bg-white"
           >
             <X className="size-4" />
@@ -147,8 +149,8 @@ const ImageFileField = ({ file, onChange }: { file: File | null; onChange: (file
           <span className="flex size-11 items-center justify-center rounded-full bg-white text-ink shadow-sm">
             <ImagePlus className="size-5" strokeWidth={1.8} />
           </span>
-          <p className="text-sm font-semibold text-ink">Click to upload or drag and drop</p>
-          <p className="text-xs text-muted-foreground">PNG, JPG or WEBP · up to 10MB</p>
+          <p className="text-sm font-semibold text-ink">{t("stock.newCollection.clickToUpload")}</p>
+          <p className="text-xs text-muted-foreground">{t("stock.newCollection.imageHint")}</p>
         </div>
       )}
       <input
@@ -183,6 +185,7 @@ const BoldTextarea = ({
   onChange: (value: string) => void;
   placeholder: string;
 }) => {
+  const { t } = useTranslation();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const toggleBold = () => {
@@ -226,12 +229,12 @@ const BoldTextarea = ({
         <button
           type="button"
           onClick={toggleBold}
-          aria-label="Bold"
+          aria-label={t("stock.newCollection.boldAria")}
           className="inline-flex size-7 items-center justify-center rounded text-ink hover:bg-secondary"
         >
           <Bold className="size-4" strokeWidth={2.25} />
         </button>
-        <span className="ml-1 text-xs text-muted-foreground">Select text, then Bold</span>
+        <span className="ml-1 text-xs text-muted-foreground">{t("stock.newCollection.boldToolbarHint")}</span>
       </div>
       <Textarea
         ref={textareaRef}
@@ -256,6 +259,7 @@ const BoldTextarea = ({
 };
 
 const RegisterCollectionPage = () => {
+  const { t } = useTranslation();
   const router = useRouter();
 
   const [title, setTitle] = useState("");
@@ -280,8 +284,8 @@ const RegisterCollectionPage = () => {
 
   const handleSubmit = async () => {
     if (!formValid || !imageFile) {
-      toast.error("Check the highlighted fields", {
-        description: "Title, tile size, tile area, and description are required to create a collection.",
+      toast.error(t("stock.newCollection.checkFieldsTitle"), {
+        description: t("stock.newCollection.checkFieldsBody"),
       });
       return;
     }
@@ -295,13 +299,13 @@ const RegisterCollectionPage = () => {
         description: description.trim(),
         image: (await collectionsApi.uploadImage(imageFile)).path,
       });
-      toast.success("Collection created", {
-        description: `${title.trim()} (${size.trim()}) was added to your collections.`,
+      toast.success(t("stock.newCollection.toastCreatedTitle"), {
+        description: t("stock.newCollection.toastCreatedBody", { name: title.trim(), size: size.trim() }),
       });
       router.push("/admin/collections");
     } catch (cause) {
-      toast.error("Couldn't create collection", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("stock.newCollection.toastFailedTitle"), {
+        description: cause instanceof ApiError ? cause.message : t("stock.newCollection.toastTryAgain"),
       });
     } finally {
       setSubmitting(false);
@@ -312,14 +316,14 @@ const RegisterCollectionPage = () => {
     <>
       <AdminDetailHeader
         breadcrumbs={[
-          { label: "Overview", href: "/admin/overview" },
-          { label: "Collections", href: "/admin/collections" },
-          { label: "New Collection" },
+          { label: t("stock.newCollection.crumbOverview"), href: "/admin/overview" },
+          { label: t("stock.newCollection.crumbCollections"), href: "/admin/collections" },
+          { label: t("stock.newCollection.crumbNew") },
         ]}
-        title="Create New Collection"
+        title={t("stock.newCollection.title")}
         actions={
           <Button type="button" variant="outline" onClick={() => router.push("/admin/collections")} className="h-11 px-5 text-sm font-bold">
-            Cancel
+            {t("stock.newCollection.cancel")}
           </Button>
         }
       />
@@ -333,40 +337,40 @@ const RegisterCollectionPage = () => {
       >
         <div className="grid items-start gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_1.4fr]">
           <section className="rounded-2xl bg-card p-5 sm:p-6">
-            <h2 className="text-lg font-bold text-ink">Cover Image</h2>
-            <p className="mt-1 text-sm text-muted-foreground">A clear, well-lit photo representing the collection.</p>
+            <h2 className="text-lg font-bold text-ink">{t("stock.newCollection.coverImage")}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{t("stock.newCollection.coverImageSub")}</p>
             <div className="mt-5">
               <ImageFileField file={imageFile} onChange={setImageFile} />
             </div>
           </section>
 
           <section className="rounded-2xl bg-card p-5 sm:p-6">
-            <h2 className="text-lg font-bold text-ink">Collection Details</h2>
+            <h2 className="text-lg font-bold text-ink">{t("stock.newCollection.collectionDetails")}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Every product added to this collection will share its tile size.
+              {t("stock.newCollection.collectionDetailsSub")}
             </p>
             <div className="mt-5 grid gap-5 sm:grid-cols-2">
               <ValidatedInput
-                label="Collection Title"
-                placeholder="50×50cm Floor Tiles"
+                label={t("stock.newCollection.titleLabel")}
+                placeholder={t("stock.newCollection.titlePlaceholder")}
                 value={title}
                 onChange={setTitle}
                 isValid={isValidTitle}
-                errorMessage="Enter a title between 2 and 80 characters."
+                errorMessage={t("stock.newCollection.titleError")}
                 icon={Tag}
               />
               <ValidatedInput
-                label="Tile Size"
-                placeholder="50×50cm"
+                label={t("stock.newCollection.tileSize")}
+                placeholder={t("stock.newCollection.tileSizePlaceholder")}
                 value={size}
                 onChange={handleSizeChange}
                 isValid={isValidSize}
-                errorMessage="Use the format WIDTHxHEIGHTcm, e.g. 50×50cm."
-                hint="Shared by every product added to this collection."
+                errorMessage={t("stock.newCollection.tileSizeError")}
+                hint={t("stock.newCollection.tileSizeHint")}
                 icon={Ruler}
               />
               <Field className="gap-1.5">
-                <FieldLabel className="text-sm font-medium text-ink">Tile Area (m²)</FieldLabel>
+                <FieldLabel className="text-sm font-medium text-ink">{t("stock.newCollection.tileArea")}</FieldLabel>
                 <Input
                   className="h-11 text-sm"
                   placeholder="0.25"
@@ -376,10 +380,10 @@ const RegisterCollectionPage = () => {
                   value={tileAreaSqm}
                   readOnly
                   aria-readonly="true"
-                  title="Automatically calculated from tile size"
+                  title={t("stock.newCollection.tileAreaTitle")}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Automatically calculated from the tile size and cannot be edited.
+                  {t("stock.newCollection.tileAreaHint")}
                 </p>
               </Field>
             </div>
@@ -387,21 +391,21 @@ const RegisterCollectionPage = () => {
             <div className="mt-6 flex items-center gap-2 rounded-xl border border-border bg-secondary/40 p-4">
               <Layers3 className="size-4 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
-                Box coverage and pieces per box are set per product, using this collection&apos;s tile size.
+                {t("stock.newCollection.boxNote")}
               </p>
             </div>
 
             <div className="mt-6">
-              <FieldLabel className="text-sm font-medium text-ink">Description</FieldLabel>
-              <p className="mt-0.5 text-xs text-muted-foreground">Shown on the collection&apos;s detail page.</p>
+              <FieldLabel className="text-sm font-medium text-ink">{t("stock.newCollection.description")}</FieldLabel>
+              <p className="mt-0.5 text-xs text-muted-foreground">{t("stock.newCollection.descriptionSub")}</p>
               <div className="mt-2.5">
                 <BoldTextarea
-                  placeholder="Grand format tiles for seamless, luxurious open spaces. Ideal for statement walls and expansive floors."
+                  placeholder={t("stock.newCollection.descriptionPlaceholder")}
                   value={description}
                   onChange={setDescription}
                 />
                 {description.length > 0 && !isValidDescription(description) && (
-                  <p className="mt-1.5 text-xs font-medium text-red-600">Write at least 10 characters.</p>
+                  <p className="mt-1.5 text-xs font-medium text-red-600">{t("stock.newCollection.descriptionError")}</p>
                 )}
               </div>
             </div>
@@ -410,11 +414,11 @@ const RegisterCollectionPage = () => {
 
         <div className="flex flex-col-reverse items-stretch gap-3 pb-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" onClick={() => router.push("/admin/collections")} className="h-12 px-6 text-sm font-bold">
-            Cancel
+            {t("stock.newCollection.cancel")}
           </Button>
           <Button type="submit" disabled={submitting || !formValid} className="h-12 gap-2 px-6 text-sm font-bold disabled:opacity-60">
             <Save className="size-4" />
-            {submitting ? "Creating..." : "Create Collection"}
+            {submitting ? t("stock.newCollection.creating") : t("stock.newCollection.create")}
           </Button>
         </div>
       </form>

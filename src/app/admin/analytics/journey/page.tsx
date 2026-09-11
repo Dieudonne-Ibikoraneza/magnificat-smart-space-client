@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import {
   Activity,
   ArrowRight,
@@ -14,7 +15,7 @@ import {
 import { AdminPageHeader } from "@/app/admin/layout";
 import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays, type AnalyticsRange } from "@/components/analytics-period-switcher";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
-import { JOURNEY_STAGE_META } from "@/components/conversion-funnel";
+import { JOURNEY_STAGE_TITLE_KEYS } from "@/components/conversion-funnel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -47,9 +48,12 @@ const JourneyFunnel = ({
   loading: boolean;
   selectedStep: number;
   onSelectStep: (index: number) => void;
-}) => (
+}) => {
+  const { t } = useTranslation();
+
+  return (
   <section>
-    <h2 className="text-lg font-bold text-ink">Customer Journey Funnel</h2>
+    <h2 className="text-lg font-bold text-ink">{t("analytics.journey.funnelTitle")}</h2>
     <div className="scrollbar-hide mt-4 flex gap-6 overflow-x-auto px-2 pb-2">
       {loading && stages.length === 0
         ? Array.from({ length: 6 }).map((_, index) => <FunnelCardSkeleton key={index} />)
@@ -80,10 +84,10 @@ const JourneyFunnel = ({
                         <span className="size-2.5 rounded-full bg-primary" />
                       )}
                       <p className={cn("text-xs font-bold tracking-wide uppercase", isActive ? "text-ink" : "text-muted-foreground")}>
-                        Step {index + 1}
+                        {t("analytics.journey.step", { n: index + 1 })}
                       </p>
                     </div>
-                    <p className="mt-1 text-sm font-semibold text-ink tracking-[0.14px]">{JOURNEY_STAGE_META[step.stage].title}</p>
+                    <p className="mt-1 text-sm font-semibold text-ink tracking-[0.14px]">{t(JOURNEY_STAGE_TITLE_KEYS[step.stage])}</p>
                   </div>
                   <div>
                     <p className="text-3xl font-black text-ink">
@@ -91,7 +95,7 @@ const JourneyFunnel = ({
                     </p>
                     <div className="mt-1 flex items-center gap-2 justify-between">
                       <p className={cn("text-xs font-medium", isActive ? "text-ink/80" : "text-ink/60")}>
-                        {percentOfTotal}% of Total
+                        {t("analytics.journey.percentOfTotal", { value: percentOfTotal })}
                       </p>
                       {!isFirst && dropOff > 0 && (
                         <span className="rounded-sm bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-500">
@@ -116,7 +120,8 @@ const JourneyFunnel = ({
           })}
     </div>
   </section>
-);
+  );
+};
 
 const StepDrillDown = ({
   stage,
@@ -127,6 +132,7 @@ const StepDrillDown = ({
   dropOffRate: number;
   period: AnalyticsRange;
 }) => {
+  const { t } = useTranslation();
   const { data: detail, loading, error, reload } = useApi(
     () => analyticsApi.journeyStageDetail(stage, period),
     [stage, period],
@@ -135,10 +141,10 @@ const StepDrillDown = ({
   const signedIn = detail?.users.filter((user) => user.profile).length ?? 0;
 
   const stats = [
-    { label: "Sessions Reached", value: detail ? detail.userCount.toLocaleString() : "—", icon: Users },
-    { label: "Signed-in Customers", value: detail ? signedIn.toLocaleString() : "—", icon: UserPlus },
-    { label: "Total Actions Logged", value: detail ? detail.actions.length.toLocaleString() : "—", icon: Activity },
-    { label: "Drop-off Rate", value: `${dropOffRate.toFixed(0)}%`, icon: TrendingDown },
+    { label: t("analytics.journey.sessionsReached"), value: detail ? detail.userCount.toLocaleString() : "—", icon: Users },
+    { label: t("analytics.journey.signedInCustomers"), value: detail ? signedIn.toLocaleString() : "—", icon: UserPlus },
+    { label: t("analytics.journey.totalActionsLogged"), value: detail ? detail.actions.length.toLocaleString() : "—", icon: Activity },
+    { label: t("analytics.journey.dropOffRate"), value: `${dropOffRate.toFixed(0)}%`, icon: TrendingDown },
   ];
 
   const usersBySession = new Map((detail?.users ?? []).map((user) => [user.sessionId, user]));
@@ -146,7 +152,7 @@ const StepDrillDown = ({
   return (
     <>
       <section>
-        <h2 className="text-lg font-bold text-ink">{JOURNEY_STAGE_META[stage].title} Drill-down</h2>
+        <h2 className="text-lg font-bold text-ink">{t("analytics.journey.drillDown", { stage: t(JOURNEY_STAGE_TITLE_KEYS[stage]) })}</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {loading && !detail
             ? Array.from({ length: 4 }).map((_, index) => (
@@ -173,27 +179,27 @@ const StepDrillDown = ({
 
       <section className="rounded-2xl bg-card p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-bold text-ink">Customer Ledger</h2>
+          <h2 className="text-lg font-bold text-ink">{t("analytics.journey.customerLedger")}</h2>
           <button
             type="button"
             className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline"
           >
-            <Filter className="size-3.5" /> Filter
+            <Filter className="size-3.5" /> {t("analytics.journey.filter")}
           </button>
         </div>
         <div className="mt-5 overflow-x-auto">
           {error ? (
             <ApiErrorState message={error} onRetry={reload} />
           ) : !loading && detail && detail.actions.length === 0 ? (
-            <ApiEmptyState message="No recorded activity for this step in the selected period." />
+            <ApiEmptyState message={t("analytics.journey.noActivity")} />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Activity</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Action</TableHead>
+                  <TableHead>{t("analytics.journey.colCustomer")}</TableHead>
+                  <TableHead>{t("analytics.journey.colActivity")}</TableHead>
+                  <TableHead>{t("analytics.journey.colDate")}</TableHead>
+                  <TableHead>{t("analytics.journey.colAction")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -211,7 +217,7 @@ const StepDrillDown = ({
                       const profile = action.userId
                         ? [...usersBySession.values()].find((user) => user.userId === action.userId)?.profile
                         : undefined;
-                      const name = profile?.fullName ?? "Anonymous session";
+                      const name = profile?.fullName ?? t("analytics.journey.anonymousSession");
                       return (
                         <TableRow key={action.id}>
                           <TableCell className="min-w-52">
@@ -232,7 +238,7 @@ const StepDrillDown = ({
                                 href={`/admin/customers/${profile.id}`}
                                 className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold whitespace-nowrap text-ink hover:-translate-y-0.5 hover:shadow-md active:scale-95"
                               >
-                                View Profile <ExternalLink className="size-3.5" />
+                                {t("analytics.journey.viewProfile")} <ExternalLink className="size-3.5" />
                               </Link>
                             ) : (
                               <span className="text-xs text-muted-foreground">—</span>
@@ -251,6 +257,7 @@ const StepDrillDown = ({
 };
 
 const AdminAnalyticsJourneyPage = () => {
+  const { t } = useTranslation();
   const [selectedStep, setSelectedStep] = useState(1);
   const [period, setPeriod] = useState<AnalyticsPeriodDays>(30);
   const range = periodToRange[period];
@@ -263,8 +270,8 @@ const AdminAnalyticsJourneyPage = () => {
   return (
     <>
       <AdminPageHeader
-        title="Journey Analytics"
-        subtitle="Analyze customer flow and conversion through the journey funnel"
+        title={t("analytics.journey.title")}
+        subtitle={t("analytics.journey.subtitle")}
       >
         <AnalyticsPeriodSwitcher period={period} onChange={setPeriod} />
       </AdminPageHeader>

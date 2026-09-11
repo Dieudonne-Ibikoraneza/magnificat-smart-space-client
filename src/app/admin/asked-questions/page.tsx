@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2, MessageSquareText, Search, UsersRound } from "lucide-react";
 import { AdminPageHeader } from "@/app/admin/layout";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
@@ -32,6 +33,7 @@ const fetchAskedQuestions = async (params: {
 };
 
 export default function AdminAskedQuestionsPage() {
+  const { t } = useTranslation();
   const {
     data: firstPage,
     loading,
@@ -68,7 +70,7 @@ export default function AdminAskedQuestionsPage() {
       setExtraItems((current) => [...current, ...page.items]);
       setExtraCursor(page.nextCursor);
     } catch (cause) {
-      setLoadMoreError(cause instanceof ApiError ? cause.message : "Unable to load more questions.");
+      setLoadMoreError(cause instanceof ApiError ? cause.message : t("admin.askedQuestions.loadMoreError"));
     } finally {
       setLoadingMore(false);
     }
@@ -87,8 +89,8 @@ export default function AdminAskedQuestionsPage() {
   return (
     <div className="pb-10">
       <AdminPageHeader
-        title="Asked Questions"
-        subtitle="What customers ask the AI assistant once it's already recommended something — real follow-up questions, concerns and objections, for support and marketing."
+        title={t("admin.askedQuestions.title")}
+        subtitle={t("admin.askedQuestions.subtitle")}
       />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -109,12 +111,12 @@ export default function AdminAskedQuestionsPage() {
           <>
             <div className="rounded-2xl bg-white p-5 shadow-sm">
               <div className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-ink"><MessageSquareText className="size-5" /></div>
-              <p className="mt-4 text-sm text-muted">Questions captured</p>
+              <p className="mt-4 text-sm text-muted">{t("admin.askedQuestions.questionsCaptured")}</p>
               <p className="mt-1 text-2xl font-bold text-ink">{questions.length}{nextCursor ? "+" : ""}</p>
             </div>
             <div className="rounded-2xl bg-white p-5 shadow-sm">
               <div className="flex size-10 items-center justify-center rounded-xl bg-[#f5eee3] text-ink"><UsersRound className="size-5" /></div>
-              <p className="mt-4 text-sm text-muted">Customer conversations</p>
+              <p className="mt-4 text-sm text-muted">{t("admin.askedQuestions.customerConversations")}</p>
               <p className="mt-1 text-2xl font-bold text-ink">{new Set(questions.map((item) => item.conversationId)).size}</p>
             </div>
           </>
@@ -123,10 +125,10 @@ export default function AdminAskedQuestionsPage() {
 
       <section className="mt-6 overflow-hidden rounded-2xl bg-white shadow-sm">
         <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div><h2 className="text-base font-bold text-ink">Customer questions</h2><p className="mt-1 text-xs text-muted">A searchable record for support, product and campaign insights.</p></div>
-          <div className="relative w-full sm:w-72"><Search className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search questions..." className="h-10 pl-10" aria-label="Search asked questions" /></div>
+          <div><h2 className="text-base font-bold text-ink">{t("admin.askedQuestions.customerQuestions")}</h2><p className="mt-1 text-xs text-muted">{t("admin.askedQuestions.customerQuestionsSub")}</p></div>
+          <div className="relative w-full sm:w-72"><Search className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("admin.askedQuestions.searchPlaceholder")} className="h-10 pl-10" aria-label={t("admin.askedQuestions.searchAria")} /></div>
         </div>
-        {loading ? <div className="space-y-4 p-5">{[1, 2, 3].map((item) => <Skeleton key={item} className="h-20 w-full" />)}</div> : error ? <ApiErrorState message={error} onRetry={reload} /> : filtered.length === 0 ? <ApiEmptyState message={search ? "No questions match your search." : "No customer questions have been captured yet."} className="py-16" /> : (
+        {loading ? <div className="space-y-4 p-5">{[1, 2, 3].map((item) => <Skeleton key={item} className="h-20 w-full" />)}</div> : error ? <ApiErrorState message={error} onRetry={reload} /> : filtered.length === 0 ? <ApiEmptyState message={search ? t("admin.askedQuestions.noMatch") : t("admin.askedQuestions.noneCaptured")} className="py-16" /> : (
           <>
             <div className="divide-y divide-slate-100">
               {filtered.map((item) => (
@@ -135,7 +137,7 @@ export default function AdminAskedQuestionsPage() {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold leading-6 text-ink">{item.question}</p>
                       <p className="mt-1 text-xs text-muted">
-                        {item.user?.fullName ?? "Guest customer"}
+                        {item.user?.fullName ?? t("admin.askedQuestions.guestCustomer")}
                         {item.user?.email ? ` · ${item.user.email}` : ""}
                         {item.conversation?.title ? ` · ${item.conversation.title}` : ""}
                       </p>
@@ -149,7 +151,7 @@ export default function AdminAskedQuestionsPage() {
               <div className="flex flex-col items-center gap-2 border-t border-slate-100 p-5">
                 <Button type="button" variant="outline" onClick={() => void loadMore()} disabled={loadingMore} className="gap-2">
                   {loadingMore && <Loader2 className="size-4 animate-spin" />}
-                  {loadingMore ? "Loading…" : "Load more"}
+                  {loadingMore ? t("staff.loading") : t("admin.askedQuestions.loadMore")}
                 </Button>
                 {loadMoreError && <p className="text-xs text-red-600">{loadMoreError}</p>}
               </div>

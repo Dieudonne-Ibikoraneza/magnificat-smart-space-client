@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, ListFilter, Repeat2, Search, UserRoundPlus, UsersRound } from "lucide-react";
 import { AdminPageHeader } from "@/app/admin/layout";
 import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
@@ -24,9 +25,22 @@ import { KpiCards, type KpiCardData } from "@/components/kpi-cards";
 import { Skeleton } from "@/components/ui/skeleton";
 import { analyticsApi, usersApi } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
-import { hearAboutUsLabels, roomTypeLabels } from "@/lib/api/mappers";
-import type { UserStatus } from "@/lib/api/types";
+import type { HearAboutUs, RoomType, UserStatus } from "@/lib/api/types";
 import { formatCompactCurrency, getInitials } from "@/lib/utils";
+
+const ROOM_TYPE_KEYS: Record<RoomType, string> = {
+  LIVING_ROOM: "catalog.roomTypes.livingRoom",
+  BEDROOM: "catalog.roomTypes.bedroom",
+  BATHROOM: "catalog.roomTypes.bathroom",
+  KITCHEN: "catalog.roomTypes.kitchen",
+};
+const HEAR_ABOUT_KEYS: Record<HearAboutUs, string> = {
+  SOCIAL_MEDIA: "auth.discoverySources.SOCIAL_MEDIA",
+  REFERRAL: "auth.discoverySources.REFERRAL",
+  ADVERTISEMENT: "auth.discoverySources.ADVERTISEMENT",
+  SEARCH_ENGINE: "auth.discoverySources.SEARCH_ENGINE",
+  OTHER: "auth.discoverySources.OTHER",
+};
 
 const formatShortDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
@@ -57,6 +71,7 @@ const CustomerTrendTooltip = ({
   payload?: Array<{ name?: string; value: number }>;
   label?: string;
 }) => {
+  const { t } = useTranslation();
   if (!active || !payload?.length) return null;
 
   return (
@@ -65,7 +80,7 @@ const CustomerTrendTooltip = ({
       <div className="mt-1 space-y-0.5 font-data text-sm text-ink">
         {payload.map((entry) => (
           <p key={entry.name}>
-            {entry.name === "newCustomers" ? "New Customers" : "Repeat Customers"}: {entry.value}
+            {entry.name === "newCustomers" ? t("analytics.customers.newCustomers") : t("analytics.customers.repeatCustomers")}: {entry.value}
           </p>
         ))}
       </div>
@@ -73,26 +88,29 @@ const CustomerTrendTooltip = ({
   );
 };
 
-const trendSubtitle: Record<AnalyticsPeriodDays, string> = {
-  7: "7-day comparison",
-  30: "30-day comparison",
-  12: "12-month comparison",
+const TREND_SUBTITLE_KEYS: Record<AnalyticsPeriodDays, string> = {
+  7: "analytics.customers.trend7",
+  30: "analytics.customers.trend30",
+  12: "analytics.customers.trend12",
 };
 
 /** Orders per bucket, split by first-time vs. repeat customer — `CustomerAnalytics.trend.ordersByCustomerType`. */
-const CustomerTrendChart = ({ period, data }: { period: AnalyticsPeriodDays; data: CustomerTrendPoint[] }) => (
+const CustomerTrendChart = ({ period, data }: { period: AnalyticsPeriodDays; data: CustomerTrendPoint[] }) => {
+  const { t } = useTranslation();
+
+  return (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h2 className="text-lg font-bold text-ink">New vs. Repeat Customer Orders</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{trendSubtitle[period]}</p>
+        <h2 className="text-lg font-bold text-ink">{t("analytics.customers.trendTitle")}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t(TREND_SUBTITLE_KEYS[period])}</p>
       </div>
       <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-ink/60" /> New Customers
+          <span className="size-2 rounded-full bg-ink/60" /> {t("analytics.customers.newCustomers")}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-primary" /> Repeat Customers
+          <span className="size-2 rounded-full bg-primary" /> {t("analytics.customers.repeatCustomers")}
         </span>
       </div>
     </div>
@@ -109,9 +127,11 @@ const CustomerTrendChart = ({ period, data }: { period: AnalyticsPeriodDays; dat
       </ResponsiveContainer>
     </div>
   </section>
-);
+  );
+};
 
 const AdminAnalyticsCustomersPage = () => {
+  const { t } = useTranslation();
   const [period, setPeriod] = useState<AnalyticsPeriodDays>(7);
   const range = periodToRange[period];
 
@@ -145,28 +165,28 @@ const AdminAnalyticsCustomersPage = () => {
 
   const kpis: KpiCardData[] = customerAnalytics
     ? [
-        { label: "Total Customers", value: customerAnalytics.totalCustomers.toLocaleString(), icon: UsersRound },
-        { label: "New Customers", value: customerAnalytics.newCustomers.toLocaleString(), icon: UserRoundPlus },
-        { label: "Repeat Customers", value: customerAnalytics.repeatCustomerCount.toLocaleString(), icon: Repeat2 },
-        { label: "Repeat Purchase Rate", value: `${customerAnalytics.repeatPurchaseRate.toFixed(1)}%`, icon: Repeat2 },
+        { label: t("analytics.customers.kpiTotalCustomers"), value: customerAnalytics.totalCustomers.toLocaleString(), icon: UsersRound },
+        { label: t("analytics.customers.kpiNewCustomers"), value: customerAnalytics.newCustomers.toLocaleString(), icon: UserRoundPlus },
+        { label: t("analytics.customers.kpiRepeatCustomers"), value: customerAnalytics.repeatCustomerCount.toLocaleString(), icon: Repeat2 },
+        { label: t("analytics.customers.kpiRepeatRate"), value: `${customerAnalytics.repeatPurchaseRate.toFixed(1)}%`, icon: Repeat2 },
       ]
     : [];
 
   // Every room type shown, zero-count ones included — a consistent,
   // complete axis rather than only whatever this dataset happens to have.
   const projectTypes: CategoryDatum[] = useMemo(
-    () => (customerAnalytics?.projectTypes ?? []).map((row) => ({ category: roomTypeLabels[row.roomType], value: row.customers })),
-    [customerAnalytics],
+    () => (customerAnalytics?.projectTypes ?? []).map((row) => ({ category: t(ROOM_TYPE_KEYS[row.roomType]), value: row.customers })),
+    [customerAnalytics, t],
   );
   const projectTypesAxis = axisFor(projectTypes.map((row) => row.value));
 
   const acquisitionChannels: CategoryDatum[] = useMemo(
     () =>
       (customerAnalytics?.byHeardAboutUs ?? []).map((row) => ({
-        category: row.source ? hearAboutUsLabels[row.source] : "Not specified",
+        category: row.source ? t(HEAR_ABOUT_KEYS[row.source]) : t("analytics.common.notSpecified"),
         value: row.count,
       })),
-    [customerAnalytics],
+    [customerAnalytics, t],
   );
   const acquisitionAxis = axisFor(acquisitionChannels.map((row) => row.value));
 
@@ -192,7 +212,7 @@ const AdminAnalyticsCustomersPage = () => {
 
   return (
     <>
-      <AdminPageHeader title="Customer Analytics" subtitle="Customer insights and engagement trends.">
+      <AdminPageHeader title={t("analytics.customers.title")} subtitle={t("analytics.customers.subtitle")}>
         <AnalyticsPeriodSwitcher period={period} onChange={setPeriod} />
       </AdminPageHeader>
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
@@ -216,16 +236,16 @@ const AdminAnalyticsCustomersPage = () => {
             </section>
           ) : projectTypes.every((row) => row.value === 0) ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
-              <h2 className="text-lg font-bold text-ink">Project Types Distribution</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Number of customers vs. project type</p>
-              <ApiEmptyState message="No customer projects yet." className="py-16" />
+              <h2 className="text-lg font-bold text-ink">{t("analytics.customers.projectTypesTitle")}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{t("analytics.customers.projectTypesSubShort")}</p>
+              <ApiEmptyState message={t("analytics.customers.noProjects")} className="py-16" />
             </section>
           ) : (
             <CategoryBarChart
-              title="Project Types Distribution"
-              subtitle="Distribution of customer projects by category, Number of customers vs. Project Type"
+              title={t("analytics.customers.projectTypesTitle")}
+              subtitle={t("analytics.customers.projectTypesSub")}
               data={projectTypes}
-              tooltipLabel="Customers"
+              tooltipLabel={t("analytics.customers.tooltipCustomers")}
               tooltipValueFormatter={(value) => value.toLocaleString()}
               yTicks={projectTypesAxis.yTicks}
               yDomainMax={projectTypesAxis.yDomainMax}
@@ -257,16 +277,16 @@ const AdminAnalyticsCustomersPage = () => {
             </section>
           ) : acquisitionChannels.every((row) => row.value === 0) ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
-              <h2 className="text-lg font-bold text-ink">Acquisition Channel</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Customers by Source of Discovery</p>
-              <ApiEmptyState message="No customers yet." className="py-16" />
+              <h2 className="text-lg font-bold text-ink">{t("analytics.customers.acquisitionTitle")}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{t("analytics.customers.acquisitionSub")}</p>
+              <ApiEmptyState message={t("analytics.customers.noResults")} className="py-16" />
             </section>
           ) : (
             <CategoryBarChart
-              title="Acquisition Channel"
-              subtitle="Customers by Source of Discovery"
+              title={t("analytics.customers.acquisitionTitle")}
+              subtitle={t("analytics.customers.acquisitionSub")}
               data={acquisitionChannels}
-              tooltipLabel="Customers"
+              tooltipLabel={t("analytics.customers.tooltipCustomers")}
               tooltipValueFormatter={(value) => value.toLocaleString()}
               yTicks={acquisitionAxis.yTicks}
               yDomainMax={acquisitionAxis.yDomainMax}
@@ -277,43 +297,45 @@ const AdminAnalyticsCustomersPage = () => {
         </div>
 
         <section>
-          <h2 className="text-lg font-bold text-ink">Customers</h2>
-          <p className="mt-1 text-sm text-muted-foreground">View and filter system registered customers</p>
+          <h2 className="text-lg font-bold text-ink">{t("analytics.customers.customersHeading")}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t("analytics.customers.customersSub")}</p>
 
           <div className="mt-5 rounded-2xl bg-card p-4 sm:p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
               <div className="flex shrink-0 items-center gap-2 text-sm font-medium text-ink">
                 <ListFilter className="size-5 shrink-0" strokeWidth={1.8} />
-                <span>Filter by:</span>
+                <span>{t("analytics.common.filterBy")}</span>
               </div>
               <div className="grid w-full min-w-0 grid-cols-2 gap-3 sm:min-w-[320px] sm:flex-1 lg:w-auto lg:flex-none lg:gap-5">
                 <div className="min-w-0">
-                  <span className="sr-only">Status</span>
+                  <span className="sr-only">{t("analytics.customers.status")}</span>
                   <Select value={status} onValueChange={(value) => setStatus((value ?? "all") as "all" | UserStatus)}>
                     <SelectTrigger className="h-10 w-full min-w-0 border-border bg-transparent text-sm font-medium">
                       <SelectValue className="min-w-0 truncate">
                         {(value) =>
-                          value === "all" ? "Status: All" : `Status: ${value === "ACTIVE" ? "Active" : value === "INACTIVE" ? "Inactive" : "Suspended"}`
+                          value === "all"
+                            ? t("analytics.customers.statusAll")
+                            : t("analytics.customers.statusValue", { status: t(`staff.userStatus.${value as UserStatus}`) })
                         }
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Status: All</SelectItem>
-                      <SelectItem value="ACTIVE">Status: Active</SelectItem>
-                      <SelectItem value="INACTIVE">Status: Inactive</SelectItem>
-                      <SelectItem value="SUSPENDED">Status: Suspended</SelectItem>
+                      <SelectItem value="all">{t("analytics.customers.statusAll")}</SelectItem>
+                      <SelectItem value="ACTIVE">{t("analytics.customers.statusValue", { status: t("staff.userStatus.ACTIVE") })}</SelectItem>
+                      <SelectItem value="INACTIVE">{t("analytics.customers.statusValue", { status: t("staff.userStatus.INACTIVE") })}</SelectItem>
+                      <SelectItem value="SUSPENDED">{t("analytics.customers.statusValue", { status: t("staff.userStatus.SUSPENDED") })}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="min-w-0">
-                  <span className="sr-only">Total spend</span>
+                  <span className="sr-only">{t("analytics.customers.totalSpend")}</span>
                   <Select value={sort} onValueChange={(value) => setSort((value ?? "spend") as "spend" | "name")}>
                     <SelectTrigger className="h-10 w-full min-w-0 border-border bg-transparent text-sm font-medium">
-                      <SelectValue className="min-w-0 truncate">{(value) => (value === "name" ? "Name: A - Z" : "Total Spend: Highest")}</SelectValue>
+                      <SelectValue className="min-w-0 truncate">{(value) => (value === "name" ? t("analytics.customers.nameAZ") : t("analytics.customers.spendHighest"))}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="spend">Total Spend: Highest</SelectItem>
-                      <SelectItem value="name">Name: A - Z</SelectItem>
+                      <SelectItem value="spend">{t("analytics.customers.spendHighest")}</SelectItem>
+                      <SelectItem value="name">{t("analytics.customers.nameAZ")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -323,13 +345,13 @@ const AdminAnalyticsCustomersPage = () => {
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search by customer name, email..."
-                  aria-label="Search customers"
+                  placeholder={t("analytics.customers.searchPlaceholder")}
+                  aria-label={t("analytics.customers.searchAria")}
                   className="w-full rounded-full border border-border bg-[#F9FAFB] py-3 pr-4 pl-11 text-sm text-ink outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/40"
                 />
               </div>
               <p className="shrink-0 text-xs font-semibold tracking-wider text-muted-foreground uppercase lg:hidden xl:inline">
-                Showing {directoryResults.length} result{directoryResults.length === 1 ? "" : "s"}
+                {t("analytics.common.showingResults", { count: directoryResults.length })}
               </p>
             </div>
           </div>
@@ -347,7 +369,7 @@ const AdminAnalyticsCustomersPage = () => {
           ) : customersError ? (
             <ApiErrorState message={customersError} onRetry={reloadCustomers} className="mt-5" />
           ) : directoryResults.length === 0 ? (
-            <ApiEmptyState message="No customers match your filters." className="mt-5 py-16" />
+            <ApiEmptyState message={t("analytics.customers.noResults")} className="mt-5 py-16" />
           ) : (
             <ul className="mt-5 grid gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
               {directoryResults.map((customer) => (
@@ -360,29 +382,29 @@ const AdminAnalyticsCustomersPage = () => {
                       <h3 className="min-w-0 truncate text-lg font-bold text-ink">{customer.fullName}</h3>
                     </div>
                     <Badge variant={customer.status === "ACTIVE" ? "primary" : customer.status === "SUSPENDED" ? "destructive" : "muted"}>
-                      {customer.status}
+                      {t(`staff.userStatus.${customer.status}`)}
                     </Badge>
                   </div>
                   <dl className="mt-5 space-y-3 border-t border-[#E5E7EB] pt-4 text-sm">
                     <div className="flex items-start justify-between gap-3">
-                      <dt className="shrink-0 text-muted-foreground">Contact</dt>
+                      <dt className="shrink-0 text-muted-foreground">{t("analytics.customers.contact")}</dt>
                       <dd className="min-w-0 text-right font-data text-ink">
                         <span className="block truncate">{customer.email ?? "—"}</span>
                         <span className="block whitespace-nowrap">{customer.phone ?? "—"}</span>
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Last Order</dt>
+                      <dt className="text-muted-foreground">{t("analytics.customers.lastOrder")}</dt>
                       <dd className="whitespace-nowrap font-data text-ink">
                         {customer.lastOrderAt ? formatShortDate(customer.lastOrderAt) : "—"}
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Total Orders</dt>
+                      <dt className="text-muted-foreground">{t("analytics.customers.totalOrders")}</dt>
                       <dd className="whitespace-nowrap font-data text-ink">{customer.orderCount}</dd>
                     </div>
                     <div className="flex items-center justify-between gap-3 border-t border-[#E5E7EB] pt-3">
-                      <dt className="text-muted-foreground">Total Spend</dt>
+                      <dt className="text-muted-foreground">{t("analytics.customers.totalSpendLabel")}</dt>
                       <dd className="font-data text-xl font-semibold whitespace-nowrap text-ink">
                         {formatCompactCurrency(customer.lifetimeSpend)}
                       </dd>
@@ -392,7 +414,7 @@ const AdminAnalyticsCustomersPage = () => {
                     href={`/admin/customers/${customer.id}`}
                     className="mt-5 flex items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-bold text-ink transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95"
                   >
-                    View Details
+                    {t("analytics.common.viewDetails")}
                     <ArrowRight className="size-4" />
                   </Link>
                 </li>

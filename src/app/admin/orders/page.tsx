@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
@@ -43,25 +44,25 @@ type OrderSort = "newest" | "oldest" | "amount-high" | "amount-low";
 type DateFilter =
   "all" | "today" | "yesterday" | "last7" | "last30" | "month" | "custom";
 
-const dateFilterLabels: Record<DateFilter, string> = {
-  all: "Date: All Time",
-  today: "Date: Today",
-  yesterday: "Date: Yesterday",
-  last7: "Date: Last 7 Days",
-  last30: "Date: Last 30 Days",
-  month: "Date: This Month",
-  custom: "Date: Custom",
+const DATE_FILTER_KEYS: Record<DateFilter, string> = {
+  all: "sales.orders.date.all",
+  today: "sales.orders.date.today",
+  yesterday: "sales.orders.date.yesterday",
+  last7: "sales.orders.date.last7",
+  last30: "sales.orders.date.last30",
+  month: "sales.orders.date.month",
+  custom: "sales.orders.date.custom",
 };
 
-const statusLabels: Record<OrderStatus, string> = {
-  WAITLISTED: "Waitlisted",
-  PENDING: "Pending",
-  PROCESSING: "Processing",
-  READY_FOR_DISPATCH: "Ready for Dispatch",
-  SHIPPED: "Shipped",
-  DELIVERED: "Delivered",
-  CANCELLED: "Cancelled",
-};
+const ORDER_STATUSES: OrderStatus[] = [
+  "WAITLISTED",
+  "PENDING",
+  "PROCESSING",
+  "READY_FOR_DISPATCH",
+  "SHIPPED",
+  "DELIVERED",
+  "CANCELLED",
+];
 
 const statusVariant: Record<OrderStatus, NonNullable<BadgeProps["variant"]>> = {
   WAITLISTED: "warning",
@@ -138,6 +139,7 @@ const OrderSearchMenu = ({
   query: string;
   onQueryChange: (value: string) => void;
 }) => {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -192,7 +194,7 @@ const OrderSearchMenu = ({
         size="icon-xs"
         className={cn(open && "bg-secondary text-ink")}
         onClick={() => setOpen((value) => !value)}
-        aria-label={open ? "Close order search" : "Search orders"}
+        aria-label={open ? t("sales.orders.closeOrderSearch") : t("sales.orders.searchOrders")}
         aria-expanded={open}
       >
         {open ? <X className="size-4" /> : <Search className="size-4" />}
@@ -207,7 +209,7 @@ const OrderSearchMenu = ({
           )}
         >
           <label htmlFor="orders-search" className="sr-only">
-            Search orders
+            {t("sales.orders.searchOrders")}
           </label>
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -216,7 +218,7 @@ const OrderSearchMenu = ({
               autoFocus
               value={query}
               onChange={(event) => onQueryChange(event.target.value)}
-              placeholder="Search by order ID or customer..."
+              placeholder={t("sales.orders.searchPlaceholder")}
               className="w-full rounded-full border border-border bg-[#F9FAFB] py-2.5 pr-4 pl-10 text-sm text-ink outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/40"
             />
           </div>
@@ -226,8 +228,10 @@ const OrderSearchMenu = ({
   );
 };
 
-const OrdersPageSkeleton = () => (
-  <div className="space-y-5 sm:space-y-6" aria-label="Loading orders" role="status">
+const OrdersPageSkeleton = () => {
+  const { t } = useTranslation();
+  return (
+  <div className="space-y-5 sm:space-y-6" aria-label={t("sales.orders.loading")} role="status">
     <div className="rounded-2xl bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-3">
         <Skeleton className="h-5 w-24" />
@@ -253,9 +257,11 @@ const OrdersPageSkeleton = () => (
       ))}
     </div>
   </div>
-);
+  );
+};
 
 const OrdersPage = () => {
+  const { t } = useTranslation();
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
@@ -294,8 +300,8 @@ const OrdersPage = () => {
   return (
     <>
       <AdminPageHeader
-        title="Orders"
-        subtitle="Monitor progress and manage customer transaction history."
+        title={t("sales.orders.title")}
+        subtitle={t("sales.orders.subtitle")}
       >
         <Button
           type="button"
@@ -303,7 +309,7 @@ const OrdersPage = () => {
           className="h-11 gap-2 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
         >
           <UserPlus className="size-4" />
-          New Order
+          {t("sales.orders.newOrder")}
         </Button>
       </AdminPageHeader>
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
@@ -312,7 +318,7 @@ const OrdersPage = () => {
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex shrink-0 items-center gap-2 text-sm font-medium text-ink">
                 <ListFilter className="size-5" strokeWidth={1.8} />
-                Filter by:
+                {t("sales.orders.filterBy")}
               </div>
               <Select
                 value={status}
@@ -321,14 +327,18 @@ const OrdersPage = () => {
                 <SelectTrigger className="h-10 w-auto min-w-[130px] border-border bg-transparent text-sm font-medium">
                   <SelectValue className="truncate">
                     {(value) =>
-                      value === "all" ? "Status: All" : "Status: " + statusLabels[value as OrderStatus]
+                      value === "all"
+                        ? t("sales.orders.statusAll")
+                        : t("sales.orders.statusValue", { status: t(`staff.orderStatus.${value as OrderStatus}`) })
                     }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Status: All</SelectItem>
-                  {(Object.keys(statusLabels) as OrderStatus[]).map((value) => (
-                    <SelectItem key={value} value={value}>Status: {statusLabels[value]}</SelectItem>
+                  <SelectItem value="all">{t("sales.orders.statusAll")}</SelectItem>
+                  {ORDER_STATUSES.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {t("sales.orders.statusValue", { status: t(`staff.orderStatus.${value}`) })}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -342,17 +352,17 @@ const OrdersPage = () => {
               >
                 <SelectTrigger className="h-10 w-auto min-w-[130px] border-border bg-transparent text-sm font-medium">
                   <SelectValue className="truncate">
-                    {(value) => dateFilterLabels[value as DateFilter]}
+                    {(value) => t(DATE_FILTER_KEYS[value as DateFilter])}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Date: All Time</SelectItem>
-                  <SelectItem value="today">Date: Today</SelectItem>
-                  <SelectItem value="yesterday">Date: Yesterday</SelectItem>
-                  <SelectItem value="last7">Date: Last 7 Days</SelectItem>
-                  <SelectItem value="last30">Date: Last 30 Days</SelectItem>
-                  <SelectItem value="month">Date: This Month</SelectItem>
-                  <SelectItem value="custom">Date: Custom...</SelectItem>
+                  <SelectItem value="all">{t("sales.orders.date.all")}</SelectItem>
+                  <SelectItem value="today">{t("sales.orders.date.today")}</SelectItem>
+                  <SelectItem value="yesterday">{t("sales.orders.date.yesterday")}</SelectItem>
+                  <SelectItem value="last7">{t("sales.orders.date.last7")}</SelectItem>
+                  <SelectItem value="last30">{t("sales.orders.date.last30")}</SelectItem>
+                  <SelectItem value="month">{t("sales.orders.date.month")}</SelectItem>
+                  <SelectItem value="custom">{t("sales.orders.date.customOption")}</SelectItem>
                 </SelectContent>
               </Select>
               {dateFilter === "custom" && (
@@ -362,14 +372,14 @@ const OrdersPage = () => {
                     type="date"
                     value={customDate}
                     onChange={(event) => setCustomDate(event.target.value)}
-                    aria-label="Pick a specific order date"
+                    aria-label={t("sales.orders.date.pickAria")}
                     className="h-10 rounded-full border border-border bg-[#F9FAFB] py-2 pr-9 pl-11 text-sm text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/40"
                   />
                   {customDate && (
                     <button
                       type="button"
                       onClick={() => setCustomDate("")}
-                      aria-label="Clear custom date"
+                      aria-label={t("sales.orders.date.clearAria")}
                       className="absolute right-2.5 flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary hover:text-ink"
                     >
                       <X className="size-3.5" />
@@ -387,37 +397,37 @@ const OrdersPage = () => {
                   <SelectValue className="truncate">
                     {(value) =>
                       value === "oldest"
-                        ? "Date: Oldest"
+                        ? t("sales.orders.sort.oldestShort")
                         : value === "amount-high"
-                          ? "Amount: High"
+                          ? t("sales.orders.sort.amountHighShort")
                           : value === "amount-low"
-                            ? "Amount: Low"
-                            : "Date: Newest"
+                            ? t("sales.orders.sort.amountLowShort")
+                            : t("sales.orders.sort.newestShort")
                     }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="newest">Order Date: Newest</SelectItem>
-                  <SelectItem value="oldest">Order Date: Oldest</SelectItem>
+                  <SelectItem value="newest">{t("sales.orders.sort.newest")}</SelectItem>
+                  <SelectItem value="oldest">{t("sales.orders.sort.oldest")}</SelectItem>
                   <SelectItem value="amount-high">
-                    Amount: High to Low
+                    {t("sales.orders.sort.amountHigh")}
                   </SelectItem>
                   <SelectItem value="amount-low">
-                    Amount: Low to High
+                    {t("sales.orders.sort.amountLow")}
                   </SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="flex shrink-0 items-center gap-3">
               <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap">
-                Showing {results.length} result{results.length === 1 ? "" : "s"}
+                {t("sales.orders.showingResults", { count: results.length })}
               </p>
               <div className="flex items-center rounded-lg border border-border bg-background p-1">
                 <Button
                   type="button"
                   variant={view === "grid" ? "default" : "ghost"}
                   size="icon-xs"
-                  aria-label="Grid view"
+                  aria-label={t("sales.orders.gridView")}
                   aria-pressed={view === "grid"}
                   onClick={() => setView("grid")}
                 >
@@ -427,7 +437,7 @@ const OrdersPage = () => {
                   type="button"
                   variant={view === "list" ? "default" : "ghost"}
                   size="icon-xs"
-                  aria-label="List view"
+                  aria-label={t("sales.orders.listView")}
                   aria-pressed={view === "list"}
                   onClick={() => setView("list")}
                 >
@@ -444,7 +454,7 @@ const OrdersPage = () => {
         ) : error ? (
           <ApiErrorState message={error} onRetry={reload} className="my-16" />
         ) : results.length === 0 ? (
-          <ApiEmptyState message="No orders match your filters." className="py-16" />
+          <ApiEmptyState message={t("sales.orders.noResults")} className="py-16" />
         ) : view === "grid" ? (
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {results.map((order) => (
@@ -456,38 +466,37 @@ const OrdersPage = () => {
                         #{order.id}
                       </p>
                       <h2 className="mt-1 truncate text-base font-bold text-ink">
-                        {order.customer?.fullName ?? "Unknown customer"}
+                        {order.customer?.fullName ?? t("sales.orders.unknownCustomer")}
                       </h2>
                     </div>
                     <div className="flex items-center gap-2">
                       {order.createdByType === "STAFF" && (
                         <StaffCreatedIndicator
-                          createdByName={order.createdBy?.fullName ?? "Staff"}
+                          createdByName={order.createdBy?.fullName ?? t("analytics.common.staffFallback")}
                         />
                       )}
                       <Badge variant={statusVariant[order.status]}>
-                        {statusLabels[order.status]}
+                        {t(`staff.orderStatus.${order.status}`)}
                       </Badge>
                     </div>
                   </div>
                   <div className="my-4 h-px bg-[#E5E7EB]" />
                   <dl className="space-y-3 font-data text-sm">
                     <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Summary</dt>
+                      <dt className="text-muted-foreground">{t("sales.orders.summary")}</dt>
                       <dd className="text-right font-semibold text-ink">
-                        {(order.items ?? []).length} Products
+                        {t("sales.orders.productsCount", { count: (order.items ?? []).length })}
                         <span className="block text-xs font-normal text-muted-foreground">
-                          {totalSqm(order.items ?? []).toLocaleString("en-US")} sqm
-                          total
+                          {t("sales.orders.sqmTotal", { value: totalSqm(order.items ?? []).toLocaleString("en-US") })}
                         </span>
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Order Date</dt>
+                      <dt className="text-muted-foreground">{t("sales.orders.orderDate")}</dt>
                       <dd className="font-semibold text-ink">{formatDate(order.createdAt)}</dd>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Total Spend</dt>
+                      <dt className="text-muted-foreground">{t("sales.orders.totalSpend")}</dt>
                       <dd className="font-semibold text-ink">{formatPrice(order.total)}</dd>
                     </div>
                   </dl>
@@ -496,7 +505,7 @@ const OrdersPage = () => {
                     onClick={() => router.push("/admin/orders/" + order.id)}
                     className="mt-5 h-auto w-full gap-2 rounded-lg py-3 text-sm font-bold"
                   >
-                    View Details{" "}
+                    {t("sales.orders.viewDetails")}{" "}
                     <ChevronRight className="size-4 transition-transform group-hover:translate-x-1" />
                   </Button>
                 </article>
@@ -517,7 +526,7 @@ const OrdersPage = () => {
                       <p className="text-sm font-semibold text-ink">
                         {order.id}
                       </p>
-                      <p className="text-sm text-ink">{order.customer?.fullName ?? "Unknown customer"}</p>
+                      <p className="text-sm text-ink">{order.customer?.fullName ?? t("sales.orders.unknownCustomer")}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {formatDate(order.createdAt)}
                       </p>
@@ -529,11 +538,11 @@ const OrdersPage = () => {
                       <div className="flex items-center gap-2">
                         {order.createdByType === "STAFF" && (
                           <StaffCreatedIndicator
-                            createdByName={order.createdBy?.fullName ?? "Staff"}
+                            createdByName={order.createdBy?.fullName ?? t("analytics.common.staffFallback")}
                           />
                         )}
                         <Badge variant={statusVariant[order.status]}>
-                          {statusLabels[order.status]}
+                          {t(`staff.orderStatus.${order.status}`)}
                         </Badge>
                       </div>
                     </div>
@@ -545,11 +554,11 @@ const OrdersPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Order ID</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>{t("sales.orders.colOrderNo")}</TableHead>
+                    <TableHead>{t("sales.orders.colCustomer")}</TableHead>
+                    <TableHead>{t("sales.orders.colDate")}</TableHead>
+                    <TableHead>{t("sales.orders.colAmount")}</TableHead>
+                    <TableHead>{t("sales.orders.colStatus")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -570,7 +579,7 @@ const OrdersPage = () => {
                       <TableCell className="font-semibold">
                         {order.id}
                       </TableCell>
-                      <TableCell>{order.customer?.fullName ?? "Unknown customer"}</TableCell>
+                      <TableCell>{order.customer?.fullName ?? t("sales.orders.unknownCustomer")}</TableCell>
                       <TableCell className="whitespace-nowrap">
                         {formatDate(order.createdAt)}
                       </TableCell>
@@ -581,11 +590,11 @@ const OrdersPage = () => {
                         <div className="flex flex-wrap items-center gap-2">
                           {order.createdByType === "STAFF" && (
                             <StaffCreatedIndicator
-                              createdByName={order.createdBy?.fullName ?? "Staff"}
+                              createdByName={order.createdBy?.fullName ?? t("analytics.common.staffFallback")}
                             />
                           )}
                           <Badge variant={statusVariant[order.status]}>
-                            {statusLabels[order.status]}
+                            {t(`staff.orderStatus.${order.status}`)}
                           </Badge>
                         </div>
                       </TableCell>

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import {
   Area,
   AreaChart,
@@ -51,7 +52,7 @@ import { OrdersByCreatorChart } from "@/components/orders-by-creator-chart";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import { ChartAxisTick } from "@/components/chart-axis-tick";
 import { Skeleton } from "@/components/ui/skeleton";
-import { JOURNEY_STAGE_META } from "@/components/conversion-funnel";
+import { JOURNEY_STAGE_TITLE_KEYS } from "@/components/conversion-funnel";
 import { cn, formatCompactCurrency, formatCompactNumber } from "@/lib/utils";
 import { analyticsApi, ordersApi, productsApi } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
@@ -81,22 +82,25 @@ const orderStatusMeta: Record<OrderStatus, { icon: typeof Clock3; tone: string }
 const stockDot = { low_stock: "bg-amber-500", out_of_stock: "bg-red-500" } as const;
 const stockText = { low_stock: "text-amber-600", out_of_stock: "text-red-600" } as const;
 
-const HeaderActions = () => (
+const HeaderActions = () => {
+  const { t } = useTranslation();
+  return (
   <div className="flex shrink-0 items-center gap-2">
     <button
       type="button"
       className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold text-ink hover:bg-secondary"
     >
-      <Calendar className="size-4" /> Last 30 Days
+      <Calendar className="size-4" /> {t("admin.overview.last30Days")}
     </button>
     <button
       type="button"
       className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-ink shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
     >
-      <Download className="size-4" /> Export Data
+      <Download className="size-4" /> {t("admin.overview.exportData")}
     </button>
   </div>
-);
+  );
+};
 
 const KpiSkeleton = () => (
   <article className="flex h-full flex-col rounded-2xl bg-card p-4 sm:p-5">
@@ -109,6 +113,7 @@ const KpiSkeleton = () => (
 );
 
 const KpiCards = ({ overview, loading }: { overview: AnalyticsOverviewLike | undefined; loading: boolean }) => {
+  const { t } = useTranslation();
   if (loading && !overview) {
     return (
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
@@ -126,17 +131,18 @@ const KpiCards = ({ overview, loading }: { overview: AnalyticsOverviewLike | und
   const avgConversion = pct(purchased, opened);
 
   const kpis = [
-    { label: "Total Sales (RWF)", value: formatCompactNumber(overview.totalSales), icon: Wallet },
-    { label: "Total Orders", value: overview.totalOrders.toLocaleString(), icon: ShoppingBasket },
-    { label: "Total Customers", value: overview.totalCustomers.toLocaleString(), icon: UsersRound },
-    { label: "Repeat Customers", value: overview.repeatCustomers.toLocaleString(), icon: Repeat },
+    { key: "sales", label: t("admin.overview.kpiTotalSales"), value: formatCompactNumber(overview.totalSales), icon: Wallet },
+    { key: "orders", label: t("admin.overview.kpiTotalOrders"), value: overview.totalOrders.toLocaleString(), icon: ShoppingBasket },
+    { key: "customers", label: t("admin.overview.kpiTotalCustomers"), value: overview.totalCustomers.toLocaleString(), icon: UsersRound },
+    { key: "repeat", label: t("admin.overview.kpiRepeatCustomers"), value: overview.repeatCustomers.toLocaleString(), icon: Repeat },
     {
-      label: "Inventory",
-      value: `${overview.activeProducts.toLocaleString()} Products`,
-      warning: overview.lowStockItems > 0 ? `${overview.lowStockItems} Low Stock` : undefined,
+      key: "inventory",
+      label: t("admin.overview.kpiInventory"),
+      value: t("admin.overview.kpiInventoryValue", { count: overview.activeProducts.toLocaleString() }),
+      warning: overview.lowStockItems > 0 ? t("admin.overview.kpiInventoryWarning", { count: overview.lowStockItems }) : undefined,
       icon: ShoppingBag,
     },
-    { label: "Avg. Conversion", value: `${avgConversion.toFixed(1)}%`, icon: Coins },
+    { key: "conversion", label: t("admin.overview.kpiAvgConversion"), value: `${avgConversion.toFixed(1)}%`, icon: Coins },
   ];
 
   return (
@@ -145,7 +151,7 @@ const KpiCards = ({ overview, loading }: { overview: AnalyticsOverviewLike | und
         const Icon = kpi.icon;
 
         return (
-          <article key={kpi.label} className="flex h-full flex-col rounded-2xl bg-card p-4 sm:p-5">
+          <article key={kpi.key} className="flex h-full flex-col rounded-2xl bg-card p-4 sm:p-5">
             <div className="flex items-start justify-between gap-2">
               <Icon className="size-5 stroke-2 text-ink" />
               {kpi.warning ? (
@@ -190,6 +196,7 @@ const SalesOverviewTooltip = ({
 };
 
 const SalesOverview = () => {
+  const { t } = useTranslation();
   const [range, setRange] = useState<"7D" | "30D" | "3M" | "12M">("30D");
   const { data: overview, loading } = useApi(
     () => analyticsApi.overview(rangeToPeriod[range]),
@@ -202,7 +209,7 @@ const SalesOverview = () => {
     <section className="grid gap-5 rounded-2xl bg-card p-5 sm:gap-6 sm:p-6 xl:grid-cols-[1fr_260px]">
       <div className="min-w-0">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <h2 className="text-lg font-bold text-ink">Sales Overview</h2>
+          <h2 className="text-lg font-bold text-ink">{t("admin.overview.salesOverview")}</h2>
           <div className="flex h-9 items-center rounded-lg border border-border bg-background p-1">
             {(["7D", "30D", "3M", "12M"] as const).map((item) => (
               <button
@@ -224,7 +231,7 @@ const SalesOverview = () => {
           {loading && !overview ? (
             <Skeleton className="size-full" />
           ) : data.length === 0 ? (
-            <ApiEmptyState message="No revenue recorded yet for this range." className="h-full" />
+            <ApiEmptyState message={t("admin.overview.noRevenueYet")} className="h-full" />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
@@ -259,27 +266,27 @@ const SalesOverview = () => {
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
         <div className="rounded-xl border border-border p-4">
-          <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">Total Sales</p>
+          <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">{t("admin.overview.totalSales")}</p>
           <p className="mt-1 text-xl font-black text-ink">
             {overview ? formatCompactCurrency(overview.totalSales) : "—"}
           </p>
         </div>
         <div className="rounded-xl border border-border p-4">
           <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
-            Transport Fees <span className="normal-case">(not included above)</span>
+            {t("admin.overview.transportFees")} <span className="normal-case">{t("admin.overview.transportFeesNote")}</span>
           </p>
           <p className="mt-1 text-xl font-black text-ink">
             {overview ? formatCompactCurrency(overview.totalTransportFees) : "—"}
           </p>
         </div>
         <div className="rounded-xl border border-border p-4">
-          <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">Average Order</p>
+          <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">{t("admin.overview.averageOrder")}</p>
           <p className="mt-1 text-xl font-black text-ink">
             {overview ? formatCompactCurrency(overview.averageOrderValue) : "—"}
           </p>
         </div>
         <div className="rounded-xl border border-border p-4">
-          <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">Total Orders</p>
+          <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">{t("admin.overview.kpiTotalOrders")}</p>
           <p className="mt-1 text-xl font-black text-ink">{overview ? overview.totalOrders.toLocaleString() : "—"}</p>
         </div>
       </div>
@@ -293,11 +300,12 @@ const SalesOverview = () => {
 };
 
 const NeedsAttention = ({ overview, loading }: { overview: AnalyticsOverviewLike | undefined; loading: boolean }) => {
+  const { t } = useTranslation();
   const items = overview
     ? [
-        { label: "Out of Stock", count: overview.outOfStockItems, icon: Box, tone: "bg-red-50 text-red-600" },
-        { label: "Low Stock", count: overview.lowStockItems, icon: AlertTriangle, tone: "bg-amber-50 text-amber-600" },
-        { label: "Pending Orders", count: overview.pendingOrders, icon: Clock3, tone: "bg-slate-100 text-ink" },
+        { key: "outOfStock", label: t("admin.overview.outOfStock"), count: overview.outOfStockItems, icon: Box, tone: "bg-red-50 text-red-600" },
+        { key: "lowStock", label: t("admin.overview.lowStock"), count: overview.lowStockItems, icon: AlertTriangle, tone: "bg-amber-50 text-amber-600" },
+        { key: "pendingOrders", label: t("admin.overview.pendingOrders"), count: overview.pendingOrders, icon: Clock3, tone: "bg-slate-100 text-ink" },
       ]
     : [];
 
@@ -305,7 +313,7 @@ const NeedsAttention = ({ overview, loading }: { overview: AnalyticsOverviewLike
     <section className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
       <div className="flex items-center gap-2">
         <AlertTriangle className="size-4 text-amber-500" />
-        <h2 className="text-base font-bold text-ink">Needs Attention</h2>
+        <h2 className="text-base font-bold text-ink">{t("admin.overview.needsAttention")}</h2>
       </div>
       <ul className="mt-4 flex-1 space-y-2">
         {loading && !overview
@@ -318,7 +326,7 @@ const NeedsAttention = ({ overview, loading }: { overview: AnalyticsOverviewLike
           : items.map((item) => {
               const Icon = item.icon;
               return (
-                <li key={item.label} className="flex items-center gap-3 rounded-xl border border-border p-3">
+                <li key={item.key} className="flex items-center gap-3 rounded-xl border border-border p-3">
                   <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", item.tone)}>
                     <Icon className="size-4" />
                   </span>
@@ -348,17 +356,19 @@ const CustomerJourneyFunnel = ({
 }: {
   stages: { stage: string; customers: number; conversionFromPrevious: number }[];
   loading: boolean;
-}) => (
+}) => {
+  const { t } = useTranslation();
+  return (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
-    <h2 className="text-lg font-bold text-ink">Customer Journey Funnel</h2>
-    <p className="mt-1 text-sm text-muted-foreground">Conversion rates through the spatial planning flow.</p>
+    <h2 className="text-lg font-bold text-ink">{t("admin.overview.journeyFunnelTitle")}</h2>
+    <p className="mt-1 text-sm text-muted-foreground">{t("admin.overview.journeyFunnelSubtitle")}</p>
     <div className="scrollbar-hide mt-6 flex gap-6 overflow-x-auto px-2 pb-2">
       {loading && stages.length === 0
         ? Array.from({ length: 6 }).map((_, index) => <FunnelCardSkeleton key={index} />)
         : stages.map((step, index) => {
             const isFirst = index === 0;
             const isLast = index === stages.length - 1;
-            const meta = JOURNEY_STAGE_META[step.stage as keyof typeof JOURNEY_STAGE_META];
+            const titleKey = JOURNEY_STAGE_TITLE_KEYS[step.stage as keyof typeof JOURNEY_STAGE_TITLE_KEYS];
 
             return (
               <div key={step.stage} className="relative flex shrink-0">
@@ -369,15 +379,15 @@ const CustomerJourneyFunnel = ({
                   )}
                 >
                   <p className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
-                    {meta.title}
+                    {t(titleKey)}
                   </p>
                   <div>
                     <p className="text-3xl font-black text-ink">{formatCompactNumber(step.customers)}</p>
                     {isFirst ? (
-                      <p className="mt-1 text-xs font-medium text-ink/60">100% Volume</p>
+                      <p className="mt-1 text-xs font-medium text-ink/60">{t("admin.overview.volume100")}</p>
                     ) : (
                       <p className="mt-1 text-xs font-medium text-ink/60">
-                        {step.conversionFromPrevious.toFixed(0)}% conversion
+                        {t("admin.overview.conversionPct", { value: step.conversionFromPrevious.toFixed(0) })}
                       </p>
                     )}
                   </div>
@@ -397,7 +407,8 @@ const CustomerJourneyFunnel = ({
           })}
     </div>
   </section>
-);
+  );
+};
 
 const TilePerformance = ({
   leaderboards,
@@ -408,10 +419,11 @@ const TilePerformance = ({
   summary: { averageSelectionRate: number; averagePurchaseConversion: number } | undefined;
   loading: boolean;
 }) => {
+  const { t } = useTranslation();
   if (loading && !leaderboards) {
     return (
       <section>
-        <h2 className="text-lg font-bold text-ink">Tile Performance</h2>
+        <h2 className="text-lg font-bold text-ink">{t("admin.overview.tilePerformance")}</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {Array.from({ length: 5 }).map((_, index) => (
             <KpiSkeleton key={index} />
@@ -426,21 +438,21 @@ const TilePerformance = ({
   const topPurchased = leaderboards?.mostPurchased[0];
 
   const items = [
-    { label: "Most Viewed", value: topViewed?.name ?? "No data yet", sub: topViewed ? `${formatCompactNumber(topViewed.count)} views` : "0 views", icon: Eye },
-    { label: "Most Applied", value: topApplied?.name ?? "No data yet", sub: topApplied ? `${formatCompactNumber(topApplied.count)} applications` : "0 applications", icon: MousePointerSquareDashed },
-    { label: "Most Purchased", value: topPurchased?.name ?? "No data yet", sub: topPurchased ? `${formatCompactNumber(topPurchased.count)} sales` : "0 sales", icon: ShoppingBasket },
-    { label: "Avg. Selection Rate", value: `${(summary?.averageSelectionRate ?? 0).toFixed(1)}%`, sub: null, icon: MousePointerClick },
-    { label: "Avg. Conversion", value: `${(summary?.averagePurchaseConversion ?? 0).toFixed(1)}%`, sub: null, icon: Wallet },
+    { key: "mostViewed", label: t("admin.overview.mostViewed"), value: topViewed?.name ?? t("admin.overview.noDataYet"), sub: t("admin.overview.viewsCount", { value: topViewed ? formatCompactNumber(topViewed.count) : "0" }), icon: Eye },
+    { key: "mostApplied", label: t("admin.overview.mostApplied"), value: topApplied?.name ?? t("admin.overview.noDataYet"), sub: t("admin.overview.applicationsCount", { value: topApplied ? formatCompactNumber(topApplied.count) : "0" }), icon: MousePointerSquareDashed },
+    { key: "mostPurchased", label: t("admin.overview.mostPurchased"), value: topPurchased?.name ?? t("admin.overview.noDataYet"), sub: t("admin.overview.salesCount", { value: topPurchased ? formatCompactNumber(topPurchased.count) : "0" }), icon: ShoppingBasket },
+    { key: "avgSelectionRate", label: t("admin.overview.avgSelectionRate"), value: `${(summary?.averageSelectionRate ?? 0).toFixed(1)}%`, sub: null, icon: MousePointerClick },
+    { key: "avgConversion", label: t("admin.overview.kpiAvgConversion"), value: `${(summary?.averagePurchaseConversion ?? 0).toFixed(1)}%`, sub: null, icon: Wallet },
   ];
 
   return (
     <section>
-      <h2 className="text-lg font-bold text-ink">Tile Performance</h2>
+      <h2 className="text-lg font-bold text-ink">{t("admin.overview.tilePerformance")}</h2>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {items.map((item) => {
           const Icon = item.icon;
           return (
-            <article key={item.label} className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
+            <article key={item.key} className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <Icon className="size-5 stroke-2 text-ink" />
               </div>
@@ -472,25 +484,26 @@ const InventoryOverview = ({
   error: string | undefined;
   onRetry: () => void;
 }) => {
+  const { t } = useTranslation();
   const inventoryOverview = overview
     ? [
-        { label: "Total Inventory Value", value: formatCompactCurrency(overview.totalInventoryValue), icon: Wallet },
-        { label: "Active Products", value: overview.activeProducts.toLocaleString(), icon: PackageCheck },
-        { label: "Pending Fulfillments", value: overview.pendingOrders.toLocaleString(), icon: Clock3 },
-        { label: "Low Stock Items", value: overview.lowStockItems.toLocaleString(), icon: AlertTriangle, warn: true },
+        { key: "value", label: t("admin.overview.totalInventoryValue"), value: formatCompactCurrency(overview.totalInventoryValue), icon: Wallet },
+        { key: "active", label: t("admin.overview.activeProducts"), value: overview.activeProducts.toLocaleString(), icon: PackageCheck },
+        { key: "pending", label: t("admin.overview.pendingFulfillments"), value: overview.pendingOrders.toLocaleString(), icon: Clock3 },
+        { key: "lowStock", label: t("admin.overview.lowStockItems"), value: overview.lowStockItems.toLocaleString(), icon: AlertTriangle, warn: true },
       ]
     : [];
 
   return (
     <section>
-      <h2 className="text-lg font-bold text-ink">Inventory Overview</h2>
+      <h2 className="text-lg font-bold text-ink">{t("admin.overview.inventoryOverview")}</h2>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {loading && !overview
           ? Array.from({ length: 4 }).map((_, index) => <KpiSkeleton key={index} />)
           : inventoryOverview.map((item) => {
               const Icon = item.icon;
               return (
-                <article key={item.label} className="flex h-full flex-col rounded-2xl bg-card p-5 sm:p-6">
+                <article key={item.key} className="flex h-full flex-col rounded-2xl bg-card p-5 sm:p-6">
                   <div className="flex items-start justify-between gap-3">
                     <Icon className={cn("size-5 stroke-2", item.warn ? "text-amber-500" : "text-ink")} />
                   </div>
@@ -508,24 +521,24 @@ const InventoryOverview = ({
       </div>
 
       <div className="mt-5 rounded-2xl bg-card p-5 sm:p-6">
-        <h3 className="text-base font-bold text-ink">Urgent Items</h3>
+        <h3 className="text-base font-bold text-ink">{t("admin.overview.urgentItems")}</h3>
         {error ? (
           <ApiErrorState message={error} onRetry={onRetry} className="mt-4" />
         ) : !loading && urgentItems.length === 0 ? (
-          <ApiEmptyState message="No low or out-of-stock products right now." className="mt-4" />
+          <ApiEmptyState message={t("admin.overview.noUrgentItems")} className="mt-4" />
         ) : (
           <div className="mt-4 -mx-5 overflow-x-auto px-5 sm:-mx-6 sm:px-6">
             <table className="w-full min-w-[820px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-                  <th className="pb-3 pr-4 font-bold">Product</th>
-                  <th className="pb-3 pr-4 font-bold">SKU / Code</th>
-                  <th className="pb-3 pr-4 font-bold">Size / Format</th>
-                  <th className="pb-3 pr-4 font-bold">Current Stock</th>
-                  <th className="pb-3 pr-4 font-bold">Unit Price (RWF)</th>
-                  <th className="pb-3 pr-4 font-bold">Last Updated</th>
-                  <th className="pb-3 pr-4 font-bold">Analytics</th>
-                  <th className="pb-3 font-bold">Actions</th>
+                  <th className="pb-3 pr-4 font-bold">{t("stock.inventory.colProduct")}</th>
+                  <th className="pb-3 pr-4 font-bold">{t("stock.inventory.colSku")}</th>
+                  <th className="pb-3 pr-4 font-bold">{t("stock.inventory.colSize")}</th>
+                  <th className="pb-3 pr-4 font-bold">{t("stock.inventory.colStock")}</th>
+                  <th className="pb-3 pr-4 font-bold">{t("stock.inventory.colPrice")}</th>
+                  <th className="pb-3 pr-4 font-bold">{t("admin.overview.colLastUpdated")}</th>
+                  <th className="pb-3 pr-4 font-bold">{t("admin.overview.colAnalytics")}</th>
+                  <th className="pb-3 font-bold">{t("stock.inventory.colActions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -558,7 +571,7 @@ const InventoryOverview = ({
                           <td className="py-3 pr-4 whitespace-nowrap">
                             <span className={cn("inline-flex items-center gap-1.5 font-data", stockText[level])}>
                               <span className={cn("size-2 rounded-full", stockDot[level])} />
-                              {(item.quantityOnHandSqm ?? 0).toLocaleString()} sqm
+                              {(item.quantityOnHandSqm ?? 0).toLocaleString()} {t("stock.inventory.sqm")}
                             </span>
                           </td>
                           <td className="py-3 pr-4 font-data whitespace-nowrap text-ink">{Number(item.price).toLocaleString()}</td>
@@ -566,20 +579,20 @@ const InventoryOverview = ({
                             {new Date(item.updatedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                           </td>
                           <td className="py-3 pr-4 whitespace-nowrap text-ink">
-                            {formatCompactNumber(tile?.viewed ?? 0)} views
+                            {t("admin.overview.viewsShort", { count: formatCompactNumber(tile?.viewed ?? 0) })}
                             <span className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-green-600">
-                              <TrendingUp className="size-3.5 stroke-2" /> {(tile?.selectionRate ?? 0).toFixed(1)}% rate
+                              <TrendingUp className="size-3.5 stroke-2" /> {t("admin.overview.ratePct", { value: (tile?.selectionRate ?? 0).toFixed(1) })}
                             </span>
                           </td>
                           <td className="py-3">
                             <div className="flex items-center gap-1">
-                              <Link href={`/admin/inventory/${item.id}`} aria-label={`View ${item.name}`} className="rounded-md p-1.5 text-ink hover:bg-secondary">
+                              <Link href={`/admin/inventory/${item.id}`} aria-label={t("admin.overview.viewAria", { name: item.name })} className="rounded-md p-1.5 text-ink hover:bg-secondary">
                                 <Eye className="size-4" />
                               </Link>
-                              <Link href={`/admin/inventory/${item.id}`} aria-label={`Edit ${item.name}`} className="rounded-md p-1.5 text-ink hover:bg-secondary">
+                              <Link href={`/admin/inventory/${item.id}`} aria-label={t("admin.overview.editAria", { name: item.name })} className="rounded-md p-1.5 text-ink hover:bg-secondary">
                                 <Pencil className="size-4" />
                               </Link>
-                              <button type="button" aria-label={`Delete ${item.name}`} className="rounded-md p-1.5 text-red-600 hover:bg-red-50">
+                              <button type="button" aria-label={t("admin.overview.deleteAria", { name: item.name })} className="rounded-md p-1.5 text-red-600 hover:bg-red-50">
                                 <Trash2 className="size-4" />
                               </button>
                             </div>
@@ -606,25 +619,27 @@ const RecentOrders = ({
   loading: boolean;
   error: string | undefined;
   onRetry: () => void;
-}) => (
+}) => {
+  const { t } = useTranslation();
+  return (
   <section className="rounded-2xl bg-card p-5 sm:p-6">
     <div className="flex items-center justify-between gap-3">
       <div>
-        <h2 className="text-lg font-bold text-ink">Recent Orders</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Orders requiring warehouse processing.</p>
+        <h2 className="text-lg font-bold text-ink">{t("admin.overview.recentOrders")}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t("admin.overview.recentOrdersSub")}</p>
       </div>
       <Link
         href="/admin/orders"
         className="group flex shrink-0 items-center gap-1 text-xs font-semibold tracking-wider text-ink"
       >
-        VIEW ALL
+        {t("admin.overview.viewAll")}
         <ChevronRight className="size-4 transition-transform group-hover:translate-x-1" />
       </Link>
     </div>
     {error ? (
       <ApiErrorState message={error} onRetry={onRetry} className="mt-4" />
     ) : !loading && orders.length === 0 ? (
-      <ApiEmptyState message="No orders yet." className="mt-4" />
+      <ApiEmptyState message={t("admin.overview.noOrders")} className="mt-4" />
     ) : (
       <ul className="mt-4 divide-y divide-border">
         {loading && orders.length === 0
@@ -658,7 +673,7 @@ const RecentOrders = ({
                         </div>
                       </div>
                       <p className="truncate text-sm text-muted-foreground">
-                        {order.customer?.fullName ?? "Unknown customer"} • {order.items?.length ?? 0} Items
+                        {order.customer?.fullName ?? t("analytics.common.unknownCustomer")} • {t("admin.overview.itemsCount", { count: order.items?.length ?? 0 })}
                       </p>
                       <div className="mt-2 flex items-center justify-between gap-3">
                         <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -669,7 +684,7 @@ const RecentOrders = ({
                           href={`/admin/orders/${order.id}`}
                           className="text-xs font-semibold text-ink hover:underline"
                         >
-                          View Details →
+                          {t("admin.overview.viewDetailsArrow")}
                         </Link>
                       </div>
                     </div>
@@ -680,9 +695,11 @@ const RecentOrders = ({
       </ul>
     )}
   </section>
-);
+  );
+};
 
 const AiRecommendations = ({ summary, loading }: { summary: AiSummaryLike | undefined; loading: boolean }) => {
+  const { t } = useTranslation();
   const pending = summary ? Math.max(summary.displayed - summary.accepted - summary.rejected, 0) : 0;
   const sentiments = summary
     ? [
@@ -694,9 +711,9 @@ const AiRecommendations = ({ summary, loading }: { summary: AiSummaryLike | unde
 
   const aiKpis = summary
     ? [
-        { label: "Total Recommendations", value: formatCompactNumber(summary.displayed), icon: Sparkles },
-        { label: "Acceptance Rate", value: `${summary.acceptanceRate.toFixed(1)}%`, icon: ShieldCheck },
-        { label: "Avg. Match Score", value: `${summary.averageMatchScore.toFixed(1)}%`, icon: TrendingUp },
+        { key: "total", label: t("admin.overview.totalRecommendations"), value: formatCompactNumber(summary.displayed), icon: Sparkles },
+        { key: "acceptance", label: t("admin.overview.acceptanceRate"), value: `${summary.acceptanceRate.toFixed(1)}%`, icon: ShieldCheck },
+        { key: "match", label: t("admin.overview.avgMatchScore"), value: `${summary.averageMatchScore.toFixed(1)}%`, icon: TrendingUp },
       ]
     : [];
 
@@ -704,13 +721,13 @@ const AiRecommendations = ({ summary, loading }: { summary: AiSummaryLike | unde
     <section className="rounded-2xl bg-card p-5 sm:p-6">
       <div className="flex items-center gap-2">
         <Bot className="size-5 text-ink" />
-        <h2 className="text-lg font-bold text-ink">AI Recommendations</h2>
+        <h2 className="text-lg font-bold text-ink">{t("admin.overview.aiRecommendations")}</h2>
       </div>
 
       <div className="mt-5 rounded-xl border border-border p-4">
         <div className="flex items-start justify-between gap-3">
           <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-            Recommendation Outcomes
+            {t("admin.overview.recommendationOutcomes")}
           </p>
           <Smile className="size-5 shrink-0 stroke-2 text-ink" />
         </div>
@@ -748,7 +765,7 @@ const AiRecommendations = ({ summary, loading }: { summary: AiSummaryLike | unde
           : aiKpis.map((kpi) => {
               const Icon = kpi.icon;
               return (
-                <article key={kpi.label} className="flex h-full flex-col rounded-xl border border-border p-4">
+                <article key={kpi.key} className="flex h-full flex-col rounded-xl border border-border p-4">
                   <div className="flex items-start justify-between gap-2">
                     <Icon className="size-5 stroke-2 text-ink" />
                   </div>
@@ -796,6 +813,7 @@ type RecentOrderLike = {
 };
 
 const AdminDashboardPage = () => {
+  const { t } = useTranslation();
   const { data: overview, loading: overviewLoading, error: overviewError, reload: reloadOverview } = useApi(
     () => analyticsApi.overview("MONTHLY"),
   );
@@ -836,8 +854,8 @@ const AdminDashboardPage = () => {
     return (
       <>
         <AdminPageHeader
-          title="System Overview"
-          subtitle="Real-time status and operational metrics for Magnificat Smart Space infrastructure"
+          title={t("admin.overview.title")}
+          subtitle={t("admin.overview.subtitle")}
         >
           <HeaderActions />
         </AdminPageHeader>
@@ -849,8 +867,8 @@ const AdminDashboardPage = () => {
   return (
     <>
       <AdminPageHeader
-        title="System Overview"
-        subtitle="Real-time status and operational metrics for Magnificat Smart Space infrastructure"
+        title={t("admin.overview.title")}
+        subtitle={t("admin.overview.subtitle")}
       >
         <HeaderActions />
       </AdminPageHeader>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactElement, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Bell,
   Check,
@@ -42,6 +43,12 @@ import type { ProfilingQuestion, RoomType } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 const roomTypeOptions = Object.keys(roomTypeLabels) as RoomType[];
+const ROOM_TYPE_KEYS: Record<RoomType, string> = {
+  LIVING_ROOM: "catalog.roomTypes.livingRoom",
+  BEDROOM: "catalog.roomTypes.bedroom",
+  BATHROOM: "catalog.roomTypes.bathroom",
+  KITCHEN: "catalog.roomTypes.kitchen",
+};
 
 const pillClass = (active: boolean) =>
   cn(
@@ -64,6 +71,7 @@ const QuestionDialog = ({
   children: ReactNode;
   onSaved: () => void;
 }) => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState(question?.text ?? "");
   const [isRequired, setIsRequired] = useState(question?.isRequired ?? true);
@@ -88,20 +96,20 @@ const QuestionDialog = ({
           isRequired,
           roomType,
         });
-        toast.success("Question updated", { description: "Changes are live for new sessions." });
+        toast.success(t("admin.systemSettings.toastQuestionUpdated"), { description: t("admin.systemSettings.toastQuestionUpdatedDesc") });
       } else {
         await settingsApi.createProfilingQuestion({
           text: text.trim(),
           isRequired,
           roomType: roomType ?? undefined,
         });
-        toast.success("Question added");
+        toast.success(t("admin.systemSettings.toastQuestionAdded"));
       }
       onSaved();
       setOpen(false);
     } catch (cause) {
-      toast.error(question ? "Couldn't save changes" : "Couldn't add question", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(question ? t("admin.systemSettings.toastSaveFailedEdit") : t("admin.systemSettings.toastSaveFailedAdd"), {
+        description: cause instanceof ApiError ? cause.message : t("admin.systemSettings.toastTryAgain"),
       });
     } finally {
       setSubmitting(false);
@@ -119,34 +127,34 @@ const QuestionDialog = ({
       <DialogTrigger render={trigger}>{children}</DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{question ? "Edit question" : "Add profiling question"}</DialogTitle>
-          <DialogDescription>Shown to customers during AI-assisted room profiling.</DialogDescription>
+          <DialogTitle>{question ? t("admin.systemSettings.dialogEditTitle") : t("admin.systemSettings.dialogAddTitle")}</DialogTitle>
+          <DialogDescription>{t("admin.systemSettings.dialogDescription")}</DialogDescription>
         </DialogHeader>
 
         <div className="mt-5 space-y-4">
           <Field>
-            <FieldLabel htmlFor="question-text">Question</FieldLabel>
+            <FieldLabel htmlFor="question-text">{t("admin.systemSettings.dialogQuestionLabel")}</FieldLabel>
             <Textarea id="question-text" rows={2} value={text} onChange={(event) => setText(event.target.value)} />
             {text.length > 0 && !valid && (
-              <p className="text-xs font-medium text-red-600">Enter at least 5 characters.</p>
+              <p className="text-xs font-medium text-red-600">{t("admin.systemSettings.dialogMinChars")}</p>
             )}
           </Field>
 
           <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-ink">Required</p>
-              <p className="text-xs text-muted-foreground">Always asked, not skippable.</p>
+              <p className="text-sm font-semibold text-ink">{t("admin.systemSettings.dialogRequired")}</p>
+              <p className="text-xs text-muted-foreground">{t("admin.systemSettings.dialogRequiredSub")}</p>
             </div>
-            <Switch checked={isRequired} onCheckedChange={setIsRequired} aria-label="Toggle required" />
+            <Switch checked={isRequired} onCheckedChange={setIsRequired} aria-label={t("admin.systemSettings.dialogToggleRequired")} />
           </div>
 
           <div>
-            <FieldLabel className="text-sm font-medium text-ink">Ask only for</FieldLabel>
-            <p className="mt-0.5 text-xs text-muted-foreground">Leave on &quot;Every room&quot; to ask it regardless of room type.</p>
+            <FieldLabel className="text-sm font-medium text-ink">{t("admin.systemSettings.dialogAskOnlyFor")}</FieldLabel>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t("admin.systemSettings.dialogEveryRoomHint")}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               <button type="button" onClick={() => setRoomType(null)} aria-pressed={roomType === null} className={pillClass(roomType === null)}>
                 {roomType === null && <Check className="size-3.5" />}
-                Every room
+                {t("admin.systemSettings.dialogEveryRoom")}
               </button>
               {roomTypeOptions.map((option) => (
                 <button
@@ -157,7 +165,7 @@ const QuestionDialog = ({
                   className={pillClass(roomType === option)}
                 >
                   {roomType === option && <Check className="size-3.5" />}
-                  {roomTypeLabels[option]}
+                  {t(ROOM_TYPE_KEYS[option])}
                 </button>
               ))}
             </div>
@@ -166,10 +174,10 @@ const QuestionDialog = ({
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
-            Cancel
+            {t("admin.systemSettings.dialogCancel")}
           </Button>
           <Button type="button" disabled={!valid || submitting} onClick={() => void handleSubmit()} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
-            {submitting ? "Saving…" : "Save"}
+            {submitting ? t("admin.systemSettings.dialogSaving") : t("admin.systemSettings.dialogSave")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -178,17 +186,18 @@ const QuestionDialog = ({
 };
 
 const DeleteQuestionButton = ({ question, onDeleted }: { question: ProfilingQuestion; onDeleted: () => void }) => {
+  const { t } = useTranslation();
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
     setDeleting(true);
     try {
       await settingsApi.deleteProfilingQuestion(question.id);
-      toast.success("Question removed");
+      toast.success(t("admin.systemSettings.toastQuestionRemoved"));
       onDeleted();
     } catch (cause) {
-      toast.error("Couldn't remove question", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("admin.systemSettings.toastRemoveFailed"), {
+        description: cause instanceof ApiError ? cause.message : t("admin.systemSettings.toastTryAgain"),
       });
       setDeleting(false);
     }
@@ -197,13 +206,13 @@ const DeleteQuestionButton = ({ question, onDeleted }: { question: ProfilingQues
   return (
     <ConfirmDialog
       trigger={
-        <button type="button" disabled={deleting} aria-label={`Delete question`} className="rounded-md p-1.5 text-red-600 hover:bg-red-50 disabled:opacity-50">
+        <button type="button" disabled={deleting} aria-label={t("admin.systemSettings.deleteQuestion")} className="rounded-md p-1.5 text-red-600 hover:bg-red-50 disabled:opacity-50">
           <Trash2 className="size-4" />
         </button>
       }
-      title="Remove this question?"
-      description="It stops being asked to new customers. Past answers stay intact."
-      confirmLabel="Remove question"
+      title={t("admin.systemSettings.deleteDialogTitle")}
+      description={t("admin.systemSettings.deleteDialogDescription")}
+      confirmLabel={t("admin.systemSettings.deleteDialogConfirm")}
       onConfirm={() => void handleDelete()}
     />
   );
@@ -222,13 +231,14 @@ const AiRecommendations = ({
   onRetry: () => void;
   onChanged: () => void;
 }) => {
+  const { t } = useTranslation();
   const requiredCount = questions.filter((question) => question.isRequired && !question.roomType).length;
   const conditionalCount = questions.filter((question) => question.roomType).length;
 
   const stats = [
-    { label: "Questions Used", value: questions.length, icon: MessageSquareWarning },
-    { label: "Required Questions", value: requiredCount, icon: MessageSquareWarning },
-    { label: "Conditional Questions", value: conditionalCount, icon: ListChecks },
+    { key: "used", label: t("admin.systemSettings.statQuestionsUsed"), value: questions.length, icon: MessageSquareWarning },
+    { key: "required", label: t("admin.systemSettings.statRequiredQuestions"), value: requiredCount, icon: MessageSquareWarning },
+    { key: "conditional", label: t("admin.systemSettings.statConditionalQuestions"), value: conditionalCount, icon: ListChecks },
   ];
 
   return (
@@ -239,9 +249,9 @@ const AiRecommendations = ({
             <Lightbulb className="size-5" />
           </span>
           <div>
-            <h2 className="text-lg font-bold text-ink">AI Recommendations</h2>
+            <h2 className="text-lg font-bold text-ink">{t("admin.systemSettings.aiRecommendations")}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Manage AI recommendation logic and customer profiling questions.
+              {t("admin.systemSettings.aiRecommendationsSub")}
             </p>
           </div>
         </div>
@@ -249,7 +259,7 @@ const AiRecommendations = ({
           onSaved={onChanged}
           trigger={<Button type="button" variant="outline" className="h-10 shrink-0 gap-2 border-border text-ink" />}
         >
-          <Plus className="size-4" /> Add Question
+          <Plus className="size-4" /> {t("admin.systemSettings.addQuestion")}
         </QuestionDialog>
       </div>
 
@@ -257,7 +267,7 @@ const AiRecommendations = ({
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <article key={stat.label} className="rounded-xl border border-border p-5">
+            <article key={stat.key} className="rounded-xl border border-border p-5">
               <span className="flex size-10 items-center justify-center rounded-lg bg-muted-background text-ink">
                 <Icon className="size-5" />
               </span>
@@ -277,9 +287,9 @@ const AiRecommendations = ({
           <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-border text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-                <th className="pb-3 pr-4 font-bold">Question</th>
-                <th className="pb-3 pr-4 font-bold whitespace-nowrap">Status/Condition</th>
-                <th className="pb-3 font-bold whitespace-nowrap">Actions</th>
+                <th className="pb-3 pr-4 font-bold">{t("admin.systemSettings.colQuestion")}</th>
+                <th className="pb-3 pr-4 font-bold whitespace-nowrap">{t("admin.systemSettings.colStatusCondition")}</th>
+                <th className="pb-3 font-bold whitespace-nowrap">{t("admin.systemSettings.colActions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -308,21 +318,21 @@ const AiRecommendations = ({
                       <td className="py-4 pr-4 whitespace-nowrap">
                         <Badge variant={!question.roomType && question.isRequired ? "default" : "outline"}>
                           {question.roomType
-                            ? roomTypeLabels[question.roomType]
+                            ? t(ROOM_TYPE_KEYS[question.roomType])
                             : question.isRequired
-                              ? "Required"
-                              : "Optional"}
+                              ? t("admin.systemSettings.required")
+                              : t("admin.systemSettings.optional")}
                         </Badge>
                       </td>
                       <td className="py-4 whitespace-nowrap">
                         <div className="flex items-center gap-1">
-                          <button type="button" aria-label={`Preview question ${index + 1}`} className="rounded-md p-1.5 text-ink hover:bg-secondary">
+                          <button type="button" aria-label={t("admin.systemSettings.previewQuestion", { n: index + 1 })} className="rounded-md p-1.5 text-ink hover:bg-secondary">
                             <Eye className="size-4" />
                           </button>
                           <QuestionDialog
                             question={question}
                             onSaved={onChanged}
-                            trigger={<button type="button" aria-label={`Edit question ${index + 1}`} className="rounded-md p-1.5 text-ink hover:bg-secondary" />}
+                            trigger={<button type="button" aria-label={t("admin.systemSettings.editQuestion", { n: index + 1 })} className="rounded-md p-1.5 text-ink hover:bg-secondary" />}
                           >
                             <Wrench className="size-4" />
                           </QuestionDialog>
@@ -340,6 +350,7 @@ const AiRecommendations = ({
 };
 
 const AdminSettingsPage = () => {
+  const { t } = useTranslation();
   const { data: settings, loading: settingsLoading, error: settingsError, reload: reloadSettings } = useApi(() => settingsApi.get());
   const { data: questionsData, loading: questionsLoading, error: questionsError, reload: reloadQuestions } = useApi(
     () => settingsApi.profilingQuestions(),
@@ -372,7 +383,7 @@ const AdminSettingsPage = () => {
     if (!pendingValuesReady) return;
     const parsedThreshold = Number(lowStockThreshold);
     if (!Number.isFinite(parsedThreshold) || parsedThreshold < 0) {
-      toast.error("Invalid low stock threshold", { description: "Enter a number of 0 or more." });
+      toast.error(t("admin.systemSettings.invalidThreshold"), { description: t("admin.systemSettings.invalidThresholdDesc") });
       return;
     }
     setSaving(true);
@@ -384,11 +395,11 @@ const AdminSettingsPage = () => {
         "notifications.systemNotifications": systemNotifications,
       });
       setLastSyncedAt(new Date());
-      toast.success("Settings saved");
+      toast.success(t("admin.systemSettings.settingsSaved"));
       reloadSettings();
     } catch (cause) {
-      toast.error("Couldn't save settings", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("admin.systemSettings.settingsSaveFailed"), {
+        description: cause instanceof ApiError ? cause.message : t("admin.systemSettings.toastTryAgain"),
       });
     } finally {
       setSaving(false);
@@ -397,17 +408,17 @@ const AdminSettingsPage = () => {
 
   const platformInfo = settings
     ? [
-        { label: "Platform Name", value: String(settings["platform.name"]) },
-        { label: "Default Currency", value: `${String(settings["platform.defaultCurrency"])} (Rwandan Franc)` },
-        { label: "System Version", value: String(settings["platform.version"]) },
+        { key: "name", label: t("admin.systemSettings.platformName"), value: String(settings["platform.name"]) },
+        { key: "currency", label: t("admin.systemSettings.defaultCurrency"), value: t("admin.systemSettings.defaultCurrencyValue", { code: String(settings["platform.defaultCurrency"]) }) },
+        { key: "version", label: t("admin.systemSettings.systemVersion"), value: String(settings["platform.version"]) },
       ]
     : [];
 
   return (
     <>
       <AdminPageHeader
-        title="System Settings"
-        subtitle="Configure core platform settings and preferences."
+        title={t("admin.systemSettings.title")}
+        subtitle={t("admin.systemSettings.subtitle")}
       >
         <div className="flex flex-col items-end gap-1.5">
           <Button
@@ -416,10 +427,10 @@ const AdminSettingsPage = () => {
             disabled={!pendingValuesReady || saving}
             onClick={() => void handleSaveAll()}
           >
-            <Save className="size-[18px]" /> {saving ? "Saving…" : "Save All Changes"}
+            <Save className="size-[18px]" /> {saving ? t("admin.systemSettings.saving") : t("admin.systemSettings.saveAllChanges")}
           </Button>
           <p className="text-xs text-muted-foreground">
-            {lastSyncedAt ? `Last synced: ${lastSyncedAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}` : "Loading…"}
+            {lastSyncedAt ? t("admin.systemSettings.lastSynced", { time: lastSyncedAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) }) : t("staff.loading")}
           </p>
         </div>
       </AdminPageHeader>
@@ -435,8 +446,8 @@ const AdminSettingsPage = () => {
 
         <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
           <section className="rounded-2xl bg-card p-5 sm:p-6">
-            <h2 className="text-lg font-bold text-ink">Inventory Settings</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Manage stock-related preferences</p>
+            <h2 className="text-lg font-bold text-ink">{t("admin.systemSettings.inventorySettings")}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{t("admin.systemSettings.inventorySettingsSub")}</p>
 
             {settingsError ? (
               <ApiErrorState message={settingsError} onRetry={reloadSettings} className="mt-5" />
@@ -449,19 +460,19 @@ const AdminSettingsPage = () => {
               <>
                 <div className="mt-5 flex items-center justify-between gap-4 border-t border-border pt-5">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-ink">Low Stock Notifications</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">Alert when items fall below threshold</p>
+                    <p className="text-sm font-semibold text-ink">{t("admin.systemSettings.lowStockNotifications")}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{t("admin.systemSettings.lowStockNotificationsSub")}</p>
                   </div>
                   <Switch
                     checked={lowStockAlerts ?? true}
                     onCheckedChange={setLowStockAlerts}
-                    aria-label="Toggle low stock notifications"
+                    aria-label={t("admin.systemSettings.toggleLowStock")}
                   />
                 </div>
 
                 <div className="mt-5 border-t border-border pt-5">
                   <label className="block text-sm font-semibold text-ink">
-                    Low Stock Threshold
+                    {t("admin.systemSettings.lowStockThreshold")}
                     <div className="mt-2 flex items-center overflow-hidden rounded-lg border border-input">
                       <Input
                         type="number"
@@ -470,7 +481,7 @@ const AdminSettingsPage = () => {
                         onChange={(event) => setLowStockThreshold(event.target.value)}
                         className="h-11 rounded-none border-0 text-sm"
                       />
-                      <span className="shrink-0 px-3 text-sm text-muted-foreground">sqm</span>
+                      <span className="shrink-0 px-3 text-sm text-muted-foreground">{t("analytics.common.sqm")}</span>
                     </div>
                   </label>
                 </div>
@@ -481,9 +492,9 @@ const AdminSettingsPage = () => {
           <section className="rounded-2xl bg-card p-5 sm:p-6">
             <div className="flex items-center gap-2">
               <Bell className="size-5 text-ink" />
-              <h2 className="text-lg font-bold text-ink">Notifications</h2>
+              <h2 className="text-lg font-bold text-ink">{t("admin.systemSettings.notifications")}</h2>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">Manage system notification preferences</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("admin.systemSettings.notificationsSub")}</p>
 
             {settingsError ? null : settingsLoading && !pendingValuesReady ? (
               <div className="mt-2 space-y-4 divide-y divide-border">
@@ -493,15 +504,15 @@ const AdminSettingsPage = () => {
             ) : (
               <div className="mt-2 divide-y divide-border">
                 <div className="flex items-center justify-between gap-4 py-4">
-                  <p className="text-sm font-semibold text-ink">Order Updates</p>
-                  <Switch checked={orderUpdates ?? true} onCheckedChange={setOrderUpdates} aria-label="Toggle order updates" />
+                  <p className="text-sm font-semibold text-ink">{t("admin.systemSettings.orderUpdates")}</p>
+                  <Switch checked={orderUpdates ?? true} onCheckedChange={setOrderUpdates} aria-label={t("admin.systemSettings.toggleOrderUpdates")} />
                 </div>
                 <div className="flex items-center justify-between gap-4 py-4">
-                  <p className="text-sm font-semibold text-ink">System Notifications</p>
+                  <p className="text-sm font-semibold text-ink">{t("admin.systemSettings.systemNotifications")}</p>
                   <Switch
                     checked={systemNotifications ?? true}
                     onCheckedChange={setSystemNotifications}
-                    aria-label="Toggle system notifications"
+                    aria-label={t("admin.systemSettings.toggleSystemNotifications")}
                   />
                 </div>
               </div>
@@ -512,7 +523,7 @@ const AdminSettingsPage = () => {
         <div className="grid grid-cols-1 gap-4 px-1 sm:grid-cols-3">
           {(settingsLoading && !settings ? Array.from({ length: 3 }, () => null) : platformInfo).map((item, index) =>
             item ? (
-              <div key={item.label}>
+              <div key={item.key}>
                 <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
                   {item.label}
                 </p>

@@ -3,6 +3,7 @@
 import { use, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useTranslation } from "react-i18next";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Boxes,
@@ -41,33 +42,26 @@ type OrderDetailPageProps = { params: Promise<{ id: string }> };
 
 const ACTIVE_STEPS: OrderStatus[] = ["PENDING", "PROCESSING", "READY_FOR_DISPATCH", "SHIPPED", "DELIVERED"];
 
-const stepLabels: Record<OrderStatus, string> = {
-  WAITLISTED: "Waitlisted",
-  PENDING: "Order Placed",
-  PROCESSING: "Processing",
-  READY_FOR_DISPATCH: "Ready for Dispatch",
-  SHIPPED: "Shipped",
-  DELIVERED: "Delivered",
-  CANCELLED: "Cancelled",
-};
-
 const formatPrice = (value: string | number) => `RWF ${Math.round(Number(value)).toLocaleString("en-US")}`;
 
 const formatDateTime = (iso: string) =>
   new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
-const timeAgo = (iso: string) => {
+type TFn = (key: string, opts?: Record<string, unknown>) => string;
+
+const timeAgo = (iso: string, t: TFn) => {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return "just now";
+  if (seconds < 60) return t("sales.orderDetail.justNow");
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return t("sales.orderDetail.minutesAgo", { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return t("sales.orderDetail.hoursAgo", { count: hours });
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return t("sales.orderDetail.daysAgo", { count: days });
 };
 
 const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
+  const { t } = useTranslation();
   const { id } = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -87,16 +81,16 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
   // (after updating status, sending a quotation, etc.) keeps the order on
   // screen and updates it in place once the fresh data lands, instead of
   // blanking the whole page back to a spinner.
-  if (loading && !order) return <ApiLoading label="Loading order…" className="py-32" />;
+  if (loading && !order) return <ApiLoading label={t("sales.orderDetail.loading")} className="py-32" />;
 
   if (error) {
     if (error.toLowerCase().includes("not found") || error.toLowerCase().includes("access")) {
       return (
         <div className="mx-auto max-w-md py-24 text-center">
-          <h1 className="text-xl font-bold text-ink">Order not found</h1>
-          <p className="mt-2 text-sm text-muted-foreground">This order doesn&apos;t exist.</p>
+          <h1 className="text-xl font-bold text-ink">{t("sales.orderDetail.notFoundTitle")}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{t("sales.orderDetail.notFoundBody")}</p>
           <Button nativeButton={false} render={<Link href="/admin/orders" />} className="mt-6 h-11 gap-2 px-5">
-            Back to Orders
+            {t("sales.orderDetail.backToOrders")}
           </Button>
         </div>
       );
@@ -110,21 +104,25 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
   const totalVolumeSqm = items.reduce((sum, item) => sum + Number(item.requiredAreaSqm), 0);
 
   const summary = [
-    { icon: Wallet, label: "Total Amount", value: formatPrice(order.total), note: null as string | null },
+    { key: "total", icon: Wallet, label: t("sales.orderDetail.totalAmount"), value: formatPrice(order.total), note: null as string | null },
     {
+      key: "date",
       icon: CalendarDays,
-      label: "Order Date",
+      label: t("sales.orderDetail.orderDate"),
       value: formatDateTime(order.createdAt).split(",")[0],
       note: order.expectedDeliveryAt
-        ? `Expected ${new Date(order.expectedDeliveryAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`
+        ? t("sales.orderDetail.expected", {
+            date: new Date(order.expectedDeliveryAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }),
+          })
         : null,
     },
-    { icon: Building2, label: "Customer", value: order.customer?.fullName ?? "Unknown", note: null },
+    { key: "customer", icon: Building2, label: t("sales.orderDetail.customer"), value: order.customer?.fullName ?? t("sales.orderDetail.unknown"), note: null },
     {
+      key: "items",
       icon: Boxes,
-      label: "Total Items",
-      value: `${items.length} ${items.length === 1 ? "Type" : "Types"}`,
-      note: `${totalVolumeSqm.toLocaleString()} m² total`,
+      label: t("sales.orderDetail.totalItems"),
+      value: t("sales.orderDetail.type", { count: items.length }),
+      note: t("sales.orderDetail.volumeTotal", { value: totalVolumeSqm.toLocaleString() }),
     },
   ];
 
@@ -132,11 +130,11 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
     <>
       <AdminDetailHeader
         breadcrumbs={[
-          { label: "Overview", href: "/admin/overview" },
-          { label: "Orders", href: "/admin/orders" },
+          { label: t("sales.orderDetail.crumbOverview"), href: "/admin/overview" },
+          { label: t("sales.orderDetail.crumbOrders"), href: "/admin/orders" },
           { label: order.orderNumber },
         ]}
-        title={`Order #${order.orderNumber}`}
+        title={t("sales.orderDetail.heading", { number: order.orderNumber })}
         actions={
           <>
             <Button
@@ -146,7 +144,7 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
               className="h-auto gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase transition-transform duration-200 active:scale-95"
             >
               <Printer className="size-4" />
-              Print Invoice
+              {t("sales.orderDetail.printInvoice")}
             </Button>
             <OrderStatusControl orderId={order.id} status={order.status} onUpdated={reload} />
           </>
@@ -159,7 +157,7 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
             <OrderStatusBadge status={order.status} />
             <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
               <Clock className="size-4" />
-              Last updated {timeAgo(order.updatedAt)}
+              {t("sales.orderDetail.lastUpdated", { time: timeAgo(order.updatedAt, t) })}
             </span>
           </>
         }
@@ -167,9 +165,9 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
 
       <div className="pace-y-5 sm:space-y-6">
         <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
-          {summary.map(({ icon: Icon, label, value, note }) => (
+          {summary.map(({ key, icon: Icon, label, value, note }) => (
             <article
-              key={label}
+              key={key}
               className="rounded-2xl bg-card p-5 transition-transform duration-200 active:scale-95 sm:p-6"
             >
               <div className="flex items-start justify-between gap-3">
@@ -181,12 +179,12 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
               <p className="mt-3 truncate font-data text-xl font-bold text-ink sm:text-2xl">
                 {value}
               </p>
-              {label === "Customer" && order.customerId ? (
+              {key === "customer" && order.customerId ? (
                 <Link
                   href={"/admin/customers/" + order.customerId}
                   className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-ink transition-transform duration-200 hover:translate-x-1"
                 >
-                  View profile <ChevronRight className="size-3.5" />
+                  {t("sales.orderDetail.viewProfile")} <ChevronRight className="size-3.5" />
                 </Link>
               ) : note ? (
                 <p className="mt-1 text-xs text-muted-foreground">{note}</p>
@@ -199,8 +197,8 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
           <div className="space-y-5 sm:space-y-6">
             <section className="overflow-hidden rounded-2xl bg-card">
               <div className="flex items-center justify-between gap-3 px-5 py-5 sm:px-6">
-                <h2 className="text-lg font-bold text-ink sm:text-2xl">Order Items</h2>
-                <Badge variant="secondary">{items.length} Items</Badge>
+                <h2 className="text-lg font-bold text-ink sm:text-2xl">{t("sales.orderDetail.orderItems")}</h2>
+                <Badge variant="secondary">{t("sales.orderDetail.itemsCount", { count: items.length })}</Badge>
               </div>
 
               <div className="md:hidden">
@@ -211,11 +209,15 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
                         {item.product?.image && (
                           <Image src={item.product.image} alt="" width={48} height={48} unoptimized className="size-12 shrink-0 rounded-sm object-cover" />
                         )}
-                        <span>{item.product?.name ?? "Item"}</span>
+                        <span>{item.product?.name ?? t("sales.orderDetail.itemFallback")}</span>
                       </Link>
                       <div className="mt-2 flex items-center justify-between gap-3 text-sm">
                         <span className="text-muted-foreground">
-                          {Number(item.requiredAreaSqm)} m² • {item.boxes} boxes{item.additionalPieces > 0 ? ` + ${item.additionalPieces} pcs` : ""} ({item.totalPieces} pcs) • {formatPrice(item.unitPrice)}
+                          {Number(item.requiredAreaSqm)} m² • {t("sales.orderDetail.quantityLine", {
+                            boxes: item.boxes,
+                            extra: item.additionalPieces > 0 ? t("sales.orderDetail.quantityExtra", { count: item.additionalPieces }) : "",
+                            pieces: item.totalPieces,
+                          })} • {formatPrice(item.unitPrice)}
                         </span>
                         <span className="font-semibold text-ink">{formatPrice(item.totalPrice)}</span>
                       </div>
@@ -228,10 +230,10 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Quantity</TableHead>
-                      <TableHead>Unit Price</TableHead>
-                      <TableHead>Total</TableHead>
+                      <TableHead>{t("sales.orderDetail.colProduct")}</TableHead>
+                      <TableHead>{t("sales.orderDetail.colQuantity")}</TableHead>
+                      <TableHead>{t("sales.orderDetail.colUnitPrice")}</TableHead>
+                      <TableHead>{t("sales.orderDetail.colTotal")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -242,16 +244,20 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
                             {item.product?.image && (
                               <Image src={item.product.image} alt="" width={64} height={64} unoptimized className="size-16 shrink-0 rounded-sm object-cover" />
                             )}
-                            <span>{item.product?.name ?? "Item"}</span>
+                            <span>{item.product?.name ?? t("sales.orderDetail.itemFallback")}</span>
                           </Link>
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-ink">
                           <span className="block">{Number(item.requiredAreaSqm)} m²</span>
                           <span className="mt-1 block text-xs text-muted-foreground">
-                            {item.boxes} boxes{item.additionalPieces > 0 ? ` + ${item.additionalPieces} pcs` : ""} ({item.totalPieces} pcs)
+                            {t("sales.orderDetail.quantityLine", {
+                              boxes: item.boxes,
+                              extra: item.additionalPieces > 0 ? t("sales.orderDetail.quantityExtra", { count: item.additionalPieces }) : "",
+                              pieces: item.totalPieces,
+                            })}
                           </span>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap text-muted-foreground">{formatPrice(item.unitPrice)} / m²</TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">{t("sales.orderDetail.perSqm", { price: formatPrice(item.unitPrice) })}</TableCell>
                         <TableCell className="whitespace-nowrap font-semibold text-ink">{formatPrice(item.totalPrice)}</TableCell>
                       </TableRow>
                     ))}
@@ -260,7 +266,7 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
               </div>
 
               <div className="flex flex-wrap items-center justify-center gap-3 bg-primary px-5 py-6 sm:justify-end sm:px-10">
-                <span className="font-data text-lg font-semibold text-primary-foreground sm:text-2xl">Total</span>
+                <span className="font-data text-lg font-semibold text-primary-foreground sm:text-2xl">{t("sales.orderDetail.total")}</span>
                 <span className="font-data text-xl font-bold text-primary-foreground sm:text-3xl">
                   {formatPrice(order.total)}
                 </span>
@@ -289,12 +295,12 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
                 <span className="flex size-9 items-center justify-center rounded-lg bg-secondary text-ink">
                   <Contact className="size-5" />
                 </span>
-                <h2 className="text-lg font-bold text-ink sm:text-xl">Customer Info</h2>
+                <h2 className="text-lg font-bold text-ink sm:text-xl">{t("sales.orderDetail.customerInfo")}</h2>
               </div>
               {order.customer ? (
                 <dl className="mt-5 space-y-5 text-sm">
                   <div>
-                    <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">Customer</dt>
+                    <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">{t("sales.orderDetail.customer")}</dt>
                     <dd className="mt-2 flex items-center gap-3">
                       <span className="flex size-9 items-center justify-center rounded-full bg-ink text-xs font-semibold text-card">
                         {order.customer.fullName.split(" ").map((part) => part[0]).join("")}
@@ -308,7 +314,7 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
                     <div className="flex items-start gap-3">
                       <Mail className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                       <div className="min-w-0">
-                        <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">Email</dt>
+                        <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">{t("sales.orderDetail.email")}</dt>
                         <dd className="truncate">
                           <Link href={"mailto:" + order.customer.email} className="text-ink hover:opacity-70">{order.customer.email}</Link>
                         </dd>
@@ -319,7 +325,7 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
                     <div className="flex items-start gap-3">
                       <Phone className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                       <div>
-                        <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">Phone</dt>
+                        <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">{t("sales.orderDetail.phone")}</dt>
                         <dd className="text-ink">{order.customer.phone}</dd>
                       </div>
                     </div>
@@ -328,7 +334,7 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
                     <div className="flex items-start gap-3">
                       <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                       <div>
-                        <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">Delivery Address</dt>
+                        <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">{t("sales.orderDetail.deliveryAddress")}</dt>
                         <dd className="text-ink">{order.delivery.address}, {order.delivery.city}</dd>
                       </div>
                     </div>
@@ -340,10 +346,10 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <div className="flex items-center gap-3">
                 <span className="flex size-9 items-center justify-center rounded-lg bg-secondary text-ink"><History className="size-5" /></span>
-                <h2 className="text-lg font-bold text-ink sm:text-xl">Timeline</h2>
+                <h2 className="text-lg font-bold text-ink sm:text-xl">{t("sales.orderDetail.timeline")}</h2>
               </div>
               {order.status === "CANCELLED" ? (
-                <p className="mt-5 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-700">This order was cancelled.</p>
+                <p className="mt-5 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-700">{t("sales.orderDetail.cancelled")}</p>
               ) : (
                 <ol className="mt-5 space-y-6 border-l border-border pl-6">
                   {ACTIVE_STEPS.map((step, index) => {
@@ -354,16 +360,16 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
                       <li key={step} className="relative">
                         <span className={"absolute top-1.5 -left-[31px] size-3 rounded-full border-2 " + (state === "pending" ? "border-border bg-card" : state === "current" ? "border-ink bg-primary" : "border-ink bg-ink")} />
                         <div className={state === "current" ? "rounded-lg bg-primary p-3" : ""}>
-                          <p className={"text-[11px] font-bold tracking-wider uppercase " + (state === "pending" ? "text-muted-foreground" : "text-ink")}>{stepLabels[step]}</p>
+                          <p className={"text-[11px] font-bold tracking-wider uppercase " + (state === "pending" ? "text-muted-foreground" : "text-ink")}>{t(`staff.orderStep.${step}`)}</p>
                           {timestamp ? <p className="mt-0.5 font-data text-xs text-muted-foreground">{formatDateTime(timestamp)}</p> : null}
                           <p className={"mt-1 text-xs " + (state === "pending" ? "text-muted-foreground" : "text-ink")}>
                             {state === "done"
-                              ? "Done"
+                              ? t("sales.orderDetail.stepDone")
                               : state === "current"
                                 ? timestamp
-                                  ? "Done"
-                                  : "In progress"
-                                : "Pending"}
+                                  ? t("sales.orderDetail.stepDone")
+                                  : t("sales.orderDetail.stepInProgress")
+                                : t("sales.orderDetail.stepPending")}
                           </p>
                         </div>
                       </li>

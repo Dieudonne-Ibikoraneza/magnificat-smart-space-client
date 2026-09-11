@@ -2,6 +2,7 @@
 
 import { Fragment, Suspense, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import { useTranslation } from "react-i18next";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
@@ -55,7 +56,7 @@ import { ApiError } from "@/lib/api/client";
 import { useApi } from "@/lib/api/use-api";
 import type { ApiProduct, CustomerSummary, StockStatus, SuitableFor, UserStatus } from "@/lib/api/types";
 import { calculateTileQuantity } from "@/lib/tile-calculator";
-import { getVisiblePages, sortLabels, type SortOption } from "@/lib/catalog-utils";
+import { getVisiblePages, type SortOption } from "@/lib/catalog-utils";
 import { clearOrderDraft, readOrderDraft, writeOrderDraft } from "@/lib/order-draft-storage";
 import { formatCompactCurrency, formatRelativeTime, cn } from "@/lib/utils";
 
@@ -80,11 +81,6 @@ const availableStockOf = (product: ApiProduct) => product.quantityOnHandSqm ?? 0
 
 type CustomerSort = "newest" | "name";
 
-const customerSortLabels: Record<CustomerSort, string> = {
-  newest: "Joined: Newest",
-  name: "Name: A - Z",
-};
-
 const customerStatusBadge: Record<UserStatus, "primary" | "muted" | "destructive"> = {
   ACTIVE: "primary",
   INACTIVE: "muted",
@@ -92,9 +88,9 @@ const customerStatusBadge: Record<UserStatus, "primary" | "muted" | "destructive
 };
 
 const steps = [
-  { id: 1, label: "Customer", icon: User },
-  { id: 2, label: "Products", icon: Package },
-  { id: 3, label: "Review & Create", icon: ClipboardCheck },
+  { id: 1, labelKey: "sales.newOrder.steps.customer", icon: User },
+  { id: 2, labelKey: "sales.newOrder.steps.products", icon: Package },
+  { id: 3, labelKey: "sales.newOrder.steps.review", icon: ClipboardCheck },
 ] as const;
 
 const stepAccent = {
@@ -116,7 +112,10 @@ const OrderStepper = ({
   step: number;
   maxReachedStep: number;
   onStepClick: (id: number) => void;
-}) => (
+}) => {
+  const { t } = useTranslation();
+
+  return (
   <div className="rounded-2xl bg-card p-5 sm:p-6">
     <div className="flex items-center">
       {steps.map((item, index) => {
@@ -160,7 +159,7 @@ const OrderStepper = ({
                   isCurrent ? accent.text : isDone ? "text-ink" : "text-muted-foreground",
                 )}
               >
-                {item.label}
+                {t(item.labelKey)}
               </span>
             </button>
           </Fragment>
@@ -168,13 +167,14 @@ const OrderStepper = ({
       })}
     </div>
   </div>
-);
+  );
+};
 
 /** Search + sort toolbar, styled after the public catalog's CatalogToolbar. Filters for each step are simple pills/selects rendered just below it. */
 const StepToolbar = ({
   showingCount,
   totalCount,
-  resultsNoun = "results",
+  resultsNoun,
   sortValue,
   sortOptions,
   onSortChange,
@@ -187,7 +187,7 @@ const StepToolbar = ({
 }: {
   showingCount: number;
   totalCount: number;
-  resultsNoun?: string;
+  resultsNoun: string;
   sortValue: string;
   sortOptions: { value: string; label: string }[];
   onSortChange: (value: string) => void;
@@ -197,21 +197,24 @@ const StepToolbar = ({
   searchQuery: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder: string;
-}) => (
+}) => {
+  const { t } = useTranslation();
+
+  return (
   <div className="relative mb-5 flex flex-col gap-3 rounded-xl bg-card px-5 py-3 shadow-sm">
     <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm text-muted-foreground">
         {totalCount === 0 ? (
-          "No results"
+          t("sales.newOrder.toolbar.noResults")
         ) : (
           <>
-            Showing <strong className="text-ink">{showingCount}</strong> of <strong className="text-ink">{totalCount}</strong> {resultsNoun}
+            {t("sales.newOrder.toolbar.showing")} <strong className="text-ink">{showingCount}</strong> {t("sales.newOrder.toolbar.of")} <strong className="text-ink">{totalCount}</strong> {resultsNoun}
           </>
         )}
       </p>
       <div className="flex w-full items-center justify-between gap-4 sm:w-auto">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="hidden sm:inline">Sort by:</span>
+          <span className="hidden sm:inline">{t("sales.newOrder.toolbar.sortBy")}</span>
           <Select value={sortValue} onValueChange={(value) => onSortChange(value ?? sortOptions[0].value)}>
             <SelectTrigger className="h-9 w-auto min-w-0 rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold hover:bg-secondary data-[state=open]:border-border data-[state=open]:bg-card">
               <SelectValue>{(value) => sortOptions.find((option) => option.value === value)?.label ?? sortOptions[0].label}</SelectValue>
@@ -232,7 +235,7 @@ const StepToolbar = ({
             variant="ghost"
             className={searchOpen ? "bg-secondary text-ink" : "text-muted-foreground"}
             onClick={onToggleSearch}
-            aria-label={searchOpen ? "Close search" : "Search"}
+            aria-label={searchOpen ? t("sales.newOrder.toolbar.closeSearch") : t("sales.newOrder.toolbar.search")}
             aria-expanded={searchOpen}
           >
             {searchOpen ? <X className="size-5" /> : <Search className="size-5" />}
@@ -255,7 +258,8 @@ const StepToolbar = ({
       </div>
     ) : null}
   </div>
-);
+  );
+};
 
 /** Search-icon toggle with the same open/close/hide timing as the public catalog's toolbar. */
 const useSearchToggle = () => {
@@ -275,11 +279,6 @@ const useSearchToggle = () => {
   return { searchOpen, searchVisible, toggleSearch };
 };
 
-const customerSortOptions = [
-  { value: "newest", label: customerSortLabels.newest },
-  { value: "name", label: customerSortLabels.name },
-];
-
 const CustomerStep = ({
   customers,
   loading,
@@ -295,10 +294,16 @@ const CustomerStep = ({
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) => {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | UserStatus>("all");
   const [sort, setSort] = useState<CustomerSort>("newest");
   const { searchOpen, searchVisible, toggleSearch } = useSearchToggle();
+
+  const customerSortOptions = [
+    { value: "newest", label: t("sales.newOrder.customerStep.joinedNewest") },
+    { value: "name", label: t("sales.newOrder.customerStep.nameAZ") },
+  ];
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -312,7 +317,7 @@ const CustomerStep = ({
     return sort === "name" ? [...results].sort((a, b) => a.fullName.localeCompare(b.fullName)) : results;
   }, [customers, query, status, sort]);
 
-  if (loading) return <ApiLoading label="Loading customers…" className="py-24" />;
+  if (loading) return <ApiLoading label={t("sales.newOrder.customerStep.loading")} className="py-24" />;
   if (error) return <ApiErrorState message={error} onRetry={onRetry} className="my-16" />;
 
   return (
@@ -320,7 +325,7 @@ const CustomerStep = ({
       <StepToolbar
         showingCount={filtered.length}
         totalCount={customers.length}
-        resultsNoun="customers"
+        resultsNoun={t("sales.newOrder.resultsNoun.customers")}
         sortValue={sort}
         sortOptions={customerSortOptions}
         onSortChange={(value) => setSort(value as CustomerSort)}
@@ -329,7 +334,7 @@ const CustomerStep = ({
         onToggleSearch={toggleSearch}
         searchQuery={query}
         onSearchChange={setQuery}
-        searchPlaceholder="Search by customer name, email..."
+        searchPlaceholder={t("sales.newOrder.customerStep.searchPlaceholder")}
       />
 
       <div className="mb-5 flex flex-wrap gap-2">
@@ -343,13 +348,17 @@ const CustomerStep = ({
               status === option ? "bg-primary text-ink" : "bg-card text-muted-foreground hover:bg-secondary",
             )}
           >
-            {option === "all" ? "All" : option === "ACTIVE" ? "Active" : "Inactive"}
+            {option === "all"
+              ? t("sales.newOrder.customerStep.filterAll")
+              : option === "ACTIVE"
+                ? t("sales.newOrder.customerStep.filterActive")
+                : t("sales.newOrder.customerStep.filterInactive")}
           </button>
         ))}
       </div>
 
       {filtered.length === 0 ? (
-        <ApiEmptyState message="No customers match your filters." className="py-16" />
+        <ApiEmptyState message={t("sales.newOrder.customerStep.noResults")} className="py-16" />
       ) : (
         <ul className="grid gap-4 sm:gap-5 md:grid-cols-2 2xl:grid-cols-3">
           {filtered.map((customer) => {
@@ -367,7 +376,7 @@ const CustomerStep = ({
                   <div className="flex items-start justify-between gap-3">
                     <h2 className="min-w-0 truncate text-xl font-bold text-ink">{customer.fullName}</h2>
                     <div className="flex shrink-0 items-center gap-2">
-                      <Badge variant={customerStatusBadge[customer.status]}>{customer.status}</Badge>
+                      <Badge variant={customerStatusBadge[customer.status]}>{t(`staff.userStatus.${customer.status}`)}</Badge>
                       {selected && (
                         <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-ink">
                           <Check className="size-3.5" strokeWidth={3} />
@@ -377,20 +386,20 @@ const CustomerStep = ({
                   </div>
                   <dl className="mt-5 space-y-3 border-t border-[#E5E7EB] pt-4 font-data text-sm">
                     <div className="flex items-start justify-between gap-3">
-                      <dt className="shrink-0 text-muted-foreground">Contact</dt>
+                      <dt className="shrink-0 text-muted-foreground">{t("sales.newOrder.customerStep.contact")}</dt>
                       <dd className="min-w-0 text-right text-ink">
                         <span className="block truncate">{customer.email ?? "—"}</span>
                         <span className="block whitespace-nowrap">{customer.phone ?? "—"}</span>
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Last Order</dt>
+                      <dt className="text-muted-foreground">{t("sales.newOrder.customerStep.lastOrder")}</dt>
                       <dd className="whitespace-nowrap text-ink">
-                        {customer.lastOrderAt ? formatRelativeTime(customer.lastOrderAt) : "No orders yet"}
+                        {customer.lastOrderAt ? formatRelativeTime(customer.lastOrderAt, t) : t("sales.newOrder.customerStep.noOrdersYet")}
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-3 border-t border-[#E5E7EB] pt-3">
-                      <dt className="text-muted-foreground">Total Spend</dt>
+                      <dt className="text-muted-foreground">{t("sales.newOrder.customerStep.totalSpend")}</dt>
                       <dd className="text-xl font-semibold whitespace-nowrap text-ink">
                         {formatCompactCurrency(customer.lifetimeSpend)}
                       </dd>
@@ -418,6 +427,7 @@ const AreaCalculatorCard = ({
   onChange: (value: string) => void;
   onStockAdjusted: () => void;
 }) => {
+  const { t } = useTranslation();
   const available = availableStockOf(product);
   const valid = isPositiveNumber(value);
   const requested = valid ? Number(value) : 0;
@@ -434,8 +444,8 @@ const AreaCalculatorCard = ({
     >
       <div className={cn("flex items-center gap-2 border-b px-4 py-2.5", exceedsStock ? "border-red-200" : "border-primary/20")}>
         <Calculator className="size-4 text-ink" strokeWidth={2} />
-        <span className="text-xs font-bold tracking-wide text-ink uppercase">Required Area</span>
-        <span className="ml-auto text-xs font-semibold text-muted-foreground">{available.toLocaleString()} sqm in stock</span>
+        <span className="text-xs font-bold tracking-wide text-ink uppercase">{t("sales.newOrder.calculator.requiredArea")}</span>
+        <span className="ml-auto text-xs font-semibold text-muted-foreground">{t("sales.newOrder.calculator.inStock", { value: available.toLocaleString() })}</span>
       </div>
       <div className="p-4">
         <div className="relative">
@@ -457,29 +467,32 @@ const AreaCalculatorCard = ({
           <div className="mt-3 flex items-center gap-4 text-xs font-semibold text-ink">
             <span className="flex items-center gap-1.5">
               <Boxes className="size-3.5" strokeWidth={2.25} />
-              {calc.completeBoxes} boxes
+              {t("sales.newOrder.calculator.boxes", { count: calc.completeBoxes })}
             </span>
             {calc.remainingPieces > 0 && (
               <span className="flex items-center gap-1.5">
-                <Layers3 className="size-3.5" strokeWidth={2.25} />+{calc.remainingPieces} pcs
+                <Layers3 className="size-3.5" strokeWidth={2.25} />{t("sales.newOrder.calculator.extraPieces", { count: calc.remainingPieces })}
               </span>
             )}
-            <span className="ml-auto text-muted-foreground">{calc.totalPieces} pcs total</span>
+            <span className="ml-auto text-muted-foreground">{t("sales.newOrder.calculator.totalPieces", { count: calc.totalPieces })}</span>
           </div>
         ) : !exceedsStock ? (
-          <p className="mt-3 text-xs text-muted-foreground">Enter the area to calculate boxes &amp; pieces.</p>
+          <p className="mt-3 text-xs text-muted-foreground">{t("sales.newOrder.calculator.prompt")}</p>
         ) : null}
         {exceedsStock && (
           <div className="mt-3 space-y-2.5">
             <p className="flex items-start gap-2 rounded-lg bg-red-100 px-3 py-2.5 text-xs font-medium text-red-800">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-              Only {available > 0 ? `${available.toLocaleString()} sqm` : "none"} in stock — you can&apos;t order more than
-              that. To order more, adjust stock for this product first.
+              {available > 0
+                ? t("sales.newOrder.calculator.exceedsSome", {
+                    available: t("sales.newOrder.calculator.availableSqm", { value: available.toLocaleString() }),
+                  })
+                : t("sales.newOrder.calculator.exceedsNone")}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               {available > 0 && (
                 <Button type="button" variant="outline" size="sm" onClick={() => onChange(String(available))} className="h-8 text-xs font-bold">
-                  Use max available
+                  {t("sales.newOrder.calculator.useMax")}
                 </Button>
               )}
               {CAN_ADJUST_STOCK && (
@@ -489,7 +502,7 @@ const AreaCalculatorCard = ({
                   currentStockSqm={available}
                   onAdjusted={onStockAdjusted}
                   renderTrigger={<Button type="button" variant="outline" size="sm" className="h-8 text-xs font-bold" />}
-                  triggerContent="Adjust Stock"
+                  triggerContent={t("sales.newOrder.calculator.adjustStock")}
                 />
               )}
             </div>
@@ -500,25 +513,28 @@ const AreaCalculatorCard = ({
   );
 };
 
-const productSortOptions = [
-  { value: "newest", label: sortLabels.newest },
-  { value: "low", label: sortLabels.low },
-  { value: "high", label: sortLabels.high },
-];
+const PRODUCT_SORT_KEYS: Record<SortOption, string> = {
+  newest: "catalog.sort.newest",
+  low: "catalog.sort.low",
+  high: "catalog.sort.high",
+};
 
-const suitableForOptions: { value: "all" | SuitableFor; label: string }[] = [
-  { value: "all", label: "Suitable for" },
-  { value: "FLOOR", label: "Floor" },
-  { value: "WALL", label: "Wall" },
-  { value: "BOTH", label: "Floor & Wall" },
-];
+const SUITABLE_FOR_KEYS: Record<"all" | SuitableFor, string> = {
+  all: "sales.newOrder.productStep.suitableForAll",
+  FLOOR: "sales.newOrder.productStep.suitableFloor",
+  WALL: "sales.newOrder.productStep.suitableWall",
+  BOTH: "sales.newOrder.productStep.suitableBoth",
+};
 
-const statusOptions: { value: "all" | StockStatus; label: string }[] = [
-  { value: "all", label: "Status" },
-  { value: "in_stock", label: "In stock" },
-  { value: "low_stock", label: "Low stock" },
-  { value: "out_of_stock", label: "Out of stock" },
-];
+const STOCK_STATUS_OPTION_KEYS: Record<"all" | StockStatus, string> = {
+  all: "sales.newOrder.productStep.statusAll",
+  in_stock: "staff.stockStatus.in_stock",
+  low_stock: "staff.stockStatus.low_stock",
+  out_of_stock: "staff.stockStatus.out_of_stock",
+};
+
+const SUITABLE_FOR_VALUES: ("all" | SuitableFor)[] = ["all", "FLOOR", "WALL", "BOTH"];
+const STOCK_STATUS_VALUES: ("all" | StockStatus)[] = ["all", "in_stock", "low_stock", "out_of_stock"];
 
 const ProductStep = ({
   products,
@@ -539,12 +555,18 @@ const ProductStep = ({
   onAreaChange: (id: string, value: string) => void;
   onStockAdjusted: () => void;
 }) => {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortOption>("newest");
   const [suitableFor, setSuitableFor] = useState<"all" | SuitableFor>("all");
   const [status, setStatus] = useState<"all" | StockStatus>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const { searchOpen, searchVisible, toggleSearch } = useSearchToggle();
+
+  const productSortOptions = (["newest", "low", "high"] as SortOption[]).map((value) => ({
+    value,
+    label: t(PRODUCT_SORT_KEYS[value]),
+  }));
 
   const processed = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -571,7 +593,7 @@ const ProductStep = ({
 
   const goToPage = (page: number) => setCurrentPage(Math.min(Math.max(page, 1), totalPages));
 
-  if (loading) return <ApiLoading label="Loading products…" className="py-24" />;
+  if (loading) return <ApiLoading label={t("sales.newOrder.productStep.loading")} className="py-24" />;
   if (error) return <ApiErrorState message={error} onRetry={onRetry} className="my-16" />;
 
   return (
@@ -579,6 +601,7 @@ const ProductStep = ({
       <StepToolbar
         showingCount={pageItems.length}
         totalCount={processed.length}
+        resultsNoun={t("sales.newOrder.resultsNoun.results")}
         sortValue={sort}
         sortOptions={productSortOptions}
         onSortChange={(value) => {
@@ -593,7 +616,7 @@ const ProductStep = ({
           setQuery(value);
           setCurrentPage(1);
         }}
-        searchPlaceholder="Search products, SKUs..."
+        searchPlaceholder={t("sales.newOrder.productStep.searchPlaceholder")}
       />
 
       <div className="mb-5 grid grid-cols-2 gap-3 sm:flex sm:items-center">
@@ -605,12 +628,12 @@ const ProductStep = ({
           }}
         >
           <SelectTrigger className="h-10 min-w-0 bg-card sm:w-40">
-            <SelectValue>{(value) => suitableForOptions.find((option) => option.value === value)?.label}</SelectValue>
+            <SelectValue>{(value) => t(SUITABLE_FOR_KEYS[value as "all" | SuitableFor])}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {suitableForOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
+            {SUITABLE_FOR_VALUES.map((value) => (
+              <SelectItem key={value} value={value}>
+                {t(SUITABLE_FOR_KEYS[value])}
               </SelectItem>
             ))}
           </SelectContent>
@@ -623,12 +646,12 @@ const ProductStep = ({
           }}
         >
           <SelectTrigger className="h-10 min-w-0 bg-card sm:w-36">
-            <SelectValue>{(value) => statusOptions.find((option) => option.value === value)?.label}</SelectValue>
+            <SelectValue>{(value) => t(STOCK_STATUS_OPTION_KEYS[value as "all" | StockStatus])}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {statusOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
+            {STOCK_STATUS_VALUES.map((value) => (
+              <SelectItem key={value} value={value}>
+                {t(STOCK_STATUS_OPTION_KEYS[value])}
               </SelectItem>
             ))}
           </SelectContent>
@@ -636,7 +659,7 @@ const ProductStep = ({
       </div>
 
       {pageItems.length === 0 ? (
-        <ApiEmptyState message="No products match your filters." className="py-16" />
+        <ApiEmptyState message={t("sales.newOrder.productStep.noResults")} className="py-16" />
       ) : (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {pageItems.map((product) => {
@@ -673,7 +696,7 @@ const ProductStep = ({
                 }}
               >
                 <ChevronsLeft className="size-4" />
-                <span className="hidden sm:inline">First</span>
+                <span className="hidden sm:inline">{t("sales.newOrder.productStep.first")}</span>
               </PaginationLink>
             </PaginationItem>
             <PaginationItem>
@@ -735,7 +758,7 @@ const ProductStep = ({
                   goToPage(totalPages);
                 }}
               >
-                <span className="hidden sm:inline">Last</span>
+                <span className="hidden sm:inline">{t("sales.newOrder.productStep.last")}</span>
                 <ChevronsRight className="size-4" />
               </PaginationLink>
             </PaginationItem>
@@ -748,15 +771,24 @@ const ProductStep = ({
 
 type OrderLine = { product: ApiProduct; area: number; boxes: number; additionalPieces: number; pieces: number; lineTotal: number };
 
-const ReviewStep = ({ customer, items, grandTotal }: { customer: CustomerSummary; items: OrderLine[]; grandTotal: number }) => (
+const ReviewStep = ({ customer, items, grandTotal }: { customer: CustomerSummary; items: OrderLine[]; grandTotal: number }) => {
+  const { t } = useTranslation();
+  const qtyLine = (boxes: number, additionalPieces: number, pieces: number) =>
+    t("sales.newOrder.review.quantityLine", {
+      boxes,
+      extra: additionalPieces > 0 ? t("sales.newOrder.review.quantityExtra", { count: additionalPieces }) : "",
+      pieces,
+    });
+
+  return (
   <div className="grid items-start gap-5 sm:gap-6 xl:grid-cols-[1.7fr_1fr]">
     <section className="overflow-hidden rounded-2xl bg-card">
       <div className="flex items-center justify-between gap-3 px-5 py-5 sm:px-6">
         <div>
-          <h2 className="text-lg font-bold text-ink sm:text-2xl">Order Items</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Review the quantities and pricing before creating the order.</p>
+          <h2 className="text-lg font-bold text-ink sm:text-2xl">{t("sales.newOrder.review.orderItems")}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t("sales.newOrder.review.intro")}</p>
         </div>
-        <Badge variant="secondary">{items.length} Items</Badge>
+        <Badge variant="secondary">{t("sales.newOrder.review.itemsCount", { count: items.length })}</Badge>
       </div>
 
       <div className="md:hidden">
@@ -771,7 +803,7 @@ const ReviewStep = ({ customer, items, grandTotal }: { customer: CustomerSummary
               </div>
               <div className="mt-2 flex items-center justify-between gap-3 text-sm">
                 <span className="text-muted-foreground">
-                  {area} sqm • {boxes} boxes{additionalPieces > 0 ? ` + ${additionalPieces} pcs` : ""} ({pieces} pcs) • {formatRWF(Number(product.price))}
+                  {area} sqm • {qtyLine(boxes, additionalPieces, pieces)} • {formatRWF(Number(product.price))}
                 </span>
                 <span className="font-semibold text-ink">{formatRWF(lineTotal)}</span>
               </div>
@@ -784,10 +816,10 @@ const ReviewStep = ({ customer, items, grandTotal }: { customer: CustomerSummary
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Product</TableHead>
-              <TableHead>Quantity</TableHead>
-              <TableHead>Unit Price</TableHead>
-              <TableHead>Total</TableHead>
+              <TableHead>{t("sales.newOrder.review.colProduct")}</TableHead>
+              <TableHead>{t("sales.newOrder.review.colQuantity")}</TableHead>
+              <TableHead>{t("sales.newOrder.review.colUnitPrice")}</TableHead>
+              <TableHead>{t("sales.newOrder.review.colTotal")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -804,7 +836,7 @@ const ReviewStep = ({ customer, items, grandTotal }: { customer: CustomerSummary
                 <TableCell className="whitespace-nowrap text-ink">
                   <span className="block">{area} sqm</span>
                   <span className="mt-1 block text-xs text-muted-foreground">
-                    {boxes} boxes{additionalPieces > 0 ? ` + ${additionalPieces} pcs` : ""} ({pieces} pcs)
+                    {qtyLine(boxes, additionalPieces, pieces)}
                   </span>
                 </TableCell>
                 <TableCell className="whitespace-nowrap text-muted-foreground">{formatRWF(Number(product.price))}</TableCell>
@@ -816,7 +848,7 @@ const ReviewStep = ({ customer, items, grandTotal }: { customer: CustomerSummary
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-3 bg-primary px-5 py-6 sm:justify-end sm:px-10">
-        <span className="font-data text-lg font-semibold text-primary-foreground sm:text-2xl">Total</span>
+        <span className="font-data text-lg font-semibold text-primary-foreground sm:text-2xl">{t("sales.newOrder.review.total")}</span>
         <span className="font-data text-xl font-bold text-primary-foreground sm:text-3xl">{formatRWF(grandTotal)}</span>
       </div>
     </section>
@@ -826,11 +858,11 @@ const ReviewStep = ({ customer, items, grandTotal }: { customer: CustomerSummary
         <span className="flex size-9 items-center justify-center rounded-lg bg-secondary text-ink">
           <Contact className="size-5" />
         </span>
-        <h2 className="text-lg font-bold text-ink sm:text-xl">Customer Info</h2>
+        <h2 className="text-lg font-bold text-ink sm:text-xl">{t("sales.newOrder.review.customerInfo")}</h2>
       </div>
       <dl className="mt-5 space-y-5 text-sm">
         <div>
-          <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">Customer</dt>
+          <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">{t("sales.newOrder.review.customer")}</dt>
           <dd className="mt-2 flex items-center gap-3">
             <span className="flex size-9 items-center justify-center rounded-full bg-ink text-xs font-semibold text-card">
               {customer.fullName.split(" ").map((part) => part[0]).join("").slice(0, 2)}
@@ -841,23 +873,25 @@ const ReviewStep = ({ customer, items, grandTotal }: { customer: CustomerSummary
         <div className="flex items-start gap-3">
           <Mail className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
           <div className="min-w-0">
-            <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">Email</dt>
+            <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">{t("sales.newOrder.review.email")}</dt>
             <dd className="truncate text-ink">{customer.email ?? "—"}</dd>
           </div>
         </div>
         <div className="flex items-start gap-3">
           <Phone className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
           <div>
-            <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">Phone</dt>
+            <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">{t("sales.newOrder.review.phone")}</dt>
             <dd className="text-ink">{customer.phone ?? "—"}</dd>
           </div>
         </div>
       </dl>
     </section>
   </div>
-);
+  );
+};
 
 const CreateOrderWizard = () => {
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedId = searchParams.get("customer");
@@ -987,13 +1021,17 @@ const CreateOrderWizard = () => {
         // Shouldn't happen — every line was validated against on-hand stock
         // before reaching this step — but stock can still move between then
         // and now, so fall back to the negotiation the server already opened.
-        toast.error("Stock changed before this order went through", {
-          description: "A negotiation thread has been opened for this customer instead.",
+        toast.error(t("sales.newOrder.toast.stockChangedTitle"), {
+          description: t("sales.newOrder.toast.stockChangedBody"),
         });
         return;
       }
-      toast.success("Order created", {
-        description: `${orderItems.length} product${orderItems.length === 1 ? "" : "s"} for ${selectedCustomer.fullName} · ${formatRWF(grandTotal)}`,
+      toast.success(t("sales.newOrder.toast.createdTitle"), {
+        description: t("sales.newOrder.toast.createdBody", {
+          count: orderItems.length,
+          customer: selectedCustomer.fullName,
+          total: formatRWF(grandTotal),
+        }),
       });
       // The draft's job is done — clear it so a later visit to "New Order"
       // starts blank instead of resuming an order that already exists.
@@ -1003,8 +1041,8 @@ const CreateOrderWizard = () => {
       // trip back to this order later.
       router.push(`/admin/orders/${result.order.id}?addDelivery=1`);
     } catch (cause) {
-      toast.error("Couldn't create order", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("sales.newOrder.toast.failedTitle"), {
+        description: cause instanceof ApiError ? cause.message : t("sales.newOrder.toast.failedBody"),
       });
     } finally {
       setSubmitting(false);
@@ -1017,14 +1055,14 @@ const CreateOrderWizard = () => {
     <>
       <AdminDetailHeader
         breadcrumbs={[
-          { label: "Overview", href: "/admin/overview" },
-          { label: "Orders", href: "/admin/orders" },
-          { label: "New Order" },
+          { label: t("sales.newOrder.crumbOverview"), href: "/admin/overview" },
+          { label: t("sales.newOrder.crumbOrders"), href: "/admin/orders" },
+          { label: t("sales.newOrder.crumbNew") },
         ]}
-        title="Create New Order"
+        title={t("sales.newOrder.title")}
         actions={
           <Button type="button" variant="outline" onClick={() => router.push("/admin/orders")} className="h-11 px-5 text-sm font-bold">
-            Cancel
+            {t("sales.newOrder.cancel")}
           </Button>
         }
       />
@@ -1065,12 +1103,12 @@ const CreateOrderWizard = () => {
             className="h-12 gap-2 px-6 text-sm font-bold disabled:opacity-40"
           >
             <ChevronLeft className="size-4" />
-            Back
+            {t("sales.newOrder.back")}
           </Button>
 
           {step < 3 ? (
             <Button type="button" disabled={!canGoNext} onClick={goNext} className="h-12 px-6 text-sm font-bold disabled:opacity-60">
-              Next
+              {t("sales.newOrder.next")}
             </Button>
           ) : (
             <Button
@@ -1080,7 +1118,7 @@ const CreateOrderWizard = () => {
               className="h-12 gap-2 px-6 text-sm font-bold disabled:opacity-60"
             >
               <Save className="size-4" />
-              {submitting ? "Creating..." : "Create Order"}
+              {submitting ? t("sales.newOrder.creating") : t("sales.newOrder.createOrder")}
             </Button>
           )}
         </div>

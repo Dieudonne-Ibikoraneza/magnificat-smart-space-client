@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ArrowUpRight,
   ChevronsLeft,
@@ -51,14 +52,15 @@ import {
 
 const PAGE_SIZE = 10;
 
-/** Filter dropdown labels only — the real, server-computed `StockStatus` enum, distinct from the "Fully reserved" nuance `staffStockDisplay` adds per-row below. */
-const filterStatusLabels: Record<StockStatus, string> = {
-  in_stock: "In stock",
-  low_stock: "Low stock",
-  out_of_stock: "Out of stock",
+/** Filter dropdown label keys only — the real, server-computed `StockStatus` enum, distinct from the "Fully reserved" nuance `staffStockDisplay` adds per-row below. */
+const FILTER_STATUS_KEYS: Record<StockStatus, string> = {
+  in_stock: "staff.stockStatus.in_stock",
+  low_stock: "staff.stockStatus.low_stock",
+  out_of_stock: "staff.stockStatus.out_of_stock",
 };
 
 export const AdminInventoryProductCard = ({ product, basePath = "/admin/inventory" }: { product: ApiProduct; basePath?: string }) => {
+  const { t } = useTranslation();
   const status = staffStockDisplay(product);
   const quantity = status.quantityOnHandSqm;
 
@@ -81,12 +83,12 @@ export const AdminInventoryProductCard = ({ product, basePath = "/admin/inventor
           )}
         >
           <span className={cn("size-2 rounded-full", status.dot)} />
-          {status.label}
+          {t(`staff.stockStatus.${status.status}`)}
         </span>
 
         <Link
           href={`${basePath}/${product.id}`}
-          aria-label={`Open ${product.name} inventory details`}
+          aria-label={t("stock.inventory.openDetailsAria", { name: product.name })}
           className="absolute top-3 right-3 z-10 inline-flex size-9 items-center justify-center rounded-full bg-white/95 text-ink shadow-sm transition-transform hover:scale-105 hover:bg-white"
         >
           <ArrowUpRight className="size-5" strokeWidth={2.25} />
@@ -101,13 +103,13 @@ export const AdminInventoryProductCard = ({ product, basePath = "/admin/inventor
           {product.name}
         </h2>
         <p className="line-clamp-2 min-h-10 text-sm leading-5 text-muted">
-          {product.description || "No description yet."}
+          {product.description || t("stock.inventory.noDescription")}
         </p>
 
         <div className="mt-auto flex items-center justify-between gap-3 pt-4 sm:pt-5">
           <p className={cn("text-xl font-bold", status.quantity)}>
             {quantity.toLocaleString()}{" "}
-            <span className="text-sm font-medium text-muted">sqm</span>
+            <span className="text-sm font-medium text-muted">{t("stock.inventory.sqm")}</span>
           </p>
           <Button
             type="button"
@@ -117,7 +119,7 @@ export const AdminInventoryProductCard = ({ product, basePath = "/admin/inventor
             size="sm"
             className="gap-1.5 text-xs font-bold"
           >
-            <Eye className="size-3.5" /> View
+            <Eye className="size-3.5" /> {t("stock.inventory.view")}
           </Button>
         </div>
       </div>
@@ -126,6 +128,7 @@ export const AdminInventoryProductCard = ({ product, basePath = "/admin/inventor
 };
 
 const AdminInventoryPage = () => {
+  const { t } = useTranslation();
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [suitableFor, setSuitableFor] = useState("all");
@@ -171,8 +174,8 @@ const AdminInventoryPage = () => {
   return (
     <>
       <AdminPageHeader
-        title="Stock & Inventory"
-        subtitle={loading ? "Loading products…" : `${totalResults.toLocaleString()} Products currently managed`}
+        title={t("stock.inventory.title")}
+        subtitle={loading ? t("stock.inventory.loadingProducts") : t("stock.inventory.productsManaged", { count: totalResults })}
       >
         <Button
           type="button"
@@ -180,7 +183,7 @@ const AdminInventoryPage = () => {
           className="h-11 gap-2 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
         >
           <Plus className="size-4" />
-          Add New Product
+          {t("stock.inventory.addNewProduct")}
         </Button>
       </AdminPageHeader>
 
@@ -194,8 +197,8 @@ const AdminInventoryPage = () => {
                 setQuery(event.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Search products, SKUs..."
-              aria-label="Search inventory"
+              placeholder={t("stock.inventory.searchPlaceholder")}
+              aria-label={t("stock.inventory.searchAria")}
               className="h-11 rounded-full bg-[#fafbfc] pl-11 text-sm"
             />
           </div>
@@ -211,20 +214,20 @@ const AdminInventoryPage = () => {
                 <SelectValue>
                   {(value) =>
                     value === "all"
-                      ? "Suitable for"
+                      ? t("stock.inventory.suitableForTrigger")
                       : value === "FLOOR"
-                        ? "Floor"
+                        ? t("stock.inventory.floor")
                         : value === "WALL"
-                          ? "Wall"
-                          : "Floor & Wall"
+                          ? t("stock.inventory.wall")
+                          : t("stock.inventory.floorAndWall")
                   }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Suitable for: All</SelectItem>
-                <SelectItem value="FLOOR">Floor</SelectItem>
-                <SelectItem value="WALL">Wall</SelectItem>
-                <SelectItem value="BOTH">Floor &amp; Wall</SelectItem>
+                <SelectItem value="all">{t("stock.inventory.suitableForAll")}</SelectItem>
+                <SelectItem value="FLOOR">{t("stock.inventory.floor")}</SelectItem>
+                <SelectItem value="WALL">{t("stock.inventory.wall")}</SelectItem>
+                <SelectItem value="BOTH">{t("stock.inventory.floorAndWall")}</SelectItem>
               </SelectContent>
             </Select>
             <Select
@@ -238,16 +241,16 @@ const AdminInventoryPage = () => {
                 <SelectValue>
                   {(value) =>
                     value === "all"
-                      ? "Status"
-                      : filterStatusLabels[value as StockStatus]
+                      ? t("stock.inventory.statusTrigger")
+                      : t(FILTER_STATUS_KEYS[value as StockStatus])
                   }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All status</SelectItem>
-                <SelectItem value="in_stock">In stock</SelectItem>
-                <SelectItem value="low_stock">Low stock</SelectItem>
-                <SelectItem value="out_of_stock">Out of stock</SelectItem>
+                <SelectItem value="all">{t("stock.inventory.allStatus")}</SelectItem>
+                <SelectItem value="in_stock">{t("staff.stockStatus.in_stock")}</SelectItem>
+                <SelectItem value="low_stock">{t("staff.stockStatus.low_stock")}</SelectItem>
+                <SelectItem value="out_of_stock">{t("staff.stockStatus.out_of_stock")}</SelectItem>
               </SelectContent>
             </Select>
             <div className="flex h-11 w-fit items-center justify-center justify-self-end rounded-lg bg-[#f4f5f6] p-1 sm:w-auto">
@@ -255,7 +258,7 @@ const AdminInventoryPage = () => {
                 type="button"
                 variant={view === "list" ? "default" : "ghost"}
                 size="icon-sm"
-                aria-label="List view"
+                aria-label={t("stock.inventory.listView")}
                 aria-pressed={view === "list"}
                 onClick={() => setView("list")}
               >
@@ -265,7 +268,7 @@ const AdminInventoryPage = () => {
                 type="button"
                 variant={view === "grid" ? "default" : "ghost"}
                 size="icon-sm"
-                aria-label="Grid view"
+                aria-label={t("stock.inventory.gridView")}
                 aria-pressed={view === "grid"}
                 onClick={() => setView("grid")}
               >
@@ -278,11 +281,11 @@ const AdminInventoryPage = () => {
 
       <div className="mt-6 sm:mt-8">
         {loading ? (
-          <ApiLoading label="Loading inventory…" className="py-24" />
+          <ApiLoading label={t("stock.inventory.loading")} className="py-24" />
         ) : error ? (
           <ApiErrorState message={error} onRetry={reload} className="my-16" />
         ) : totalResults === 0 ? (
-          <ApiEmptyState message="No products match your filters." className="py-16" />
+          <ApiEmptyState message={t("stock.inventory.noResults")} className="py-16" />
         ) : view === "grid" ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {pageItems.map((product) => (
@@ -295,15 +298,15 @@ const AdminInventoryPage = () => {
               <Table className="min-w-220">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="px-3 py-4">Product</TableHead>
-                    <TableHead className="px-3 py-4">SKU / Code</TableHead>
-                    <TableHead className="px-3 py-4">Size / Format</TableHead>
-                    <TableHead className="px-3 py-4">Current Stock</TableHead>
+                    <TableHead className="px-3 py-4">{t("stock.inventory.colProduct")}</TableHead>
+                    <TableHead className="px-3 py-4">{t("stock.inventory.colSku")}</TableHead>
+                    <TableHead className="px-3 py-4">{t("stock.inventory.colSize")}</TableHead>
+                    <TableHead className="px-3 py-4">{t("stock.inventory.colStock")}</TableHead>
                     <TableHead className="px-3 py-4">
-                      Unit Price (RWF)
+                      {t("stock.inventory.colPrice")}
                     </TableHead>
                     <TableHead className="px-3 py-4 text-right">
-                      Actions
+                      {t("stock.inventory.colActions")}
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -354,9 +357,7 @@ const AdminInventoryPage = () => {
                               className={`size-2 rounded-full ${itemStatus.dot}`}
                             />
                             {quantity.toLocaleString()}{" "}
-                            <span className="font-sans text-sm font-normal text-muted-foreground">
-                              sqm
-                            </span>
+                            <span className="font-sans text-sm font-normal text-muted-foreground">{t("stock.inventory.sqm")}</span>
                           </span>
                         </TableCell>
                         <TableCell className="p-4 font-data text-base font-medium text-ink">
@@ -370,7 +371,7 @@ const AdminInventoryPage = () => {
                               render={<Link href={`/admin/inventory/${product.id}`} />}
                               variant="ghost"
                               size="icon-sm"
-                              aria-label={`View ${product.name}`}
+                              aria-label={t("stock.inventory.viewAria", { name: product.name })}
                             >
                               <Eye className="size-4" />
                             </Button>
@@ -389,7 +390,7 @@ const AdminInventoryPage = () => {
       {!loading && !error && totalResults > 0 && (
         <footer className="mt-8 flex flex-col gap-4 text-sm text-[#53604d] sm:flex-row sm:items-center sm:justify-between">
           <p>
-            Showing {showingStart} to {showingEnd} of {totalResults.toLocaleString()} results
+            {t("stock.inventory.showingRange", { start: showingStart, end: showingEnd, total: totalResults.toLocaleString() })}
           </p>
           <Pagination className="mx-0 w-auto justify-start py-0 sm:justify-end">
             <PaginationContent className="gap-1 sm:gap-2">
@@ -405,7 +406,7 @@ const AdminInventoryPage = () => {
                   }}
                 >
                   <ChevronsLeft className="size-4" />
-                  <span className="hidden sm:inline">First</span>
+                  <span className="hidden sm:inline">{t("sales.newOrder.productStep.first")}</span>
                 </PaginationLink>
               </PaginationItem>
               <PaginationItem>
@@ -467,7 +468,7 @@ const AdminInventoryPage = () => {
                     goToPage(totalPages);
                   }}
                 >
-                  <span className="hidden sm:inline">Last</span>
+                  <span className="hidden sm:inline">{t("sales.newOrder.productStep.last")}</span>
                   <ChevronsRight className="size-4" />
                 </PaginationLink>
               </PaginationItem>
