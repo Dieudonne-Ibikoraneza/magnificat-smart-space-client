@@ -2363,7 +2363,6 @@
       }
     },
     "overview": {
-      "last30Days": "Last 30 Days",
       "exportData": "Export Data",
       "kpiTotalSales": "Total Sales (RWF)",
       "kpiTotalOrders": "Total Orders",

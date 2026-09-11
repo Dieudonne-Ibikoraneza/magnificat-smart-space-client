@@ -18,7 +18,6 @@ import {
   ArrowRight,
   Bot,
   Box,
-  Calendar,
   ChevronRight,
   Clock3,
   Download,
@@ -46,6 +45,7 @@ import {
   Coins,
 } from "lucide-react";
 import { AdminPageHeader } from "@/app/admin/layout";
+import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { OrderStatusBadge } from "@/components/order-status-control";
 import { OrdersByCreatorChart } from "@/components/orders-by-creator-chart";
@@ -82,16 +82,17 @@ const orderStatusMeta: Record<OrderStatus, { icon: typeof Clock3; tone: string }
 const stockDot = { low_stock: "bg-amber-500", out_of_stock: "bg-red-500" } as const;
 const stockText = { low_stock: "text-amber-600", out_of_stock: "text-red-600" } as const;
 
-const HeaderActions = () => {
+const HeaderActions = ({
+  period,
+  onPeriodChange,
+}: {
+  period: AnalyticsPeriodDays;
+  onPeriodChange: (value: AnalyticsPeriodDays) => void;
+}) => {
   const { t } = useTranslation();
   return (
   <div className="flex shrink-0 items-center gap-2">
-    <button
-      type="button"
-      className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold text-ink hover:bg-secondary"
-    >
-      <Calendar className="size-4" /> {t("admin.overview.last30Days")}
-    </button>
+    <AnalyticsPeriodSwitcher period={period} onChange={onPeriodChange} />
     <button
       type="button"
       className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-ink shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
@@ -814,13 +815,20 @@ type RecentOrderLike = {
 
 const AdminDashboardPage = () => {
   const { t } = useTranslation();
+  const [period, setPeriod] = useState<AnalyticsPeriodDays>(30);
+  const range = periodToRange[period];
   const { data: overview, loading: overviewLoading, error: overviewError, reload: reloadOverview } = useApi(
-    () => analyticsApi.overview("MONTHLY"),
+    () => analyticsApi.overview(range),
+    [range],
   );
-  const { data: journey, loading: journeyLoading } = useApi(() => analyticsApi.journey("MONTHLY"));
-  const { data: tiles, loading: tilesLoading } = useApi(() => analyticsApi.tiles({ period: "MONTHLY", limit: 100 }));
+  const { data: journey, loading: journeyLoading } = useApi(() => analyticsApi.journey(range), [range]);
+  const { data: tiles, loading: tilesLoading } = useApi(
+    () => analyticsApi.tiles({ period: range, limit: 100 }),
+    [range],
+  );
   const { data: recommendations, loading: recommendationsLoading } = useApi(
-    () => analyticsApi.tileRecommendations({ period: "MONTHLY", limit: 1 }),
+    () => analyticsApi.tileRecommendations({ period: range, limit: 1 }),
+    [range],
   );
   const {
     data: productsData,
@@ -857,7 +865,7 @@ const AdminDashboardPage = () => {
           title={t("admin.overview.title")}
           subtitle={t("admin.overview.subtitle")}
         >
-          <HeaderActions />
+          <HeaderActions period={period} onPeriodChange={setPeriod} />
         </AdminPageHeader>
         <ApiErrorState message={overviewError} onRetry={reloadOverview} className="mt-8" />
       </>
@@ -870,7 +878,7 @@ const AdminDashboardPage = () => {
         title={t("admin.overview.title")}
         subtitle={t("admin.overview.subtitle")}
       >
-        <HeaderActions />
+        <HeaderActions period={period} onPeriodChange={setPeriod} />
       </AdminPageHeader>
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
         <KpiCards overview={overview} loading={overviewLoading} />
