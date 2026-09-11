@@ -18,6 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { LanguageMenu } from "@/components/language-menu";
 
 export type DetailBreadcrumbItem = { label: string; href?: string };
 
@@ -141,6 +142,7 @@ export const DetailPageHeader = ({ breadcrumbs, title, onOpenMenu, actions, meta
         <Menu className="size-5" />
       </button>
       <DetailBreadcrumbTrail items={breadcrumbs} />
+      <LanguageMenu className="shrink-0" />
     </div>
 
     <div className="mt-3 flex flex-wrap items-center justify-between gap-4">

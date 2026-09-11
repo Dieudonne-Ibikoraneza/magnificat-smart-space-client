@@ -466,11 +466,11 @@ const PerformanceMetrics = ({ rows, loading }: { rows: TilePerformanceRow[]; loa
                   <TableCell className="whitespace-nowrap">
                     <span className="inline-flex items-center gap-1.5 font-data text-ink">
                       <span className={cn("size-2 rounded-full", status.dot)} />
-                      {t("analytics.common.pcs", { value: product.quantityOnHandSqm.toLocaleString() }).replace(t("analytics.common.pcs", { value: "" }).trim(), "") + product.quantityOnHandSqm.toLocaleString()}
+                      {product.quantityOnHandSqm.toLocaleString()} {t("analytics.common.sqm")}
                     </span>
                   </TableCell>
                   <TableCell className="whitespace-nowrap font-data text-ink">
-                    {t("analytics.common.pcs", { value: product.purchased.toLocaleString() })}
+                    {formatCompactNumber(product.purchased)}
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-ink">
                     {t("analytics.common.views", { value: formatCompactNumber(product.viewed) })}
