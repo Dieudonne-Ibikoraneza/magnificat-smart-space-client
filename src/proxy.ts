@@ -10,16 +10,15 @@ import {
 /**
  * Locale routing for the migrated areas of the app.
  *
- * The storefront (`(site)`) and `auth` now live under `app/[lang]/`, so
- * every URL for them carries an `/en` or `/rw` prefix. This proxy is what
- * *adds* that prefix: an unprefixed request to one of those paths is
- * redirected to the visitor's language. Requests already carrying a valid
- * prefix pass straight through (and refresh the `mss.lang` cookie so
- * unprefixed `<Link href="/…">` elsewhere resolve to the same language).
- *
- * Everything not yet migrated — `/account`, `/admin`, `/sales`, `/stock`,
- * `/analytics` — is left completely untouched and keeps working at its
- * current path. Extend `MIGRATED` as those areas move under `[lang]`.
+ * Every route now lives under `app/[lang]/`, so every URL carries an `/en`
+ * or `/rw` prefix. This proxy is what *adds* that prefix: an unprefixed
+ * request to one of these paths is redirected to the visitor's language.
+ * Requests already carrying a valid prefix pass straight through (and
+ * refresh the `mss.lang` cookie so unprefixed `<Link href="/…">` elsewhere
+ * resolve to the same language) — every internal link in the app stays a
+ * bare, unprefixed path (`href="/admin/overview"`) rather than a
+ * locale-aware `<Link>` wrapper; this proxy redirect is what turns that into
+ * `/en/admin/overview` on click.
  */
 const MIGRATED = [
   "/",
@@ -30,6 +29,11 @@ const MIGRATED = [
   "/calculator",
   "/chatbot",
   "/compare",
+  "/account",
+  "/admin",
+  "/sales",
+  "/stock",
+  "/analytics",
 ] as const;
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;

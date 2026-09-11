@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { LogoutButton } from "@/components/logout-button";
+import { stripLocale } from "@/lib/i18n/config";
 
 export type DashboardSidebarLink = {
   href: string;
@@ -44,7 +45,10 @@ export const DashboardSidebar = ({
   className = "fixed inset-y-0 left-0 z-30 hidden w-70 bg-card lg:block xl:w-80",
 }: DashboardSidebarProps) => {
   const { t } = useTranslation();
-  const pathname = usePathname();
+  // Routes here now live under `/[lang]/…` — compare against the path with
+  // its locale segment stripped so `href`s (kept bare, e.g. "/admin/overview")
+  // still match, and `/rw/admin/overview` highlights the same tab `/en/…` does.
+  const pathname = stripLocale(usePathname() ?? "/");
   const navAriaLabel = ariaLabel ?? t("dash.sidebar.defaultNav");
 
   return (
