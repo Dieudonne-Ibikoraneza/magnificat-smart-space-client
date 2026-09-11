@@ -75,7 +75,7 @@ const JourneyFunnel = ({
                       ? "cursor-not-allowed border-border"
                       : isActive
                         ? "cursor-pointer border-primary shadow-sm border-3 bg-primary/5"
-                        : "cursor-pointer border-border hover:border-primary/60 hover:-translate-y-0.5 hover:bg-primary/5",
+                        : "cursor-pointer border-border hover:border-primary/60 hover:bg-primary/5 hover:shadow-sm",
                   )}
                 >
                   <div>
