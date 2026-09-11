@@ -1812,7 +1812,8 @@
       "pcs": "{{value}} pcs",
       "selectionPct": "{{value}}% selection",
       "acceptedPct": "{{value}}% accepted",
-      "notSpecified": "Not specified"
+      "notSpecified": "Not specified",
+      "soldSqm": "{{value}} sqm sold"
     },
     "revenueChart": {
       "revenue": "Revenue: RWF {{value}}"

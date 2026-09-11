@@ -774,6 +774,8 @@ export type TilePerformanceRow = {
   compared: number;
   saved: number;
   purchased: number;
+  /** Actual area sold in the period (sum of earned orders' line items), distinct from `purchased` — see that field's own note. */
+  soldAreaSqm: number;
   selectionRate: number;
   purchaseConversion: number;
 };

@@ -1812,7 +1812,8 @@
       "pcs": "piece {{value}}",
       "selectionPct": "{{value}}% byatoranyijwe",
       "acceptedPct": "{{value}}% byemewe",
-      "notSpecified": "Ntabwo byavuzwe"
+      "notSpecified": "Ntabwo byavuzwe",
+      "soldSqm": "metero kare {{value}} zagurishijwe"
     },
     "revenueChart": {
       "revenue": "Amafaranga yinjiye: RWF {{value}}"

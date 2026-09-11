@@ -471,6 +471,9 @@ const PerformanceMetrics = ({ rows, loading }: { rows: TilePerformanceRow[]; loa
                   </TableCell>
                   <TableCell className="whitespace-nowrap font-data text-ink">
                     {formatCompactNumber(product.purchased)}
+                    <span className="mt-0.5 block text-xs font-semibold text-green-600">
+                      {t("analytics.common.soldSqm", { value: product.soldAreaSqm.toLocaleString() })}
+                    </span>
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-ink">
                     {t("analytics.common.views", { value: formatCompactNumber(product.viewed) })}
