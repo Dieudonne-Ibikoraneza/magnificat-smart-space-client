@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { SalesPageHeader } from "@/app/[lang]/sales/layout";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
+import { ListPagination } from "@/components/list-pagination";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,8 @@ import { useApi } from "@/lib/api/use-api";
 import type { ApiOrderItem, OrderStatus } from "@/lib/api/types";
 import type { BadgeProps } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 12;
 
 type OrderSort = "newest" | "oldest" | "amount-high" | "amount-low";
 type DateFilter =
@@ -236,6 +239,7 @@ const OrdersPage = () => {
   const [customDate, setCustomDate] = useState("");
   const [sort, setSort] = useState<OrderSort>("newest");
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { data, loading, error, reload } = useApi(() => ordersApi.list({ limit: 100 }), []);
   const orders = useMemo(() => data?.items ?? [], [data]);
@@ -263,6 +267,21 @@ const OrdersPage = () => {
         : firstAmount - secondAmount;
     });
   }, [orders, query, sort, status, dateFilter, customDate]);
+
+  // Jump back to page 1 whenever a filter narrows/reorders the results —
+  // computed during render (React's documented pattern for "adjusting state
+  // when an input changes") rather than an effect, so it can't cascade an
+  // extra render the way a `setState` inside `useEffect` would.
+  const filtersKey = `${query}|${status}|${dateFilter}|${customDate}|${sort}`;
+  const [prevFiltersKey, setPrevFiltersKey] = useState(filtersKey);
+  if (filtersKey !== prevFiltersKey) {
+    setPrevFiltersKey(filtersKey);
+    setCurrentPage(1);
+  }
+
+  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageItems = results.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
     <>
@@ -424,7 +443,7 @@ const OrdersPage = () => {
           <ApiEmptyState message={t("sales.orders.noResults")} className="py-16" />
         ) : view === "grid" ? (
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {results.map((order) => {
+            {pageItems.map((order) => {
               const items = order.items ?? [];
               return (
                 <li key={order.id}>
@@ -485,7 +504,7 @@ const OrdersPage = () => {
         ) : (
           <section className="overflow-hidden rounded-2xl bg-card">
             <ul className="divide-y divide-[#E5E7EB] md:hidden">
-              {results.map((order) => (
+              {pageItems.map((order) => (
                 <li key={order.id}>
                   <button
                     type="button"
@@ -532,7 +551,7 @@ const OrdersPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {results.map((order) => (
+                  {pageItems.map((order) => (
                     <TableRow
                       key={order.id}
                       role="link"
@@ -575,6 +594,13 @@ const OrdersPage = () => {
             </div>
           </section>
         )}
+        <ListPagination
+          page={safePage}
+          totalPages={totalPages}
+          totalItems={results.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </>
   );

@@ -104,7 +104,12 @@ export type CustomerSummary = ApiUser & {
 export type CustomerDetail = CustomerSummary & {
   favoriteCount: number;
   savedDesignCount: number;
+  /** The current page of the orders list below — see `ordersTotal` for how many pages that actually is. */
   orders: ApiOrder[];
+  /** Every order regardless of status — what `orders` is actually paginated against, distinct from `orderCount` (spend-counted statuses only). */
+  ordersTotal: number;
+  ordersPage: number;
+  ordersLimit: number;
 };
 
 export type StaffSummary = {
@@ -716,10 +721,19 @@ export type JourneyStageAction = {
   detail: unknown;
 };
 
+/**
+ * One stage-specific KPI — `key` is a stable identifier the frontend maps to
+ * a translated label/icon/format (see `METRIC_META` in the journey page);
+ * `value` is raw, never pre-formatted or pre-translated, same as every other
+ * analytics endpoint.
+ */
+export type JourneyStageMetric = { key: string; value: number | string };
+
 export type JourneyStageDetail = {
   stage: JourneyStage;
   period: AnalyticsPeriod;
   userCount: number;
+  metrics: JourneyStageMetric[];
   users: {
     sessionId: string;
     userId: string | null;

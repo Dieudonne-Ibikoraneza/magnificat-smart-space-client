@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   BadgeCheck,
   BarChart3,
@@ -72,13 +73,27 @@ const mockFunnel: ConversionFunnelStage[] = [
  * Falls back to placeholder data when no `stages` prop is passed, so
  * screens not yet wired to the real endpoint still render something.
  */
-export const ConversionFunnel = ({ stages = mockFunnel }: { stages?: ConversionFunnelStage[] }) => {
+export const ConversionFunnel = ({
+  stages = mockFunnel,
+  getHref,
+}: {
+  stages?: ConversionFunnelStage[];
+  /**
+   * Builds the URL a stage's row links to (its own Journey Analytics page,
+   * pre-selected on that stage via `?stage=`) — omit it on a page with no
+   * such page to send the visitor to (e.g. stock's reports page, which has
+   * no Journey Analytics of its own), and the row renders inert instead of
+   * showing a hover affordance that goes nowhere.
+   */
+  getHref?: (stage: JourneyStage) => string;
+}) => {
   const { t } = useTranslation();
   const maxCustomers = Math.max(1, ...stages.map((row) => row.customers));
 
   const funnel = stages.map(({ stage, customers, conversionFromPrevious }, index) => {
     const meta = JOURNEY_STAGE_META[stage];
     return [
+      stage,
       t(JOURNEY_STAGE_TITLE_KEYS[stage]),
       "",
       customers.toLocaleString(),
@@ -101,14 +116,13 @@ export const ConversionFunnel = ({ stages = mockFunnel }: { stages?: ConversionF
     {/* Below sm: straight connector line with uniform-width rows. */}
     <div className="relative mt-7 space-y-3 pl-13 sm:hidden">
       <div className="absolute top-3 bottom-3 left-4.5 w-px bg-border" aria-hidden="true" />
-      {funnel.map(([title, subtitle, count, conversion, Icon], index) => {
+      {funnel.map(([stage, title, subtitle, count, conversion, Icon], index) => {
         const isFirst = index === 0;
         const isLast = index === funnel.length - 1;
-        const interactive = !isFirst && !isLast;
+        const interactive = !isFirst && !isLast && !!getHref;
 
-        return (
+        const row = (
           <div
-            key={title}
             className={cn(
               "group relative transition-all duration-300 ease-in-out will-change-transform",
               interactive ? "cursor-pointer" : isFirst ? "cursor-not-allowed" : "cursor-default",
@@ -157,67 +171,91 @@ export const ConversionFunnel = ({ stages = mockFunnel }: { stages?: ConversionF
             </div>
           </div>
         );
+
+        return interactive ? (
+          <Link key={stage} href={getHref!(stage)} className="block">
+            {row}
+          </Link>
+        ) : (
+          <div key={stage}>{row}</div>
+        );
       })}
     </div>
 
     {/* sm and up: bar width reflects each stage's real share of the top of the funnel. */}
     <div className="mt-7 hidden space-y-3 sm:block">
-      {funnel.map(([title, subtitle, count, conversion, Icon, widthPercent], index) => (
-        <div
-          key={title}
-          className={cn(
-            "group relative flex items-center gap-3 transition-all duration-300 ease-in-out will-change-transform",
-            index > 0 && index < funnel.length - 1
-              ? "cursor-pointer hover:-translate-y-1"
-              : index === 0
-                ? "cursor-not-allowed"
-                : "cursor-default",
-          )}
-        >
+      {funnel.map(([stage, title, subtitle, count, conversion, Icon, widthPercent], index) => {
+        const isFirst = index === 0;
+        const isLast = index === funnel.length - 1;
+        const interactive = !isFirst && !isLast && !!getHref;
+
+        const row = (
           <div
             className={cn(
-              "z-10 flex size-10 shrink-0 items-center justify-center rounded-full transition-all duration-300",
-              index === funnel.length - 1
-                ? "bg-ink text-primary"
-                : index === 0
-                  ? "bg-muted-background text-muted"
-                  : "bg-muted-background text-muted group-hover:bg-primary group-hover:text-ink group-hover:shadow-[0_4px_12px_rgba(196,241,0,0.35)]",
+              "group relative flex items-center gap-3 transition-all duration-300 ease-in-out will-change-transform",
+              interactive ? "cursor-pointer" : isFirst ? "cursor-not-allowed" : "cursor-default",
             )}
           >
-            <Icon className="size-4" />
-          </div>
-          <div
-            style={{ width: `${widthPercent}%` }}
-            className={cn(
-              "flex min-h-12 min-w-0 items-center justify-between rounded-lg border p-4 transition-all duration-300 ease-in-out",
-              index === funnel.length - 1
-                ? "border-ink bg-ink text-white"
-                : index === 0
-                  ? "border-[#E8E8E8] bg-[#F3F3F3] shadow-none"
-                  : "border-[#E8E8E8] bg-[#F3F3F3] shadow-none group-hover:border-primary group-hover:bg-primary/10 group-hover:shadow-[0_6px_18px_rgba(15,39,71,0.08)]",
-            )}
-          >
-            <div>
-              <p className={cn("text-xs font-extrabold tracking-widest uppercase", index === funnel.length - 1 ? "text-primary" : "text-ink")}>
-                {title}
-              </p>
-              {subtitle && (
-                <p className="mt-0.5 text-[8px] font-semibold tracking-wider text-muted uppercase">
-                  {subtitle}
-                </p>
+            <div
+              className={cn(
+                "z-10 flex size-10 shrink-0 items-center justify-center rounded-full transition-all duration-300",
+                isLast
+                  ? "bg-ink text-primary"
+                  : isFirst
+                    ? "bg-muted-background text-muted"
+                    : "bg-muted-background text-muted group-hover:bg-primary group-hover:text-ink group-hover:shadow-[0_4px_12px_rgba(196,241,0,0.35)]",
               )}
+            >
+              <Icon className="size-4" />
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-extrabold leading-none">{count}</p>
-              {conversion && (
-                <p className={cn("mt-1 text-[10px] font-extrabold tracking-widest uppercase", index === funnel.length - 1 ? "text-white/70" : "text-muted")}>
-                  {conversion}
-                </p>
+            {/* Anchored to the row's right edge (`justify-end`) so a
+                narrower stage's empty space falls between the icon and the
+                bar's left edge, not trailing off after the bar's right edge
+                — reads as an actual taper instead of an arbitrary gap that
+                moves around depending on which stage happens to be widest. */}
+            <div className="flex min-w-0 flex-1 justify-end">
+            <div
+              style={{ width: `${widthPercent}%` }}
+              className={cn(
+                "flex min-h-12 min-w-0 items-center justify-between rounded-lg border p-4 transition-all duration-300 ease-in-out",
+                isLast
+                  ? "border-ink bg-ink text-white"
+                  : isFirst
+                    ? "border-[#E8E8E8] bg-[#F3F3F3] shadow-none"
+                    : "border-[#E8E8E8] bg-[#F3F3F3] shadow-none group-hover:border-primary group-hover:bg-primary/10 group-hover:shadow-[0_6px_18px_rgba(15,39,71,0.08)]",
               )}
+            >
+              <div>
+                <p className={cn("text-xs font-extrabold tracking-widest uppercase", isLast ? "text-primary" : "text-ink")}>
+                  {title}
+                </p>
+                {subtitle && (
+                  <p className="mt-0.5 text-[8px] font-semibold tracking-wider text-muted uppercase">
+                    {subtitle}
+                  </p>
+                )}
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-extrabold leading-none">{count}</p>
+                {conversion && (
+                  <p className={cn("mt-1 text-[10px] font-extrabold tracking-widest uppercase", isLast ? "text-white/70" : "text-muted")}>
+                    {conversion}
+                  </p>
+                )}
+              </div>
+            </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+
+        return interactive ? (
+          <Link key={stage} href={getHref!(stage)} className="block">
+            {row}
+          </Link>
+        ) : (
+          <div key={stage}>{row}</div>
+        );
+      })}
     </div>
   </section>
   );

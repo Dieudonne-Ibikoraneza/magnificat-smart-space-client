@@ -784,12 +784,15 @@ const VisualizerPage = () => {
 
   const createdRoomEventFiredRef = useRef(false);
   useEffect(() => {
-    if (!effectiveRoomType || createdRoomEventFiredRef.current) return;
+    if (!activeRoomRow || createdRoomEventFiredRef.current) return;
     createdRoomEventFiredRef.current = true;
+    // `roomId` lets the journey drill-down resolve this to the real Room
+    // (name, type, thumbnail) instead of falling back to a generic "Started
+    // a new room design" — see `journeyStageActions`'s CREATED_ROOM case.
     void eventsApi
-      .journey({ sessionId: getSessionId(), stage: "CREATED_ROOM" })
+      .journey({ sessionId: getSessionId(), stage: "CREATED_ROOM", metadata: { roomId: activeRoomRow.id } })
       .catch(() => undefined);
-  }, [effectiveRoomType]);
+  }, [activeRoomRow]);
 
   const openPicker = () => {
     setPickerClosing(false);

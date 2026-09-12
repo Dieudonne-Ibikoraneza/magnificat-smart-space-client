@@ -363,28 +363,46 @@ const CustomerJourneyFunnel = ({
             const isLast = index === stages.length - 1;
             const titleKey = JOURNEY_STAGE_TITLE_KEYS[step.stage as keyof typeof JOURNEY_STAGE_TITLE_KEYS];
 
+            // Every step but the first opens Journey Analytics pre-selected
+            // on that exact stage — the first has no drill-down of its own
+            // (arriving at the system isn't an action a customer takes),
+            // same as the funnel on the Journey Analytics page itself.
+            const card = (
+              <div
+                className={cn(
+                  "flex h-40 w-[168px] shrink-0 flex-col justify-between rounded-2xl border bg-card p-5 text-left transition-all duration-200",
+                  isLast ? "border-primary bg-primary/5" : "border-border",
+                  !isFirst && "group-hover:border-primary group-hover:shadow-md",
+                )}
+              >
+                <p className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
+                  {t(titleKey)}
+                </p>
+                <div>
+                  <p className="text-3xl font-black text-ink">{formatCompactNumber(step.customers)}</p>
+                  {isFirst ? (
+                    <p className="mt-1 text-xs font-medium text-ink/60">{t("admin.overview.volume100")}</p>
+                  ) : (
+                    <p className="mt-1 text-xs font-medium text-ink/60">
+                      {t("admin.overview.conversionPct", { value: step.conversionFromPrevious.toFixed(0) })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+
             return (
               <div key={step.stage} className="relative flex shrink-0">
-                <div
-                  className={cn(
-                    "flex h-40 w-[168px] shrink-0 flex-col justify-between rounded-2xl border bg-card p-5 text-left transition-all duration-200",
-                    isLast ? "border-primary bg-primary/5" : "border-border",
-                  )}
-                >
-                  <p className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
-                    {t(titleKey)}
-                  </p>
-                  <div>
-                    <p className="text-3xl font-black text-ink">{formatCompactNumber(step.customers)}</p>
-                    {isFirst ? (
-                      <p className="mt-1 text-xs font-medium text-ink/60">{t("admin.overview.volume100")}</p>
-                    ) : (
-                      <p className="mt-1 text-xs font-medium text-ink/60">
-                        {t("admin.overview.conversionPct", { value: step.conversionFromPrevious.toFixed(0) })}
-                      </p>
-                    )}
-                  </div>
-                </div>
+                {isFirst ? (
+                  card
+                ) : (
+                  <Link
+                    href={`/admin/analytics/journey?stage=${step.stage}`}
+                    className="group block shrink-0 transition-transform duration-200"
+                  >
+                    {card}
+                  </Link>
+                )}
                 {!isLast && (
                   <span
                     className={cn(

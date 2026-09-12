@@ -114,16 +114,22 @@ const ProductDetailsPage = ({
 
   // Feeds "Top Viewed Tiles" / Tiles Analytics — fire-and-forget, anonymous-safe
   // (see `events.controller.ts`), and only once the product actually resolves
-  // so a 404 or a mistyped id never counts as a view.
+  // so a 404 or a mistyped id never counts as a view. Also logs the
+  // VIEWED_TILE journey stage alongside it — without this, the journey
+  // funnel's "Tile Viewed" step counted sessions cumulatively (via a later
+  // stage's event crediting backward) but its own drill-down had nothing to
+  // show, since no journey event for this exact stage was ever recorded.
   useEffect(() => {
     if (!apiProduct) return;
+    const sessionId = getSessionId();
     void eventsApi
       .tile({
-        sessionId: getSessionId(),
+        sessionId,
         productId: apiProduct.id,
         type: "VIEWED",
       })
       .catch(() => undefined);
+    void eventsApi.journey({ sessionId, stage: "VIEWED_TILE" }).catch(() => undefined);
   }, [apiProduct]);
 
   const [requiredArea, setRequiredArea] = useState("26");

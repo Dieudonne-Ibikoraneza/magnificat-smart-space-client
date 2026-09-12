@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -8,6 +8,7 @@ import { CalendarDays, Wallet } from "lucide-react";
 import { AnalyticsDetailHeader } from "@/app/[lang]/analytics/layout";
 import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";
+import { ListPagination } from "@/components/list-pagination";
 import { OrderStatusBadge } from "@/components/order-status-control";
 import { Separator } from "@/components/ui/separator";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
@@ -43,10 +44,19 @@ const statusBadge: Record<UserStatus, "primary" | "muted" | "destructive"> = {
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 const formatRWF = (value: string | number) => `RWF ${Math.round(Number(value)).toLocaleString("en-US")}`;
 
+const ORDERS_PAGE_SIZE = 10;
+
 const CustomerDetailPage = ({ params }: CustomerDetailPageProps) => {
   const { t } = useTranslation();
   const { id } = use(params);
-  const { data: customer, loading, error, reload } = useApi(() => usersApi.getCustomer(id), [id]);
+  const [ordersPage, setOrdersPage] = useState(1);
+  // `ordersPage` deliberately isn't in `deps` — see the same note in
+  // sales/customers/[slug]: paging reloads the same query instead of
+  // triggering a "genuinely different query" blank-out of the whole profile.
+  const { data: customer, loading, error, reload } = useApi(
+    () => usersApi.getCustomer(id, { page: ordersPage, limit: ORDERS_PAGE_SIZE }),
+    [id],
+  );
 
   if (loading && !customer) return <ApiLoading label={t("analytics.customerDetail.loading")} className="py-32" />;
 
@@ -58,6 +68,11 @@ const CustomerDetailPage = ({ params }: CustomerDetailPageProps) => {
   if (!customer) return null;
 
   const orders = customer.orders ?? [];
+  const ordersTotalPages = Math.max(1, Math.ceil(customer.ordersTotal / ORDERS_PAGE_SIZE));
+  const goToOrdersPage = (next: number) => {
+    setOrdersPage(next);
+    reload();
+  };
 
   return (
     <>
@@ -192,6 +207,16 @@ const CustomerDetailPage = ({ params }: CustomerDetailPageProps) => {
                   ))}
                 </ul>
               </>
+            )}
+            {orders.length > 0 && (
+              <ListPagination
+                page={ordersPage}
+                totalPages={ordersTotalPages}
+                totalItems={customer.ordersTotal}
+                pageSize={ORDERS_PAGE_SIZE}
+                onPageChange={goToOrdersPage}
+                className="px-5 pb-5 sm:px-6"
+              />
             )}
           </section>
         </div>

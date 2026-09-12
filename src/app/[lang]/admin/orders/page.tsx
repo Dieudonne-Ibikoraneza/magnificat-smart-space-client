@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { AdminPageHeader } from "@/app/[lang]/admin/layout";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
+import { ListPagination } from "@/components/list-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,8 @@ import { useApi } from "@/lib/api/use-api";
 import type { ApiOrderItem, OrderStatus } from "@/lib/api/types";
 import type { BadgeProps } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 12;
 
 type OrderSort = "newest" | "oldest" | "amount-high" | "amount-low";
 type DateFilter =
@@ -269,6 +272,7 @@ const OrdersPage = () => {
   const [customDate, setCustomDate] = useState("");
   const [sort, setSort] = useState<OrderSort>("newest");
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { data, loading, error, reload } = useApi(() => ordersApi.list({ limit: 100 }), []);
   const orders = useMemo(() => data?.items ?? [], [data]);
@@ -296,6 +300,21 @@ const OrdersPage = () => {
         : firstAmount - secondAmount;
     });
   }, [orders, query, sort, status, dateFilter, customDate]);
+
+  // Jump back to page 1 whenever a filter narrows/reorders the results —
+  // computed during render (React's documented pattern for "adjusting state
+  // when an input changes") rather than an effect, so it can't cascade an
+  // extra render the way a `setState` inside `useEffect` would.
+  const filtersKey = `${query}|${status}|${dateFilter}|${customDate}|${sort}`;
+  const [prevFiltersKey, setPrevFiltersKey] = useState(filtersKey);
+  if (filtersKey !== prevFiltersKey) {
+    setPrevFiltersKey(filtersKey);
+    setCurrentPage(1);
+  }
+
+  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageItems = results.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
     <>
@@ -457,13 +476,13 @@ const OrdersPage = () => {
           <ApiEmptyState message={t("sales.orders.noResults")} className="py-16" />
         ) : view === "grid" ? (
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {results.map((order) => (
+            {pageItems.map((order) => (
               <li key={order.id}>
                 <article className="group flex h-full flex-col rounded-2xl bg-card p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                        #{order.id}
+                        #{order.orderNumber}
                       </p>
                       <h2 className="mt-1 truncate text-base font-bold text-ink">
                         {order.customer?.fullName ?? t("sales.orders.unknownCustomer")}
@@ -515,7 +534,7 @@ const OrdersPage = () => {
         ) : (
           <section className="overflow-hidden rounded-2xl bg-card">
             <ul className="divide-y divide-[#E5E7EB] md:hidden">
-              {results.map((order) => (
+              {pageItems.map((order) => (
                 <li key={order.id}>
                   <button
                     type="button"
@@ -524,7 +543,7 @@ const OrdersPage = () => {
                   >
                     <div>
                       <p className="text-sm font-semibold text-ink">
-                        {order.id}
+                        {order.orderNumber}
                       </p>
                       <p className="text-sm text-ink">{order.customer?.fullName ?? t("sales.orders.unknownCustomer")}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
@@ -562,7 +581,7 @@ const OrdersPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {results.map((order) => (
+                  {pageItems.map((order) => (
                     <TableRow
                       key={order.id}
                       role="link"
@@ -577,7 +596,7 @@ const OrdersPage = () => {
                       }}
                     >
                       <TableCell className="font-semibold">
-                        {order.id}
+                        {order.orderNumber}
                       </TableCell>
                       <TableCell>{order.customer?.fullName ?? t("sales.orders.unknownCustomer")}</TableCell>
                       <TableCell className="whitespace-nowrap">
@@ -605,6 +624,13 @@ const OrdersPage = () => {
             </div>
           </section>
         )}
+        <ListPagination
+          page={safePage}
+          totalPages={totalPages}
+          totalItems={results.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </>
   );

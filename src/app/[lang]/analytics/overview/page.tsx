@@ -356,7 +356,9 @@ const AnalyticsOverviewPage = () => {
           </section>
         </div>
 
-        {overview && <ConversionFunnel stages={funnelStages} />}
+        {overview && (
+          <ConversionFunnel stages={funnelStages} getHref={(stage) => `/analytics/journey?stage=${stage}`} />
+        )}
       </div>
     </>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -9,6 +9,7 @@ import { SalesDetailHeader } from "@/app/[lang]/sales/layout";
 import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ListPagination } from "@/components/list-pagination";
 import { OrderStatusBadge } from "@/components/order-status-control";
 import { Separator } from "@/components/ui/separator";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
@@ -36,10 +37,21 @@ const statusBadge: Record<UserStatus, "primary" | "muted" | "destructive"> = {
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 const formatRWF = (value: string | number) => `RWF ${Math.round(Number(value)).toLocaleString("en-US")}`;
 
+const ORDERS_PAGE_SIZE = 10;
+
 const CustomerDetailPage = ({ params }: CustomerDetailPageProps) => {
   const { t } = useTranslation();
   const { slug: id } = use(params);
-  const { data: customer, loading, error, reload } = useApi(() => usersApi.getCustomer(id), [id]);
+  const [ordersPage, setOrdersPage] = useState(1);
+  // `ordersPage` is deliberately not in `deps` below — paging the orders
+  // list re-runs the same query (via `reload()`, reading the latest
+  // `ordersPage` through the fetcher closure) instead of a "genuinely
+  // different query", so the whole profile doesn't blank out while only the
+  // orders table refreshes. See `useApi`'s doc comment for that distinction.
+  const { data: customer, loading, error, reload } = useApi(
+    () => usersApi.getCustomer(id, { page: ordersPage, limit: ORDERS_PAGE_SIZE }),
+    [id],
+  );
 
   if (loading && !customer) return <ApiLoading label={t("sales.customerDetail.loading")} className="py-32" />;
 
@@ -51,6 +63,11 @@ const CustomerDetailPage = ({ params }: CustomerDetailPageProps) => {
   if (!customer) return null;
 
   const orders = customer.orders ?? [];
+  const ordersTotalPages = Math.max(1, Math.ceil(customer.ordersTotal / ORDERS_PAGE_SIZE));
+  const goToOrdersPage = (next: number) => {
+    setOrdersPage(next);
+    reload();
+  };
 
   return (
     <>
@@ -204,6 +221,16 @@ const CustomerDetailPage = ({ params }: CustomerDetailPageProps) => {
                   ))}
                 </ul>
               </>
+            )}
+            {orders.length > 0 && (
+              <ListPagination
+                page={ordersPage}
+                totalPages={ordersTotalPages}
+                totalItems={customer.ordersTotal}
+                pageSize={ORDERS_PAGE_SIZE}
+                onPageChange={goToOrdersPage}
+                className="px-5 pb-5 sm:px-6"
+              />
             )}
           </section>
         </div>

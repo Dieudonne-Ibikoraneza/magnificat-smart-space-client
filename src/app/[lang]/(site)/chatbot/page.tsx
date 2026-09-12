@@ -127,6 +127,20 @@ const isRoomQuestion = (question: ProfilingQuestion) => /room/i.test(question.te
 /** Whether this is the room-size question ("What is the approximate size of the space?") — answering it is the journey funnel's "ENTERED_DIMENSIONS" stage. */
 const isSizeQuestion = (question: ProfilingQuestion) => /size|sqm|square met|dimension/i.test(question.text);
 
+/**
+ * Best-effort area out of a free-text answer to the size question (e.g.
+ * "20 sqm", "about 25", "5m x 4m") — the first number found, or `undefined`
+ * when there isn't one to parse. Feeds the journey drill-down's "what was
+ * entered" detail; a miss just means that event falls back to a generic
+ * summary server-side, same as never sending it at all.
+ */
+const areaSqmFromAnswer = (answer: string): number | undefined => {
+  const match = answer.match(/\d+(\.\d+)?/);
+  if (!match) return undefined;
+  const value = Number(match[0]);
+  return Number.isFinite(value) ? value : undefined;
+};
+
 /** "Living Room (Saloon)" -> "living room" — matches a typed answer against the label even with the parenthetical aside stripped. */
 const coreRoomLabel = (label: string) => label.replace(/\s*\(.*?\)\s*/g, "").trim().toLowerCase();
 
@@ -555,8 +569,13 @@ export default function ChatbotPage() {
 
     if (!enteredDimensionsFiredRef.current && isSizeQuestion(question)) {
       enteredDimensionsFiredRef.current = true;
+      const areaSqm = areaSqmFromAnswer(answerText);
       void eventsApi
-        .journey({ sessionId: getSessionId(), stage: "ENTERED_DIMENSIONS" })
+        .journey({
+          sessionId: getSessionId(),
+          stage: "ENTERED_DIMENSIONS",
+          metadata: areaSqm !== undefined ? { areaSqm } : undefined,
+        })
         .catch(() => undefined);
     }
 

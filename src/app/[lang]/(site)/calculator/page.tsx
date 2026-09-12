@@ -133,8 +133,11 @@ export default function FloorPlanCalculatorPage() {
           setCalcError(null);
           if (!enteredDimensionsFiredRef.current) {
             enteredDimensionsFiredRef.current = true;
+            // `areaSqm` lets the journey drill-down show what was actually
+            // entered instead of a generic "Entered room dimensions" — see
+            // `journeyStageActions`'s ENTERED_DIMENSIONS case.
             void eventsApi
-              .journey({ sessionId: getSessionId(), stage: "ENTERED_DIMENSIONS" })
+              .journey({ sessionId: getSessionId(), stage: "ENTERED_DIMENSIONS", metadata: { areaSqm: baseArea } })
               .catch(() => undefined);
           }
         })

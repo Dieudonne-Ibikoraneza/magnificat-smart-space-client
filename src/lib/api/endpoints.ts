@@ -116,7 +116,8 @@ export const usersApi = {
   listCustomers: (
     query: { page?: number; limit?: number; search?: string; status?: UserStatus; sort?: "newest" | "spend" } = {},
   ) => api.get<Paginated<CustomerSummary>>("/users/customers", { query }),
-  getCustomer: (id: string) => api.get<CustomerDetail>(`/users/customers/${id}`),
+  getCustomer: (id: string, query: { page?: number; limit?: number } = {}) =>
+    api.get<CustomerDetail>(`/users/customers/${id}`, { query }),
 
   staffSummary: () => api.get<StaffSummary>("/users/staff/summary"),
   listStaff: (
