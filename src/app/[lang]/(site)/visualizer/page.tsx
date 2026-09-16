@@ -27,13 +27,18 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api/client";
 import { collectionsApi, eventsApi, productsApi, roomsApi, toProduct, tokenStore } from "@/lib/api";
+import { localizedText } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
+import { useLocale } from "@/lib/i18n";
 import type { ApiCollection, ApiRoom, RoomType } from "@/lib/api/types";
 import { useCart } from "@/lib/cart-store";
+import { useCurrentUser } from "@/lib/current-user";
 import { getSessionId } from "@/lib/session-id";
 import { cn } from "@/lib/utils";
 
 type Surface = "floor" | "walls";
+type SurfaceSelections = Record<Surface, Product | null>;
+const EMPTY_SELECTIONS: SurfaceSelections = { floor: null, walls: null };
 
 /**
  * The four room types the app supports, each with a 3D scene authored
@@ -227,7 +232,8 @@ const AppliedTilesCart = ({
 }: {
   floorTile?: Product;
   wallTile?: Product;
-  onAddToCart: (product: Product) => void;
+  /** Absent for staff — favorites/cart are a customer feature, so they see what's applied without a cart button. */
+  onAddToCart?: (product: Product) => void;
 }) => {
   const { t } = useTranslation();
   const sameTile = !!floorTile && floorTile.id === wallTile?.id;
@@ -254,15 +260,17 @@ const AppliedTilesCart = ({
               {t(labelKey)} · {formatPrice(product.price)} {t("visualizer.pricePerSqm")}
             </p>
           </div>
-          <Button
-            type="button"
-            onClick={() => onAddToCart(product)}
-            disabled={product.stockStatus === "out_of_stock"}
-            className="h-9 shrink-0 gap-1.5 px-3 text-xs font-bold text-ink bg-primary hover:bg-primary/90 disabled:opacity-60"
-          >
-            <ShoppingCart className="size-3.5" strokeWidth={2} />
-            {product.stockStatus === "out_of_stock" ? t("visualizer.soldOut") : t("visualizer.add")}
-          </Button>
+          {onAddToCart && (
+            <Button
+              type="button"
+              onClick={() => onAddToCart(product)}
+              disabled={product.stockStatus === "out_of_stock"}
+              className="h-9 shrink-0 gap-1.5 px-3 text-xs font-bold text-ink bg-primary hover:bg-primary/90 disabled:opacity-60"
+            >
+              <ShoppingCart className="size-3.5" strokeWidth={2} />
+              {product.stockStatus === "out_of_stock" ? t("visualizer.soldOut") : t("visualizer.add")}
+            </Button>
+          )}
         </div>
       ))}
     </div>
@@ -300,7 +308,7 @@ const ConfigureSpacePanel = ({
   onOpenSaveDialog: () => void;
   floorTile?: Product;
   wallTile?: Product;
-  onAddTileToCart: (product: Product) => void;
+  onAddTileToCart?: (product: Product) => void;
 }) => {
   const { t } = useTranslation();
 
@@ -531,8 +539,11 @@ const SaveDesignDialog = ({
 
 const VisualizerPage = () => {
   const { t } = useTranslation();
+  const { locale } = useLocale();
   const router = useRouter();
   const cart = useCart();
+  const { user } = useCurrentUser();
+  const isClient = user?.role === "CLIENT";
   const searchParams = useSearchParams();
   const designIdParam = searchParams.get("design");
   // Read once, from whatever the URL had on first render — `router.replace`
@@ -553,10 +564,13 @@ const VisualizerPage = () => {
   const [pickerClosing, setPickerClosing] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [selections, setSelections] = useState<Record<Surface, Product | null>>({
-    floor: null,
-    walls: null,
-  });
+  // Keyed by room type — a tile picked while designing the bathroom must
+  // never bleed onto the bedroom (or any other room) just because they share
+  // this one page. Each room keeps its own floor/wall picks, and switching
+  // tabs only ever reads/writes the entry for whichever room is active.
+  const [selectionsByRoom, setSelectionsByRoom] = useState<
+    Partial<Record<RoomType, SurfaceSelections>>
+  >({});
 
   const {
     data: apiRooms,
@@ -608,14 +622,21 @@ const VisualizerPage = () => {
       setActiveRoomType(roomType);
     }
 
-    const nextSelections: Record<Surface, Product | null> = { floor: null, walls: null };
+    const nextSelections: SurfaceSelections = { floor: null, walls: null };
     for (const tile of existingDesign.tiles) {
       if (tile.product) {
         const surface: Surface = tile.surface === "WALL" ? "walls" : "floor";
-        nextSelections[surface] = toProduct(tile.product, tile.product.collection?.title);
+        nextSelections[surface] = toProduct(tile.product, undefined, locale);
       }
     }
-    setSelections(nextSelections);
+    // Written directly against the design's own room type, not the generic
+    // per-room setter below — `activeRoomType` above hasn't actually taken
+    // effect yet this render (state updates batch), so `effectiveRoomType`
+    // would still resolve to whatever room was active *before* this design
+    // loaded, silently misfiling these tiles under the wrong room.
+    if (roomType) {
+      setSelectionsByRoom((current) => ({ ...current, [roomType]: nextSelections }));
+    }
   }
 
   const {
@@ -629,45 +650,96 @@ const VisualizerPage = () => {
 
   const collectionsList = useMemo(() => collectionsPage?.items ?? [], [collectionsPage]);
   const collectionTitleById = useMemo(
-    () => new Map(collectionsList.map((collection) => [collection.id, collection.title])),
-    [collectionsList],
+    () =>
+      new Map(
+        collectionsList.map((collection) => [
+          collection.id,
+          localizedText(collection.title, collection.titleRw, locale),
+        ]),
+      ),
+    [collectionsList, locale],
   );
   const mappedProducts = useMemo(
     () =>
       (productsPage?.items ?? []).map((product) =>
-        toProduct(product, collectionTitleById.get(product.collectionId)),
+        toProduct(product, collectionTitleById.get(product.collectionId), locale),
       ),
-    [productsPage, collectionTitleById],
+    [productsPage, collectionTitleById, locale],
   );
 
-  // The room used to always open pre-tiled rather than bare — replicate that
-  // once the first product list loads, preferring whatever `?floor=`/`?wall=`
-  // named (a shared/bookmarked link) and otherwise falling back to the first
-  // floor-suitable and first wall-suitable product from the API — not just
-  // the same first product for both, since a floor-only or wall-only tile
-  // would then get wrongly defaulted onto the surface it can't go on.
-  // Skipped when a saved design is being loaded via `?design=`, so it can't
-  // stomp that design's own tiles.
-  const [defaultTileApplied, setDefaultTileApplied] = useState(false);
-  if (!defaultTileApplied && !designIdParam && mappedProducts.length > 0) {
-    setDefaultTileApplied(true);
-    const floorFromUrl = initialFloorParam
-      ? mappedProducts.find((product) => product.id === initialFloorParam)
-      : undefined;
-    const wallFromUrl = initialWallParam
-      ? mappedProducts.find((product) => product.id === initialWallParam)
-      : undefined;
+  // Every room used to always open pre-tiled rather than bare — replicate
+  // that once each room's own product list first loads, preferring whatever
+  // `?floor=`/`?wall=` named (a shared/bookmarked link — only meaningful for
+  // the room that link actually pointed at, never a room switched to later)
+  // and otherwise falling back to the first floor-suitable and first
+  // wall-suitable product from that room's own API results — not just the
+  // same first product for both, since a floor-only or wall-only tile would
+  // then get wrongly defaulted onto the surface it can't go on. Tracked per
+  // room type so switching to a room that's never been visited this session
+  // still gets its own defaults, without re-defaulting (and stomping the
+  // customer's own picks) on a room switched back to. Skipped when a saved
+  // design is being loaded via `?design=`, so it can't stomp that design's
+  // own tiles.
+  const [defaultAppliedRooms, setDefaultAppliedRooms] = useState<Set<RoomType>>(
+    () => new Set(),
+  );
+  if (
+    effectiveRoomType &&
+    !defaultAppliedRooms.has(effectiveRoomType) &&
+    !designIdParam &&
+    mappedProducts.length > 0
+  ) {
+    const roomType = effectiveRoomType;
+    setDefaultAppliedRooms((current) => new Set(current).add(roomType));
+    const isInitialRoom = initialRoomParam === roomType;
+    const floorFromUrl =
+      isInitialRoom && initialFloorParam
+        ? mappedProducts.find(
+            (product) =>
+              product.id === initialFloorParam &&
+              (product.suitableFor === "floor" || product.suitableFor === "both"),
+          )
+        : undefined;
+    const wallFromUrl =
+      isInitialRoom && initialWallParam
+        ? mappedProducts.find(
+            (product) =>
+              product.id === initialWallParam &&
+              (product.suitableFor === "wall" || product.suitableFor === "both"),
+          )
+        : undefined;
     const firstFloorTile = mappedProducts.find(
       (product) => product.suitableFor === "floor" || product.suitableFor === "both",
     );
     const firstWallTile = mappedProducts.find(
       (product) => product.suitableFor === "wall" || product.suitableFor === "both",
     );
-    setSelections((current) => ({
-      floor: current.floor ?? floorFromUrl ?? firstFloorTile ?? mappedProducts[0],
-      walls: current.walls ?? wallFromUrl ?? firstWallTile ?? mappedProducts[0],
-    }));
+    setSelectionsByRoom((current) => {
+      const currentForRoom = current[roomType] ?? EMPTY_SELECTIONS;
+      return {
+        ...current,
+        [roomType]: {
+          floor: currentForRoom.floor ?? floorFromUrl ?? firstFloorTile ?? mappedProducts[0],
+          walls: currentForRoom.walls ?? wallFromUrl ?? firstWallTile ?? mappedProducts[0],
+        },
+      };
+    });
   }
+
+  const selections: SurfaceSelections =
+    (effectiveRoomType && selectionsByRoom[effectiveRoomType]) || EMPTY_SELECTIONS;
+
+  const setSelections = (
+    updater: SurfaceSelections | ((current: SurfaceSelections) => SurfaceSelections),
+  ) => {
+    if (!effectiveRoomType) return;
+    const roomType = effectiveRoomType;
+    setSelectionsByRoom((current) => {
+      const currentForRoom = current[roomType] ?? EMPTY_SELECTIONS;
+      const next = typeof updater === "function" ? updater(currentForRoom) : updater;
+      return { ...current, [roomType]: next };
+    });
+  };
 
   // Keeps the URL reflecting whatever's actually selected — room, floor
   // tile, wall tile — so the current view is shareable/bookmarkable and
@@ -702,12 +774,20 @@ const VisualizerPage = () => {
 
   const filteredCollections = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
+    // A floor-only tile picked while the "Walls" tab is active (or vice
+    // versa) is exactly the mismatch registration's own "Suitable For"
+    // field exists to prevent — the picker must only ever offer what the
+    // customer could actually apply to the surface they're configuring.
+    const suitableForActiveSurface = (product: Product) =>
+      product.suitableFor === "both" ||
+      (activeSurface === "floor" ? product.suitableFor === "floor" : product.suitableFor === "wall");
 
     return collectionsList
       .map((collection) => ({
         collection,
         products: mappedProducts.filter((product) => {
           if (product.collectionId !== collection.id) return false;
+          if (!suitableForActiveSurface(product)) return false;
           if (!query) return true;
           return (
             product.name.toLowerCase().includes(query) ||
@@ -720,7 +800,7 @@ const VisualizerPage = () => {
         ({ collection, products: collectionProducts }) =>
           collectionProducts.length > 0 || collection.title.toLowerCase().includes(query),
       );
-  }, [collectionsList, mappedProducts, searchQuery]);
+  }, [collectionsList, mappedProducts, searchQuery, activeSurface]);
 
   const [openAccordionItems, setOpenAccordionItems] = useState<string[]>(() =>
     filteredCollections.length > 0 ? [filteredCollections[0].collection.id] : [],
@@ -886,7 +966,7 @@ const VisualizerPage = () => {
     onOpenSaveDialog: openSaveDialog,
     floorTile,
     wallTile,
-    onAddTileToCart: addTileToCart,
+    onAddTileToCart: isClient ? addTileToCart : undefined,
   };
 
   if (roomsLoading || collectionsLoading) {
@@ -969,14 +1049,16 @@ const VisualizerPage = () => {
                 <Layers3 className="size-4" strokeWidth={2} />
                 {selectedProduct ? t("visualizer.changeTile") : t("visualizer.chooseTiles")}
               </Button>
-              <Button
-                type="button"
-                onClick={openSaveDialog}
-                className="h-11 shrink-0 gap-2 bg-primary px-3 text-sm font-bold text-ink hover:bg-primary/90"
-                aria-label={t("visualizer.saveDesignAria")}
-              >
-                <Bookmark className="size-4" strokeWidth={2} />
-              </Button>
+              {isClient && (
+                <Button
+                  type="button"
+                  onClick={openSaveDialog}
+                  className="h-11 shrink-0 gap-2 bg-primary px-3 text-sm font-bold text-ink hover:bg-primary/90"
+                  aria-label={t("visualizer.saveDesignAria")}
+                >
+                  <Bookmark className="size-4" strokeWidth={2} />
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -987,7 +1069,7 @@ const VisualizerPage = () => {
             panelHeight,
           )}
         >
-          <ConfigureSpacePanel {...configurePanelProps} />
+          <ConfigureSpacePanel {...configurePanelProps} showActions={isClient} />
         </aside>
       </div>
 
