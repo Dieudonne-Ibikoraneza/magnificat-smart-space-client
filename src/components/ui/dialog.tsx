@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ function DialogContent({
   showClose = true,
   ...props
 }: DialogPrimitive.Popup.Props & { showClose?: boolean }) {
+  const { t } = useTranslation();
   return (
     <DialogPrimitive.Portal>
       <DialogBackdrop />
@@ -60,7 +62,7 @@ function DialogContent({
           {children}
           {showClose && (
             <DialogPrimitive.Close
-              aria-label="Close"
+              aria-label={t("ui.close")}
               className="absolute top-4 right-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-ink"
             >
               <X className="size-4" />

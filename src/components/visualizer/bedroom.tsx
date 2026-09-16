@@ -46,7 +46,7 @@ const CAMERA_CONFIG: CameraConfig = {
   horizontalFov: 58,
   orbitLimits: {
     // Close enough to read the tile's texture/grout lines up close; `bounds`
-    // (not this number) is what actually keeps clear of the bed, so pulling
+  // (not this number) is what actually keeps clear of the bed, so pulling
     // this in further can't newly clip anything.
     minDistance: 0.6,
     // Mounting landed exactly on `maxDistance` before, which left no room

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
 import { Headset, Mail, MessageCircle, Phone } from "lucide-react";
 import {
   Dialog,
@@ -13,23 +14,15 @@ import {
 
 export type OrderSupportReason = "edit" | "stuck";
 
-const copy: Record<OrderSupportReason, { title: string; description: string }> = {
-  edit: {
-    title: "Need to change this order?",
-    description:
-      "Once an order has been submitted it can no longer be edited directly here, to keep the quotation and stock allocation accurate. Our customer support team can make the change for you.",
-  },
-  stuck: {
-    title: "Order not moving forward?",
-    description:
-      "If this order seems stuck or you haven't heard back yet, our customer support team can check its status with the stock team and follow up with you directly.",
-  },
+const COPY_KEYS: Record<OrderSupportReason, { title: string; description: string }> = {
+  edit: { title: "dash.orderSupport.editTitle", description: "dash.orderSupport.editDescription" },
+  stuck: { title: "dash.orderSupport.stuckTitle", description: "dash.orderSupport.stuckDescription" },
 };
 
 const channels = [
-  { icon: Phone, label: "Call us", value: "+250 788 300 400", href: "tel:+250788300400" },
-  { icon: Mail, label: "Email us", value: "support@magnificatsmartspace.rw", href: "mailto:support@magnificatsmartspace.rw" },
-  { icon: MessageCircle, label: "WhatsApp", value: "+250 788 300 400", href: "https://wa.me/250788300400" },
+  { icon: Phone, labelKey: "dash.orderSupport.callUs", value: "+250 788 300 400", href: "tel:+250788300400" },
+  { icon: Mail, labelKey: "dash.orderSupport.emailUs", value: "support@magnificatsmartspace.rw", href: "mailto:support@magnificatsmartspace.rw" },
+  { icon: MessageCircle, labelKey: "dash.orderSupport.whatsapp", value: "+250 788 300 400", href: "https://wa.me/250788300400" },
 ];
 
 export const OrderSupportDialog = ({
@@ -39,7 +32,9 @@ export const OrderSupportDialog = ({
   reason?: OrderSupportReason;
   trigger: React.ReactNode;
 }) => {
-  const { title, description } = copy[reason];
+  const { t } = useTranslation();
+  const title = t(COPY_KEYS[reason].title);
+  const description = t(COPY_KEYS[reason].description);
 
   return (
     <Dialog>
@@ -54,9 +49,9 @@ export const OrderSupportDialog = ({
         </DialogHeader>
 
         <div className="mt-5 space-y-2.5">
-          {channels.map(({ icon: Icon, label, value, href }) => (
+          {channels.map(({ icon: Icon, labelKey, value, href }) => (
             <a
-              key={label}
+              key={labelKey}
               href={href}
               target={href.startsWith("http") ? "_blank" : undefined}
               rel={href.startsWith("http") ? "noreferrer" : undefined}
@@ -66,7 +61,7 @@ export const OrderSupportDialog = ({
                 <Icon className="size-4" />
               </span>
               <span className="min-w-0">
-                <span className="block text-xs font-semibold tracking-wide text-muted-foreground uppercase">{label}</span>
+                <span className="block text-xs font-semibold tracking-wide text-muted-foreground uppercase">{t(labelKey)}</span>
                 <span className="block truncate text-sm font-medium text-ink">{value}</span>
               </span>
             </a>
@@ -75,7 +70,7 @@ export const OrderSupportDialog = ({
 
         <DialogFooter>
           <p className="text-xs text-muted-foreground sm:mr-auto sm:self-center">
-            Our team typically responds within one business hour.
+            {t("dash.orderSupport.responseNote")}
           </p>
         </DialogFooter>
       </DialogContent>

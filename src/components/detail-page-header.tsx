@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Menu, MoreHorizontal } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -17,6 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { LanguageMenu } from "@/components/language-menu";
 
 export type DetailBreadcrumbItem = { label: string; href?: string };
 
@@ -53,6 +55,7 @@ const CrumbTrail = ({ items }: { items: DetailBreadcrumbItem[] }) => (
 
 /** Single-line breadcrumb trail; middle links collapse behind a "..." menu once they no longer fit. */
 const DetailBreadcrumbTrail = ({ items }: { items: DetailBreadcrumbItem[] }) => {
+  const { t } = useTranslation();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -97,7 +100,7 @@ const DetailBreadcrumbTrail = ({ items }: { items: DetailBreadcrumbItem[] }) => 
                   render={
                     <button
                       type="button"
-                      aria-label="Show hidden breadcrumb links"
+                      aria-label={t("staff.breadcrumb.showHidden")}
                       className="flex size-5 items-center justify-center rounded hover:bg-secondary hover:text-ink"
                     />
                   }
@@ -124,18 +127,22 @@ const DetailBreadcrumbTrail = ({ items }: { items: DetailBreadcrumbItem[] }) => 
   );
 };
 
-export const DetailPageHeader = ({ breadcrumbs, title, onOpenMenu, actions, meta }: DetailPageHeaderProps) => (
+export const DetailPageHeader = ({ breadcrumbs, title, onOpenMenu, actions, meta }: DetailPageHeaderProps) => {
+  const { t } = useTranslation();
+
+  return (
   <div className="pb-5 sm:pb-6">
     <div className="flex items-center gap-3">
       <button
         type="button"
-        aria-label="Open menu"
+        aria-label={t("staff.header.openMenu")}
         onClick={onOpenMenu}
         className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-ink hover:bg-secondary lg:hidden"
       >
         <Menu className="size-5" />
       </button>
       <DetailBreadcrumbTrail items={breadcrumbs} />
+      <LanguageMenu className="shrink-0" />
     </div>
 
     <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
@@ -145,4 +152,5 @@ export const DetailPageHeader = ({ breadcrumbs, title, onOpenMenu, actions, meta
 
     {meta ? <div className="mt-3 flex flex-wrap items-center gap-3">{meta}</div> : null}
   </div>
-);
+  );
+};

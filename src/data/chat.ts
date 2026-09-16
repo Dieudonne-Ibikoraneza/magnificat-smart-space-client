@@ -1,11 +1,22 @@
-export const roomOptions = ["Living Room", "Bathroom", "Bedroom", "Kitchen", "Balcony"];
+export const roomOptions = ["Living Room", "Bathroom", "Bedroom", "Kitchen"];
 
-/** Suggested prompts shown once the assistant has made its first recommendation — each just sends its `text` as a real chat message. */
-export type FollowUp = { id: string; text: string };
+/**
+ * Suggested prompts shown once the assistant has made its first recommendation
+ * — each sends its resolved `textKey` (see `chatbot.followUps.*`) as a real
+ * chat message.
+ */
+export type FollowUp = {
+  id: string;
+  textKey:
+    | "chatbot.followUps.livingRoom"
+    | "chatbot.followUps.bathroom"
+    | "chatbot.followUps.kitchen"
+    | "chatbot.followUps.durable";
+};
 
 export const followUps: FollowUp[] = [
-  { id: "living-room", text: "I need premium large-format slabs for a grand living room." },
-  { id: "balcony", text: "Do you have anything suitable for outdoor balconies?" },
-  { id: "kitchen", text: "What tiles are best for a modern kitchen?" },
-  { id: "durable", text: "Show me the most durable floor tiles." },
+  { id: "living-room", textKey: "chatbot.followUps.livingRoom" },
+  { id: "bathroom", textKey: "chatbot.followUps.bathroom" },
+  { id: "kitchen", textKey: "chatbot.followUps.kitchen" },
+  { id: "durable", textKey: "chatbot.followUps.durable" },
 ];

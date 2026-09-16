@@ -58,7 +58,7 @@ const tileMetres = (product: Product): [number, number] => {
  */
 const useTileTexture = (
   product: Product | undefined,
-): { texture: THREE.Texture | null; ready: boolean } => {
+): { texture: THREE.Texture | null; ready: boolean; tileSize: [number, number] | null } => {
   const productId = product?.id;
 
   // Switching tiles keeps showing the *previous* one until the new image has
@@ -71,14 +71,16 @@ const useTileTexture = (
   const [loaded, setLoaded] = useState<{
     id: string | undefined;
     texture: THREE.Texture | null;
+    tileSize: [number, number] | null;
     ready: boolean;
   }>({
     id: productId,
     texture: null,
+    tileSize: null,
     ready: productId === undefined,
   });
   if (productId === undefined && loaded.id !== undefined) {
-    setLoaded({ id: undefined, texture: null, ready: true });
+    setLoaded({ id: undefined, texture: null, tileSize: null, ready: true });
   }
 
   useEffect(() => {
@@ -89,7 +91,7 @@ const useTileTexture = (
     setLoaded((current) =>
       current.id === product.id && current.ready
         ? current
-        : { id: product.id, texture: current.texture, ready: false },
+        : { id: product.id, texture: current.texture, tileSize: current.tileSize, ready: false },
     );
 
     const loader = new THREE.TextureLoader();
@@ -111,7 +113,7 @@ const useTileTexture = (
           texture.colorSpace = THREE.SRGBColorSpace;
           texture.anisotropy = 8;
           texture.repeat.set(1 / width, 1 / height);
-          setLoaded({ id: product.id, texture, ready: true });
+          setLoaded({ id: product.id, texture, tileSize: [width, height], ready: true });
         },
         undefined,
         // A single failed fetch is often transient — e.g. the network
@@ -130,7 +132,7 @@ const useTileTexture = (
             }, TEXTURE_RETRY_DELAY_MS);
             return;
           }
-          setLoaded({ id: product.id, texture: null, ready: true });
+          setLoaded({ id: product.id, texture: null, tileSize: null, ready: true });
         },
       );
     };
@@ -147,7 +149,7 @@ const useTileTexture = (
   // Ready only when the settled entry is for the *current* product — otherwise
   // we're still on the previous tile's texture mid-switch.
   const ready = productId === undefined ? true : loaded.ready && loaded.id === productId;
-  return { texture: loaded.texture, ready };
+  return { texture: loaded.texture, ready, tileSize: loaded.tileSize };
 };
 
 /**
@@ -161,10 +163,40 @@ const useTileTexture = (
  * simply vanished and you saw straight through it to the shell behind, which
  * looked exactly like "the tile never got applied to the big wall."
  */
-const useTileMaterial = (texture: THREE.Texture | null) => {
+/**
+ * Real grout width, in metres — thin enough to read as a seam rather than a
+ * border, independent of tile size. 3mm is a typical rectified-tile grout
+ * joint.
+ */
+const GROUT_WIDTH_M = 0.003;
+
+/**
+ * How much the grout line darkens the tile's own colour at its center (1 =
+ * unchanged, 0 = black). Drawn as a shadowed groove rather than a flat paint
+ * colour so it reads correctly against any tile photo — dark terrazzo, pale
+ * beige, whatever's selected — without a per-product grout-colour field.
+ */
+const GROUT_DARKEN = 0.4;
+
+/**
+ * Source photos for tiles like these (`Terrazzo Tile No Lighting No
+ * Border.png`, `Beige Tile Only No Lighting HD.png`) are shot edge-to-edge
+ * with no grout baked in, so a repeating texture alone reads as one seamless
+ * slab instead of individual tiles. This bakes a thin darkened seam into the
+ * material at every tile-repeat boundary via `onBeforeCompile`, using the
+ * map's own UV varying (`vMapUv`, not the general `vUv` — three's
+ * per-texture UV-channel support means `map_fragment` samples through its
+ * own varying) post-`uvTransform` — which, since `useTileTexture` sets
+ * `texture.repeat = 1 / tileMetres`, already lands in "tile units" (one
+ * integer step per tile) — so `fract(vMapUv)` is the pixel's position
+ * within its own tile with no extra tile-size bookkeeping needed here. `fwidth`
+ * anti-aliases the line against screen-space derivatives so it doesn't
+ * shimmer/moire as the camera moves further from the floor.
+ */
+const useTileMaterial = (texture: THREE.Texture | null, tileSize: [number, number] | null) => {
   const material = useMemo(
     () =>
-      texture
+      texture && tileSize
         ? new THREE.MeshStandardMaterial({
             map: texture,
             roughness: 0.45,
@@ -172,8 +204,35 @@ const useTileMaterial = (texture: THREE.Texture | null) => {
             side: THREE.DoubleSide,
           })
         : null,
-    [texture],
+    [texture, tileSize],
   );
+
+  useEffect(() => {
+    if (!material || !tileSize) return;
+    const [width, height] = tileSize;
+    const groutFractionX = Math.min(GROUT_WIDTH_M / width, 0.45);
+    const groutFractionY = Math.min(GROUT_WIDTH_M / height, 0.45);
+    material.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        "#include <map_fragment>",
+        `
+        #include <map_fragment>
+        #ifdef USE_MAP
+        {
+          vec2 tileUv = fract(vMapUv);
+          vec2 edgeDist = min(tileUv, 1.0 - tileUv);
+          vec2 groutFraction = vec2(${groutFractionX.toFixed(6)}, ${groutFractionY.toFixed(6)});
+          vec2 aa = max(fwidth(vMapUv), vec2(1e-4));
+          vec2 seam = smoothstep(groutFraction - aa, groutFraction + aa, edgeDist);
+          float shade = min(seam.x, seam.y);
+          diffuseColor.rgb *= mix(${GROUT_DARKEN.toFixed(3)}, 1.0, shade);
+        }
+        #endif
+        `,
+      );
+    };
+    material.needsUpdate = true;
+  }, [material, tileSize]);
 
   useEffect(() => () => material?.dispose(), [material]);
 
@@ -989,8 +1048,8 @@ const RoomModel = ({
 
   const floorTexture = useTileTexture(floorTile);
   const wallTexture = useTileTexture(wallTile);
-  const floorMaterial = useTileMaterial(floorTexture.texture);
-  const wallMaterial = useTileMaterial(wallTexture.texture);
+  const floorMaterial = useTileMaterial(floorTexture.texture, floorTexture.tileSize);
+  const wallMaterial = useTileMaterial(wallTexture.texture, wallTexture.tileSize);
   const tilesReady = floorTexture.ready && wallTexture.ready;
 
   // The GLB's own materials, kept so deselecting a tile puts the plain

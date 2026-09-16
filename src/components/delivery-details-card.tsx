@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CalendarClock, MapPin, Pencil, Phone, StickyNote, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -37,6 +38,7 @@ export const DeliveryDetailsCard = ({
   /** Called with the freshly-saved row, so the parent can update its own order state. */
   onSaved: (delivery: ApiOrderDelivery) => void;
 }) => {
+  const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
   const details = initial ? toDeliveryDetails(initial) : undefined;
 
@@ -53,8 +55,8 @@ export const DeliveryDetailsCard = ({
       });
       onSaved(saved);
     } catch (cause) {
-      toast.error("Couldn't save delivery details", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("dash.deliveryCard.toastFailed"), {
+        description: cause instanceof ApiError ? cause.message : t("dash.tryAgain"),
       });
     } finally {
       setSaving(false);
@@ -68,17 +70,17 @@ export const DeliveryDetailsCard = ({
           <span className="flex size-9 items-center justify-center rounded-lg bg-secondary">
             <MapPin className="size-5 text-ink" />
           </span>
-          <h2 className="text-lg font-bold text-ink sm:text-xl">Delivery Details</h2>
+          <h2 className="text-lg font-bold text-ink sm:text-xl">{t("dash.deliveryCard.title")}</h2>
         </div>
         {locked ? (
-          <span className="text-xs font-medium text-muted">Locked</span>
+          <span className="text-xs font-medium text-muted">{t("dash.deliveryCard.locked")}</span>
         ) : (
           <DeliveryDetailsDialog
             initialValue={details}
             onSubmit={(values) => void handleSubmit(values)}
             trigger={
               <Button type="button" variant="outline" size="sm" disabled={saving} className="h-8 gap-1.5 text-xs font-bold">
-                <Pencil className="size-3.5" /> {details ? "Edit" : "Add"}
+                <Pencil className="size-3.5" /> {details ? t("dash.deliveryCard.edit") : t("dash.deliveryCard.add")}
               </Button>
             }
           />
@@ -90,21 +92,21 @@ export const DeliveryDetailsCard = ({
           <div className="flex items-start gap-3">
             <User className="mt-0.5 size-4 shrink-0 text-muted" />
             <div>
-              <dt className="text-[11px] font-bold tracking-wider text-muted uppercase">Contact</dt>
+              <dt className="text-[11px] font-bold tracking-wider text-muted uppercase">{t("dash.deliveryCard.contact")}</dt>
               <dd className="text-ink">{details.contactName}</dd>
             </div>
           </div>
           <div className="flex items-start gap-3">
             <Phone className="mt-0.5 size-4 shrink-0 text-muted" />
             <div>
-              <dt className="text-[11px] font-bold tracking-wider text-muted uppercase">Phone</dt>
+              <dt className="text-[11px] font-bold tracking-wider text-muted uppercase">{t("dash.deliveryCard.phone")}</dt>
               <dd className="text-ink">{details.phone}</dd>
             </div>
           </div>
           <div className="flex items-start gap-3">
             <MapPin className="mt-0.5 size-4 shrink-0 text-muted" />
             <div>
-              <dt className="text-[11px] font-bold tracking-wider text-muted uppercase">Address</dt>
+              <dt className="text-[11px] font-bold tracking-wider text-muted uppercase">{t("dash.deliveryCard.address")}</dt>
               <dd className="text-ink">{details.address}, {details.city}</dd>
             </div>
           </div>
@@ -112,7 +114,7 @@ export const DeliveryDetailsCard = ({
             <div className="flex items-start gap-3">
               <CalendarClock className="mt-0.5 size-4 shrink-0 text-muted" />
               <div>
-                <dt className="text-[11px] font-bold tracking-wider text-muted uppercase">Preferred date</dt>
+                <dt className="text-[11px] font-bold tracking-wider text-muted uppercase">{t("dash.deliveryCard.preferredDate")}</dt>
                 <dd className="text-ink">{details.preferredDate}</dd>
               </div>
             </div>
@@ -121,18 +123,16 @@ export const DeliveryDetailsCard = ({
             <div className="flex items-start gap-3">
               <StickyNote className="mt-0.5 size-4 shrink-0 text-muted" />
               <div>
-                <dt className="text-[11px] font-bold tracking-wider text-muted uppercase">Notes</dt>
+                <dt className="text-[11px] font-bold tracking-wider text-muted uppercase">{t("dash.deliveryCard.notes")}</dt>
                 <dd className="text-ink">{details.notes}</dd>
               </div>
             </div>
           )}
         </dl>
       ) : locked ? (
-        <p className="mt-4 text-sm text-muted">No delivery details were added before the quotation was sent.</p>
+        <p className="mt-4 text-sm text-muted">{t("dash.deliveryCard.noneLocked")}</p>
       ) : (
-        <p className="mt-4 text-sm text-muted">
-          Add your delivery address and contact so the stock team can prepare an accurate quotation.
-        </p>
+        <p className="mt-4 text-sm text-muted">{t("dash.deliveryCard.prompt")}</p>
       )}
     </section>
   );

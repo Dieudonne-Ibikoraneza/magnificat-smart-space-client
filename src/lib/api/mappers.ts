@@ -1,6 +1,17 @@
 import type { Product } from "@/components/product-card";
 import type { Collection } from "@/data/collections";
+import type { Locale } from "@/lib/i18n";
 import type { ApiCollection, ApiProduct, HearAboutUs, RoomType, SuitableFor } from "./types";
+
+/**
+ * Picks the Kinyarwanda copy over the English original when the current
+ * locale is `rw` and a translation actually exists (`rw` is `null` until
+ * `TranslationService` fills it in server-side) — otherwise falls back to
+ * English. The one place every `*Rw` field (products, collections, rooms)
+ * gets read, so a missing translation never shows blank text.
+ */
+export const localizedText = (en: string, rw: string | null | undefined, locale: Locale): string =>
+  locale === "rw" && rw ? rw : en;
 
 /**
  * Translation layer between the API's shapes and the ones the UI already
@@ -16,10 +27,6 @@ export const roomTypeLabels: Record<RoomType, string> = {
   BEDROOM: "Bedroom",
   BATHROOM: "Bathroom",
   KITCHEN: "Kitchen",
-  BALCONY: "Balcony",
-  STAIRS: "Stairs",
-  GATES: "Gates",
-  OUTDOOR: "Outdoor",
 };
 
 const roomTypeByLabel = new Map<string, RoomType>(
@@ -62,31 +69,38 @@ const toNumber = (value: string | number): number => {
  * Maps an API product onto the `Product` shape the cards, catalog and
  * calculator already consume. `collectionTitle` is optional because the
  * products endpoint returns the collection's `size` but not its title — pass it
- * in when the collection has already been fetched, otherwise the size stands in.
+ * in when the collection has already been fetched (already locale-picked by
+ * the caller, e.g. via `localizedText`, if it came from a separate request).
+ * The nested collection is available on product responses as well; the size
+ * fallback is only for older cached responses that predate the nested
+ * collection metadata. `locale` defaults to `"en"` so an unmigrated call site
+ * degrades to the pre-translation behavior instead of breaking.
  */
-export const toProduct = (product: ApiProduct, collectionTitle?: string): Product => ({
+export const toProduct = (product: ApiProduct, collectionTitle?: string, locale: Locale = "en"): Product => ({
   id: product.id,
   sku: product.sku,
-  name: product.name,
+  name: localizedText(product.name, product.nameRw, locale),
   collectionId: product.collectionId,
-  collection: collectionTitle ?? product.size,
+  collection:
+    collectionTitle ??
+    localizedText(product.collection?.title ?? product.size, product.collection?.titleRw, locale),
   size: product.size,
   tileArea: product.tileAreaSqm,
   boxCoverage: toNumber(product.boxCoverageSqm),
   piecesPerBox: product.piecesPerBox,
   price: toNumber(product.price),
   image: product.image,
-  description: product.description ?? "",
+  description: localizedText(product.description ?? "", product.descriptionRw, locale),
   stockStatus: product.stockStatus,
   roomTypes: product.roomTypes.map((roomType) => roomTypeLabels[roomType]),
   suitableFor: suitableForLabels[product.suitableFor],
   availableAreaSqm: product.availableAreaSqm,
 });
 
-export const toCollection = (collection: ApiCollection): Collection => ({
+export const toCollection = (collection: ApiCollection, locale: Locale = "en"): Collection => ({
   id: collection.id,
-  title: collection.title,
-  description: collection.description ?? "",
+  title: localizedText(collection.title, collection.titleRw, locale),
+  description: localizedText(collection.description ?? "", collection.descriptionRw, locale),
   image: collection.image ?? "",
   size: collection.size,
 });

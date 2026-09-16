@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { tokenStore, usersApi } from "@/lib/api";
+import { SESSION_EXPIRED_EVENT, tokenStore, usersApi } from "@/lib/api";
 import type { ApiUser } from "@/lib/api/types";
 
 type CurrentUserState = {
@@ -66,6 +66,18 @@ export const CurrentUserProvider = ({ children }: { children: ReactNode }) => {
   }, [generation]);
 
   const refresh = useCallback(() => setGeneration((value) => value + 1), []);
+
+  // A background API call's own refresh attempt can fail (the refresh token
+  // itself expired/was revoked) long after this provider's initial check
+  // passed — that's the one signal nothing else here would ever notice on
+  // its own. Re-running the session check on it is what lets `useRequireRole`
+  // see "signed out" and redirect to `/auth`, instead of the app quietly
+  // throwing "Unauthorized" on every subsequent request.
+  useEffect(() => {
+    const onSessionExpired = () => refresh();
+    window.addEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+  }, [refresh]);
 
   return (
     <CurrentUserContext.Provider value={{ user: state.user, loading: state.loading, refresh }}>

@@ -3,6 +3,8 @@
 import { Menu } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import { LanguageMenu } from "@/components/language-menu";
 
 export type PageHeaderAction = {
   label: string;
@@ -18,6 +20,7 @@ export type PageHeaderProps = {
 };
 
 export const PageHeader = ({ title, subtitle, onOpenMenu, action, children }: PageHeaderProps) => {
+  const { t } = useTranslation();
   const ActionIcon = action?.icon;
 
   return (
@@ -25,7 +28,7 @@ export const PageHeader = ({ title, subtitle, onOpenMenu, action, children }: Pa
       <div className="flex min-w-0 items-center gap-3">
         <button
           type="button"
-          aria-label="Open menu"
+          aria-label={t("staff.header.openMenu")}
           onClick={onOpenMenu}
           className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-ink hover:bg-secondary lg:hidden"
         >
@@ -36,16 +39,19 @@ export const PageHeader = ({ title, subtitle, onOpenMenu, action, children }: Pa
           {subtitle ? <p className="mt-1 hidden text-sm text-muted-foreground sm:block">{subtitle}</p> : null}
         </div>
       </div>
-      {children ??
-        (action && ActionIcon ? (
-          <button
-            type="button"
-            className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:px-6 sm:py-3.5"
-          >
-            <ActionIcon className="size-5" strokeWidth={1.9} />
-            <span className="whitespace-nowrap">{action.label}</span>
-          </button>
-        ) : null)}
+      <div className="flex shrink-0 flex-wrap items-center gap-3 sm:gap-4">
+        {children ??
+          (action && ActionIcon ? (
+            <button
+              type="button"
+              className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:px-6 sm:py-3.5"
+            >
+              <ActionIcon className="size-5" strokeWidth={1.9} />
+              <span className="whitespace-nowrap">{action.label}</span>
+            </button>
+          ) : null)}
+        <LanguageMenu />
+      </div>
     </header>
   );
 };

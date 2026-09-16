@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
 import { AdjustStockDialog } from "@/components/adjust-stock-dialog";
 
 /**
@@ -29,20 +30,23 @@ export const StockLevelPanel = ({
   reservedAreaSqm?: number;
   /** Called after a successful adjustment so the parent can refetch the product. */
   onAdjusted: () => void;
-}) => (
+}) => {
+  const { t } = useTranslation();
+
+  return (
   <div className="space-y-4">
     <div className="space-y-2 rounded-xl border border-border bg-secondary/50 px-4 py-4">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-semibold text-ink">Current Stock Level</span>
+        <span className="text-sm font-semibold text-ink">{t("staff.stockLevelPanel.currentLevel")}</span>
         <span className="font-data text-xl font-bold text-ink">
-          {currentStockSqm.toLocaleString()} <span className="text-sm font-normal">sqm</span>
+          {currentStockSqm.toLocaleString()} <span className="text-sm font-normal">{t("staff.stockLevelPanel.sqm")}</span>
         </span>
       </div>
       {reservedAreaSqm > 0 && (
         <div className="flex items-center justify-between gap-3 border-t border-border/70 pt-2">
-          <span className="text-xs font-medium text-blue-700">Reserved (pending orders)</span>
+          <span className="text-xs font-medium text-blue-700">{t("staff.stockLevelPanel.reserved")}</span>
           <span className="font-data text-sm font-bold text-blue-700">
-            −{reservedAreaSqm.toLocaleString()} <span className="text-xs font-normal">sqm</span>
+            −{reservedAreaSqm.toLocaleString()} <span className="text-xs font-normal">{t("staff.stockLevelPanel.sqm")}</span>
           </span>
         </div>
       )}
@@ -54,4 +58,5 @@ export const StockLevelPanel = ({
       onAdjusted={onAdjusted}
     />
   </div>
-);
+  );
+};

@@ -27,15 +27,8 @@ export type HearAboutUs =
   | "SEARCH_ENGINE"
   | "OTHER";
 export type SuitableFor = "FLOOR" | "WALL" | "BOTH";
-export type RoomType =
-  | "LIVING_ROOM"
-  | "BEDROOM"
-  | "BATHROOM"
-  | "KITCHEN"
-  | "BALCONY"
-  | "STAIRS"
-  | "GATES"
-  | "OUTDOOR";
+/** The rooms the whole app supports — living room, bedroom, bathroom, kitchen. */
+export type RoomType = "LIVING_ROOM" | "BEDROOM" | "BATHROOM" | "KITCHEN";
 export type StockStatus = "in_stock" | "low_stock" | "out_of_stock";
 export type OrderType = "PURCHASE" | "BOOKING";
 export type OrderCreatorType = "CUSTOMER" | "STAFF";
@@ -111,7 +104,12 @@ export type CustomerSummary = ApiUser & {
 export type CustomerDetail = CustomerSummary & {
   favoriteCount: number;
   savedDesignCount: number;
+  /** The current page of the orders list below — see `ordersTotal` for how many pages that actually is. */
   orders: ApiOrder[];
+  /** Every order regardless of status — what `orders` is actually paginated against, distinct from `orderCount` (spend-counted statuses only). */
+  ordersTotal: number;
+  ordersPage: number;
+  ordersLimit: number;
 };
 
 export type StaffSummary = {
@@ -124,6 +122,9 @@ export type StaffSummary = {
 export type ApiCollection = {
   id: string;
   title: string;
+  /** Auto-translated Kinyarwanda copy — see `ApiProduct.nameRw`. */
+  titleRw: string | null;
+  descriptionRw: string | null;
   slug: string;
   description: string | null;
   image: string | null;
@@ -146,6 +147,14 @@ export type ApiProduct = {
   currency: string;
   image: string;
   description: string | null;
+  /**
+   * Auto-translated Kinyarwanda copy (see the server's `TranslationService`)
+   * — `null` until translated (or if translation is disabled), in which
+   * case every consumer falls back to `name`/`description`. Never edited
+   * directly; re-populated server-side whenever the English text changes.
+   */
+  nameRw: string | null;
+  descriptionRw: string | null;
   suitableFor: SuitableFor;
   roomTypes: RoomType[];
   isActive: boolean;
@@ -187,7 +196,7 @@ export type ApiProduct = {
    */
   availableAreaSqm?: number;
   /** Present when the endpoint nests it (e.g. cart lines) — absent elsewhere, where `size` above already covers it. */
-  collection?: { id: string; title: string; slug: string; size: string };
+  collection?: { id: string; title: string; titleRw: string | null; slug: string; size: string };
 };
 
 export type TileQuantity = {
@@ -213,10 +222,11 @@ export type FloorPlanCalculation = {
   wastagePercent: number;
   requiredAreaSqm: number;
   quantity: TileQuantity;
+  // Qualitative only — the public `/calculator/floor-plan` endpoint never
+  // returns exact stock counts (see `calculator.service.ts`).
   stockSplit: {
-    fromStockPieces: number;
-    toSourcePieces: number;
     fullyAvailableFromStock: boolean;
+    partiallyAvailableFromStock: boolean;
   };
   estimatedCost: number;
   currency: string;
@@ -416,6 +426,9 @@ export type ApiRoom = {
   type: RoomType;
   name: string;
   description: string | null;
+  /** Auto-translated Kinyarwanda copy — see `ApiProduct.nameRw`. */
+  nameRw: string | null;
+  descriptionRw: string | null;
   modelUrl: string;
   thumbnail: string | null;
   isActive: boolean;
@@ -440,6 +453,17 @@ export type ApiRoomDesign = {
 /** PENDING = no response yet, ACCEPTED = liked, REJECTED = disliked. */
 export type RecommendationDecision = "PENDING" | "ACCEPTED" | "REJECTED";
 
+/** The wall half of a bathroom floor+wall combo — same shape as the floor product minus the fields that only make sense once per card (image, matchScore, reason). */
+export type ChatRecommendationWallProduct = {
+  id: string;
+  recommendationId: string;
+  name: string;
+  price: number;
+  link: string;
+  collection: string;
+  size: string;
+};
+
 export type ChatRecommendation = {
   id: string;
   /** The specific `Recommendation` row this pick was persisted as — target this, not `id`, when recording a like/dislike (the same product can be recommended more than once in a conversation). */
@@ -454,6 +478,8 @@ export type ChatRecommendation = {
   matchScore: number;
   /** One concise sentence explaining why the assistant picked this product. */
   reason: string;
+  /** Present only for a bathroom recommendation: the wall tile paired with this floor tile in the same generated scene — one card represents the whole floor+wall combo, not two separate recommendations. */
+  wallProduct?: ChatRecommendationWallProduct;
 };
 
 /**
@@ -562,7 +588,8 @@ export type ProfilingQuestion = {
   id: string;
   text: string;
   isRequired: boolean;
-  roomType: RoomType | null;
+  /** Empty = always asked. Non-empty = only asked when the customer picked one of these rooms — a question can apply to more than one room type. */
+  roomTypes: RoomType[];
   position: number;
   isActive: boolean;
   language: Language;
@@ -722,10 +749,19 @@ export type JourneyStageAction = {
   detail: unknown;
 };
 
+/**
+ * One stage-specific KPI — `key` is a stable identifier the frontend maps to
+ * a translated label/icon/format (see `METRIC_META` in the journey page);
+ * `value` is raw, never pre-formatted or pre-translated, same as every other
+ * analytics endpoint.
+ */
+export type JourneyStageMetric = { key: string; value: number | string };
+
 export type JourneyStageDetail = {
   stage: JourneyStage;
   period: AnalyticsPeriod;
   userCount: number;
+  metrics: JourneyStageMetric[];
   users: {
     sessionId: string;
     userId: string | null;
@@ -780,6 +816,8 @@ export type TilePerformanceRow = {
   compared: number;
   saved: number;
   purchased: number;
+  /** Actual area sold in the period (sum of earned orders' line items), distinct from `purchased` — see that field's own note. */
+  soldAreaSqm: number;
   selectionRate: number;
   purchaseConversion: number;
 };

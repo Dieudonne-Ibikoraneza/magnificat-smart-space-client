@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AlertTriangle, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -29,6 +30,7 @@ export const OrderNegotiationPanel = ({
   orderId: string;
   shortages?: StockShortage[];
 }) => {
+  const { t } = useTranslation();
   const { user } = useCurrentUser();
   const [messages, setMessages] = useState<ApiOrderMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,8 +93,8 @@ export const OrderNegotiationPanel = ({
     } catch (cause) {
       setMessages((current) => current.filter((existing) => existing.id !== tempId));
       setDraft(body);
-      toast.error("Message not sent", {
-        description: cause instanceof Error ? cause.message : "Please try again.",
+      toast.error(t("dash.orderNegotiation.toastNotSent"), {
+        description: cause instanceof Error ? cause.message : t("dash.tryAgain"),
       });
     } finally {
       setPendingIds((current) => current.filter((id) => id !== tempId));
@@ -111,24 +113,24 @@ export const OrderNegotiationPanel = ({
             <AlertTriangle className="size-4.5" />
           </span>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-ink">Part of this order needs a chat with our stock team</p>
+            <p className="text-sm font-bold text-ink">{t("dash.orderNegotiation.shortageTitle")}</p>
             <p className="text-xs text-muted">
               {shortages.length === 1
-                ? `${shortages[0].productName}: the full ${shortages[0].requestedAreaSqm} m² requested isn't available right now.`
-                : `${shortages.length} items exceed what's currently on hand.`}
+                ? t("dash.orderNegotiation.shortageOne", { name: shortages[0].productName, area: shortages[0].requestedAreaSqm })
+                : t("dash.orderNegotiation.shortageMany", { count: shortages.length })}
             </p>
           </div>
         </div>
       )}
       {shortages.length === 0 && (
         <div className="border-b border-slate-100 px-5 py-4">
-          <h2 className="text-sm font-bold text-ink">Chat with our stock team</h2>
+          <h2 className="text-sm font-bold text-ink">{t("dash.orderNegotiation.heading")}</h2>
         </div>
       )}
 
       <div ref={listRef} className="max-h-80 space-y-3 overflow-y-auto bg-[#F9FAFB] px-5 py-4">
         {loading ? (
-          <p className="py-6 text-center text-sm text-muted">Loading…</p>
+          <p className="py-6 text-center text-sm text-muted">{t("dash.orderNegotiation.loading")}</p>
         ) : (
           messages.map((message) => (
             <div
@@ -182,8 +184,8 @@ export const OrderNegotiationPanel = ({
               void sendMessage();
             }
           }}
-          placeholder="Type a message…"
-          aria-label="Message the stock team"
+          placeholder={t("dash.orderNegotiation.placeholder")}
+          aria-label={t("dash.orderNegotiation.messageAria")}
           className="h-11 flex-1 rounded-full border border-slate-200 bg-white px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         />
         <Button
@@ -191,7 +193,7 @@ export const OrderNegotiationPanel = ({
           size="icon"
           onClick={() => void sendMessage()}
           disabled={draft.trim() === ""}
-          aria-label="Send message"
+          aria-label={t("dash.orderNegotiation.sendAria")}
           className="size-11 shrink-0 rounded-full"
         >
           <Send className="size-4" />

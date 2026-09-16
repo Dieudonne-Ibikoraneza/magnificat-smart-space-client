@@ -1,0 +1,43 @@
+"use client";
+
+import { useTranslation } from "react-i18next";
+import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
+import { ProductCatalog } from "@/components/product-catalog";
+import { ProductsPageSkeleton } from "@/components/skeletons";
+import { StaffCatalogActions } from "@/components/staff-toolbar";
+import { productsApi, toProduct } from "@/lib/api";
+import { useApi } from "@/lib/api/use-api";
+import { useCurrentUser } from "@/lib/current-user";
+import { useLocale } from "@/lib/i18n";
+
+/**
+ * The storefront catalog (doc 3.1/3.2). Fetches the active catalog once and
+ * lets `ProductCatalog` handle filtering, search, sort and pagination
+ * client-side — the same pattern `/collections/[id]` already uses. 100 covers
+ * the current catalog comfortably; once it grows past one page, filtering
+ * and search should move server-side (`productsApi.list` already accepts the
+ * matching query params) instead of raising this limit further.
+ */
+const ProductsPage = () => {
+  const { t } = useTranslation();
+  const { locale } = useLocale();
+  const { user } = useCurrentUser();
+  const isClient = user?.role === "CLIENT";
+  const { data, loading, error, reload } = useApi(() => productsApi.list({ limit: 100 }));
+  const products = data?.items.map((product) => toProduct(product, undefined, locale)) ?? [];
+
+  if (loading) return <ProductsPageSkeleton />;
+  if (error) return <ApiErrorState message={error} onRetry={reload} className="my-16" />;
+  if (products.length === 0) {
+    return <ApiEmptyState message={t("catalog.noProducts")} className="my-16" />;
+  }
+
+  return (
+    <>
+      {user && !isClient && <StaffCatalogActions role={user.role} />}
+      <ProductCatalog products={products} showFavorites={isClient} showAddToCart={isClient} />
+    </>
+  );
+};
+
+export default ProductsPage;

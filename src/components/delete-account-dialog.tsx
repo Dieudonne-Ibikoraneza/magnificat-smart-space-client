@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import { Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -27,6 +28,7 @@ import { useCurrentUser } from "@/lib/current-user";
  * local session and send the user back to sign-in, the same as logging out.
  */
 export const DeleteAccountDialog = () => {
+  const { t } = useTranslation();
   const router = useRouter();
   const { refresh } = useCurrentUser();
   const { reset: resetCart } = useCart();
@@ -45,11 +47,11 @@ export const DeleteAccountDialog = () => {
       refresh();
       setClosed(true);
       setOpen(false);
-      toast.success("Account closed", { description: "Your account has been deactivated." });
+      toast.success(t("dash.deleteAccount.toastClosedTitle"), { description: t("dash.deleteAccount.toastClosedBody") });
       router.push("/auth");
     } catch (cause) {
-      toast.error("Couldn't close account", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("dash.deleteAccount.toastFailedTitle"), {
+        description: cause instanceof ApiError ? cause.message : t("dash.tryAgain"),
       });
     } finally {
       setSubmitting(false);
@@ -58,13 +60,12 @@ export const DeleteAccountDialog = () => {
 
   return (
     <div className="mt-5 rounded-lg border border-red-200 p-5 sm:p-6">
-      <h3 className="text-lg font-bold text-ink">Account Deletion</h3>
+      <h3 className="text-lg font-bold text-ink">{t("dash.deleteAccount.heading")}</h3>
       <p className="mt-3 max-w-5xl text-sm leading-5 text-muted">
-        Closing your account deactivates it and signs it out everywhere. Order and payment history is
-        retained, not erased.
+        {t("dash.deleteAccount.body")}
       </p>
       {closed ? (
-        <p className="mt-5 text-sm font-semibold text-red-600">Account closed.</p>
+        <p className="mt-5 text-sm font-semibold text-red-600">{t("dash.deleteAccount.closed")}</p>
       ) : (
         <Dialog
           open={open}
@@ -82,17 +83,17 @@ export const DeleteAccountDialog = () => {
               />
             }
           >
-            <Trash2 className="size-5" /> Delete Account
+            <Trash2 className="size-5" /> {t("dash.deleteAccount.trigger")}
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Delete account?</DialogTitle>
+              <DialogTitle>{t("dash.deleteAccount.dialogTitle")}</DialogTitle>
               <DialogDescription>
-                This action is permanent. Your account will be deactivated and every session signed out.
+                {t("dash.deleteAccount.dialogDescription")}
               </DialogDescription>
             </DialogHeader>
             <label className="mt-6 block text-sm font-semibold text-ink">
-              Type <span className="text-red-500">Delete</span> to confirm
+              {t("dash.deleteAccount.typePrefix")} <span className="text-red-500">Delete</span> {t("dash.deleteAccount.typeSuffix")}
               <Input
                 autoFocus
                 value={confirmation}
@@ -109,7 +110,7 @@ export const DeleteAccountDialog = () => {
                 disabled={submitting}
                 className="h-11 px-5 text-sm font-bold text-ink"
               >
-                Cancel
+                {t("dash.deleteAccount.cancel")}
               </Button>
               <Button
                 type="button"
@@ -118,7 +119,7 @@ export const DeleteAccountDialog = () => {
                 onClick={() => void handleConfirm()}
                 className="h-11 px-5 text-sm font-bold disabled:opacity-60"
               >
-                {submitting ? "Deleting…" : "Delete account"}
+                {submitting ? t("dash.deleteAccount.deleting") : t("dash.deleteAccount.confirm")}
               </Button>
             </DialogFooter>
           </DialogContent>

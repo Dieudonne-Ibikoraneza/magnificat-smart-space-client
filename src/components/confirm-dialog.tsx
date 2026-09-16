@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactElement } from "react";
+import { useTranslation } from "react-i18next";
 import { TriangleAlert } from "lucide-react";
 import {
   Dialog,
@@ -18,8 +19,8 @@ export const ConfirmDialog = ({
   trigger,
   title,
   description,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   destructive = true,
   onConfirm,
 }: {
@@ -31,7 +32,10 @@ export const ConfirmDialog = ({
   destructive?: boolean;
   onConfirm: () => void;
 }) => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const confirmText = confirmLabel ?? t("dash.confirm.confirm");
+  const cancelText = cancelLabel ?? t("dash.confirm.cancel");
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -46,7 +50,7 @@ export const ConfirmDialog = ({
         </DialogHeader>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => setOpen(false)} className="h-10 px-5 text-sm font-bold">
-            {cancelLabel}
+            {cancelText}
           </Button>
           <Button
             type="button"
@@ -57,7 +61,7 @@ export const ConfirmDialog = ({
             }}
             className="h-10 px-5 text-sm font-bold"
           >
-            {confirmLabel}
+            {confirmText}
           </Button>
         </DialogFooter>
       </DialogContent>

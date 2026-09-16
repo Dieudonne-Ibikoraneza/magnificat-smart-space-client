@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, RefreshCw } from "lucide-react";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,16 +28,6 @@ import { ordersApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import type { OrderStatus } from "@/lib/api/types";
 
-const statusLabels: Record<OrderStatus, string> = {
-  WAITLISTED: "Waitlisted",
-  PENDING: "Pending",
-  PROCESSING: "Processing",
-  READY_FOR_DISPATCH: "Ready for Dispatch",
-  SHIPPED: "Shipped",
-  DELIVERED: "Delivered",
-  CANCELLED: "Cancelled",
-};
-
 const statusVariant: Record<OrderStatus, NonNullable<BadgeProps["variant"]>> = {
   WAITLISTED: "warning",
   PENDING: "outline",
@@ -61,9 +52,10 @@ const selectableStatuses = (current: OrderStatus): OrderStatus[] =>
   current === "WAITLISTED" ? ["WAITLISTED", "CANCELLED"] : statuses;
 
 /** Plain, read-only status badge — no click behavior. Pair with `OrderStatusControl` for the actual "Update Status" action, kept as its own button elsewhere in the header. */
-export const OrderStatusBadge = ({ status }: { status: OrderStatus }) => (
-  <Badge variant={statusVariant[status]}>{statusLabels[status]}</Badge>
-);
+export const OrderStatusBadge = ({ status }: { status: OrderStatus }) => {
+  const { t } = useTranslation();
+  return <Badge variant={statusVariant[status]}>{t(`staff.orderStatus.${status}`)}</Badge>;
+};
 
 /** The "Update Status" button + dialog — a separate control from `OrderStatusBadge`, which only ever displays the current status. */
 export const OrderStatusControl = ({
@@ -76,6 +68,7 @@ export const OrderStatusControl = ({
   /** Called after a successful status change so the parent can refetch the order. */
   onUpdated: () => void;
 }) => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [nextStatus, setNextStatus] = useState<OrderStatus>(status);
   const [note, setNote] = useState("");
@@ -93,10 +86,14 @@ export const OrderStatusControl = ({
       await ordersApi.updateStatus(orderId, nextStatus, note.trim() || undefined);
       setOpen(false);
       onUpdated();
-      toast.success("Order status updated", { description: `Order is now ${statusLabels[nextStatus]}.` });
+      toast.success(t("staff.orderStatusControl.toastUpdatedTitle"), {
+        description: t("staff.orderStatusControl.toastUpdatedBody", {
+          status: t(`staff.orderStatus.${nextStatus}`),
+        }),
+      });
     } catch (cause) {
-      toast.error("Couldn't update status", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("staff.orderStatusControl.toastFailedTitle"), {
+        description: cause instanceof ApiError ? cause.message : t("staff.orderStatusControl.toastFailedBody"),
       });
     } finally {
       setSubmitting(false);
@@ -129,25 +126,25 @@ export const OrderStatusControl = ({
         }
       >
         <RefreshCw className="size-4" />
-        Update Status
+        {t("staff.orderStatusControl.trigger")}
       </DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <span className="flex size-10 items-center justify-center rounded-full bg-secondary text-ink">
             <RefreshCw className="size-5" />
           </span>
-          <DialogTitle className="pt-3">Update order status</DialogTitle>
-          <DialogDescription>Order #{orderId}</DialogDescription>
+          <DialogTitle className="pt-3">{t("staff.orderStatusControl.title")}</DialogTitle>
+          <DialogDescription>{t("staff.orderStatusControl.orderRef", { id: orderId })}</DialogDescription>
         </DialogHeader>
         <div className="mt-5 space-y-4">
           <Field>
-            <FieldLabel htmlFor="order-status">Status</FieldLabel>
+            <FieldLabel htmlFor="order-status">{t("staff.orderStatusControl.statusLabel")}</FieldLabel>
             <Select value={nextStatus} onValueChange={(value) => setNextStatus((value as OrderStatus) ?? nextStatus)}>
               <SelectTrigger id="order-status">
                 <SelectValue>
                   {(value: string) => (
                     <span className="flex items-center gap-2">
-                      <Badge variant={statusVariant[value as OrderStatus]}>{statusLabels[value as OrderStatus]}</Badge>
+                      <Badge variant={statusVariant[value as OrderStatus]}>{t(`staff.orderStatus.${value as OrderStatus}`)}</Badge>
                     </span>
                   )}
                 </SelectValue>
@@ -155,36 +152,36 @@ export const OrderStatusControl = ({
               <SelectContent>
                 {selectableStatuses(status).map((item) => (
                   <SelectItem key={item} value={item}>
-                    <Badge variant={statusVariant[item]}>{statusLabels[item]}</Badge>
+                    <Badge variant={statusVariant[item]}>{t(`staff.orderStatus.${item}`)}</Badge>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
           <Field>
-            <FieldLabel htmlFor="order-status-note">Note (optional)</FieldLabel>
+            <FieldLabel htmlFor="order-status-note">{t("staff.orderStatusControl.noteLabel")}</FieldLabel>
             <Textarea
               id="order-status-note"
               rows={2}
               value={note}
               onChange={(event) => setNote(event.target.value)}
-              placeholder="Reason for the change"
+              placeholder={t("staff.orderStatusControl.notePlaceholder")}
             />
           </Field>
           {nextStatus !== status && (
             <p className="flex items-center gap-2.5 rounded-lg bg-secondary/60 px-3 py-2.5 text-xs text-muted-foreground">
-              <Badge variant={statusVariant[status]}>{statusLabels[status]}</Badge>
+              <Badge variant={statusVariant[status]}>{t(`staff.orderStatus.${status}`)}</Badge>
               <ArrowRight className="size-3.5 shrink-0" />
-              <Badge variant={statusVariant[nextStatus]}>{statusLabels[nextStatus]}</Badge>
+              <Badge variant={statusVariant[nextStatus]}>{t(`staff.orderStatus.${nextStatus}`)}</Badge>
             </p>
           )}
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
-            Cancel
+            {t("staff.orderStatusControl.cancel")}
           </Button>
           <Button type="button" onClick={() => void handleSave()} disabled={submitting} className="h-10 px-5 text-sm font-bold">
-            {submitting ? "Saving…" : "Save"}
+            {submitting ? t("staff.orderStatusControl.saving") : t("staff.orderStatusControl.save")}
           </Button>
         </DialogFooter>
       </DialogContent>

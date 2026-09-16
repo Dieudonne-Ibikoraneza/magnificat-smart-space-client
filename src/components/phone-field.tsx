@@ -5,6 +5,7 @@ import { CheckCircle2 } from "lucide-react";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { groupDigitsInThrees, isValidRwandaMobileDigits } from "@/lib/validation";
+import { useTranslation } from "react-i18next";
 
 export const RWANDA_PREFIX = "+250";
 
@@ -19,7 +20,7 @@ export const RWANDA_PREFIX = "+250";
  * before sending it to the server).
  */
 export const PhoneField = ({
-  label = "Phone Number",
+  label,
   value,
   onChange,
 }: {
@@ -31,9 +32,11 @@ export const PhoneField = ({
   const valid = isValidRwandaMobileDigits(value);
   const showError = touched && value.length > 0 && !valid;
 
+  const { t } = useTranslation();
+
   return (
     <Field className="gap-1.5">
-      <FieldLabel className="text-sm font-medium text-ink">{label}</FieldLabel>
+      <FieldLabel className="text-sm font-medium text-ink">{label ?? t("auth.fields.phoneNumber")}</FieldLabel>
       <div className="relative">
         <span
           aria-hidden="true"
@@ -62,7 +65,7 @@ export const PhoneField = ({
         )}
       </div>
       {showError && (
-        <p className="text-xs font-medium text-red-600">Enter a valid 9-digit phone number.</p>
+        <p className="text-xs font-medium text-red-600">{t("auth.fields.phoneNumberError")}</p>
       )}
     </Field>
   );

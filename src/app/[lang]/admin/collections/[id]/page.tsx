@@ -1,0 +1,405 @@
+"use client";
+
+import Link from "next/link";
+import { use, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  ChevronsLeft,
+  ChevronsRight,
+  Clock,
+  LayoutGrid,
+  List,
+  PackageOpen,
+  Plus,
+  Search,
+} from "lucide-react";
+import { notFound, useRouter } from "next/navigation";
+import { AdminDetailHeader } from "@/app/[lang]/admin/layout";
+import { AdminInventoryProductCard } from "@/app/[lang]/admin/inventory/page";
+import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
+import { DeleteCollectionDialog, EditCollectionDialog } from "@/components/edit-collection-dialog";
+import { getVisiblePages } from "@/lib/catalog-utils";
+import { collectionsApi, productsApi } from "@/lib/api";
+import { useApi } from "@/lib/api/use-api";
+import type { StockStatus } from "@/lib/api/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+
+const PAGE_SIZE = 10;
+
+const FILTER_STATUS_KEYS: Record<StockStatus, string> = {
+  in_stock: "staff.stockStatus.in_stock",
+  low_stock: "staff.stockStatus.low_stock",
+  out_of_stock: "staff.stockStatus.out_of_stock",
+};
+
+type TFn = (key: string, opts?: Record<string, unknown>) => string;
+
+const timeAgo = (iso: string, t: TFn) => {
+  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (seconds < 60) return t("stock.collectionDetail.justNow");
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return t("stock.collectionDetail.minutesAgo", { count: minutes });
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return t("stock.collectionDetail.hoursAgo", { count: hours });
+  const days = Math.floor(hours / 24);
+  return t("stock.collectionDetail.daysAgo", { count: days });
+};
+
+export default function AdminCollectionDetailsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { t } = useTranslation();
+  const { id } = use(params);
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+  const [suitableFor, setSuitableFor] = useState("all");
+  const [status, setStatus] = useState("all");
+  const [view, setView] = useState<"grid" | "list">("grid");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const {
+    data: collection,
+    loading: collectionLoading,
+    error: collectionError,
+    reload: reloadCollection,
+  } = useApi(() => collectionsApi.get(id), [id]);
+
+  const {
+    data: productsData,
+    loading: productsLoading,
+    error: productsError,
+    reload: reloadProducts,
+  } = useApi(() => productsApi.list({ collectionId: id, limit: 100 }), [id]);
+  const products = useMemo(() => productsData?.items ?? [], [productsData]);
+
+  const filtered = useMemo(
+    () =>
+      products.filter((product) => {
+        const term = query.trim().toLowerCase();
+        const matchesQuery =
+          term === "" ||
+          product.name.toLowerCase().includes(term) ||
+          product.sku.toLowerCase().includes(term);
+        const matchesSuitableFor = suitableFor === "all" || product.suitableFor === suitableFor;
+        const matchesStatus = status === "all" || product.stockStatus === status;
+        return matchesQuery && matchesSuitableFor && matchesStatus;
+      }),
+    [products, query, suitableFor, status],
+  );
+
+  const totalResults = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalResults / PAGE_SIZE));
+  const safePage = Math.min(Math.max(currentPage, 1), totalPages);
+  const showingStart = totalResults === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const showingEnd = Math.min(safePage * PAGE_SIZE, totalResults);
+
+  const pageItems = useMemo(
+    () => filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filtered, safePage],
+  );
+
+  const visiblePages = useMemo(() => getVisiblePages(safePage, totalPages), [safePage, totalPages]);
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.min(Math.max(page, 1), totalPages));
+  };
+
+  if (collectionLoading) return <ApiLoading label={t("stock.collectionDetail.loading")} className="py-24" />;
+  if (collectionError) return <ApiErrorState message={collectionError} className="my-16" />;
+  if (!collection) notFound();
+
+  return (
+    <>
+      <AdminDetailHeader
+        breadcrumbs={[
+          { label: t("stock.collectionDetail.crumbOverview"), href: "/admin/overview" },
+          { label: t("stock.collectionDetail.crumbCollections"), href: "/admin/collections" },
+          { label: collection.title },
+        ]}
+        title={collection.title}
+        actions={
+          <>
+            <EditCollectionDialog collection={collection} onUpdated={reloadCollection} />
+            <DeleteCollectionDialog collection={collection} onDeleted={() => router.push("/admin/collections")} />
+          </>
+        }
+        meta={
+          <>
+            <p className="w-full max-w-2xl text-sm leading-6 text-muted sm:text-base">{collection.description}</p>
+            <div className="flex w-full items-center gap-3">
+              <span className="rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-ink">
+                {t("stock.collectionDetail.productCount", { count: products.length })}
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted sm:text-sm">
+                <Clock className="size-4" strokeWidth={2} aria-hidden="true" />
+                {t("stock.collectionDetail.lastUpdated", { time: timeAgo(collection.updatedAt, t) })}
+              </span>
+            </div>
+          </>
+        }
+      />
+
+      <section className="mt-6 rounded-xl border border-[#E5E7EB] bg-card p-4 shadow-sm sm:mt-8 sm:p-5">
+        <div className="flex flex-col gap-3 xl:flex-row">
+          <div className="relative min-w-0 flex-1">
+            <Search className="absolute top-1/2 left-4 size-5 -translate-y-1/2 text-[#71809a]" />
+            <Input
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setCurrentPage(1);
+              }}
+              placeholder={t("stock.collectionDetail.searchPlaceholder")}
+              aria-label={t("stock.collectionDetail.searchAria")}
+              className="h-11 rounded-full bg-[#fafbfc] pl-11 text-sm"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center">
+            <Select
+              value={suitableFor}
+              onValueChange={(value) => {
+                setSuitableFor(value ?? "all");
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="h-11 min-w-0 bg-card sm:w-40">
+                <SelectValue>
+                  {(value) =>
+                    value === "all"
+                      ? t("stock.collectionDetail.suitableForTrigger")
+                      : value === "FLOOR"
+                        ? t("stock.collectionDetail.floor")
+                        : value === "WALL"
+                          ? t("stock.collectionDetail.wall")
+                          : t("stock.collectionDetail.floorAndWall")
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("stock.collectionDetail.suitableForAll")}</SelectItem>
+                <SelectItem value="FLOOR">{t("stock.collectionDetail.floor")}</SelectItem>
+                <SelectItem value="WALL">{t("stock.collectionDetail.wall")}</SelectItem>
+                <SelectItem value="BOTH">{t("stock.collectionDetail.floorAndWall")}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={status}
+              onValueChange={(value) => {
+                setStatus(value ?? "all");
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="h-11 min-w-0 bg-card sm:w-32">
+                <SelectValue>{(value) => (value === "all" ? t("stock.collectionDetail.statusTrigger") : t(FILTER_STATUS_KEYS[value as StockStatus]))}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("stock.collectionDetail.allStatus")}</SelectItem>
+                <SelectItem value="in_stock">{t("staff.stockStatus.in_stock")}</SelectItem>
+                <SelectItem value="low_stock">{t("staff.stockStatus.low_stock")}</SelectItem>
+                <SelectItem value="out_of_stock">{t("staff.stockStatus.out_of_stock")}</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex h-11 w-fit items-center justify-center justify-self-end rounded-lg bg-[#f4f5f6] p-1 sm:w-auto">
+              <Button
+                type="button"
+                variant={view === "list" ? "default" : "ghost"}
+                size="icon-sm"
+                aria-label={t("stock.collectionDetail.listView")}
+                aria-pressed={view === "list"}
+                onClick={() => setView("list")}
+              >
+                <List className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant={view === "grid" ? "default" : "ghost"}
+                size="icon-sm"
+                aria-label={t("stock.collectionDetail.gridView")}
+                aria-pressed={view === "grid"}
+                onClick={() => setView("grid")}
+              >
+                <LayoutGrid className="size-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="mt-6 sm:mt-8">
+        {productsLoading ? (
+          <ApiLoading label={t("stock.collectionDetail.loadingProducts")} className="py-24" />
+        ) : productsError ? (
+          <ApiErrorState message={productsError} onRetry={reloadProducts} className="my-16" />
+        ) : totalResults === 0 && products.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#d8ded2] bg-white px-6 py-16 text-center shadow-sm sm:py-20">
+            <span className="flex size-16 items-center justify-center rounded-full bg-primary/15 text-ink">
+              <PackageOpen className="size-8" strokeWidth={1.6} />
+            </span>
+            <h2 className="mt-5 text-xl font-bold text-ink sm:text-2xl">{t("stock.collectionDetail.readyTitle")}</h2>
+            <p className="mt-2 max-w-md text-sm leading-6 text-muted sm:text-base">
+              {t("stock.collectionDetail.readyBody")}
+            </p>
+            <Button
+              nativeButton={false}
+              render={<Link href={`/admin/inventory/new?collectionId=${id}`} />}
+              className="mt-6 h-11 gap-2 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
+            >
+              <Plus className="size-4" />
+              {t("stock.collectionDetail.addProduct")}
+            </Button>
+          </div>
+        ) : totalResults === 0 ? (
+          <ApiEmptyState message={t("stock.collectionDetail.noResults")} className="py-16" />
+        ) : view === "grid" ? (
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {pageItems.map((product) => (
+              <AdminInventoryProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-border bg-white">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="bg-muted-background text-xs text-muted uppercase">
+                <tr>
+                  <th className="p-4">{t("stock.collectionDetail.colProduct")}</th>
+                  <th className="p-4">{t("stock.collectionDetail.colSku")}</th>
+                  <th className="p-4">{t("stock.collectionDetail.colStock")}</th>
+                  <th className="p-4">{t("stock.collectionDetail.colPrice")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageItems.map((product) => (
+                  <tr key={product.id} className="border-t border-border">
+                    <td className="p-4">
+                      <Link
+                        href={`/admin/inventory/${product.id}`}
+                        className="font-semibold text-ink hover:underline"
+                      >
+                        {product.name}
+                      </Link>
+                      <p className="max-w-xs truncate text-xs text-muted">{product.description}</p>
+                    </td>
+                    <td className="p-4 text-muted">{product.sku}</td>
+                    <td className="p-4 font-semibold">
+                      {t("stock.collectionDetail.sqm", { value: (product.quantityOnHandSqm ?? 0).toLocaleString() })}
+                    </td>
+                    <td className="p-4">RWF {Math.round(Number(product.price)).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {!productsLoading && !productsError && totalResults > 0 && (
+        <footer className="mt-8 flex flex-col gap-4 text-sm text-[#53604d] sm:flex-row sm:items-center sm:justify-between">
+          <p>
+            {t("stock.collectionDetail.showingRange", { start: showingStart, end: showingEnd, total: totalResults.toLocaleString() })}
+          </p>
+          <Pagination className="mx-0 w-auto justify-start py-0 sm:justify-end">
+            <PaginationContent className="gap-1 sm:gap-2">
+              <PaginationItem>
+                <PaginationLink
+                  href="#"
+                  size="sm"
+                  className="gap-1 text-ink hover:text-amber aria-disabled:pointer-events-none aria-disabled:opacity-40"
+                  aria-disabled={safePage === 1}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    goToPage(1);
+                  }}
+                >
+                  <ChevronsLeft className="size-4" />
+                  <span className="hidden sm:inline">{t("sales.newOrder.productStep.first")}</span>
+                </PaginationLink>
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  className="text-ink hover:text-amber aria-disabled:pointer-events-none aria-disabled:opacity-40"
+                  aria-disabled={safePage === 1}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    goToPage(safePage - 1);
+                  }}
+                />
+              </PaginationItem>
+              {visiblePages.map((page, index) =>
+                page === "ellipsis" ? (
+                  <PaginationItem key={`ellipsis-${index}`}>
+                    <PaginationEllipsis className="text-muted" />
+                  </PaginationItem>
+                ) : (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      isActive={safePage === page}
+                      size="icon-sm"
+                      className={
+                        safePage === page
+                          ? "border-ink bg-ink text-white hover:bg-ink hover:text-white"
+                          : "text-ink hover:text-amber"
+                      }
+                      onClick={(event) => {
+                        event.preventDefault();
+                        goToPage(page);
+                      }}
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ),
+              )}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  className="text-ink hover:text-amber aria-disabled:pointer-events-none aria-disabled:opacity-40"
+                  aria-disabled={safePage === totalPages}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    goToPage(safePage + 1);
+                  }}
+                />
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationLink
+                  href="#"
+                  size="sm"
+                  className="gap-1 text-ink hover:text-amber aria-disabled:pointer-events-none aria-disabled:opacity-40"
+                  aria-disabled={safePage === totalPages}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    goToPage(totalPages);
+                  }}
+                >
+                  <span className="hidden sm:inline">{t("sales.newOrder.productStep.last")}</span>
+                  <ChevronsRight className="size-4" />
+                </PaginationLink>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </footer>
+      )}
+    </>
+  );
+}

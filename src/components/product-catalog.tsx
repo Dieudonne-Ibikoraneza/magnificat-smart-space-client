@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Check,
   ChevronsLeft,
@@ -48,11 +49,49 @@ import {
   getVisiblePages,
   hasActiveFilters,
   paginateProducts,
-  sortLabels,
   sortProducts,
   toggleFilterOption,
   type SortOption,
 } from "@/lib/catalog-utils";
+
+/**
+ * The filter group titles and option strings double as filter-state keys, so
+ * they stay canonical English in `catalog-utils`; these maps translate them
+ * at display time only. A value with no entry here (e.g. a tile size like
+ * `60x60cm`) is shown as-is.
+ */
+const SORT_KEYS = {
+  newest: "catalog.sort.newest",
+  low: "catalog.sort.low",
+  high: "catalog.sort.high",
+} as const;
+
+const FILTER_GROUP_KEYS = {
+  "Room type": "catalog.filterGroups.roomType",
+  Size: "catalog.filterGroups.size",
+  Availability: "catalog.filterGroups.availability",
+  "Suitable for": "catalog.filterGroups.suitableFor",
+} as const;
+
+const FILTER_OPTION_KEYS = {
+  "Living Room (Saloon)": "catalog.roomTypes.livingRoom",
+  Bedroom: "catalog.roomTypes.bedroom",
+  Bathroom: "catalog.roomTypes.bathroom",
+  Kitchen: "catalog.roomTypes.kitchen",
+  Floor: "catalog.suitableForOptions.floor",
+  Wall: "catalog.suitableForOptions.wall",
+  "Floor & Wall": "catalog.suitableForOptions.floorAndWall",
+  "In Stock Ready": "catalog.availabilityOptions.inStockReady",
+  "Low Stock": "catalog.availabilityOptions.lowStock",
+  "Out of Stock (Pre-order)": "catalog.availabilityOptions.outOfStock",
+} as const;
+
+type TFunc = ReturnType<typeof useTranslation>["t"];
+
+const filterOptionLabel = (t: TFunc, option: string): string => {
+  const key = FILTER_OPTION_KEYS[option as keyof typeof FILTER_OPTION_KEYS];
+  return key ? t(key) : option;
+};
 
 export const FilterOptionsCard = ({
   bare = false,
@@ -67,79 +106,85 @@ export const FilterOptionsCard = ({
   onReset: () => void;
   /** Defaults to the static mock list — pass real ones from `buildFilterGroups`. */
   groups?: FilterGroup[];
-}) => (
-  <section
-    className={
-      bare ? "bg-transparent p-0" : "rounded-2xl bg-white p-6 shadow-sm"
-    }
-  >
-    <div className="mb-3 flex items-center justify-between">
-      <h2 className="text-xl font-bold text-ink">Filters</h2>
-      <Button
-        type="button"
-        variant="link"
-        className="h-auto p-0 text-sm text-amber"
-        onClick={onReset}
-        disabled={!hasActiveFilters(filters)}
-      >
-        Reset
-      </Button>
-    </div>
-    <Accordion
-      multiple
-      defaultValue={groups.map((group) => group.title)}
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <section
+      className={
+        bare ? "bg-transparent p-0" : "rounded-2xl bg-white p-6 shadow-sm"
+      }
     >
-      {groups.map((group) => (
-        <AccordionItem key={group.title} value={group.title}>
-          <AccordionTrigger className="cursor-pointer py-4 text-sm font-semibold text-ink hover:no-underline">
-            {group.title}
-          </AccordionTrigger>
-          <AccordionContent className="pb-4">
-            <div className="space-y-2.5">
-              {group.options.map((option) => {
-                const checked = filters[group.title].includes(option);
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-xl font-bold text-ink">{t("catalog.filters")}</h2>
+        <Button
+          type="button"
+          variant="link"
+          className="h-auto p-0 text-sm text-amber"
+          onClick={onReset}
+          disabled={!hasActiveFilters(filters)}
+        >
+          {t("catalog.reset")}
+        </Button>
+      </div>
+      <Accordion
+        multiple
+        defaultValue={groups.map((group) => group.title)}
+      >
+        {groups.map((group) => (
+          <AccordionItem key={group.title} value={group.title}>
+            <AccordionTrigger className="cursor-pointer py-4 text-sm font-semibold text-ink hover:no-underline">
+              {t(FILTER_GROUP_KEYS[group.title])}
+            </AccordionTrigger>
+            <AccordionContent className="pb-4">
+              <div className="space-y-2.5">
+                {group.options.map((option) => {
+                  const checked = filters[group.title].includes(option);
 
-                return (
-                  <label
-                    key={option}
-                    className="flex cursor-pointer items-center gap-3 text-sm text-ink"
-                  >
-                    <span
-                      className={`flex size-5 items-center justify-center rounded border ${checked ? "border-primary bg-primary" : "border-slate-200"}`}
+                  return (
+                    <label
+                      key={option}
+                      className="flex cursor-pointer items-center gap-3 text-sm text-ink"
                     >
-                      <Input
-                        type="checkbox"
-                        className="peer sr-only"
-                        checked={checked}
-                        onChange={() => onToggle(group.title, option)}
-                      />
-                      <Check
-                        className={`size-3.5 ${checked ? "text-ink" : "hidden"}`}
-                      />
-                    </span>
-                    {option}
-                  </label>
-                );
-              })}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      ))}
-    </Accordion>
-  </section>
-);
+                      <span
+                        className={`flex size-5 items-center justify-center rounded border ${checked ? "border-primary bg-primary" : "border-slate-200"}`}
+                      >
+                        <Input
+                          type="checkbox"
+                          className="peer sr-only"
+                          checked={checked}
+                          onChange={() => onToggle(group.title, option)}
+                        />
+                        <Check
+                          className={`size-3.5 ${checked ? "text-ink" : "hidden"}`}
+                        />
+                      </span>
+                      {filterOptionLabel(t, option)}
+                    </label>
+                  );
+                })}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+    </section>
+  );
+};
 
-const AiHelpCard = () => (
-  <section className="rounded-2xl bg-ink p-6 text-center text-white shadow-sm">
-    <h3 className="mb-2 text-lg font-bold">Need Expert Help</h3>
-    <p className="mb-5 text-sm leading-5 text-white/75">
-      Chat with our AI interior designer to find the perfect match.
-    </p>
-    <Button className="h-12 min-h-12 w-full py-3 font-semibold text-ink bg-primary hover:bg-primary/90">
-      Ask AI Assistant
-    </Button>
-  </section>
-);
+const AiHelpCard = () => {
+  const { t } = useTranslation();
+
+  return (
+    <section className="rounded-2xl bg-ink p-6 text-center text-white shadow-sm">
+      <h3 className="mb-2 text-lg font-bold">{t("catalog.aiHelp.title")}</h3>
+      <p className="mb-5 text-sm leading-5 text-white/75">{t("catalog.aiHelp.body")}</p>
+      <Button className="h-12 min-h-12 w-full py-3 font-semibold text-ink bg-primary hover:bg-primary/90">
+        {t("catalog.aiHelp.cta")}
+      </Button>
+    </section>
+  );
+};
 
 const CatalogEmptyState = ({
   isCollectionEmpty,
@@ -147,41 +192,45 @@ const CatalogEmptyState = ({
 }: {
   isCollectionEmpty: boolean;
   onResetFilters: () => void;
-}) => (
-  <div className="flex flex-col items-center justify-center rounded-2xl bg-white px-6 py-16 text-center shadow-sm">
-    <div className="mb-4 flex size-14 items-center justify-center rounded-full bg-muted-background text-muted">
-      <PackageOpen className="size-7" />
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex flex-col items-center justify-center rounded-2xl bg-white px-6 py-16 text-center shadow-sm">
+      <div className="mb-4 flex size-14 items-center justify-center rounded-full bg-muted-background text-muted">
+        <PackageOpen className="size-7" />
+      </div>
+      <h3 className="text-lg font-bold text-ink">
+        {isCollectionEmpty
+          ? t("catalog.empty.noCollectionTitle")
+          : t("catalog.empty.noMatchTitle")}
+      </h3>
+      <p className="mt-2 max-w-sm text-sm leading-6 text-muted">
+        {isCollectionEmpty
+          ? t("catalog.empty.noCollectionBody")
+          : t("catalog.empty.noMatchBody")}
+      </p>
+      {!isCollectionEmpty && (
+        <Button
+          type="button"
+          className="mt-6 h-11 px-6 font-semibold text-ink bg-primary hover:bg-primary/90"
+          onClick={onResetFilters}
+        >
+          {t("catalog.resetFilters")}
+        </Button>
+      )}
+      {isCollectionEmpty && (
+        <Button
+          nativeButton={false}
+          render={<Link href="/collections" />}
+          className="mt-6 h-11 px-6 font-semibold text-ink bg-primary hover:bg-primary/90"
+        >
+          {t("catalog.empty.browseCollections")}
+        </Button>
+      )}
     </div>
-    <h3 className="text-lg font-bold text-ink">
-      {isCollectionEmpty
-        ? "No products in this collection yet"
-        : "No products match your filters"}
-    </h3>
-    <p className="mt-2 max-w-sm text-sm leading-6 text-muted">
-      {isCollectionEmpty
-        ? "We're still adding tiles to this collection. Browse other collections or check back soon."
-        : "Try removing some filters or reset them to see all available products."}
-    </p>
-    {!isCollectionEmpty && (
-      <Button
-        type="button"
-        className="mt-6 h-11 px-6 font-semibold text-ink bg-primary hover:bg-primary/90"
-        onClick={onResetFilters}
-      >
-        Reset filters
-      </Button>
-    )}
-    {isCollectionEmpty && (
-      <Button
-        nativeButton={false}
-        render={<Link href="/collections" />}
-        className="mt-6 h-11 px-6 font-semibold text-ink bg-primary hover:bg-primary/90"
-      >
-        Browse collections
-      </Button>
-    )}
-  </div>
-);
+  );
+};
 
 const CatalogToolbar = ({
   showingStart,
@@ -211,7 +260,10 @@ const CatalogToolbar = ({
   onToggleSearch: () => void;
   searchQuery: string;
   onSearchChange: (value: string) => void;
-}) => (
+}) => {
+  const { t } = useTranslation();
+
+  return (
   <div
     className="relative mb-4 flex flex-col gap-3 overflow-hidden rounded-xl bg-white px-5 py-3 shadow-sm transition-[max-height] duration-300 ease-in-out"
     style={{
@@ -225,52 +277,48 @@ const CatalogToolbar = ({
       size="icon-lg"
       className="fixed right-6 bottom-6 z-40 size-14 rounded-full bg-primary text-ink shadow-lg hover:bg-primary/90 xl:hidden"
       onClick={onOpenFilters}
-      aria-label="Open filters"
+      aria-label={t("catalog.openFilters")}
     >
       <SlidersHorizontal className="size-6" />
     </Button>
     <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <p className="text-sm text-muted">
-      {totalResults === 0 ? (
-        "No results"
-      ) : (
-        <>
-          Showing{" "}
-          <strong className="text-ink">
-            {showingStart}-{showingEnd}
-          </strong>{" "}
-          of <strong className="text-ink">{totalResults}</strong> results
-        </>
-      )}
+      {totalResults === 0
+        ? t("catalog.results.none")
+        : t("catalog.results.showing", {
+            start: showingStart,
+            end: showingEnd,
+            total: totalResults,
+          })}
     </p>
     <div className="flex w-full items-center justify-between gap-4 sm:w-auto">
       <div className="flex items-center gap-2 text-sm text-muted">
-        <span>Sort by:</span>
+        <span>{t("catalog.sortBy")}</span>
         <Select
           value={sortBy}
           onValueChange={(value) => onSortChange(value as SortOption)}
         >
           <SelectTrigger className="h-9 w-40 rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold hover:bg-muted-background data-[state=open]:border-border data-[state=open]:bg-white">
-            <SelectValue>{(value) => sortLabels[value as SortOption]}</SelectValue>
+            <SelectValue>{(value) => t(SORT_KEYS[value as SortOption])}</SelectValue>
           </SelectTrigger>
           <SelectContent className="w-48 rounded-2xl border-slate-200 bg-white p-2 shadow-[0_14px_32px_rgba(15,39,71,0.16)] [&_[data-slot=select-item]]:mb-1">
             <SelectItem
               value="newest"
               className="rounded-xl py-3 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20"
             >
-              Newest Arrivals
+              {t("catalog.sort.newest")}
             </SelectItem>
             <SelectItem
               value="low"
               className="rounded-xl py-3 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20"
             >
-              Price: Low to High
+              {t("catalog.sort.low")}
             </SelectItem>
             <SelectItem
               value="high"
               className="rounded-xl py-3 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20"
             >
-              Price: High to Low
+              {t("catalog.sort.high")}
             </SelectItem>
           </SelectContent>
         </Select>
@@ -282,7 +330,7 @@ const CatalogToolbar = ({
             variant="ghost"
             onClick={() => onViewModeChange("grid")}
             className={viewMode === "grid" ? "bg-white text-ink shadow-sm" : "text-muted"}
-            aria-label="Grid view"
+            aria-label={t("catalog.gridView")}
           >
             <LayoutGrid />
           </Button>
@@ -291,7 +339,7 @@ const CatalogToolbar = ({
             variant="ghost"
             onClick={() => onViewModeChange("list")}
             className={viewMode === "list" ? "bg-white text-ink shadow-sm" : "text-muted"}
-            aria-label="List view"
+            aria-label={t("catalog.listView")}
           >
             <List />
           </Button>
@@ -302,7 +350,7 @@ const CatalogToolbar = ({
           variant="ghost"
           className={searchOpen ? "bg-muted-background text-ink" : "text-muted"}
           onClick={onToggleSearch}
-          aria-label={searchOpen ? "Close product search" : "Search products"}
+          aria-label={searchOpen ? t("catalog.closeProductSearch") : t("catalog.searchProducts")}
           aria-expanded={searchOpen}
         >
           {searchOpen ? <X className="size-5" /> : <Search className="size-5" />}
@@ -312,7 +360,7 @@ const CatalogToolbar = ({
     </div>
     {searchVisible ? (
       <div className={searchOpen ? "animate-in slide-in-from-top-2 fade-in duration-200" : "animate-out slide-out-to-top-2 fade-out duration-200"}>
-        <label htmlFor="catalog-search" className="sr-only">Search products</label>
+        <label htmlFor="catalog-search" className="sr-only">{t("catalog.searchProducts")}</label>
         <div className="relative ml-auto w-full max-w-md">
           <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted" />
           <Input
@@ -320,14 +368,15 @@ const CatalogToolbar = ({
             autoFocus
             value={searchQuery}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Search products by name or collection..."
+            placeholder={t("catalog.searchPlaceholder")}
             className="h-11 w-full rounded-full border-slate-200 bg-[#F9FAFB] pr-4 pl-11 text-sm focus-visible:ring-primary/40"
           />
         </div>
       </div>
     ) : null}
   </div>
-);
+  );
+};
 
 const MobileFiltersSheet = ({
   open,
@@ -346,6 +395,8 @@ const MobileFiltersSheet = ({
   onReset: () => void;
   groups: FilterGroup[];
 }) => {
+  const { t } = useTranslation();
+
   if (!open) return null;
 
   return (
@@ -353,7 +404,7 @@ const MobileFiltersSheet = ({
       className={`fixed inset-0 z-50 bg-ink/30 backdrop-blur-sm xl:hidden ${closing ? "animate-out fade-out duration-300" : "animate-in fade-in duration-200"}`}
       role="dialog"
       aria-modal="true"
-      aria-label="Filters"
+      aria-label={t("catalog.filters")}
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -378,7 +429,7 @@ const MobileFiltersSheet = ({
             className="h-auto w-full justify-center p-0 text-sm text-amber"
             onClick={onClose}
           >
-            Close filters
+            {t("catalog.closeFilters")}
           </Button>
           <AiHelpCard />
         </div>
@@ -401,6 +452,7 @@ export const ProductCatalog = ({
   showAddToCart?: boolean;
   detailsBasePath?: string;
 }) => {
+  const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<SortOption>("newest");
@@ -499,7 +551,7 @@ export const ProductCatalog = ({
         {breadcrumb && <div className="mb-6">{breadcrumb}</div>}
 
         <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
-          <aside className="scrollbar-hide hidden w-72 shrink-0 space-y-6 xl:sticky xl:top-6 xl:block xl:max-h-[calc(100dvh-3rem)] xl:self-start xl:overflow-y-auto xl:pr-1">
+          <aside className="scrollbar-hide hidden w-72 shrink-0 space-y-6 xl:sticky xl:top-24 xl:block xl:max-h-[calc(100dvh-7rem)] xl:self-start xl:overflow-y-auto xl:pr-1">
             <FilterOptionsCard
               filters={filters}
               onToggle={handleToggleFilter}
@@ -570,7 +622,7 @@ export const ProductCatalog = ({
                       }}
                     >
                       <ChevronsLeft className="size-4" />
-                      <span className="hidden sm:inline">First</span>
+                      <span className="hidden sm:inline">{t("catalog.pagination.first")}</span>
                     </PaginationLink>
                   </PaginationItem>
                   <PaginationItem>
@@ -636,7 +688,7 @@ export const ProductCatalog = ({
                         goToPage(pagination.totalPages);
                       }}
                     >
-                      <span className="hidden sm:inline">Last</span>
+                      <span className="hidden sm:inline">{t("catalog.pagination.last")}</span>
                       <ChevronsRight className="size-4" />
                     </PaginationLink>
                   </PaginationItem>

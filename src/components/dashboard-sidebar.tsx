@@ -3,9 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { LogoutButton } from "@/components/logout-button";
+import { stripLocale } from "@/lib/i18n/config";
 
 export type DashboardSidebarLink = {
   href: string;
@@ -38,18 +40,23 @@ const defaultUser: DashboardSidebarUser = {
 export const DashboardSidebar = ({
   links,
   close,
-  ariaLabel = "Dashboard navigation",
+  ariaLabel,
   user = defaultUser,
   className = "fixed inset-y-0 left-0 z-30 hidden w-70 bg-card lg:block xl:w-80",
 }: DashboardSidebarProps) => {
-  const pathname = usePathname();
+  const { t } = useTranslation();
+  // Routes here now live under `/[lang]/…` — compare against the path with
+  // its locale segment stripped so `href`s (kept bare, e.g. "/admin/overview")
+  // still match, and `/rw/admin/overview` highlights the same tab `/en/…` does.
+  const pathname = stripLocale(usePathname() ?? "/");
+  const navAriaLabel = ariaLabel ?? t("dash.sidebar.defaultNav");
 
   return (
     <aside className={className}>
       {close && (
         <button
           type="button"
-          aria-label="Close menu"
+          aria-label={t("dash.sidebar.closeMenu")}
           onClick={close}
           className="absolute right-3 top-3 z-10 rounded-md p-2 text-ink hover:bg-secondary"
         >
@@ -66,7 +73,7 @@ export const DashboardSidebar = ({
             className="mx-auto w-40 object-contain"
           />
         </div>
-        <nav className="scrollbar-hide min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto" aria-label={ariaLabel}>
+        <nav className="scrollbar-hide min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto" aria-label={navAriaLabel}>
           {links.map(({ label, href, icon: Icon, active, section }, index) => {
             const isActive = active?.(pathname) ?? pathname.startsWith(href);
             const showSectionHeading = section && section !== links[index - 1]?.section;

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import { FileText, PackageCheck } from "lucide-react";
 import {
   Dialog,
@@ -41,19 +42,9 @@ const markDismissed = (id: string) => {
 
 type Alert = { order: ApiOrder; reason: "quotation" | "waitlist" };
 
-const copyFor: Record<Alert["reason"], { icon: typeof FileText; title: string; description: (order: ApiOrder) => string }> = {
-  quotation: {
-    icon: FileText,
-    title: "Your quotation is ready",
-    description: (order) =>
-      `Order ${order.orderNumber} has a quotation ready for viewing. Head to the order to see the final total and pay.`,
-  },
-  waitlist: {
-    icon: PackageCheck,
-    title: "Good news — your order is ready to pay",
-    description: (order) =>
-      `Enough stock is now available for order ${order.orderNumber} — it's been moved off the waitlist. You have a short window to complete payment before it's released again.`,
-  },
+const ICON_FOR: Record<Alert["reason"], typeof FileText> = {
+  quotation: FileText,
+  waitlist: PackageCheck,
 };
 
 /**
@@ -66,6 +57,7 @@ const copyFor: Record<Alert["reason"], { icon: typeof FileText; title: string; d
  * sense addressed to them.
  */
 export const GlobalOrderAlertDialog = () => {
+  const { t } = useTranslation();
   const { user } = useCurrentUser();
   const [alert, setAlert] = useState<Alert | null>(null);
 
@@ -117,7 +109,12 @@ export const GlobalOrderAlertDialog = () => {
     setAlert(null);
   };
 
-  const { icon: Icon, title, description } = copyFor[alert.reason];
+  const Icon = ICON_FOR[alert.reason];
+  const title = t(alert.reason === "quotation" ? "orderAlert.quotationTitle" : "orderAlert.waitlistTitle");
+  const description = t(
+    alert.reason === "quotation" ? "orderAlert.quotationBody" : "orderAlert.waitlistBody",
+    { number: alert.order.orderNumber },
+  );
 
   return (
     <Dialog open onOpenChange={(open) => !open && dismiss()}>
@@ -127,11 +124,11 @@ export const GlobalOrderAlertDialog = () => {
             <Icon className="size-5" />
           </span>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description(alert.order)}</DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={dismiss} className="h-10 text-sm font-bold">
-            Not now
+            {t("orderAlert.notNow")}
           </Button>
           <Button
             nativeButton={false}
@@ -139,7 +136,7 @@ export const GlobalOrderAlertDialog = () => {
             onClick={dismiss}
             className="h-10 px-5 text-sm font-bold"
           >
-            View order
+            {t("orderAlert.viewOrder")}
           </Button>
         </DialogFooter>
       </DialogContent>

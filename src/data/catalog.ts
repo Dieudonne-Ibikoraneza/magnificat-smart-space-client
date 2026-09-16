@@ -56,7 +56,7 @@ export const products: Product[] = [
     description:
       "Pre-cut polished granite step tiles with a bullnose edge. Ideal for creating stunning spaces.",
     stockStatus: "out_of_stock",
-    roomTypes: ["Living Room (Saloon)", "Outdoor"],
+    roomTypes: ["Living Room (Saloon)", "Bedroom"],
     suitableFor: "floor",
   },
   {
@@ -74,7 +74,7 @@ export const products: Product[] = [
     description:
       "Pre-cut polished granite step tiles with a bullnose edge. Ideal for creating stunning spaces.",
     stockStatus: "in_stock",
-    roomTypes: ["Balcony", "Outdoor"],
+    roomTypes: ["Bedroom", "Bathroom"],
     suitableFor: "both",
   },
   {
@@ -92,7 +92,7 @@ export const products: Product[] = [
     description:
       "Pre-cut polished granite step tiles with a bullnose edge. Ideal for creating stunning spaces.",
     stockStatus: "in_stock",
-    roomTypes: ["Balcony", "Living Room (Saloon)"],
+    roomTypes: ["Bedroom", "Living Room (Saloon)"],
     suitableFor: "floor",
   },
   {
@@ -146,7 +146,7 @@ export const products: Product[] = [
     description:
       "Pre-cut polished granite step tiles with a bullnose edge. Ideal for creating stunning spaces.",
     stockStatus: "in_stock",
-    roomTypes: ["Bathroom", "Balcony"],
+    roomTypes: ["Bathroom", "Bedroom"],
     suitableFor: "both",
   },
   {
@@ -192,10 +192,9 @@ export const filterGroups = [
     title: "Room type" as const,
     options: [
       "Living Room (Saloon)",
+      "Bedroom",
       "Bathroom",
       "Kitchen",
-      "Balcony",
-      "Outdoor",
     ],
   },
   {

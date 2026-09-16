@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, ImagePlus, Pencil, Wallet, X } from "lucide-react";
 import {
   Dialog,
@@ -19,17 +20,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { productsApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
-import { roomTypeLabels } from "@/lib/api/mappers";
+import { useLocale } from "@/lib/i18n";
 import type { ApiProduct, RoomType, SuitableFor } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
-const suitableForOptions: { value: SuitableFor; label: string }[] = [
-  { value: "FLOOR", label: "Floor" },
-  { value: "WALL", label: "Wall" },
-  { value: "BOTH", label: "Floor & Wall" },
+const SUITABLE_FOR_KEYS: { value: SuitableFor; labelKey: string }[] = [
+  { value: "FLOOR", labelKey: "staff.editProduct.floor" },
+  { value: "WALL", labelKey: "staff.editProduct.wall" },
+  { value: "BOTH", labelKey: "staff.editProduct.floorAndWall" },
 ];
 
-const roomTypeOptions = Object.keys(roomTypeLabels) as RoomType[];
+const ROOM_TYPE_KEYS: Record<RoomType, string> = {
+  LIVING_ROOM: "catalog.roomTypes.livingRoom",
+  BEDROOM: "catalog.roomTypes.bedroom",
+  BATHROOM: "catalog.roomTypes.bathroom",
+  KITCHEN: "catalog.roomTypes.kitchen",
+};
+
+const roomTypeOptions = Object.keys(ROOM_TYPE_KEYS) as RoomType[];
 
 /**
  * Product editor. Packaging values remain editable because the API validates
@@ -44,13 +52,23 @@ export const EditProductDialog = ({
   /** Called after a successful edit so the parent can refetch the product. */
   onUpdated: () => void;
 }) => {
+  const { t } = useTranslation();
+  const { locale } = useLocale();
+  // Kinyarwanda admin UI edits the Kinyarwanda copy, not the English source
+  // — falls back to the English text when no translation exists yet (rather
+  // than showing a blank field), same as the customer-facing `localizedText`
+  // does. Saving still sends it as `nameRw`/`descriptionRw` either way, so
+  // the server knows to regenerate English from it (see `productsApi`).
+  const isRw = locale === "rw";
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState(product.name);
+  const [name, setName] = useState(isRw ? (product.nameRw ?? product.name) : product.name);
   const [sku, setSku] = useState(product.sku);
   const [boxCoverageSqm, setBoxCoverageSqm] = useState(String(product.boxCoverageSqm));
   const [piecesPerBox, setPiecesPerBox] = useState(String(product.piecesPerBox));
   const [price, setPrice] = useState(String(product.price));
-  const [description, setDescription] = useState(product.description ?? "");
+  const [description, setDescription] = useState(
+    isRw ? (product.descriptionRw ?? product.description ?? "") : (product.description ?? ""),
+  );
   const [suitableFor, setSuitableFor] = useState<SuitableFor>(product.suitableFor);
   const [roomTypes, setRoomTypes] = useState<RoomType[]>(product.roomTypes);
   const [image, setImage] = useState(product.image);
@@ -79,12 +97,12 @@ export const EditProductDialog = ({
   }, [previewUrl]);
 
   const resetToProduct = () => {
-    setName(product.name);
+    setName(isRw ? (product.nameRw ?? product.name) : product.name);
     setSku(product.sku);
     setBoxCoverageSqm(String(product.boxCoverageSqm));
     setPiecesPerBox(String(product.piecesPerBox));
     setPrice(String(product.price));
-    setDescription(product.description ?? "");
+    setDescription(isRw ? (product.descriptionRw ?? product.description ?? "") : (product.description ?? ""));
     setSuitableFor(product.suitableFor);
     setRoomTypes(product.roomTypes);
     setImage(product.image);
@@ -98,22 +116,25 @@ export const EditProductDialog = ({
     try {
       const uploaded = imageFile ? await productsApi.uploadImage(imageFile) : null;
       await productsApi.update(product.id, {
-        name: name.trim(),
+        ...(isRw
+          ? { nameRw: name.trim(), descriptionRw: description.trim() || undefined }
+          : { name: name.trim(), description: description.trim() || undefined }),
         sku: sku.trim(),
         boxCoverageSqm: parsedCoverage,
         piecesPerBox: parsedPieces,
         price: parsedPrice,
-        description: description.trim() || undefined,
         suitableFor,
         roomTypes,
         image: uploaded?.path ?? image,
       });
       onUpdated();
-      toast.success("Product updated", { description: `${name.trim()} was saved.` });
+      toast.success(t("staff.editProduct.toastUpdatedTitle"), {
+        description: t("staff.editProduct.toastUpdatedBody", { name: name.trim() }),
+      });
       setOpen(false);
     } catch (cause) {
-      toast.error("Couldn't save changes", {
-        description: cause instanceof ApiError ? cause.message : "Please try again.",
+      toast.error(t("staff.editProduct.toastFailedTitle"), {
+        description: cause instanceof ApiError ? cause.message : t("staff.editProduct.toastTryAgain"),
       });
     } finally {
       setSubmitting(false);
@@ -138,44 +159,50 @@ export const EditProductDialog = ({
         }
       >
         <Pencil className="size-4 stroke-2.5" />
-        Edit Details
+        {t("staff.editProduct.trigger")}
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit product</DialogTitle>
+          <DialogTitle>{t("staff.editProduct.title")}</DialogTitle>
           <DialogDescription>
-            Update the product details and replace its catalog image when needed.
+            {t("staff.editProduct.description")}
           </DialogDescription>
         </DialogHeader>
 
+        {isRw && (
+          <p className="mt-4 rounded-lg bg-amber/10 px-3 py-2 text-xs font-medium text-ink">
+            {t("staff.editProduct.editingRwHint")}
+          </p>
+        )}
+
         <div className="mt-5 space-y-4">
           <Field>
-            <FieldLabel htmlFor="edit-name">Product Name</FieldLabel>
+            <FieldLabel htmlFor="edit-name">{t("staff.editProduct.name")}</FieldLabel>
             <Input id="edit-name" value={name} onChange={(event) => setName(event.target.value)} />
             {name.length > 0 && !nameValid && (
-              <p className="text-xs font-medium text-red-600">Enter a name of at least 2 characters.</p>
+              <p className="text-xs font-medium text-red-600">{t("staff.editProduct.nameError")}</p>
             )}
           </Field>
 
           <Field>
-            <FieldLabel htmlFor="edit-sku">SKU</FieldLabel>
+            <FieldLabel htmlFor="edit-sku">{t("staff.editProduct.sku")}</FieldLabel>
             <Input id="edit-sku" value={sku} onChange={(event) => setSku(event.target.value)} />
-            {sku.length === 0 && <p className="text-xs font-medium text-red-600">Enter a SKU.</p>}
+            {sku.length === 0 && <p className="text-xs font-medium text-red-600">{t("staff.editProduct.skuError")}</p>}
           </Field>
 
           <Field>
-            <FieldLabel>Product Image</FieldLabel>
+            <FieldLabel>{t("staff.editProduct.image")}</FieldLabel>
             <div className="mt-1">
               {previewUrl || image ? (
                 <div className="relative aspect-4/3 overflow-hidden rounded-xl bg-muted-background">
-                  <Image src={previewUrl ?? image} alt={`${name || "Product"} preview`} fill unoptimized className="object-cover" />
+                  <Image src={previewUrl ?? image} alt={t("staff.editProduct.previewAlt", { name: name || "Product" })} fill unoptimized className="object-cover" />
                   <Button
                     type="button"
                     variant="secondary"
                     size="icon-sm"
                     onClick={() => { setImageFile(null); setImage(""); setPreviewUrl(null); }}
                     className="absolute top-3 right-3 rounded-full bg-white/95 text-ink shadow-sm"
-                    aria-label="Remove product image"
+                    aria-label={t("staff.editProduct.removeImageAria")}
                   >
                     <X className="size-4" />
                   </Button>
@@ -183,8 +210,8 @@ export const EditProductDialog = ({
               ) : (
                 <button type="button" onClick={() => inputRef.current?.click()} className="flex aspect-4/3 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-secondary/40 text-center hover:bg-secondary/60">
                   <span className="flex size-11 items-center justify-center rounded-full bg-white text-ink shadow-sm"><ImagePlus className="size-5" /></span>
-                  <span className="text-sm font-semibold text-ink">Choose a product image</span>
-                  <span className="text-xs text-muted-foreground">PNG, JPG or WEBP · up to 10MB</span>
+                  <span className="text-sm font-semibold text-ink">{t("staff.editProduct.chooseImage")}</span>
+                  <span className="text-xs text-muted-foreground">{t("staff.editProduct.imageHint")}</span>
                 </button>
               )}
               <input
@@ -204,18 +231,18 @@ export const EditProductDialog = ({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field>
-              <FieldLabel htmlFor="edit-box-coverage">Box Coverage (m²)</FieldLabel>
+              <FieldLabel htmlFor="edit-box-coverage">{t("staff.editProduct.boxCoverage")}</FieldLabel>
               <Input id="edit-box-coverage" type="number" min={0} step="0.01" value={boxCoverageSqm} onChange={(event) => setBoxCoverageSqm(event.target.value)} />
             </Field>
             <Field>
-              <FieldLabel htmlFor="edit-pieces-per-box">Pieces per Box</FieldLabel>
+              <FieldLabel htmlFor="edit-pieces-per-box">{t("staff.editProduct.piecesPerBox")}</FieldLabel>
               <Input id="edit-pieces-per-box" type="number" min={1} step="1" value={piecesPerBox} onChange={(event) => setPiecesPerBox(event.target.value)} />
             </Field>
           </div>
-          {!packagingValid && (boxCoverageSqm.length > 0 || piecesPerBox.length > 0) && <p className="text-xs font-medium text-red-600">Enter valid coverage and a whole number of pieces per box.</p>}
+          {!packagingValid && (boxCoverageSqm.length > 0 || piecesPerBox.length > 0) && <p className="text-xs font-medium text-red-600">{t("staff.editProduct.packagingError")}</p>}
 
           <Field>
-            <FieldLabel htmlFor="edit-price">Price (RWF / sqm)</FieldLabel>
+            <FieldLabel htmlFor="edit-price">{t("staff.editProduct.price")}</FieldLabel>
             <div className="relative">
               <Wallet
                 aria-hidden="true"
@@ -232,25 +259,25 @@ export const EditProductDialog = ({
               />
             </div>
             {price.length > 0 && !priceValid && (
-              <p className="text-xs font-medium text-red-600">Enter a price greater than 0.</p>
+              <p className="text-xs font-medium text-red-600">{t("staff.editProduct.priceError")}</p>
             )}
           </Field>
 
           <Field>
-            <FieldLabel htmlFor="edit-description">Description</FieldLabel>
+            <FieldLabel htmlFor="edit-description">{t("staff.editProduct.descriptionLabel")}</FieldLabel>
             <Textarea
               id="edit-description"
               rows={3}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder="Shown on the product's detail page."
+              placeholder={t("staff.editProduct.descriptionPlaceholder")}
             />
           </Field>
 
           <div>
-            <FieldLabel className="text-sm font-medium text-ink">Suitable For</FieldLabel>
+            <FieldLabel className="text-sm font-medium text-ink">{t("staff.editProduct.suitableFor")}</FieldLabel>
             <div className="mt-2 flex flex-wrap gap-2">
-              {suitableForOptions.map((option) => (
+              {SUITABLE_FOR_KEYS.map((option) => (
                 <button
                   key={option.value}
                   type="button"
@@ -264,15 +291,15 @@ export const EditProductDialog = ({
                   )}
                 >
                   {suitableFor === option.value && <Check className="size-3.5" />}
-                  {option.label}
+                  {t(option.labelKey)}
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <FieldLabel className="text-sm font-medium text-ink">Room Types</FieldLabel>
-            <p className="mt-0.5 text-xs text-muted-foreground">At least one.</p>
+            <FieldLabel className="text-sm font-medium text-ink">{t("staff.editProduct.roomTypes")}</FieldLabel>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t("staff.editProduct.roomTypesHint")}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {roomTypeOptions.map((option) => {
                 const checked = roomTypes.includes(option);
@@ -290,7 +317,7 @@ export const EditProductDialog = ({
                     )}
                   >
                     {checked && <Check className="size-3.5" />}
-                    {roomTypeLabels[option]}
+                    {t(ROOM_TYPE_KEYS[option])}
                   </button>
                 );
               })}
@@ -300,10 +327,10 @@ export const EditProductDialog = ({
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
-            Cancel
+            {t("staff.editProduct.cancel")}
           </Button>
           <Button type="button" disabled={!valid || submitting} onClick={() => void handleSubmit()} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
-            {submitting ? "Saving…" : "Save changes"}
+            {submitting ? t("staff.editProduct.saving") : t("staff.editProduct.save")}
           </Button>
         </DialogFooter>
       </DialogContent>

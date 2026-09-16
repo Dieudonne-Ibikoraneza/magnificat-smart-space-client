@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type JSX } from "react";
+import { useTranslation } from "react-i18next";
 import { BookOpen, ChevronLeft, ChevronRight, Maximize, Minimize, RotateCw, ZoomIn, ZoomOut } from "lucide-react";
 
 interface PDFViewerProps {
@@ -69,6 +70,7 @@ const PDFJS_VERSION = "3.11.174";
  * viewer (native or custom) can prevent either.
  */
 const PDFViewer = ({ src, fileName = "document.pdf", thumbnailMode = false, className, hideControls = false }: PDFViewerProps) => {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -218,7 +220,7 @@ const PDFViewer = ({ src, fileName = "document.pdf", thumbnailMode = false, clas
               />
               {!thumbnailMode && (
                 <div className="absolute top-2 right-2 rounded bg-black/70 px-2 py-1 text-xs text-white">
-                  Page {pageNum}
+                  {t("pdfViewer.page", { num: pageNum })}
                 </div>
               )}
             </div>,
@@ -232,7 +234,7 @@ const PDFViewer = ({ src, fileName = "document.pdf", thumbnailMode = false, clas
         setIsLoading(false);
       } catch (err) {
         if (mounted) {
-          setError("Failed to load PDF");
+          setError(t("pdfViewer.loadFailed"));
           console.error("PDF loading error:", err);
           setIsLoading(false);
         }
@@ -374,7 +376,7 @@ const PDFViewer = ({ src, fileName = "document.pdf", thumbnailMode = false, clas
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
           <div className="text-center">
             <div className="border-navy mx-auto mb-4 size-12 animate-spin rounded-full border-b-2"></div>
-            <p className="text-gray-600">Loading PDF...</p>
+            <p className="text-gray-600">{t("pdfViewer.loading")}</p>
           </div>
         </div>
       )}
@@ -385,7 +387,7 @@ const PDFViewer = ({ src, fileName = "document.pdf", thumbnailMode = false, clas
           <div className="text-center text-red-600">
             <BookOpen className="mx-auto mb-4 size-12 opacity-50" />
             <p className="text-lg font-semibold">{error}</p>
-            <p className="mt-2 text-sm text-gray-600">Please check the PDF URL and try again.</p>
+            <p className="mt-2 text-sm text-gray-600">{t("pdfViewer.checkUrl")}</p>
           </div>
         </div>
       )}
@@ -433,7 +435,7 @@ const PDFViewer = ({ src, fileName = "document.pdf", thumbnailMode = false, clas
                     onChange={(e) => goToPage(parseInt(e.target.value) || 1)}
                     className="w-12 rounded border border-white/30 bg-white/20 px-2 py-1 text-center text-white"
                   />
-                  <span className="text-white/70">of {totalPages}</span>
+                  <span className="text-white/70">{t("pdfViewer.ofTotal", { total: totalPages })}</span>
                 </div>
 
                 <button
