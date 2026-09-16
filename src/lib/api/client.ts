@@ -66,6 +66,23 @@ const writeStorage = (key: string, value: string | null) => {
   }
 };
 
+/**
+ * Fired whenever a refresh attempt definitively fails (the refresh token
+ * itself is invalid/expired, not just the access token) — the one signal
+ * that the session is truly over, not just due for a silent refresh.
+ * `CurrentUserProvider` listens for this to re-check "who is this?" (finding
+ * no token, since `tokenStore.clear()` always runs right before this fires),
+ * which is what lets `useRequireRole` notice and bounce to `/auth` — without
+ * this, a token dying in the background (e.g. mid-conversation in the
+ * chatbot) left every API call throwing "Unauthorized" with no way back to
+ * sign-in short of a manual reload.
+ */
+export const SESSION_EXPIRED_EVENT = "mss:session-expired";
+
+const emitSessionExpired = () => {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+};
+
 export const tokenStore = {
   getAccessToken: () => readStorage(ACCESS_TOKEN_KEY),
   getRefreshToken: () => readStorage(REFRESH_TOKEN_KEY),
@@ -144,6 +161,7 @@ const refreshTokens = async (): Promise<boolean> => {
 
   if (!response.ok) {
     tokenStore.clear();
+    emitSessionExpired();
     return false;
   }
 
@@ -153,6 +171,7 @@ const refreshTokens = async (): Promise<boolean> => {
   }>;
   if (!body?.data?.accessToken) {
     tokenStore.clear();
+    emitSessionExpired();
     return false;
   }
 

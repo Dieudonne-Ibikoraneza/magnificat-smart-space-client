@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -38,7 +39,7 @@ import {
 } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { useApi } from "@/lib/api/use-api";
-import { roleHomePath } from "@/lib/auth-routes";
+import { isPathAllowedForRole, roleHomePath } from "@/lib/auth-routes";
 import { useCart } from "@/lib/cart-store";
 import { useCurrentUser } from "@/lib/current-user";
 import {
@@ -46,6 +47,7 @@ import {
   isValidFullName,
   isValidRwandaMobileDigits,
 } from "@/lib/validation";
+import type { Role } from "@/lib/api/types";
 import { PhoneField, RWANDA_PREFIX } from "@/components/phone-field";
 
 /** Matches the server's default `OTP_RESEND_COOLDOWN_SECONDS` — see server/.env. */
@@ -193,6 +195,14 @@ const OtpFields = ({
   const { t } = useTranslation();
   const refs = useRef<Array<HTMLInputElement | null>>([]);
 
+  // This field only ever mounts once the OTP step is reached (see its
+  // `view === "otp" &&` guard below), so a mount-time focus is exactly
+  // "the first box is active the moment the code screen appears" — no need
+  // to track view changes here at all.
+  useEffect(() => {
+    refs.current[0]?.focus();
+  }, []);
+
   const updateCode = (index: number, value: string) => {
     const next = [...code];
     next[index] = value.replace(/\D/g, "").slice(-1);
@@ -267,18 +277,25 @@ const AuthPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const router = useRouter();
-  const {
-    user: currentUser,
-    loading: currentUserLoading,
-    refresh: refreshCurrentUser,
-  } = useCurrentUser();
+  const searchParams = useSearchParams();
+  const { refresh: refreshCurrentUser } = useCurrentUser();
   const { refresh: refreshCart } = useCart();
 
-  // Already have a working session? Skip straight past the login form.
-  useEffect(() => {
-    if (!currentUserLoading && currentUser)
-      router.replace(roleHomePath(currentUser.role));
-  }, [currentUser, currentUserLoading, router]);
+  // Where to send a `role` once signed in: back to the route they were
+  // trying to reach (`?next=`, set by `useRequireRole` when it bounced them
+  // here) if that role is actually allowed there, otherwise their own
+  // dashboard home — a sales person can't use a stock-manager `next` link
+  // just because they had it in the URL.
+  const destinationFor = useCallback(
+    (role: Role): string => {
+      const next = searchParams.get("next");
+      if (next && next.startsWith("/") && !next.startsWith("//") && isPathAllowedForRole(next, role)) {
+        return next;
+      }
+      return roleHomePath(role);
+    },
+    [searchParams],
+  );
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -393,7 +410,7 @@ const AuthPage = () => {
       toast.success(t("auth.toast.successTitle"), {
         description: t("auth.toast.successBody"),
       });
-      router.push(roleHomePath(user.role));
+      router.push(destinationFor(user.role));
     } catch (cause) {
       toast.error(t("auth.toast.verifyFailedTitle"), {
         description: errorMessage(cause, t("auth.toast.tryAgain")),
