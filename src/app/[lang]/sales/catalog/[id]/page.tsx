@@ -20,6 +20,7 @@ import { QuantityCalculator } from "@/components/quantity-calculator";
 import { productsApi } from "@/lib/api";
 import { toProduct } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
+import { useLocale } from "@/lib/i18n";
 import type { RoomType, StockStatus } from "@/lib/api/types";
 
 type SalesProductDetailsProps = { params: Promise<{ id: string }> };
@@ -54,6 +55,7 @@ const getSuitableFor = (suitableFor: "floor" | "wall" | "both") => {
 
 const SalesProductDetailsPage = ({ params }: SalesProductDetailsProps) => {
   const { t } = useTranslation();
+  const { locale } = useLocale();
   const { id } = use(params);
   const { data: apiProduct, loading, error, reload } = useApi(() => productsApi.get(id), [id]);
 
@@ -75,7 +77,7 @@ const SalesProductDetailsPage = ({ params }: SalesProductDetailsProps) => {
 
   if (!apiProduct) return null;
 
-  const product = toProduct(apiProduct);
+  const product = toProduct(apiProduct, undefined, locale);
 
   return (
     <>

@@ -22,6 +22,7 @@ import { QuantityCalculator } from "@/components/quantity-calculator";
 import { analyticsApi, productsApi } from "@/lib/api";
 import { toProduct } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
+import { useLocale } from "@/lib/i18n";
 import { formatCompactNumber } from "@/lib/utils";
 import type { RoomType, StockStatus } from "@/lib/api/types";
 
@@ -54,6 +55,7 @@ const getSuitableFor = (suitableFor: "floor" | "wall" | "both") => {
 /** Analyst view — read-only: interaction stats + the same product details staff see elsewhere, no edit/action controls. */
 const TileDetailPage = ({ params }: TileDetailPageProps) => {
   const { t } = useTranslation();
+  const { locale } = useLocale();
   const { id } = use(params);
   const { data: apiProduct, loading: productLoading, error: productError, reload: reloadProduct } = useApi(
     () => productsApi.get(id),
@@ -83,7 +85,7 @@ const TileDetailPage = ({ params }: TileDetailPageProps) => {
 
   if (!apiProduct) return null;
 
-  const product = toProduct(apiProduct);
+  const product = toProduct(apiProduct, undefined, locale);
   const currentStock = apiProduct.quantityOnHandSqm ?? 0;
   const breakdown = apiProduct.onHandBreakdown;
 

@@ -61,7 +61,8 @@ const stockPreview = (quantity: number) => {
 };
 
 const isValidName = (value: string) => value.trim().length >= 2 && value.trim().length <= 120;
-const isValidSku = (value: string) => /^[A-Z0-9]{2,8}-[A-Z0-9]{2,8}-[A-Z0-9]{2,6}$/.test(value.trim());
+/** Letters/numbers, with optional dashes between groups — accepts a single run like "GFT44063T" just as well as a segmented one like "SLB-CG-001". */
+const isValidSku = (value: string) => /^[A-Z0-9]+(-[A-Z0-9]+)*$/.test(value.trim()) && value.trim().length >= 3 && value.trim().length <= 24;
 const isPositiveNumber = (value: string) => value.trim() !== "" && Number(value) > 0;
 const isValidDescription = (value: string) => value.trim().length >= 10;
 

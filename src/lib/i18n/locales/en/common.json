@@ -67,7 +67,9 @@
       "compare": "Compare",
       "calculator": "Calculator",
       "chatbot": "AI Chatbot"
-    }
+    },
+    "dashboard": "Dashboard",
+    "dashboardAria": "Go to your dashboard"
   },
   "catalog": {
     "filters": "Filters",
@@ -371,10 +373,19 @@
     "loading": "Loading the assistant…",
     "title": "AI Design Assistant",
     "welcome": "Welcome to Magnificat Smart Space! I am your AI Design Assistant. Let's narrow down your requirements so I can give you the best recommendations — I'll ask a few quick questions to get started.",
+    "roomSelectPrompt": "First, which room are you designing for? Please pick one below to get started.",
+    "roomSelectAria": "Select the room you're designing for",
+    "roomSelectPlaceholder": "Select a room above to continue…",
     "errorReply": "Sorry, something went wrong on my end — please try that again.",
     "savedNote": "Your project is saved to your account.",
     "signInNote": "Sign in to save your design projects.",
     "newProject": "New project",
+    "pastProjects": "Past projects",
+    "pastProjectsAria": "Switch to a past project",
+    "pastProjectsEmpty": "No past projects yet.",
+    "pastProjectsLoadFailed": "Couldn't load your past projects — please try again.",
+    "untitledProject": "Untitled project",
+    "currentProjectBadge": "Current",
     "introAria": "Assistant introduction",
     "typingAria": "Assistant is typing",
     "whyPicks": "Why these picks",
@@ -780,6 +791,12 @@
     "perSqm": "/ sqm",
     "addToCartAria": "Add {{name}} to cart",
     "viewDetails": "View Details",
+    "viewDetailsAria": "View {{name}} details",
+    "floorTile": "Floor",
+    "wallTile": "Wall",
+    "floorTooltip": "Floor: {{name}}",
+    "wallTooltip": "Wall: {{name}}",
+    "perfectPairing": "Perfect pairing",
     "toast": {
       "signInRequiredTitle": "Sign in required",
       "signInBody": "Create a free account or log in to add tiles to your cart.",
@@ -1019,7 +1036,8 @@
       "toastUpdatedTitle": "Product updated",
       "toastUpdatedBody": "{{name}} was saved.",
       "toastFailedTitle": "Couldn't save changes",
-      "toastTryAgain": "Please try again."
+      "toastTryAgain": "Please try again.",
+      "editingRwHint": "You're editing the Kinyarwanda name and description. The English version will be regenerated automatically when you save."
     },
     "editCollection": {
       "trigger": "Edit Collection",
@@ -1043,7 +1061,8 @@
       "toastUpdatedTitle": "Collection updated",
       "toastUpdatedBody": "{{name}} was saved.",
       "toastFailedTitle": "Couldn't save changes",
-      "toastTryAgain": "Please try again."
+      "toastTryAgain": "Please try again.",
+      "editingRwHint": "You're editing the Kinyarwanda title and description. The English version will be regenerated automatically when you save."
     },
     "deleteCollection": {
       "trigger": "Delete Collection",
@@ -1553,7 +1572,7 @@
       "nameError": "Enter a name between 2 and 120 characters.",
       "sku": "SKU / Code",
       "skuPlaceholder": "SLB-CG-001",
-      "skuError": "Use the format ABC-DEF-000 (letters, numbers, dashes).",
+      "skuError": "Use letters, numbers, and optional dashes (e.g. GFT44063T or SLB-CG-001), 3-24 characters.",
       "skuHint": "Unique code used to track this product in stock.",
       "collection": "Collection",
       "selectCollection": "Select collection...",
@@ -2058,7 +2077,9 @@
         "totalEntries": "Total Entries",
         "avgAreaSqm": "Avg. Area",
         "maxAreaSqm": "Max Area"
-      }
+      },
+      "viewCustomer": "View Customer",
+      "designDialogViewInVisualizer": "View in Visualizer"
     },
     "ai": {
       "title": "AI Analytics",
@@ -2145,12 +2166,13 @@
       "dialogAddTitle": "Add profiling question",
       "dialogDescription": "Shown to customers during AI-assisted room profiling.",
       "dialogQuestionLabel": "Question",
+      "dialogQuestionPlaceholder": "e.g. What is the primary wall paint color?",
       "dialogMinChars": "Enter at least 5 characters.",
       "dialogRequired": "Required",
       "dialogRequiredSub": "Always asked, not skippable.",
       "dialogToggleRequired": "Toggle required",
       "dialogAskOnlyFor": "Ask only for",
-      "dialogEveryRoomHint": "Leave on \"Every room\" to ask it regardless of room type.",
+      "dialogEveryRoomHint": "Leave on \"Every room\" to ask it regardless of room type, or select one or more specific rooms.",
       "dialogEveryRoom": "Every room",
       "dialogCancel": "Cancel",
       "dialogSave": "Save",
@@ -2555,6 +2577,25 @@
       "resendFailedTitle": "Couldn't resend the code",
       "cooldownBody": "Please wait before requesting another code.",
       "tryAgain": "Please try again."
+    }
+  },
+  "staffToolbar": {
+    "catalogHint": "You're viewing the storefront as staff — customer actions like favoriting and cart are hidden.",
+    "newProduct": "New product",
+    "newCollection": "New collection",
+    "product": {
+      "title": "Staff tools",
+      "onHand": "On hand",
+      "reserved": "Reserved",
+      "manageInventory": "Manage in inventory",
+      "startOrder": "Start an order",
+      "manageCollection": "Manage collection",
+      "analytics": {
+        "views": "Views",
+        "applications": "Applications",
+        "purchases": "Purchases",
+        "viewFull": "View full analytics"
+      }
     }
   }
 }

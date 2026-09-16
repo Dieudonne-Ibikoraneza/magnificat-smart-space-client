@@ -154,6 +154,15 @@ export type ProductInput = {
   price: number;
   image: string;
   description?: string;
+  /**
+   * Only sent by an edit authored in the Kinyarwanda admin UI — never
+   * together with `name`/`description`, which stay the always-English
+   * columns. Sending these instead tells the server this edit is RW -> EN,
+   * so it regenerates `name`/`description` rather than the usual other way
+   * round (see `products.service.ts#update`).
+   */
+  nameRw?: string;
+  descriptionRw?: string;
   suitableFor?: SuitableFor;
   roomTypes?: RoomType[];
   /** Opening stock in square metres — boxes/pieces are a display conversion only. */
@@ -168,6 +177,9 @@ export type CollectionInput = {
   /** Area of a single tile of this size, in sqm — shared by every product in the collection. */
   tileAreaSqm: number;
   description?: string;
+  /** Same RW-authored-edit convention as `ProductInput.nameRw` — see there. */
+  titleRw?: string;
+  descriptionRw?: string;
   image?: string;
   isActive?: boolean;
 };
@@ -520,18 +532,19 @@ export const settingsApi = {
   get: () => api.get<PlatformSettings>("/settings", { anonymous: true }),
   update: (settings: Record<string, unknown>) => api.patch<PlatformSettings>("/settings", { settings }),
 
+  /** `roomType` here is the single room the customer picked — matches questions that are either always-asked or list that room among their own `roomTypes`. */
   profilingQuestions: (query: { language?: Language; roomType?: RoomType } = {}) =>
     api.get<ProfilingQuestion[]>("/settings/profiling-questions", { query, anonymous: true }),
   createProfilingQuestion: (body: {
     text: string;
     isRequired?: boolean;
-    roomType?: RoomType;
+    roomTypes?: RoomType[];
     position?: number;
     language?: Language;
   }) => api.post<ProfilingQuestion>("/settings/profiling-questions", body),
   updateProfilingQuestion: (
     id: string,
-    body: Partial<{ text: string; isRequired: boolean; roomType: RoomType | null; position: number; isActive: boolean }>,
+    body: Partial<{ text: string; isRequired: boolean; roomTypes: RoomType[]; position: number; isActive: boolean }>,
   ) => api.patch<ProfilingQuestion>(`/settings/profiling-questions/${id}`, body),
   reorderProfilingQuestions: (questions: { id: string; position: number }[]) =>
     api.patch<ProfilingQuestion[]>("/settings/profiling-questions/reorder", { questions }),

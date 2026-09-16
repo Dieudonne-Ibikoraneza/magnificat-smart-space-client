@@ -895,6 +895,8 @@ const CreateOrderWizard = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedId = searchParams.get("customer");
+  /** Set by the storefront's staff toolbar (`staff-toolbar.tsx`) when a product's own "Start an order" link brought them here. */
+  const preselectedProductId = searchParams.get("product");
 
   const {
     data: customersData,
@@ -923,7 +925,7 @@ const CreateOrderWizard = () => {
   // a `?customer=` id) — restores a saved draft, unless the URL explicitly
   // points at a *different* customer, in which case that link wins and
   // starts a fresh draft for them instead of resuming stale product picks.
-  if (!hydrated && !customersLoading) {
+  if (!hydrated && !customersLoading && !productsLoading) {
     setHydrated(true);
     const draft = readOrderDraft(ORDER_DRAFT_KEY);
     const validPreselect = preselectedId !== null && customers.some((customer) => customer.id === preselectedId);
@@ -937,6 +939,15 @@ const CreateOrderWizard = () => {
       setSelectedProducts(draft.selectedProducts);
       setStep(draft.step);
       setMaxReachedStep(draft.maxReachedStep);
+    }
+
+    // A product deep-linked from the storefront (staff toolbar) — added on
+    // top of whatever the draft/URL already picked, same as clicking its
+    // card would, rather than replacing the selection.
+    if (preselectedProductId && products.some((item) => item.id === preselectedProductId)) {
+      setSelectedProducts((current) =>
+        preselectedProductId in current ? current : { ...current, [preselectedProductId]: "" },
+      );
     }
   }
 

@@ -67,7 +67,9 @@
       "compare": "Kugereranya",
       "calculator": "Kubara",
       "chatbot": "Ganira na AI"
-    }
+    },
+    "dashboard": "Ikibaho",
+    "dashboardAria": "Jya ku kibaho cyawe"
   },
   "catalog": {
     "filters": "Muyunguruzi",
@@ -371,10 +373,19 @@
     "loading": "Kuzana umufasha…",
     "title": "Umufasha wa AI mu Gushushanya",
     "welcome": "Murakaza neza kuri Magnificat Smart Space! Ndi Umufasha wawe wa AI mu Gushushanya. Reka dusobanure ibyo ukeneye kugira ngo nkugezeho inama nziza — ngiye kubaza ibibazo bike byihuse mbere yo gutangira.",
+    "roomSelectPrompt": "Mbere na mbere, ni ikihe cyumba ushushanya? Hitamo kimwe hepfo kugira ngo dutangire.",
+    "roomSelectAria": "Hitamo icyumba ushushanya",
+    "roomSelectPlaceholder": "Hitamo icyumba hejuru kugira ngo ukomeze…",
     "errorReply": "Ihangane, hari ikitagenze neza iwacu — ongera ugerageze.",
     "savedNote": "Umushinga wawe ubitswe kuri konti yawe.",
     "signInNote": "Injira kugira ngo ubike imishinga yawe y'igishushanyo.",
     "newProject": "Umushinga mushya",
+    "pastProjects": "Imishinga yashize",
+    "pastProjectsAria": "Hindukira ku mushinga washize",
+    "pastProjectsEmpty": "Nta mushinga washize uhari.",
+    "pastProjectsLoadFailed": "Ntibyakunze gushaka imishinga yawe yashize — ongera ugerageze.",
+    "untitledProject": "Umushinga udafite izina",
+    "currentProjectBadge": "Uriho ubu",
     "introAria": "Intangiriro y'umufasha",
     "typingAria": "Umufasha arandika",
     "whyPicks": "Impamvu z'ibi byatoranyijwe",
@@ -780,6 +791,12 @@
     "perSqm": "/ m²",
     "addToCartAria": "Shyira {{name}} mu gatebo",
     "viewDetails": "Reba Ibisobanuro",
+    "viewDetailsAria": "Reba ibisobanuro bya {{name}}",
+    "floorTile": "Ubutaka",
+    "wallTile": "Urukuta",
+    "floorTooltip": "Ubutaka: {{name}}",
+    "wallTooltip": "Urukuta: {{name}}",
+    "perfectPairing": "Ihuriro ryiza",
     "toast": {
       "signInRequiredTitle": "Ugomba kwinjira",
       "signInBody": "Fungura konti y'ubuntu cyangwa winjire kugira ngo wongere amakaro mu gatebo.",
@@ -1019,7 +1036,8 @@
       "toastUpdatedTitle": "Igicuruzwa cyavuguruwe",
       "toastUpdatedBody": "{{name}} cyabitswe.",
       "toastFailedTitle": "Ntibyashobotse kubika impinduka",
-      "toastTryAgain": "Ongera ugerageze."
+      "toastTryAgain": "Ongera ugerageze.",
+      "editingRwHint": "Uri guhindura izina n'ibisobanuro by'Ikinyarwanda. Icyongereza kizongera kigenwe ubwacyo igihe uzabika."
     },
     "editCollection": {
       "trigger": "Hindura Ikusanyirizo",
@@ -1043,7 +1061,8 @@
       "toastUpdatedTitle": "Ikusanyirizo ryavuguruwe",
       "toastUpdatedBody": "{{name}} ryabitswe.",
       "toastFailedTitle": "Ntibyashobotse kubika impinduka",
-      "toastTryAgain": "Ongera ugerageze."
+      "toastTryAgain": "Ongera ugerageze.",
+      "editingRwHint": "Uri guhindura umutwe n'ibisobanuro by'Ikinyarwanda. Icyongereza kizongera kigenwe ubwacyo igihe uzabika."
     },
     "deleteCollection": {
       "trigger": "Siba Ikusanyirizo",
@@ -1553,7 +1572,7 @@
       "nameError": "Andika izina rifite hagati y'inyuguti 2 na 120.",
       "sku": "SKU / Kode",
       "skuPlaceholder": "SLB-CG-001",
-      "skuError": "Koresha imiterere ABC-DEF-000 (inyuguti, imibare, udukoni).",
+      "skuError": "Koresha inyuguti, imibare, n'udukoni (aho bikenewe) — urugero GFT44063T cyangwa SLB-CG-001, inyuguti 3-24.",
       "skuHint": "Kode idasanzwe ikoreshwa mu gukurikirana iki gicuruzwa mu bubiko.",
       "collection": "Ikusanyirizo",
       "selectCollection": "Hitamo ikusanyirizo...",
@@ -2058,7 +2077,9 @@
         "totalEntries": "Ibyinjijwe Byose",
         "avgAreaSqm": "Impuzandengo y'Ubuso",
         "maxAreaSqm": "Ubuso Bunini"
-      }
+      },
+      "viewCustomer": "Reba Umukiriya",
+      "designDialogViewInVisualizer": "Reba muri Visualizer"
     },
     "ai": {
       "title": "Isesengura rya AI",
@@ -2145,12 +2166,13 @@
       "dialogAddTitle": "Ongeramo ikibazo cyo kumenya",
       "dialogDescription": "Kigaragarira abakiriya mu gihe cyo kwifashisha AI mu kumenya icyumba.",
       "dialogQuestionLabel": "Ikibazo",
+      "dialogQuestionPlaceholder": "urugero: Ni irihe bara ry'amabara y'urukuta rw'ibanze?",
       "dialogMinChars": "Andika byibuze inyuguti 5.",
       "dialogRequired": "Birasabwa",
       "dialogRequiredSub": "Kibazwa buri gihe, ntikibaswa.",
       "dialogToggleRequired": "Hindura ko birasabwa",
       "dialogAskOnlyFor": "Kibaze gusa kuri",
-      "dialogEveryRoomHint": "Reka kuri \"Buri cyumba\" kugira ngo kibazwe uko byumba byose byari byo.",
+      "dialogEveryRoomHint": "Reka kuri \"Buri cyumba\" kugira ngo kibazwe uko byumba byose byari byo, cyangwa uhitemo ibyumba bimwe cyangwa byinshi byihariye.",
       "dialogEveryRoom": "Buri cyumba",
       "dialogCancel": "Hagarika",
       "dialogSave": "Bika",
@@ -2555,6 +2577,25 @@
       "resendFailedTitle": "Ntitwashoboye kongera kohereza kode",
       "cooldownBody": "Tegereza mbere yo kongera gusaba indi kode.",
       "tryAgain": "Ongera ugerageze."
+    }
+  },
+  "staffToolbar": {
+    "catalogHint": "Urimo kureba iyi paji nk'umukozi — ibikorwa by'abakiriya nko gukunda no gushyira mu gikapu birahishwe.",
+    "newProduct": "Igicuruzwa gishya",
+    "newCollection": "Icyegeranyo gishya",
+    "product": {
+      "title": "Ibikoresho by'abakozi",
+      "onHand": "Bihari",
+      "reserved": "Byabitswe",
+      "manageInventory": "Gucunga mu bubiko",
+      "startOrder": "Tangira itumizo",
+      "manageCollection": "Gucunga icyegeranyo",
+      "analytics": {
+        "views": "Ibirebwa",
+        "applications": "Ibyakoreshejwe",
+        "purchases": "Ibyaguzwe",
+        "viewFull": "Reba isesengura ryuzuye"
+      }
     }
   }
 }

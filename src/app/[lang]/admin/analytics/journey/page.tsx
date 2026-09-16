@@ -23,6 +23,7 @@ import {
   ShoppingCart,
   Sparkles,
   Star,
+  User,
   UserPlus,
   Users,
   Wallet,
@@ -36,6 +37,7 @@ import { ListPagination } from "@/components/list-pagination";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -332,6 +334,7 @@ const ActivityCell = ({ action, t }: { action: JourneyStageAction; t: (key: stri
 const DesignDetailDialog = ({ action, onClose }: { action: JourneyStageAction | null; onClose: () => void }) => {
   const { t } = useTranslation();
   const detail = action && isSavedDesignDetail(action.detail) ? action.detail : null;
+  const designId = action?.id ?? "";
 
   return (
     <Dialog open={!!action} onOpenChange={(open) => !open && onClose()}>
@@ -376,6 +379,18 @@ const DesignDetailDialog = ({ action, onClose }: { action: JourneyStageAction | 
                   : t("analytics.journey.designDialogNotShared")}
               </p>
             </div>
+            <DialogFooter>
+              {/* Loads this exact saved design back into the visualizer
+                  (`?design=` — see `(site)/visualizer/page.tsx`), read-only
+                  for staff, so a rep can see precisely what the customer was
+                  looking at rather than just this dialog's flat tile list. */}
+              <Link
+                href={`/visualizer?design=${designId}`}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-ink hover:-translate-y-0.5 hover:shadow-md active:scale-95"
+              >
+                {t("analytics.journey.designDialogViewInVisualizer")} <ExternalLink className="size-3.5" />
+              </Link>
+            </DialogFooter>
           </>
         )}
       </DialogContent>
@@ -519,7 +534,21 @@ const StepDrillDown = ({
                           <TableCell className="whitespace-nowrap text-ink">{formatDate(action.createdAt)}</TableCell>
                           <TableCell>
                             {!target ? (
-                              <span className="text-xs text-muted-foreground">—</span>
+                              profile ? (
+                                // Every other stage's action drills into the specific
+                                // resource that stage created (order, tile, design);
+                                // the two earliest stages have none — a customer
+                                // profile to open is the next best thing, so this
+                                // never falls back to a dead "—" for a known customer.
+                                <Link
+                                  href={`/admin/customers/${profile.id}`}
+                                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold whitespace-nowrap text-ink hover:-translate-y-0.5 hover:shadow-md active:scale-95"
+                                >
+                                  {t("analytics.journey.viewCustomer")} <User className="size-3.5" />
+                                </Link>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )
                             ) : action.type === "ROOM_DESIGN_SAVED" ? (
                               <button
                                 type="button"

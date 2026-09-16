@@ -15,8 +15,12 @@ import {
 import { ProductCatalog } from "@/components/product-catalog";
 import { ProductsPageSkeleton } from "@/components/skeletons";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StaffCollectionToolbar } from "@/components/staff-toolbar";
 import { collectionsApi, productsApi, toProduct } from "@/lib/api";
+import { localizedText } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
+import { useCurrentUser } from "@/lib/current-user";
+import { useLocale } from "@/lib/i18n";
 import CollectionNotFound from "./not-found";
 
 /**
@@ -26,6 +30,8 @@ import CollectionNotFound from "./not-found";
  */
 const CollectionDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => {
   const { t } = useTranslation();
+  const { locale } = useLocale();
+  const { user } = useCurrentUser();
   const { id } = use(params);
 
   const { data, loading, error, reload } = useApi(
@@ -53,24 +59,32 @@ const CollectionDetailsPage = ({ params }: { params: Promise<{ id: string }> }) 
 
   const [collection, products] = data ?? [];
   if (!collection) return <CollectionNotFound />;
+  const collectionTitle = localizedText(collection.title, collection.titleRw, locale);
+
+  const isClient = user?.role === "CLIENT";
 
   return (
-    <ProductCatalog
-      breadcrumb={
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink render={<Link href="/collections" />}>{t("collections.breadcrumb")}</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{collection.title}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      }
-      products={(products?.items ?? []).map((product) => toProduct(product, collection.title))}
-    />
+    <>
+      {user && !isClient && <StaffCollectionToolbar role={user.role} collectionId={collection.id} />}
+      <ProductCatalog
+        breadcrumb={
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink render={<Link href="/collections" />}>{t("collections.breadcrumb")}</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{collectionTitle}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        }
+        products={(products?.items ?? []).map((product) => toProduct(product, collectionTitle, locale))}
+        showFavorites={isClient}
+        showAddToCart={isClient}
+      />
+    </>
   );
 };
 

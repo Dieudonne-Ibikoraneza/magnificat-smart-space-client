@@ -15,6 +15,7 @@ import { DeleteProductButton } from "@/components/delete-product-button";
 import { productsApi } from "@/lib/api";
 import { toProduct } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
+import { useLocale } from "@/lib/i18n";
 import { staffStockDisplay } from "@/lib/stock-display";
 import type { RoomType } from "@/lib/api/types";
 
@@ -36,6 +37,7 @@ const getSuitableFor = (suitableFor: "floor" | "wall" | "both") => {
 
 const AdminProductDetailsPage = ({ params }: AdminProductDetailsProps) => {
   const { t } = useTranslation();
+  const { locale } = useLocale();
   const { id } = use(params);
   const { data: apiProduct, loading, error, reload } = useApi(() => productsApi.get(id), [id]);
 
@@ -57,7 +59,7 @@ const AdminProductDetailsPage = ({ params }: AdminProductDetailsProps) => {
 
   if (!apiProduct) return null;
 
-  const product = toProduct(apiProduct);
+  const product = toProduct(apiProduct, undefined, locale);
   const stock = staffStockDisplay(apiProduct);
   const currentStock = stock.quantityOnHandSqm;
   const breakdown = apiProduct.onHandBreakdown;

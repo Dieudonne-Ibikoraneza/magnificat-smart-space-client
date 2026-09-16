@@ -11,6 +11,7 @@ import { toast } from "@/components/ui/toast";
 import { favoritesApi, toProduct } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { useApi } from "@/lib/api/use-api";
+import { useLocale } from "@/lib/i18n";
 
 const formatPrice = (value: number) => `RWF ${value.toLocaleString()}`;
 
@@ -26,10 +27,11 @@ const SUITABLE_FOR_KEYS = {
 /** Favorites come from `GET /favorites` — see `src/lib/api/endpoints.ts`. */
 const FavoritesPage = () => {
   const { t } = useTranslation();
+  const { locale } = useLocale();
   const { data, loading, error, reload } = useApi(() => favoritesApi.list());
   const [removingId, setRemovingId] = useState<string | null>(null);
 
-  const favorites = (data ?? []).map((row) => toProduct(row.product, row.product.collection?.title));
+  const favorites = (data ?? []).map((row) => toProduct(row.product, undefined, locale));
 
   const removeFavorite = async (productId: string) => {
     setRemovingId(productId);

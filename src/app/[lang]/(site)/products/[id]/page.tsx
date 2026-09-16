@@ -18,6 +18,7 @@ import {
 import { ApiErrorState } from "@/components/api-state";
 import { stockStyles } from "@/components/product-card";
 import { ProductDetailSkeleton } from "@/components/skeletons";
+import { StaffProductToolbar } from "@/components/staff-toolbar";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { QuantityCalculator } from "@/components/quantity-calculator";
@@ -31,6 +32,8 @@ import {
 import { ApiError } from "@/lib/api/client";
 import { useApi } from "@/lib/api/use-api";
 import { useCart } from "@/lib/cart-store";
+import { useCurrentUser } from "@/lib/current-user";
+import { useLocale } from "@/lib/i18n";
 import { getSessionId } from "@/lib/session-id";
 import type { Product } from "@/components/product-card";
 import ProductNotFound from "./not-found";
@@ -102,9 +105,12 @@ const ProductDetailsPage = ({
   params: Promise<{ id: string }>;
 }) => {
   const { t } = useTranslation();
+  const { locale } = useLocale();
   const { id } = use(params);
   const router = useRouter();
   const cart = useCart();
+  const { user } = useCurrentUser();
+  const isClient = user?.role === "CLIENT";
   const {
     data: apiProduct,
     loading,
@@ -136,10 +142,11 @@ const ProductDetailsPage = ({
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteBusy, setFavoriteBusy] = useState(false);
 
-  // Only worth checking for a signed-in visitor — an anonymous one can't have
-  // favorites yet, so skip the call rather than let it 401 in the background.
+  // Only worth checking for a signed-in client — favorites are a customer
+  // feature, and an anonymous visitor can't have any yet either, so skip the
+  // call rather than let it 401 in the background.
   useEffect(() => {
-    if (!tokenStore.getAccessToken()) return;
+    if (!isClient || !tokenStore.getAccessToken()) return;
     let active = true;
     favoritesApi
       .list()
@@ -151,7 +158,7 @@ const ProductDetailsPage = ({
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, isClient]);
 
   if (loading) return <ProductDetailSkeleton />;
 
@@ -162,7 +169,7 @@ const ProductDetailsPage = ({
   }
 
   if (!apiProduct) return <ProductNotFound />;
-  const product = toProduct(apiProduct);
+  const product = toProduct(apiProduct, undefined, locale);
 
   /** Favorites and cart both need an account — anonymous visitors get sent to sign in instead of a 401. */
   const requireAuth = () => {
@@ -363,30 +370,34 @@ const ProductDetailsPage = ({
             onChange={setRequiredArea}
           />
 
-          {/* The only three actions this page offers: save it, cart it, or compare it. */}
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void toggleFavorite()}
-              disabled={favoriteBusy}
-              aria-pressed={isFavorited}
-              className="h-14 min-h-14 w-full gap-2 py-3 font-bold disabled:opacity-60"
-            >
-              <Heart
-                className={isFavorited ? "fill-red-500 text-red-500" : ""}
-              />
-              {isFavorited
-                ? t("productDetail.favorited")
-                : t("productDetail.addToFavorites")}
-            </Button>
-            <Button
-              type="button"
-              onClick={addToCart}
-              className="h-14 min-h-14 w-full gap-2 py-3 font-bold bg-primary text-ink hover:bg-primary/90"
-            >
-              <ShoppingCart className="size-5" /> {t("productDetail.addToCart")}
-            </Button>
+          {/* Save it, cart it, or compare it — favorites/cart are a customer feature, so staff only get compare. */}
+          <div className={`grid gap-3 ${isClient ? "sm:grid-cols-3" : "sm:grid-cols-1"}`}>
+            {isClient && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void toggleFavorite()}
+                disabled={favoriteBusy}
+                aria-pressed={isFavorited}
+                className="h-14 min-h-14 w-full gap-2 py-3 font-bold disabled:opacity-60"
+              >
+                <Heart
+                  className={isFavorited ? "fill-red-500 text-red-500" : ""}
+                />
+                {isFavorited
+                  ? t("productDetail.favorited")
+                  : t("productDetail.addToFavorites")}
+              </Button>
+            )}
+            {isClient && (
+              <Button
+                type="button"
+                onClick={addToCart}
+                className="h-14 min-h-14 w-full gap-2 py-3 font-bold bg-primary text-ink hover:bg-primary/90"
+              >
+                <ShoppingCart className="size-5" /> {t("productDetail.addToCart")}
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"
@@ -397,6 +408,8 @@ const ProductDetailsPage = ({
               <Scale className="size-5" /> {t("productDetail.compare")}
             </Button>
           </div>
+
+          {!isClient && user && <StaffProductToolbar role={user.role} product={apiProduct} />}
         </div>
       </div>
     </div>

@@ -4,8 +4,11 @@ import { useTranslation } from "react-i18next";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { ProductCatalog } from "@/components/product-catalog";
 import { ProductsPageSkeleton } from "@/components/skeletons";
+import { StaffCatalogActions } from "@/components/staff-toolbar";
 import { productsApi, toProduct } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
+import { useCurrentUser } from "@/lib/current-user";
+import { useLocale } from "@/lib/i18n";
 
 /**
  * The storefront catalog (doc 3.1/3.2). Fetches the active catalog once and
@@ -17,8 +20,11 @@ import { useApi } from "@/lib/api/use-api";
  */
 const ProductsPage = () => {
   const { t } = useTranslation();
+  const { locale } = useLocale();
+  const { user } = useCurrentUser();
+  const isClient = user?.role === "CLIENT";
   const { data, loading, error, reload } = useApi(() => productsApi.list({ limit: 100 }));
-  const products = data?.items.map((product) => toProduct(product)) ?? [];
+  const products = data?.items.map((product) => toProduct(product, undefined, locale)) ?? [];
 
   if (loading) return <ProductsPageSkeleton />;
   if (error) return <ApiErrorState message={error} onRetry={reload} className="my-16" />;
@@ -26,7 +32,12 @@ const ProductsPage = () => {
     return <ApiEmptyState message={t("catalog.noProducts")} className="my-16" />;
   }
 
-  return <ProductCatalog products={products} />;
+  return (
+    <>
+      {user && !isClient && <StaffCatalogActions role={user.role} />}
+      <ProductCatalog products={products} showFavorites={isClient} showAddToCart={isClient} />
+    </>
+  );
 };
 
 export default ProductsPage;

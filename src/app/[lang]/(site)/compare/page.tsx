@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { productsApi, toProduct } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
+import { useLocale } from "@/lib/i18n";
 import type { Product } from "@/components/product-card";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +51,7 @@ const stockTone: Record<Product["stockStatus"], string> = {
 
 const ComparePageContent = () => {
   const { t } = useTranslation();
+  const { locale } = useLocale();
   const searchParams = useSearchParams();
 
   const roomLabel = (room: string): string => {
@@ -75,7 +77,10 @@ const ComparePageContent = () => {
     { label: t("compare.rows.sku"), value: (p) => p.sku },
   ];
   const { data, loading, error, reload } = useApi(() => productsApi.list({ limit: 100 }));
-  const products = useMemo(() => data?.items.map((product) => toProduct(product)) ?? [], [data]);
+  const products = useMemo(
+    () => data?.items.map((product) => toProduct(product, undefined, locale)) ?? [],
+    [data, locale],
+  );
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [seeded, setSeeded] = useState(false);

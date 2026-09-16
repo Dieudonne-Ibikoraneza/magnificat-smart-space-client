@@ -6,9 +6,12 @@ import { ArrowRight } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { CollectionGridSkeleton, CollectionsBannerSkeleton } from "@/components/skeletons";
+import { StaffCatalogActions } from "@/components/staff-toolbar";
 import { Button } from "@/components/ui/button";
 import { collectionsApi, toCollection } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
+import { useCurrentUser } from "@/lib/current-user";
+import { useLocale } from "@/lib/i18n";
 import type { Collection } from "@/data/collections";
 
 const CollectionCard = ({ collection }: { collection: Collection }) => {
@@ -46,11 +49,14 @@ const CollectionCard = ({ collection }: { collection: Collection }) => {
 /** Collections come from `GET /collections` — see `src/lib/api/endpoints.ts`. */
 const CollectionsPage = () => {
   const { t } = useTranslation();
+  const { locale } = useLocale();
+  const { user } = useCurrentUser();
   const { data, loading, error, reload } = useApi(() => collectionsApi.list({ limit: 50 }));
-  const collections = data?.items.map(toCollection) ?? [];
+  const collections = data?.items.map((collection) => toCollection(collection, locale)) ?? [];
 
   return (
     <div className="space-y-12 pb-12">
+      {user && user.role !== "CLIENT" && <StaffCatalogActions role={user.role} kind="collection" />}
       {loading ? (
         <CollectionsBannerSkeleton />
       ) : (

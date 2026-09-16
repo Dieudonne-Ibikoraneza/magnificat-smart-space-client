@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { collectionsApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
+import { useLocale } from "@/lib/i18n";
 import type { ApiCollection } from "@/lib/api/types";
 
 const tileAreaFromSize = (size: string) => {
@@ -37,11 +38,16 @@ export const EditCollectionDialog = ({
   onUpdated: () => void;
 }) => {
   const { t } = useTranslation();
+  const { locale } = useLocale();
+  // Same convention as `EditProductDialog` — see there.
+  const isRw = locale === "rw";
   const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState(collection.title);
+  const [title, setTitle] = useState(isRw ? (collection.titleRw ?? collection.title) : collection.title);
   const [size, setSize] = useState(collection.size);
   const [tileAreaSqm, setTileAreaSqm] = useState(String(collection.tileAreaSqm));
-  const [description, setDescription] = useState(collection.description ?? "");
+  const [description, setDescription] = useState(
+    isRw ? (collection.descriptionRw ?? collection.description ?? "") : (collection.description ?? ""),
+  );
   const [image, setImage] = useState(collection.image ?? "");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -63,10 +69,10 @@ export const EditCollectionDialog = ({
   }, [imageFile]);
 
   const resetToCollection = () => {
-    setTitle(collection.title);
+    setTitle(isRw ? (collection.titleRw ?? collection.title) : collection.title);
     setSize(collection.size);
     setTileAreaSqm(String(collection.tileAreaSqm));
-    setDescription(collection.description ?? "");
+    setDescription(isRw ? (collection.descriptionRw ?? collection.description ?? "") : (collection.description ?? ""));
     setImage(collection.image ?? "");
     setImageFile(null);
   };
@@ -77,10 +83,11 @@ export const EditCollectionDialog = ({
     try {
       const uploaded = imageFile ? await collectionsApi.uploadImage(imageFile) : null;
       await collectionsApi.update(collection.id, {
-        title: title.trim(),
+        ...(isRw
+          ? { titleRw: title.trim(), descriptionRw: description.trim() || undefined }
+          : { title: title.trim(), description: description.trim() || undefined }),
         size: size.trim(),
         tileAreaSqm: Number(tileAreaSqm),
-        description: description.trim() || undefined,
         image: uploaded?.path ?? (image.trim() || undefined),
       });
       onUpdated();
@@ -118,6 +125,12 @@ export const EditCollectionDialog = ({
           <DialogTitle>{t("staff.editCollection.title")}</DialogTitle>
           <DialogDescription>{t("staff.editCollection.description")}</DialogDescription>
         </DialogHeader>
+
+        {isRw && (
+          <p className="mt-4 rounded-lg bg-amber/10 px-3 py-2 text-xs font-medium text-ink">
+            {t("staff.editCollection.editingRwHint")}
+          </p>
+        )}
 
         <div className="mt-5 space-y-4">
           <Field>

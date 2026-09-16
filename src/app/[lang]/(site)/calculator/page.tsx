@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { FilterOptionsCard } from "@/components/product-catalog";
+import { staffOrderHref } from "@/components/staff-toolbar";
 import { Switch } from "@/components/ui/switch";
 import { calculatorApi, eventsApi, productsApi, toProduct } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
@@ -32,6 +33,8 @@ import {
   type CatalogFilters,
 } from "@/lib/catalog-utils";
 import { useApi } from "@/lib/api/use-api";
+import { useCurrentUser } from "@/lib/current-user";
+import { useLocale } from "@/lib/i18n";
 import { getSessionId } from "@/lib/session-id";
 import type { FloorPlanCalculation } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
@@ -54,13 +57,19 @@ const formatNumber = (value: number) =>
  */
 export default function FloorPlanCalculatorPage() {
   const { t } = useTranslation();
+  const { locale } = useLocale();
+  const { user } = useCurrentUser();
+  const isClient = user?.role === "CLIENT";
   const {
     data: productsPage,
     loading: productsLoading,
     error: productsError,
     reload: reloadProducts,
   } = useApi(() => productsApi.list({ limit: 100 }));
-  const products = useMemo(() => (productsPage?.items ?? []).map((item) => toProduct(item)), [productsPage]);
+  const products = useMemo(
+    () => (productsPage?.items ?? []).map((item) => toProduct(item, undefined, locale)),
+    [productsPage, locale],
+  );
 
   const [lengthM, setLengthM] = useState("6");
   const [widthM, setWidthM] = useState("5");
@@ -444,24 +453,41 @@ export default function FloorPlanCalculatorPage() {
                 {t(`calculator.availabilityNote.${availability}`)}
               </p>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                <Button
-                  nativeButton={false}
-                  render={<Link href={`/products/${product.id}`} />}
-                  variant="outline"
-                  className="h-12 w-full font-bold"
-                >
-                  {t("calculator.viewThisTile")}
-                </Button>
-                <Button
-                  nativeButton={false}
-                  render={<Link href="/account/cart" />}
-                  className="group h-12 w-full gap-2 bg-primary font-bold text-ink hover:bg-primary/90"
-                >
-                  {t("calculator.addToOrder")}
-                  <ArrowRight className="transition-transform duration-300 group-hover:translate-x-1" />
-                </Button>
-              </div>
+              {(() => {
+                // "Add to an order" is a customer action (`/account/cart`);
+                // staff get the equivalent shortcut into their own order
+                // wizard instead (`staffOrderHref` — same one the storefront
+                // product page's staff toolbar uses), or nothing at all for
+                // a role that can't create orders (data analyst).
+                const orderHref = isClient
+                  ? "/account/cart"
+                  : user
+                    ? staffOrderHref(user.role, product.id)
+                    : undefined;
+
+                return (
+                  <div className={cn("mt-6 grid gap-3", orderHref ? "sm:grid-cols-2" : "sm:grid-cols-1")}>
+                    <Button
+                      nativeButton={false}
+                      render={<Link href={`/products/${product.id}`} />}
+                      variant="outline"
+                      className="h-12 w-full font-bold"
+                    >
+                      {t("calculator.viewThisTile")}
+                    </Button>
+                    {orderHref && (
+                      <Button
+                        nativeButton={false}
+                        render={<Link href={orderHref} />}
+                        className="group h-12 w-full gap-2 bg-primary font-bold text-ink hover:bg-primary/90"
+                      >
+                        {t(isClient ? "calculator.addToOrder" : "staffToolbar.product.startOrder")}
+                        <ArrowRight className="transition-transform duration-300 group-hover:translate-x-1" />
+                      </Button>
+                    )}
+                  </div>
+                );
+              })()}
             </section>
             );
           })()}

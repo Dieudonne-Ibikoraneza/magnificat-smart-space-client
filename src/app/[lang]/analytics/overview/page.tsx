@@ -4,22 +4,53 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Coins, CircleCheckBig, ExternalLink, Repeat2, Truck, UsersRound } from "lucide-react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  Coins,
+  CircleCheckBig,
+  ExternalLink,
+  Repeat2,
+  Truck,
+  UsersRound,
+} from "lucide-react";
 import { AnalyticsPageHeader } from "@/app/[lang]/analytics/layout";
-import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
+import {
+  AnalyticsPeriodSwitcher,
+  periodToRange,
+  type AnalyticsPeriodDays,
+} from "@/components/analytics-period-switcher";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { ChartAxisTick } from "@/components/chart-axis-tick";
-import { ConversionFunnel, type ConversionFunnelStage } from "@/components/conversion-funnel";
+import {
+  ConversionFunnel,
+  type ConversionFunnelStage,
+} from "@/components/conversion-funnel";
 import { KpiCards, type KpiCardData } from "@/components/kpi-cards";
 import { OrdersByCreatorChart } from "@/components/orders-by-creator-chart";
 import { RevenueTrendChart } from "@/components/revenue-trend-chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { analyticsApi, usersApi } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
-import { formatCompactCurrency, formatCompactNumber, getInitials } from "@/lib/utils";
+import {
+  formatCompactCurrency,
+  formatCompactNumber,
+  getInitials,
+} from "@/lib/utils";
 
-const formatShortDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+const formatShortDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 
 const KpiSkeleton = () => (
   <article className="rounded-2xl bg-card p-5 sm:p-6">
@@ -29,7 +60,11 @@ const KpiSkeleton = () => (
   </article>
 );
 
-type RecommendationTrendPoint = { day: string; matchScore: number; acceptance: number };
+type RecommendationTrendPoint = {
+  day: string;
+  matchScore: number;
+  acceptance: number;
+};
 
 const RecommendationsTooltip = ({
   active,
@@ -44,12 +79,17 @@ const RecommendationsTooltip = ({
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
-      <p className="font-data text-xs font-semibold tracking-widest text-data-ink">{label}</p>
+      <p className="font-data text-xs font-semibold tracking-widest text-data-ink">
+        {label}
+      </p>
       <div className="mt-1 space-y-0.5 font-data text-sm text-ink">
         {payload.map((entry) => (
           <p key={entry.name}>
             {t("analytics.overview.matchScoreValue", {
-              name: entry.name === "acceptance" ? t("analytics.overview.acceptance") : t("analytics.overview.matchScore"),
+              name:
+                entry.name === "acceptance"
+                  ? t("analytics.overview.acceptance")
+                  : t("analytics.overview.matchScore"),
               value: entry.value.toFixed(0),
             })}
           </p>
@@ -60,16 +100,57 @@ const RecommendationsTooltip = ({
 };
 
 /** Match score vs acceptance rate, both real per-day series — `TileRecommendations.summary.{matchScoreTrend,acceptanceTrend}`. */
-const RecommendationsTrendChart = ({ data }: { data: RecommendationTrendPoint[] }) => (
+const RecommendationsTrendChart = ({
+  data,
+}: {
+  data: RecommendationTrendPoint[];
+}) => (
   <div className="h-48 w-full font-data">
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 24 }}>
-        <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
-        <XAxis dataKey="day" angle={-40} textAnchor="end" tickLine={false} axisLine={false} interval="preserveStartEnd" tick={ChartAxisTick} />
-        <YAxis tickLine={false} axisLine={false} width={32} domain={[0, 100]} tick={ChartAxisTick} />
-        <Tooltip cursor={{ stroke: "var(--border)" }} content={<RecommendationsTooltip />} />
-        <Line type="monotone" dataKey="matchScore" name="matchScore" stroke="#d1d5db" strokeWidth={2} dot={false} animationDuration={700} />
-        <Line type="monotone" dataKey="acceptance" name="acceptance" stroke="var(--primary)" strokeWidth={2.5} dot={false} animationDuration={700} />
+        <CartesianGrid
+          vertical={false}
+          strokeDasharray="4 4"
+          stroke="var(--border)"
+        />
+        <XAxis
+          dataKey="day"
+          angle={-40}
+          textAnchor="end"
+          tickLine={false}
+          axisLine={false}
+          interval="preserveStartEnd"
+          tick={ChartAxisTick}
+        />
+        <YAxis
+          tickLine={false}
+          axisLine={false}
+          width={32}
+          domain={[0, 100]}
+          tick={ChartAxisTick}
+        />
+        <Tooltip
+          cursor={{ stroke: "var(--border)" }}
+          content={<RecommendationsTooltip />}
+        />
+        <Line
+          type="monotone"
+          dataKey="matchScore"
+          name="matchScore"
+          stroke="#d1d5db"
+          strokeWidth={2}
+          dot={false}
+          animationDuration={700}
+        />
+        <Line
+          type="monotone"
+          dataKey="acceptance"
+          name="acceptance"
+          stroke="var(--primary)"
+          strokeWidth={2.5}
+          dot={false}
+          animationDuration={700}
+        />
       </LineChart>
     </ResponsiveContainer>
   </div>
@@ -89,48 +170,72 @@ const AiRecommendationsPanel = ({
   const { t } = useTranslation();
 
   return (
-  <section className="rounded-2xl bg-card p-5 sm:p-6">
-    <div className="flex items-center justify-between gap-3">
-      <div>
-        <h2 className="text-lg font-bold text-ink">{t("analytics.overview.aiRecommendations")}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{t("analytics.overview.aiRecommendationsSub")}</p>
+    <section className="rounded-2xl bg-card p-5 sm:p-6">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-ink">
+            {t("analytics.overview.aiRecommendations")}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("analytics.overview.aiRecommendationsSub")}
+          </p>
+        </div>
+        <Link
+          href="/analytics/ai"
+          className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline"
+        >
+          <ExternalLink className="size-3.5" /> {t("analytics.common.viewAll")}
+        </Link>
       </div>
-      <Link href="/analytics/ai" className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline">
-        <ExternalLink className="size-3.5" /> {t("analytics.common.viewAll")}
-      </Link>
-    </div>
-    <div className="mt-6 grid grid-cols-3 gap-4">
-      <div>
-        <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">{t("analytics.overview.recommendations")}</p>
-        <p className="mt-2 text-2xl font-black text-ink">{totalRecommendations.toLocaleString()}</p>
+      <div className="mt-6 grid grid-cols-3 gap-4">
+        <div>
+          <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+            {t("analytics.overview.recommendations")}
+          </p>
+          <p className="mt-2 text-2xl font-black text-ink">
+            {totalRecommendations.toLocaleString()}
+          </p>
+        </div>
+        <div>
+          <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+            {t("analytics.overview.acceptanceRate")}
+          </p>
+          <p className="mt-2 text-2xl font-black text-ink">
+            {acceptanceRate.toFixed(0)}%
+          </p>
+        </div>
+        <div>
+          <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+            {t("analytics.overview.avgMatchScore")}
+          </p>
+          <p className="mt-2 text-2xl font-black text-ink">
+            {averageMatchScore.toFixed(0)}%
+          </p>
+        </div>
       </div>
-      <div>
-        <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">{t("analytics.overview.acceptanceRate")}</p>
-        <p className="mt-2 text-2xl font-black text-ink">{acceptanceRate.toFixed(0)}%</p>
+      <div className="mt-6 border-t border-border pt-5">
+        {totalRecommendations === 0 ? (
+          <ApiEmptyState
+            message={t("analytics.overview.noAiRecs")}
+            className="py-6"
+          />
+        ) : (
+          <>
+            <RecommendationsTrendChart data={trend} />
+            <div className="mt-2 flex items-center justify-center gap-4 text-xs font-medium text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-[#d1d5db]" />{" "}
+                {t("analytics.overview.matchScore")}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-primary" />{" "}
+                {t("analytics.overview.acceptance")}
+              </span>
+            </div>
+          </>
+        )}
       </div>
-      <div>
-        <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">{t("analytics.overview.avgMatchScore")}</p>
-        <p className="mt-2 text-2xl font-black text-ink">{averageMatchScore.toFixed(0)}%</p>
-      </div>
-    </div>
-    <div className="mt-6 border-t border-border pt-5">
-      {totalRecommendations === 0 ? (
-        <ApiEmptyState message={t("analytics.overview.noAiRecs")} className="py-6" />
-      ) : (
-        <>
-          <RecommendationsTrendChart data={trend} />
-          <div className="mt-2 flex items-center justify-center gap-4 text-xs font-medium text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#d1d5db]" /> {t("analytics.overview.matchScore")}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-primary" /> {t("analytics.overview.acceptance")}
-            </span>
-          </div>
-        </>
-      )}
-    </div>
-  </section>
+    </section>
   );
 };
 
@@ -139,38 +244,60 @@ const AnalyticsOverviewPage = () => {
   const [period, setPeriod] = useState<AnalyticsPeriodDays>(7);
   const range = periodToRange[period];
 
-  const { data: overview, loading: overviewLoading, error: overviewError, reload: reloadOverview } = useApi(
-    () => analyticsApi.overview(range),
-    [range],
-  );
+  const {
+    data: overview,
+    loading: overviewLoading,
+    error: overviewError,
+    reload: reloadOverview,
+  } = useApi(() => analyticsApi.overview(range), [range]);
   // Fetches every product's stats for the period (well under the 100 cap)
   // and ranks by `viewed` client-side — the `table` rows already carry
   // collection/selectionRate, which the leaderboard alone doesn't.
-  const { data: tiles, loading: tilesLoading } = useApi(() => analyticsApi.tiles({ period: range, limit: 100 }), [range]);
+  const { data: tiles, loading: tilesLoading } = useApi(
+    () => analyticsApi.tiles({ period: range, limit: 100 }),
+    [range],
+  );
   const { data: recommendations, loading: recommendationsLoading } = useApi(
     () => analyticsApi.tileRecommendations({ period: range }),
     [range],
   );
   // `sort: "spend"` ranks server-side, so this asks for exactly the 5 rows
   // shown instead of over-fetching and sorting a page client-side.
-  const { data: customersData, loading: customersLoading } = useApi(() => usersApi.listCustomers({ sort: "spend", limit: 5 }));
+  const { data: customersData, loading: customersLoading } = useApi(() =>
+    usersApi.listCustomers({ sort: "spend", limit: 5 }),
+  );
 
   const topTiles = useMemo(
-    () => [...(tiles?.table.items ?? [])].sort((a, b) => b.viewed - a.viewed).slice(0, 5),
+    () =>
+      [...(tiles?.table.items ?? [])]
+        .sort((a, b) => b.viewed - a.viewed)
+        .slice(0, 5),
     [tiles],
   );
   const topCustomers = customersData?.items ?? [];
 
   const kpis: KpiCardData[] = overview
     ? [
-        { label: t("analytics.overview.kpiTotalSales"), value: formatCompactCurrency(overview.totalSales), icon: Coins },
+        {
+          label: t("analytics.overview.kpiTotalSales"),
+          value: formatCompactCurrency(overview.totalSales),
+          icon: Coins,
+        },
         {
           label: t("analytics.overview.kpiTransportFees"),
           value: formatCompactCurrency(overview.totalTransportFees),
           icon: Truck,
         },
-        { label: t("analytics.overview.kpiTotalCustomers"), value: overview.totalCustomers.toLocaleString(), icon: UsersRound },
-        { label: t("analytics.overview.kpiRepeatRate"), value: `${overview.repeatPurchaseRate.toFixed(0)}%`, icon: Repeat2 },
+        {
+          label: t("analytics.overview.kpiTotalCustomers"),
+          value: overview.totalCustomers.toLocaleString(),
+          icon: UsersRound,
+        },
+        {
+          label: t("analytics.overview.kpiRepeatRate"),
+          value: `${overview.repeatPurchaseRate.toFixed(0)}%`,
+          icon: Repeat2,
+        },
         {
           label: t("analytics.overview.kpiRecAcceptance"),
           value: `${overview.recommendationAcceptanceRate.toFixed(0)}%`,
@@ -186,7 +313,11 @@ const AnalyticsOverviewPage = () => {
       return {
         stage: row.stage,
         customers: row.customers,
-        conversionFromPrevious: previous ? (previous.customers > 0 ? Math.round((row.customers / previous.customers) * 100) : 0) : undefined,
+        conversionFromPrevious: previous
+          ? previous.customers > 0
+            ? Math.round((row.customers / previous.customers) * 100)
+            : 0
+          : undefined,
       };
     });
   }, [overview]);
@@ -201,7 +332,11 @@ const AnalyticsOverviewPage = () => {
       </AnalyticsPageHeader>
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
         {overviewError ? (
-          <ApiErrorState message={overviewError} onRetry={reloadOverview} className="my-8" />
+          <ApiErrorState
+            message={overviewError}
+            onRetry={reloadOverview}
+            className="my-8"
+          />
         ) : overviewLoading || !overview ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <KpiSkeleton />
@@ -215,7 +350,9 @@ const AnalyticsOverviewPage = () => {
 
         {overviewLoading || !overview ? (
           <Skeleton className="h-90 w-full rounded-2xl" />
-        ) : overview.creatorTrend.every((point) => point.customer === 0 && point.staff === 0) ? null : (
+        ) : overview.creatorTrend.every(
+            (point) => point.customer === 0 && point.staff === 0,
+          ) ? null : (
           <section className="rounded-2xl bg-card p-5 sm:p-6">
             <OrdersByCreatorChart data={overview.creatorTrend} />
           </section>
@@ -224,26 +361,43 @@ const AnalyticsOverviewPage = () => {
         <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
           {overviewLoading || !overview ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
-              <h2 className="text-lg font-bold text-ink">{t("analytics.overview.salesOverview")}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{t("analytics.overview.revenuePerformance")}</p>
+              <h2 className="text-lg font-bold text-ink">
+                {t("analytics.overview.salesOverview")}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("analytics.overview.revenuePerformance")}
+              </p>
               <Skeleton className="mt-6 h-65 w-full sm:mt-8 sm:h-80" />
             </section>
           ) : overview.revenueTrend.length === 0 ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
-              <h2 className="text-lg font-bold text-ink">{t("analytics.overview.salesOverview")}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{t("analytics.overview.revenuePerformance")}</p>
-              <ApiEmptyState message={t("analytics.overview.noSales")} className="py-16" />
+              <h2 className="text-lg font-bold text-ink">
+                {t("analytics.overview.salesOverview")}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("analytics.overview.revenuePerformance")}
+              </p>
+              <ApiEmptyState
+                message={t("analytics.overview.noSales")}
+                className="py-16"
+              />
             </section>
           ) : (
             <RevenueTrendChart
               title={t("analytics.overview.salesOverview")}
               subtitle={t("analytics.overview.revenuePerformance")}
               range={range}
-              data={overview.revenueTrend.map((point) => ({ day: point.label, value: point.value }))}
+              data={overview.revenueTrend.map((point) => ({
+                day: point.label,
+                value: point.value,
+              }))}
             />
           )}
 
-          {overviewLoading || !overview || recommendationsLoading || !recommendations ? (
+          {overviewLoading ||
+          !overview ||
+          recommendationsLoading ||
+          !recommendations ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <Skeleton className="h-65 w-full sm:h-80" />
             </section>
@@ -252,21 +406,30 @@ const AnalyticsOverviewPage = () => {
               totalRecommendations={overview.totalRecommendations}
               acceptanceRate={overview.recommendationAcceptanceRate}
               averageMatchScore={overview.averageMatchScore}
-              trend={recommendations.summary.matchScoreTrend.map((point, index) => ({
-                day: point.label,
-                matchScore: point.value,
-                acceptance: recommendations.summary.acceptanceTrend[index]?.value ?? 0,
-              }))}
+              trend={recommendations.summary.matchScoreTrend.map(
+                (point, index) => ({
+                  day: point.label,
+                  matchScore: point.value,
+                  acceptance:
+                    recommendations.summary.acceptanceTrend[index]?.value ?? 0,
+                }),
+              )}
             />
           )}
         </div>
 
-        <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
+        <div className="grid gap-5 grid-cols-1 sm:gap-6 xl:grid-cols-2">
           <section className="rounded-2xl bg-card p-5 sm:p-6">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-ink">{t("analytics.overview.topViewedTiles")}</h2>
-              <Link href="/analytics/tiles" className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline">
-                <ExternalLink className="size-3.5" /> {t("analytics.common.viewAll")}
+              <h2 className="text-lg font-bold text-ink">
+                {t("analytics.overview.topViewedTiles")}
+              </h2>
+              <Link
+                href="/analytics/tiles"
+                className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline"
+              >
+                <ExternalLink className="size-3.5" />{" "}
+                {t("analytics.common.viewAll")}
               </Link>
             </div>
             {tilesLoading ? (
@@ -282,22 +445,52 @@ const AnalyticsOverviewPage = () => {
                 ))}
               </div>
             ) : topTiles.length === 0 ? (
-              <ApiEmptyState message={t("analytics.overview.noTileActivity")} className="py-10" />
+              <ApiEmptyState
+                message={t("analytics.overview.noTileActivity")}
+                className="py-10"
+              />
             ) : (
               <ul className="mt-4">
                 {topTiles.map((tile, index) => (
-                  <li key={tile.productId} className={index > 0 ? "border-t border-border" : undefined}>
-                    <Link href="/analytics/tiles" className="flex items-center gap-3 py-4 transition-colors hover:bg-secondary/40">
+                  <li
+                    key={tile.productId}
+                    className={index > 0 ? "border-t border-border" : undefined}
+                  >
+                    <Link
+                      href="/analytics/tiles"
+                      className="flex items-center gap-3 py-4 transition-colors hover:bg-secondary/40"
+                    >
                       <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-                        {tile.image && <Image src={tile.image} alt={tile.name} fill unoptimized className="object-cover" sizes="56px" />}
+                        {tile.image && (
+                          <Image
+                            src={tile.image}
+                            alt={tile.name}
+                            fill
+                            unoptimized
+                            className="object-cover"
+                            sizes="56px"
+                          />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-ink">{tile.name}</p>
-                        <p className="truncate text-xs text-muted-foreground">{tile.collection}</p>
+                        <p className="truncate text-sm font-semibold text-ink">
+                          {tile.name}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {tile.collection}
+                        </p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="text-sm font-semibold text-ink">{t("analytics.common.views", { value: formatCompactNumber(tile.viewed) })}</p>
-                        <p className="mt-0.5 text-xs font-semibold text-green-600">{t("analytics.common.selectionPct", { value: tile.selectionRate.toFixed(1) })}</p>
+                        <p className="text-sm font-semibold text-ink">
+                          {t("analytics.common.views", {
+                            value: formatCompactNumber(tile.viewed),
+                          })}
+                        </p>
+                        <p className="mt-0.5 text-xs font-semibold text-green-600">
+                          {t("analytics.common.selectionPct", {
+                            value: tile.selectionRate.toFixed(1),
+                          })}
+                        </p>
                       </div>
                     </Link>
                   </li>
@@ -308,9 +501,15 @@ const AnalyticsOverviewPage = () => {
 
           <section className="rounded-2xl bg-card p-5 sm:p-6">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-ink">{t("analytics.overview.topCustomers")}</h2>
-              <Link href="/analytics/customers" className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline">
-                <ExternalLink className="size-3.5" /> {t("analytics.common.viewAll")}
+              <h2 className="text-lg font-bold text-ink">
+                {t("analytics.overview.topCustomers")}
+              </h2>
+              <Link
+                href="/analytics/customers"
+                className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline"
+              >
+                <ExternalLink className="size-3.5" />{" "}
+                {t("analytics.common.viewAll")}
               </Link>
             </div>
             {customersLoading ? (
@@ -326,17 +525,25 @@ const AnalyticsOverviewPage = () => {
                 ))}
               </div>
             ) : topCustomers.length === 0 ? (
-              <ApiEmptyState message={t("analytics.overview.noCustomers")} className="py-10" />
+              <ApiEmptyState
+                message={t("analytics.overview.noCustomers")}
+                className="py-10"
+              />
             ) : (
               <ul className="mt-4">
                 {topCustomers.map((customer, index) => (
-                  <li key={customer.id} className={index > 0 ? "border-t border-border" : undefined}>
+                  <li
+                    key={customer.id}
+                    className={index > 0 ? "border-t border-border" : undefined}
+                  >
                     <div className="flex items-center gap-3 py-4">
                       <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-semibold text-card">
                         {getInitials(customer.fullName)}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-ink">{customer.fullName}</p>
+                        <p className="truncate text-sm font-semibold text-ink">
+                          {customer.fullName}
+                        </p>
                         <p className="truncate text-xs text-muted-foreground">
                           {customer.firstOrderAt && customer.lastOrderAt
                             ? customer.firstOrderAt === customer.lastOrderAt
@@ -357,7 +564,10 @@ const AnalyticsOverviewPage = () => {
         </div>
 
         {overview && (
-          <ConversionFunnel stages={funnelStages} getHref={(stage) => `/analytics/journey?stage=${stage}`} />
+          <ConversionFunnel
+            stages={funnelStages}
+            getHref={(stage) => `/analytics/journey?stage=${stage}`}
+          />
         )}
       </div>
     </>

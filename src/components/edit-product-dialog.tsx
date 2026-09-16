@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { productsApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
+import { useLocale } from "@/lib/i18n";
 import type { ApiProduct, RoomType, SuitableFor } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -52,13 +53,22 @@ export const EditProductDialog = ({
   onUpdated: () => void;
 }) => {
   const { t } = useTranslation();
+  const { locale } = useLocale();
+  // Kinyarwanda admin UI edits the Kinyarwanda copy, not the English source
+  // — falls back to the English text when no translation exists yet (rather
+  // than showing a blank field), same as the customer-facing `localizedText`
+  // does. Saving still sends it as `nameRw`/`descriptionRw` either way, so
+  // the server knows to regenerate English from it (see `productsApi`).
+  const isRw = locale === "rw";
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState(product.name);
+  const [name, setName] = useState(isRw ? (product.nameRw ?? product.name) : product.name);
   const [sku, setSku] = useState(product.sku);
   const [boxCoverageSqm, setBoxCoverageSqm] = useState(String(product.boxCoverageSqm));
   const [piecesPerBox, setPiecesPerBox] = useState(String(product.piecesPerBox));
   const [price, setPrice] = useState(String(product.price));
-  const [description, setDescription] = useState(product.description ?? "");
+  const [description, setDescription] = useState(
+    isRw ? (product.descriptionRw ?? product.description ?? "") : (product.description ?? ""),
+  );
   const [suitableFor, setSuitableFor] = useState<SuitableFor>(product.suitableFor);
   const [roomTypes, setRoomTypes] = useState<RoomType[]>(product.roomTypes);
   const [image, setImage] = useState(product.image);
@@ -87,12 +97,12 @@ export const EditProductDialog = ({
   }, [previewUrl]);
 
   const resetToProduct = () => {
-    setName(product.name);
+    setName(isRw ? (product.nameRw ?? product.name) : product.name);
     setSku(product.sku);
     setBoxCoverageSqm(String(product.boxCoverageSqm));
     setPiecesPerBox(String(product.piecesPerBox));
     setPrice(String(product.price));
-    setDescription(product.description ?? "");
+    setDescription(isRw ? (product.descriptionRw ?? product.description ?? "") : (product.description ?? ""));
     setSuitableFor(product.suitableFor);
     setRoomTypes(product.roomTypes);
     setImage(product.image);
@@ -106,12 +116,13 @@ export const EditProductDialog = ({
     try {
       const uploaded = imageFile ? await productsApi.uploadImage(imageFile) : null;
       await productsApi.update(product.id, {
-        name: name.trim(),
+        ...(isRw
+          ? { nameRw: name.trim(), descriptionRw: description.trim() || undefined }
+          : { name: name.trim(), description: description.trim() || undefined }),
         sku: sku.trim(),
         boxCoverageSqm: parsedCoverage,
         piecesPerBox: parsedPieces,
         price: parsedPrice,
-        description: description.trim() || undefined,
         suitableFor,
         roomTypes,
         image: uploaded?.path ?? image,
@@ -157,6 +168,12 @@ export const EditProductDialog = ({
             {t("staff.editProduct.description")}
           </DialogDescription>
         </DialogHeader>
+
+        {isRw && (
+          <p className="mt-4 rounded-lg bg-amber/10 px-3 py-2 text-xs font-medium text-ink">
+            {t("staff.editProduct.editingRwHint")}
+          </p>
+        )}
 
         <div className="mt-5 space-y-4">
           <Field>

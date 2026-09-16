@@ -10,7 +10,9 @@ import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { roomsApi, toProduct } from "@/lib/api";
+import { localizedText } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
+import { useLocale } from "@/lib/i18n";
 import type { ApiRoomDesign } from "@/lib/api/types";
 
 /**
@@ -31,10 +33,12 @@ const SURFACE_KEYS: Record<string, string> = {
 
 const DesignCard = ({ design }: { design: ApiRoomDesign }) => {
   const { t } = useTranslation();
+  const { locale } = useLocale();
   const preview = design.previewImageUrl || design.room?.thumbnail || "/showroom.jpg";
   const tiles = design.tiles.flatMap((tile) =>
-    tile.product ? [{ surface: tile.surface, product: toProduct(tile.product, tile.product.collection?.title) }] : [],
+    tile.product ? [{ surface: tile.surface, product: toProduct(tile.product, undefined, locale) }] : [],
   );
+  const roomName = design.room ? localizedText(design.room.name, design.room.nameRw, locale) : null;
 
   return (
     <article className="overflow-hidden rounded-2xl bg-card">
@@ -47,9 +51,9 @@ const DesignCard = ({ design }: { design: ApiRoomDesign }) => {
           className="object-cover"
           sizes="(max-width: 768px) 100vw, 33vw"
         />
-        {design.room?.name && (
+        {roomName && (
           <span className="absolute left-3 top-3 rounded-md bg-white/90 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-ink backdrop-blur-sm">
-            {design.room.name}
+            {roomName}
           </span>
         )}
       </div>

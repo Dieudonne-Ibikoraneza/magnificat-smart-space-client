@@ -58,7 +58,7 @@ const pillClass = (active: boolean) =>
       : "border-border bg-transparent text-muted-foreground hover:bg-secondary",
   );
 
-/** Shared create/edit form — a profiling question is either always asked (`roomType: null`) or only asked for one room. */
+/** Shared create/edit form — a profiling question is either always asked (`roomTypes: []`) or only asked for one or more specific rooms. */
 const QuestionDialog = ({
   question,
   trigger,
@@ -75,13 +75,19 @@ const QuestionDialog = ({
   const [open, setOpen] = useState(false);
   const [text, setText] = useState(question?.text ?? "");
   const [isRequired, setIsRequired] = useState(question?.isRequired ?? true);
-  const [roomType, setRoomType] = useState<RoomType | null>(question?.roomType ?? null);
+  const [roomTypes, setRoomTypes] = useState<RoomType[]>(question?.roomTypes ?? []);
   const [submitting, setSubmitting] = useState(false);
 
   const reset = () => {
     setText(question?.text ?? "");
     setIsRequired(question?.isRequired ?? true);
-    setRoomType(question?.roomType ?? null);
+    setRoomTypes(question?.roomTypes ?? []);
+  };
+
+  const toggleRoomType = (option: RoomType) => {
+    setRoomTypes((current) =>
+      current.includes(option) ? current.filter((value) => value !== option) : [...current, option],
+    );
   };
 
   const valid = text.trim().length >= 5;
@@ -94,14 +100,14 @@ const QuestionDialog = ({
         await settingsApi.updateProfilingQuestion(question.id, {
           text: text.trim(),
           isRequired,
-          roomType,
+          roomTypes,
         });
         toast.success(t("admin.systemSettings.toastQuestionUpdated"), { description: t("admin.systemSettings.toastQuestionUpdatedDesc") });
       } else {
         await settingsApi.createProfilingQuestion({
           text: text.trim(),
           isRequired,
-          roomType: roomType ?? undefined,
+          roomTypes,
         });
         toast.success(t("admin.systemSettings.toastQuestionAdded"));
       }
@@ -134,7 +140,13 @@ const QuestionDialog = ({
         <div className="mt-5 space-y-4">
           <Field>
             <FieldLabel htmlFor="question-text">{t("admin.systemSettings.dialogQuestionLabel")}</FieldLabel>
-            <Textarea id="question-text" rows={2} value={text} onChange={(event) => setText(event.target.value)} />
+            <Textarea
+              id="question-text"
+              rows={2}
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              placeholder={t("admin.systemSettings.dialogQuestionPlaceholder")}
+            />
             {text.length > 0 && !valid && (
               <p className="text-xs font-medium text-red-600">{t("admin.systemSettings.dialogMinChars")}</p>
             )}
@@ -152,19 +164,24 @@ const QuestionDialog = ({
             <FieldLabel className="text-sm font-medium text-ink">{t("admin.systemSettings.dialogAskOnlyFor")}</FieldLabel>
             <p className="mt-0.5 text-xs text-muted-foreground">{t("admin.systemSettings.dialogEveryRoomHint")}</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              <button type="button" onClick={() => setRoomType(null)} aria-pressed={roomType === null} className={pillClass(roomType === null)}>
-                {roomType === null && <Check className="size-3.5" />}
+              <button
+                type="button"
+                onClick={() => setRoomTypes([])}
+                aria-pressed={roomTypes.length === 0}
+                className={pillClass(roomTypes.length === 0)}
+              >
+                {roomTypes.length === 0 && <Check className="size-3.5" />}
                 {t("admin.systemSettings.dialogEveryRoom")}
               </button>
               {roomTypeOptions.map((option) => (
                 <button
                   key={option}
                   type="button"
-                  onClick={() => setRoomType(option)}
-                  aria-pressed={roomType === option}
-                  className={pillClass(roomType === option)}
+                  onClick={() => toggleRoomType(option)}
+                  aria-pressed={roomTypes.includes(option)}
+                  className={pillClass(roomTypes.includes(option))}
                 >
-                  {roomType === option && <Check className="size-3.5" />}
+                  {roomTypes.includes(option) && <Check className="size-3.5" />}
                   {t(ROOM_TYPE_KEYS[option])}
                 </button>
               ))}
@@ -232,8 +249,8 @@ const AiRecommendations = ({
   onChanged: () => void;
 }) => {
   const { t } = useTranslation();
-  const requiredCount = questions.filter((question) => question.isRequired && !question.roomType).length;
-  const conditionalCount = questions.filter((question) => question.roomType).length;
+  const requiredCount = questions.filter((question) => question.isRequired && question.roomTypes.length === 0).length;
+  const conditionalCount = questions.filter((question) => question.roomTypes.length > 0).length;
 
   const stats = [
     { key: "used", label: t("admin.systemSettings.statQuestionsUsed"), value: questions.length, icon: MessageSquareWarning },
@@ -309,20 +326,26 @@ const AiRecommendations = ({
                           <span className="w-6 shrink-0 font-data text-sm font-semibold text-muted-foreground">
                             {String(index + 1).padStart(2, "0")}
                           </span>
-                          <span className={cn("text-sm text-ink", question.roomType && "flex items-center gap-1.5")}>
-                            {question.roomType && <span className="text-muted-foreground">↳</span>}
+                          <span className={cn("text-sm text-ink", question.roomTypes.length > 0 && "flex items-center gap-1.5")}>
+                            {question.roomTypes.length > 0 && <span className="text-muted-foreground">↳</span>}
                             {question.text}
                           </span>
                         </div>
                       </td>
                       <td className="py-4 pr-4 whitespace-nowrap">
-                        <Badge variant={!question.roomType && question.isRequired ? "default" : "outline"}>
-                          {question.roomType
-                            ? t(ROOM_TYPE_KEYS[question.roomType])
-                            : question.isRequired
-                              ? t("admin.systemSettings.required")
-                              : t("admin.systemSettings.optional")}
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-1">
+                          {question.roomTypes.length > 0 ? (
+                            question.roomTypes.map((roomType) => (
+                              <Badge key={roomType} variant="outline">
+                                {t(ROOM_TYPE_KEYS[roomType])}
+                              </Badge>
+                            ))
+                          ) : (
+                            <Badge variant={question.isRequired ? "default" : "outline"}>
+                              {question.isRequired ? t("admin.systemSettings.required") : t("admin.systemSettings.optional")}
+                            </Badge>
+                          )}
+                        </div>
                       </td>
                       <td className="py-4 whitespace-nowrap">
                         <div className="flex items-center gap-1">

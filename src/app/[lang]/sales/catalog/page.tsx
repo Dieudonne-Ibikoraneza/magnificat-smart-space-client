@@ -7,12 +7,14 @@ import { ProductsPageSkeleton } from "@/components/skeletons";
 import { SalesPageHeader } from "@/app/[lang]/sales/layout";
 import { productsApi, toProduct } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
+import { useLocale } from "@/lib/i18n";
 
 /** Sales is view-only here — only admin/stock can create or edit a product (see ProductsController's @Roles), so there's no "Add New Product" action on this page. */
 const CatalogPage = () => {
   const { t } = useTranslation();
+  const { locale } = useLocale();
   const { data, loading, error, reload } = useApi(() => productsApi.list({ limit: 100 }));
-  const products = data?.items.map((product) => toProduct(product)) ?? [];
+  const products = data?.items.map((product) => toProduct(product, undefined, locale)) ?? [];
 
   return (
     <>

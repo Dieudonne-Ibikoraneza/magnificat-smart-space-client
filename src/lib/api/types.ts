@@ -122,6 +122,9 @@ export type StaffSummary = {
 export type ApiCollection = {
   id: string;
   title: string;
+  /** Auto-translated Kinyarwanda copy — see `ApiProduct.nameRw`. */
+  titleRw: string | null;
+  descriptionRw: string | null;
   slug: string;
   description: string | null;
   image: string | null;
@@ -144,6 +147,14 @@ export type ApiProduct = {
   currency: string;
   image: string;
   description: string | null;
+  /**
+   * Auto-translated Kinyarwanda copy (see the server's `TranslationService`)
+   * — `null` until translated (or if translation is disabled), in which
+   * case every consumer falls back to `name`/`description`. Never edited
+   * directly; re-populated server-side whenever the English text changes.
+   */
+  nameRw: string | null;
+  descriptionRw: string | null;
   suitableFor: SuitableFor;
   roomTypes: RoomType[];
   isActive: boolean;
@@ -185,7 +196,7 @@ export type ApiProduct = {
    */
   availableAreaSqm?: number;
   /** Present when the endpoint nests it (e.g. cart lines) — absent elsewhere, where `size` above already covers it. */
-  collection?: { id: string; title: string; slug: string; size: string };
+  collection?: { id: string; title: string; titleRw: string | null; slug: string; size: string };
 };
 
 export type TileQuantity = {
@@ -415,6 +426,9 @@ export type ApiRoom = {
   type: RoomType;
   name: string;
   description: string | null;
+  /** Auto-translated Kinyarwanda copy — see `ApiProduct.nameRw`. */
+  nameRw: string | null;
+  descriptionRw: string | null;
   modelUrl: string;
   thumbnail: string | null;
   isActive: boolean;
@@ -439,6 +453,17 @@ export type ApiRoomDesign = {
 /** PENDING = no response yet, ACCEPTED = liked, REJECTED = disliked. */
 export type RecommendationDecision = "PENDING" | "ACCEPTED" | "REJECTED";
 
+/** The wall half of a bathroom floor+wall combo — same shape as the floor product minus the fields that only make sense once per card (image, matchScore, reason). */
+export type ChatRecommendationWallProduct = {
+  id: string;
+  recommendationId: string;
+  name: string;
+  price: number;
+  link: string;
+  collection: string;
+  size: string;
+};
+
 export type ChatRecommendation = {
   id: string;
   /** The specific `Recommendation` row this pick was persisted as — target this, not `id`, when recording a like/dislike (the same product can be recommended more than once in a conversation). */
@@ -453,6 +478,8 @@ export type ChatRecommendation = {
   matchScore: number;
   /** One concise sentence explaining why the assistant picked this product. */
   reason: string;
+  /** Present only for a bathroom recommendation: the wall tile paired with this floor tile in the same generated scene — one card represents the whole floor+wall combo, not two separate recommendations. */
+  wallProduct?: ChatRecommendationWallProduct;
 };
 
 /**
@@ -561,7 +588,8 @@ export type ProfilingQuestion = {
   id: string;
   text: string;
   isRequired: boolean;
-  roomType: RoomType | null;
+  /** Empty = always asked. Non-empty = only asked when the customer picked one of these rooms — a question can apply to more than one room type. */
+  roomTypes: RoomType[];
   position: number;
   isActive: boolean;
   language: Language;
