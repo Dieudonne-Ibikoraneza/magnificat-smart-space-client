@@ -271,7 +271,11 @@ body {
     @apply bg-background text-foreground;
   }
   html {
-    @apply font-sans;
+    /* A modal/dialog locking scroll adds scrollbar-compensating padding to
+       this element, not to `body` — without its own background, that sliver
+       exposes the browser's default white instead of the app's cream, most
+       visible as a white strip down the right edge while a dialog is open. */
+    @apply bg-background font-sans;
   }
 }
 

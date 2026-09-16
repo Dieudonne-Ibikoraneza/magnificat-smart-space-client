@@ -6,6 +6,7 @@ import { History, Menu, Settings, ShoppingCart, Sparkles, Star } from "lucide-re
 import { ApiLoading } from "@/components/api-state";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { SiteHeader } from "@/components/siteheader";
+import { ACCOUNT_ROLES } from "@/lib/auth-routes";
 import { useRequireRole } from "@/lib/require-role";
 import { getInitials } from "@/lib/utils";
 
@@ -25,7 +26,7 @@ const accountNavigation = [
 const AccountLayout = ({ children }: { children: React.ReactNode }) => {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
-  const { user, authorized } = useRequireRole(["CLIENT"]);
+  const { user, authorized } = useRequireRole(ACCOUNT_ROLES);
   const navLinks = accountNavigation.map((link) => ({ ...link, label: t(link.labelKey) }));
 
   // Holds the whole area — sidebar included — until we know who this is: a

@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { Product } from "@/components/product-card";
 import { cartApi, tokenStore } from "@/lib/api";
 import { toProduct } from "@/lib/api/mappers";
+import { useLocale } from "@/lib/i18n";
 import { calculateTileQuantity, type TileQuantity } from "@/lib/tile-calculator";
 
 export type CartLine = {
@@ -104,6 +105,7 @@ const writeCache = (lines: CartLine[]) => {
  * cart permanently out of sync with what's actually stored.
  */
 export const CartProvider = ({ children }: { children: ReactNode }) => {
+  const { locale } = useLocale();
   const [lines, setLines] = useState<CartLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [generation, setGeneration] = useState(0);
@@ -140,7 +142,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         if (!active) return;
         const nextLines = cart.items
           .filter((item): item is typeof item & { product: NonNullable<typeof item.product> } => !!item.product)
-          .map((item) => buildLine(toProduct(item.product, item.product.collection?.title), Number(item.areaSqm)));
+          .map((item) => buildLine(toProduct(item.product, undefined, locale), Number(item.areaSqm)));
         setLines(nextLines);
         writeCache(nextLines);
       } catch {
@@ -156,7 +158,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       active = false;
     };
-  }, [generation]);
+    // Re-fetching (not just re-rendering) on a locale switch is the simplest
+    // correct way to re-localize already-loaded lines — the raw `ApiProduct`
+    // behind each `CartLine` isn't kept around once `toProduct` picks a
+    // language, so there's nothing cheaper to re-derive from locally.
+  }, [generation, locale]);
 
   const refresh = useCallback(() => setGeneration((value) => value + 1), []);
 

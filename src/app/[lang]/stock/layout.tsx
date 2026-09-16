@@ -16,6 +16,7 @@ import { ApiLoading } from "@/components/api-state";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { PageHeader, type PageHeaderProps } from "@/components/page-header";
 import { DetailPageHeader, type DetailPageHeaderProps } from "@/components/detail-page-header";
+import { STOCK_ROLES } from "@/lib/auth-routes";
 import { useRequireRole } from "@/lib/require-role";
 import { getInitials } from "@/lib/utils";
 
@@ -58,7 +59,7 @@ const StockLayout = ({ children }: { children: React.ReactNode }) => {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuClosing, setMenuClosing] = useState(false);
-  const { user, authorized } = useRequireRole(["STOCK_MANAGER", "ADMIN"]);
+  const { user, authorized } = useRequireRole(STOCK_ROLES);
   const navLinks = navigation.map((link) => ({ ...link, label: t(link.labelKey) }));
 
   const openMenu = () => {

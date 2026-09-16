@@ -88,7 +88,16 @@ export const ConversionFunnel = ({
   getHref?: (stage: JourneyStage) => string;
 }) => {
   const { t } = useTranslation();
-  const maxCustomers = Math.max(1, ...stages.map((row) => row.customers));
+
+  // A uniform staircase, not a data-proportional one: each stage steps in by
+  // the same fixed amount regardless of its actual count, so two stages with
+  // very different customer counts (e.g. a big drop-off) don't produce a
+  // jarring, unevenly-sized jump between consecutive rows — every step reads
+  // the same size. Floored well above a sliver since this percentage sizes
+  // the icon-circle + bar unit together (see the sm+ row below), not just
+  // the bar.
+  const STEP_PERCENT = 1;
+  const MIN_WIDTH_PERCENT = 10;
 
   const funnel = stages.map(({ stage, customers, conversionFromPrevious }, index) => {
     const meta = JOURNEY_STAGE_META[stage];
@@ -101,10 +110,7 @@ export const ConversionFunnel = ({
         ? ""
         : t("staff.conversionFunnel.conversion", { value: conversionFromPrevious.toFixed(0) }),
       meta.icon,
-      // Bar width reads as an actual funnel — each stage's share of the
-      // widest (first) stage — floored so even a near-zero stage stays
-      // legible instead of collapsing to a sliver.
-      Math.max((customers / maxCustomers) * 100, 8),
+      Math.max(100 - index * STEP_PERCENT, MIN_WIDTH_PERCENT),
     ] as const;
   });
 
@@ -189,13 +195,20 @@ export const ConversionFunnel = ({
         const isLast = index === funnel.length - 1;
         const interactive = !isFirst && !isLast && !!getHref;
 
-        const row = (
-          <div
-            className={cn(
-              "group relative flex items-center gap-3 transition-all duration-300 ease-in-out will-change-transform",
-              interactive ? "cursor-pointer" : isFirst ? "cursor-not-allowed" : "cursor-default",
-            )}
-          >
+        // Icon + bar move together as one unit, anchored to the row's right
+        // edge (`justify-end` on the outer wrapper) — a narrower stage's
+        // empty space falls to the left of the icon, not between the icon
+        // and its own bar. That empty space is a real, unstyled gap in the
+        // outer wrapper, not part of the interactive unit below, so hovering
+        // it does nothing — only hovering the visible icon+bar block (which
+        // carries `group`/the hand cursor/the actual link) does.
+        const unitClassName = cn(
+          "group relative flex min-w-0 items-center gap-3 transition-all duration-300 ease-in-out will-change-transform",
+          interactive ? "cursor-pointer" : isFirst ? "cursor-not-allowed" : "cursor-default",
+        );
+
+        const unit = (
+          <>
             <div
               className={cn(
                 "z-10 flex size-10 shrink-0 items-center justify-center rounded-full transition-all duration-300",
@@ -208,16 +221,9 @@ export const ConversionFunnel = ({
             >
               <Icon className="size-4" />
             </div>
-            {/* Anchored to the row's right edge (`justify-end`) so a
-                narrower stage's empty space falls between the icon and the
-                bar's left edge, not trailing off after the bar's right edge
-                — reads as an actual taper instead of an arbitrary gap that
-                moves around depending on which stage happens to be widest. */}
-            <div className="flex min-w-0 flex-1 justify-end">
             <div
-              style={{ width: `${widthPercent}%` }}
               className={cn(
-                "flex min-h-12 min-w-0 items-center justify-between rounded-lg border p-4 transition-all duration-300 ease-in-out",
+                "flex min-h-12 min-w-0 flex-1 items-center justify-between rounded-lg border p-4 transition-all duration-300 ease-in-out",
                 isLast
                   ? "border-ink bg-ink text-white"
                   : isFirst
@@ -244,16 +250,23 @@ export const ConversionFunnel = ({
                 )}
               </div>
             </div>
-            </div>
-          </div>
+          </>
         );
 
-        return interactive ? (
-          <Link key={stage} href={getHref!(stage)} className="block">
-            {row}
-          </Link>
-        ) : (
-          <div key={stage}>{row}</div>
+        return (
+          <div key={stage} className="flex items-center">
+            <div className="flex min-w-0 flex-1 justify-end">
+              {interactive ? (
+                <Link href={getHref!(stage)} style={{ width: `${widthPercent}%` }} className={unitClassName}>
+                  {unit}
+                </Link>
+              ) : (
+                <div style={{ width: `${widthPercent}%` }} className={unitClassName}>
+                  {unit}
+                </div>
+              )}
+            </div>
+          </div>
         );
       })}
     </div>

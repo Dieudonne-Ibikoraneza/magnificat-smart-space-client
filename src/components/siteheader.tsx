@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import {
+  LayoutDashboard,
   Menu,
   Search,
   ShoppingCart,
@@ -16,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LanguageMenu } from "@/components/language-menu";
+import { roleAccountSettingsPath, roleHomePath } from "@/lib/auth-routes";
 import { useCart } from "@/lib/cart-store";
 import { useCurrentUser } from "@/lib/current-user";
 import { stripLocale } from "@/lib/i18n";
@@ -90,8 +92,18 @@ export const SiteHeader = () => {
 
         <div className="ml-auto flex shrink-0 items-center gap-3 text-muted sm:gap-5">
           <LanguageMenu />
+          {user && user.role !== "CLIENT" && (
+            <Link
+              href={roleHomePath(user.role)}
+              className="hidden items-center gap-1.5 text-sm font-semibold transition-colors hover:text-ink sm:flex"
+              aria-label={t("header.dashboardAria")}
+            >
+              <LayoutDashboard className="size-4" />
+              {t("header.dashboard")}
+            </Link>
+          )}
           <Link
-            href={user ? "/account/settings" : "/auth"}
+            href={user ? roleAccountSettingsPath(user.role) : "/auth"}
             className="transition-colors hover:text-ink"
             aria-label={user ? t("header.accountAria", { name: user.fullName }) : t("header.signIn")}
           >
@@ -103,18 +115,20 @@ export const SiteHeader = () => {
               <UserRound className="size-5 sm:size-4" />
             )}
           </Link>
-          <Link
-            href="/account/cart"
-            className="relative transition-colors hover:text-ink"
-            aria-label={cartLabel}
-          >
-            <ShoppingCart className="size-5 sm:size-4" />
-            {cart.count > 0 && (
-              <span className="absolute -right-2 -top-2 flex size-4 items-center justify-center rounded-full bg-amber text-[10px] font-bold text-white">
-                {cart.count}
-              </span>
-            )}
-          </Link>
+          {(!user || user.role === "CLIENT") && (
+            <Link
+              href="/account/cart"
+              className="relative transition-colors hover:text-ink"
+              aria-label={cartLabel}
+            >
+              <ShoppingCart className="size-5 sm:size-4" />
+              {cart.count > 0 && (
+                <span className="absolute -right-2 -top-2 flex size-4 items-center justify-center rounded-full bg-amber text-[10px] font-bold text-white">
+                  {cart.count}
+                </span>
+              )}
+            </Link>
+          )}
           <Button
             type="button"
             variant="ghost"
@@ -149,6 +163,16 @@ export const SiteHeader = () => {
           <div className="pointer-events-none fixed inset-x-0 bottom-0 top-[8.5rem] z-[61] overflow-hidden md:top-20 lg:hidden">
             <div id="mobile-navigation" className={`pointer-events-auto bg-white/95 px-4 pb-5 pt-4 shadow-lg backdrop-blur-xl duration-300 ${menuClosing ? "animate-out slide-out-to-top-full" : "animate-in slide-in-from-top-full"}`}>
               <nav className="flex flex-col" aria-label={t("header.mobileNav")}>
+                {user && user.role !== "CLIENT" && (
+                  <Link
+                    href={roleHomePath(user.role)}
+                    onClick={closeMenu}
+                    className="flex items-center gap-2 border-b border-slate-100 py-3.5 text-sm font-semibold text-muted hover:text-ink sm:hidden"
+                  >
+                    <LayoutDashboard className="size-4" />
+                    {t("header.dashboard")}
+                  </Link>
+                )}
                 {navigationLinks.map((link) => (
                   <Link
                     key={link.href}
