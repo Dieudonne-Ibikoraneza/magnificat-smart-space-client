@@ -1529,7 +1529,15 @@
       "colPrice": "Igiciro cy'urumwe (RWF)",
       "colActions": "Ibikorwa",
       "viewAria": "Reba {{name}}",
-      "showingRange": "Herekanwa {{start}} kugeza {{end}} muri {{total}} bisubizo"
+      "showingRange": "Herekanwa {{start}} kugeza {{end}} muri {{total}} bisubizo",
+      "editAria": "Hindura {{name}}",
+      "deleteAria": "Siba {{name}}",
+      "roomTypeTrigger": "Icyumba",
+      "roomTypeAll": "Ibyumba byose",
+      "sizeTrigger": "Ingano",
+      "sizeAll": "Ingano zose",
+      "sortNewest": "Bishya mbere",
+      "sortOldest": "Bishaje mbere"
     },
     "inventoryDetail": {
       "loading": "Kuzana igicuruzwa…",
@@ -1621,7 +1629,11 @@
       "toastRegisteredTitle": "Igicuruzwa cyanditswe",
       "toastRegisteredBody": "{{name}} (SKU {{sku}}) cyongewe muri katarogu.",
       "toastFailedTitle": "Ntibyashobotse kwandika igicuruzwa",
-      "toastTryAgain": "Ongera ugerageze."
+      "toastTryAgain": "Ongera ugerageze.",
+      "skuChecking": "Kugenzura niba ihari…",
+      "skuAvailable": "SKU irahari, ushobora kuyikoresha.",
+      "skuTaken": "SKU iri gukoreshwa n'ikindi gicuruzwa.",
+      "skuCheckError": "Ntibyashobotse kugenzura SKU — bizongera kugenzurwa mu kohereza."
     },
     "collections": {
       "title": "Amakusanyirizo",
@@ -1637,7 +1649,17 @@
       "toastDeletedTitle": "Ikusanyirizo ryasibwe",
       "toastDeletedBody": "{{name}} ryavanyweho.",
       "toastFailedTitle": "Ntibyashobotse gusiba ikusanyirizo",
-      "toastTryAgain": "Ongera ugerageze."
+      "toastTryAgain": "Ongera ugerageze.",
+      "productCount": "Ibicuruzwa {{count}}",
+      "confirmDeleteTitle": "Siba \"{{title}}\"?",
+      "confirmDeleteDescription": "Ntibishobora gusubizwaho.",
+      "confirmDeleteLabel": "Siba",
+      "searchPlaceholder": "Shakisha amakusanyirizo...",
+      "searchAria": "Shakisha amakusanyirizo",
+      "sizeTrigger": "Ingano",
+      "sizeAll": "Ingano zose",
+      "sortNewest": "Bishya mbere",
+      "sortOldest": "Bishaje mbere"
     },
     "collectionDetail": {
       "loading": "Kuzana ikusanyirizo…",

@@ -1529,7 +1529,15 @@
       "colPrice": "Unit Price (RWF)",
       "colActions": "Actions",
       "viewAria": "View {{name}}",
-      "showingRange": "Showing {{start}} to {{end}} of {{total}} results"
+      "showingRange": "Showing {{start}} to {{end}} of {{total}} results",
+      "editAria": "Edit {{name}}",
+      "deleteAria": "Delete {{name}}",
+      "roomTypeTrigger": "Room",
+      "roomTypeAll": "All rooms",
+      "sizeTrigger": "Size",
+      "sizeAll": "All sizes",
+      "sortNewest": "Newest first",
+      "sortOldest": "Oldest first"
     },
     "inventoryDetail": {
       "loading": "Loading product…",
@@ -1621,7 +1629,11 @@
       "toastRegisteredTitle": "Product registered",
       "toastRegisteredBody": "{{name}} (SKU {{sku}}) was added to the catalog.",
       "toastFailedTitle": "Couldn't register product",
-      "toastTryAgain": "Please try again."
+      "toastTryAgain": "Please try again.",
+      "skuChecking": "Checking availability…",
+      "skuAvailable": "SKU is available.",
+      "skuTaken": "This SKU is already used by another product.",
+      "skuCheckError": "Couldn't check SKU availability — it will be re-checked on submit."
     },
     "collections": {
       "title": "Collections",
@@ -1637,7 +1649,17 @@
       "toastDeletedTitle": "Collection deleted",
       "toastDeletedBody": "{{name}} was removed.",
       "toastFailedTitle": "Couldn't delete collection",
-      "toastTryAgain": "Please try again."
+      "toastTryAgain": "Please try again.",
+      "productCount": "{{count}} products",
+      "confirmDeleteTitle": "Delete \"{{title}}\"?",
+      "confirmDeleteDescription": "This can't be undone.",
+      "confirmDeleteLabel": "Delete",
+      "searchPlaceholder": "Search collections...",
+      "searchAria": "Search collections",
+      "sizeTrigger": "Size",
+      "sizeAll": "All sizes",
+      "sortNewest": "Newest first",
+      "sortOldest": "Oldest first"
     },
     "collectionDetail": {
       "loading": "Loading collection…",

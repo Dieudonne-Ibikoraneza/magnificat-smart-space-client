@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { Bold, CheckCircle2, ImagePlus, Layers3, Ruler, Save, Tag, X } from "lucide-react";
 import { StockDetailHeader } from "@/app/[lang]/stock/layout";
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLabel, RequiredAsterisk } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
@@ -47,7 +47,9 @@ const ValidatedInput = ({ label, placeholder, value, onChange, isValid, errorMes
 
   return (
     <Field className="gap-1.5">
-      <FieldLabel className="text-sm font-medium text-ink">{label}</FieldLabel>
+      <FieldLabel className="text-sm font-medium text-ink">
+        {label} <RequiredAsterisk show={!valid} />
+      </FieldLabel>
       <div className="relative">
         {Icon && (
           <Icon
@@ -337,7 +339,9 @@ const StockRegisterCollectionPage = () => {
       >
         <div className="grid items-start gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_1.4fr]">
           <section className="rounded-2xl bg-card p-5 sm:p-6">
-            <h2 className="text-lg font-bold text-ink">{t("stock.newCollection.coverImage")}</h2>
+            <h2 className="text-lg font-bold text-ink">
+              {t("stock.newCollection.coverImage")} <RequiredAsterisk show={imageFile === null} />
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">{t("stock.newCollection.coverImageSub")}</p>
             <div className="mt-5">
               <ImageFileField file={imageFile} onChange={setImageFile} />
@@ -396,7 +400,9 @@ const StockRegisterCollectionPage = () => {
             </div>
 
             <div className="mt-6">
-              <FieldLabel className="text-sm font-medium text-ink">{t("stock.newCollection.description")}</FieldLabel>
+              <FieldLabel className="text-sm font-medium text-ink">
+                {t("stock.newCollection.description")} <RequiredAsterisk show={!isValidDescription(description)} />
+              </FieldLabel>
               <p className="mt-0.5 text-xs text-muted-foreground">{t("stock.newCollection.descriptionSub")}</p>
               <div className="mt-2.5">
                 <BoldTextarea

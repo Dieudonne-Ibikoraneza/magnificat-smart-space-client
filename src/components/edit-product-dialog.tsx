@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, ImagePlus, Pencil, Wallet, X } from "lucide-react";
 import {
@@ -47,10 +47,13 @@ const roomTypeOptions = Object.keys(ROOM_TYPE_KEYS) as RoomType[];
 export const EditProductDialog = ({
   product,
   onUpdated,
+  trigger,
 }: {
   product: ApiProduct;
   /** Called after a successful edit so the parent can refetch the product. */
   onUpdated: () => void;
+  /** Custom trigger element (e.g. an icon-only button for list rows) — falls back to the default labeled button when omitted. */
+  trigger?: ReactElement;
 }) => {
   const { t } = useTranslation();
   const { locale } = useLocale();
@@ -151,15 +154,21 @@ export const EditProductDialog = ({
     >
       <DialogTrigger
         render={
-          <Button
-            type="button"
-            variant="outline"
-            className="h-12 gap-2 border border-[#E8E8E8] text-sm font-semibold"
-          />
+          trigger ?? (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 gap-2 border border-[#E8E8E8] text-sm font-semibold"
+            />
+          )
         }
       >
-        <Pencil className="size-4 stroke-2.5" />
-        {t("staff.editProduct.trigger")}
+        {!trigger && (
+          <>
+            <Pencil className="size-4 stroke-2.5" />
+            {t("staff.editProduct.trigger")}
+          </>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>

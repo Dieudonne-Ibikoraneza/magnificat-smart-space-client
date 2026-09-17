@@ -206,6 +206,10 @@ export const productsApi = {
   list: (query: ProductQuery = {}) => api.get<Paginated<ApiProduct>>("/products", { query }),
   get: (id: string) => api.get<ApiProduct>(`/products/${id}`),
 
+  /** Polled (debounced) as the user types a SKU on the registration/edit form, so a collision surfaces before submit instead of after. */
+  checkSku: (sku: string, excludeId?: string) =>
+    api.get<{ available: boolean }>("/products/check-sku", { query: { sku, excludeId } }),
+
   /** Doc 3.3: area in, boxes/pieces and total price out. */
   calculateQuantity: (productId: string, areaSqm: number) =>
     api.post<QuantityCalculation>("/products/calculate-quantity", { productId, areaSqm }),
