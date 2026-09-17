@@ -224,6 +224,16 @@ function FieldError({
   )
 }
 
+/** Asterisk marking a `FieldLabel` as required — shown while `show` is true (typically "not yet validly filled") and hidden once the field passes validation. */
+function RequiredAsterisk({ show }: { show: boolean }) {
+  if (!show) return null
+  return (
+    <span className="text-red-500" aria-hidden="true">
+      *
+    </span>
+  )
+}
+
 export {
   Field,
   FieldLabel,
@@ -235,4 +245,5 @@ export {
   FieldSet,
   FieldContent,
   FieldTitle,
+  RequiredAsterisk,
 }

@@ -6,23 +6,28 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  ArrowDownWideNarrow,
   ArrowUpRight,
   ChevronsLeft,
   ChevronsRight,
   Eye,
   LayoutGrid,
   List,
+  Pencil,
   Plus,
   Search,
+  Trash2,
 } from "lucide-react";
 import { getVisiblePages } from "@/lib/catalog-utils";
 import { staffStockDisplay } from "@/lib/stock-display";
 import { cn } from "@/lib/utils";
 import { StockPageHeader } from "@/app/[lang]/stock/layout";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
+import { EditProductDialog } from "@/components/edit-product-dialog";
+import { DeleteProductButton } from "@/components/delete-product-button";
 import { productsApi } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
-import type { ApiProduct, StockStatus } from "@/lib/api/types";
+import type { ApiProduct, RoomType, StockStatus } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -59,7 +64,26 @@ const FILTER_STATUS_KEYS: Record<StockStatus, string> = {
   out_of_stock: "staff.stockStatus.out_of_stock",
 };
 
-export const InventoryProductCard = ({ product, basePath = "/stock/inventory" }: { product: ApiProduct; basePath?: string }) => {
+const ROOM_TYPE_KEYS: Record<RoomType, string> = {
+  LIVING_ROOM: "catalog.roomTypes.livingRoom",
+  BEDROOM: "catalog.roomTypes.bedroom",
+  BATHROOM: "catalog.roomTypes.bathroom",
+  KITCHEN: "catalog.roomTypes.kitchen",
+};
+const roomTypeOptions = Object.keys(ROOM_TYPE_KEYS) as RoomType[];
+
+type SortOption = "newest" | "oldest";
+
+export const InventoryProductCard = ({
+  product,
+  basePath = "/stock/inventory",
+  onChanged,
+}: {
+  product: ApiProduct;
+  basePath?: string;
+  /** When provided, renders edit/delete icon controls for admins and refreshes the list through this callback once either action completes. */
+  onChanged?: () => void;
+}) => {
   const { t } = useTranslation();
   const status = staffStockDisplay(product);
   const quantity = status.quantityOnHandSqm;
@@ -111,16 +135,52 @@ export const InventoryProductCard = ({ product, basePath = "/stock/inventory" }:
             {quantity.toLocaleString()}{" "}
             <span className="text-sm font-medium text-muted">{t("stock.inventory.sqm")}</span>
           </p>
-          <Button
-            type="button"
-            nativeButton={false}
-            render={<Link href={`${basePath}/${product.id}`} />}
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-xs font-bold"
-          >
-            <Eye className="size-3.5" /> {t("stock.inventory.view")}
-          </Button>
+          <div className="flex items-center gap-1.5">
+            {onChanged && (
+              <>
+                <EditProductDialog
+                  product={product}
+                  onUpdated={onChanged}
+                  trigger={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      aria-label={t("stock.inventory.editAria", { name: product.name })}
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                  }
+                />
+                <DeleteProductButton
+                  productId={product.id}
+                  productName={product.name}
+                  onDeleted={onChanged}
+                  trigger={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                      aria-label={t("stock.inventory.deleteAria", { name: product.name })}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  }
+                />
+              </>
+            )}
+            <Button
+              type="button"
+              nativeButton={false}
+              render={<Link href={`${basePath}/${product.id}`} />}
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs font-bold"
+            >
+              <Eye className="size-3.5" /> {t("stock.inventory.view")}
+            </Button>
+          </div>
         </div>
       </div>
     </article>
@@ -133,25 +193,40 @@ const InventoryPage = () => {
   const [query, setQuery] = useState("");
   const [suitableFor, setSuitableFor] = useState("all");
   const [status, setStatus] = useState("all");
+  const [roomType, setRoomType] = useState("all");
+  const [size, setSize] = useState("all");
+  const [sort, setSort] = useState<SortOption>("newest");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [currentPage, setCurrentPage] = useState(1);
 
   const { data, loading, error, reload } = useApi(() => productsApi.list({ limit: 100 }));
   const allProducts = useMemo(() => data?.items ?? [], [data]);
 
+  const sizeOptions = useMemo(
+    () => Array.from(new Set(allProducts.map((product) => product.size))).sort(),
+    [allProducts],
+  );
+
   const results = useMemo(
     () =>
-      allProducts.filter((product) => {
-        const term = query.trim().toLowerCase();
-        const matchesQuery =
-          term === "" ||
-          product.name.toLowerCase().includes(term) ||
-          product.sku.toLowerCase().includes(term);
-        const matchesSuitableFor = suitableFor === "all" || product.suitableFor === suitableFor;
-        const matchesStatus = status === "all" || product.stockStatus === status;
-        return matchesQuery && matchesSuitableFor && matchesStatus;
-      }),
-    [allProducts, query, suitableFor, status],
+      allProducts
+        .filter((product) => {
+          const term = query.trim().toLowerCase();
+          const matchesQuery =
+            term === "" ||
+            product.name.toLowerCase().includes(term) ||
+            product.sku.toLowerCase().includes(term);
+          const matchesSuitableFor = suitableFor === "all" || product.suitableFor === suitableFor;
+          const matchesStatus = status === "all" || product.stockStatus === status;
+          const matchesRoomType = roomType === "all" || product.roomTypes.includes(roomType as RoomType);
+          const matchesSize = size === "all" || product.size === size;
+          return matchesQuery && matchesSuitableFor && matchesStatus && matchesRoomType && matchesSize;
+        })
+        .sort((a, b) => {
+          const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          return sort === "newest" ? -diff : diff;
+        }),
+    [allProducts, query, suitableFor, status, roomType, size, sort],
   );
 
   const totalResults = results.length;
@@ -202,7 +277,7 @@ const InventoryPage = () => {
               className="h-11 rounded-full bg-[#fafbfc] pl-11 text-sm"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center">
+          <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center">
             <Select
               value={suitableFor}
               onValueChange={(value) => {
@@ -253,6 +328,58 @@ const InventoryPage = () => {
                 <SelectItem value="out_of_stock">{t("staff.stockStatus.out_of_stock")}</SelectItem>
               </SelectContent>
             </Select>
+            <Select
+              value={roomType}
+              onValueChange={(value) => {
+                setRoomType(value ?? "all");
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="h-11 min-w-0 bg-card sm:w-40">
+                <SelectValue>
+                  {(value) => (value === "all" ? t("stock.inventory.roomTypeTrigger") : t(ROOM_TYPE_KEYS[value as RoomType]))}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("stock.inventory.roomTypeAll")}</SelectItem>
+                {roomTypeOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {t(ROOM_TYPE_KEYS[option])}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={size}
+              onValueChange={(value) => {
+                setSize(value ?? "all");
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="h-11 min-w-0 bg-card sm:w-32">
+                <SelectValue>{(value) => (value === "all" ? t("stock.inventory.sizeTrigger") : value)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("stock.inventory.sizeAll")}</SelectItem>
+                {sizeOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={sort} onValueChange={(value) => setSort((value as SortOption) ?? "newest")}>
+              <SelectTrigger className="h-11 min-w-0 gap-1.5 bg-card sm:w-44">
+                <ArrowDownWideNarrow className="size-4 shrink-0 text-[#71809a]" />
+                <SelectValue>
+                  {(value) => (value === "oldest" ? t("stock.inventory.sortOldest") : t("stock.inventory.sortNewest"))}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">{t("stock.inventory.sortNewest")}</SelectItem>
+                <SelectItem value="oldest">{t("stock.inventory.sortOldest")}</SelectItem>
+              </SelectContent>
+            </Select>
             <div className="flex h-11 w-fit items-center justify-center justify-self-end rounded-lg bg-[#f4f5f6] p-1 sm:w-auto">
               <Button
                 type="button"
@@ -289,7 +416,7 @@ const InventoryPage = () => {
         ) : view === "grid" ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {pageItems.map((product) => (
-              <InventoryProductCard key={product.id} product={product} />
+              <InventoryProductCard key={product.id} product={product} onChanged={reload} />
             ))}
           </div>
         ) : (
@@ -375,6 +502,36 @@ const InventoryPage = () => {
                             >
                               <Eye className="size-4" />
                             </Button>
+                            <EditProductDialog
+                              product={product}
+                              onUpdated={reload}
+                              trigger={
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  aria-label={t("stock.inventory.editAria", { name: product.name })}
+                                >
+                                  <Pencil className="size-4" />
+                                </Button>
+                              }
+                            />
+                            <DeleteProductButton
+                              productId={product.id}
+                              productName={product.name}
+                              onDeleted={reload}
+                              trigger={
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                                  aria-label={t("stock.inventory.deleteAria", { name: product.name })}
+                                >
+                                  <Trash2 className="size-4" />
+                                </Button>
+                              }
+                            />
                           </div>
                         </TableCell>
                       </TableRow>

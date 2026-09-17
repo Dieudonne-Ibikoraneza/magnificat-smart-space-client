@@ -13,6 +13,7 @@ import {
   Coins,
   ImagePlus,
   Layers3,
+  Loader2,
   Ruler,
   Save,
   Sparkles,
@@ -22,7 +23,7 @@ import {
 } from "lucide-react";
 import { StockDetailHeader } from "@/app/[lang]/stock/layout";
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLabel, RequiredAsterisk } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -66,6 +67,109 @@ const isValidSku = (value: string) => /^[A-Z0-9]+(-[A-Z0-9]+)*$/.test(value.trim
 const isPositiveNumber = (value: string) => value.trim() !== "" && Number(value) > 0;
 const isValidDescription = (value: string) => value.trim().length >= 10;
 
+const SKU_CHECK_DEBOUNCE_MS = 400;
+type SkuAvailability = "idle" | "checking" | "available" | "taken" | "error";
+
+/** Polls `/products/check-sku` (debounced) once the SKU is well-formed, so a duplicate surfaces while the user is still typing instead of after they submit. */
+const useSkuAvailability = (sku: string, formatValid: boolean, excludeId?: string): SkuAvailability => {
+  // Only ever set from the async callbacks below, never synchronously in the
+  // effect body — "checking" is derived instead (below) by comparing this
+  // result's `sku` against the current one, so no render-triggering setState
+  // needs to happen the instant the effect runs.
+  const [result, setResult] = useState<{ sku: string; status: "available" | "taken" | "error" } | null>(null);
+
+  useEffect(() => {
+    if (!formatValid) return;
+    let cancelled = false;
+    const handle = setTimeout(() => {
+      productsApi
+        .checkSku(sku.trim(), excludeId)
+        .then((response) => {
+          if (!cancelled) setResult({ sku, status: response.available ? "available" : "taken" });
+        })
+        .catch(() => {
+          if (!cancelled) setResult({ sku, status: "error" });
+        });
+    }, SKU_CHECK_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [sku, formatValid, excludeId]);
+
+  if (!formatValid) return "idle";
+  if (result && result.sku === sku) return result.status;
+  return "checking";
+};
+
+const SkuField = ({
+  value,
+  onChange,
+  availability,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  availability: SkuAvailability;
+}) => {
+  const { t } = useTranslation();
+  const [touched, setTouched] = useState(false);
+  const formatValid = isValidSku(value);
+  const showFormatError = touched && value.length > 0 && !formatValid;
+  const valid = formatValid && availability === "available";
+
+  return (
+    <Field className="gap-1.5">
+      <FieldLabel className="text-sm font-medium text-ink">
+        {t("stock.newProduct.sku")} <RequiredAsterisk show={!valid} />
+      </FieldLabel>
+      <div className="relative">
+        <ClipboardCheck
+          aria-hidden="true"
+          className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted"
+          strokeWidth={1.5}
+        />
+        <Input
+          className="h-11 pl-11 pr-10 text-sm"
+          placeholder={t("stock.newProduct.skuPlaceholder")}
+          value={value}
+          aria-invalid={showFormatError || (formatValid && availability === "taken")}
+          onChange={(event) => onChange(event.target.value.toUpperCase())}
+          onBlur={() => setTouched(true)}
+        />
+        {formatValid && availability === "checking" && (
+          <Loader2
+            aria-hidden="true"
+            className="absolute right-3.5 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground"
+          />
+        )}
+        {valid && (
+          <CheckCircle2
+            aria-hidden="true"
+            className="absolute right-3.5 top-1/2 size-4.5 -translate-y-1/2 text-green-600"
+            strokeWidth={2}
+          />
+        )}
+        {formatValid && availability === "taken" && (
+          <X aria-hidden="true" className="absolute right-3.5 top-1/2 size-4.5 -translate-y-1/2 text-red-600" strokeWidth={2} />
+        )}
+      </div>
+      {showFormatError ? (
+        <p className="text-xs font-medium text-red-600">{t("stock.newProduct.skuError")}</p>
+      ) : formatValid && availability === "taken" ? (
+        <p className="text-xs font-medium text-red-600">{t("stock.newProduct.skuTaken")}</p>
+      ) : formatValid && availability === "checking" ? (
+        <p className="text-xs text-muted-foreground">{t("stock.newProduct.skuChecking")}</p>
+      ) : valid ? (
+        <p className="text-xs font-medium text-green-600">{t("stock.newProduct.skuAvailable")}</p>
+      ) : formatValid && availability === "error" ? (
+        <p className="text-xs text-muted-foreground">{t("stock.newProduct.skuCheckError")}</p>
+      ) : (
+        <p className="text-xs text-muted-foreground">{t("stock.newProduct.skuHint")}</p>
+      )}
+    </Field>
+  );
+};
+
 type FieldProps = {
   label: string;
   placeholder: string;
@@ -77,6 +181,7 @@ type FieldProps = {
   type?: string;
   hint?: string;
   onBlurTransform?: (value: string) => string;
+  required?: boolean;
 };
 
 const ValidatedInput = ({
@@ -90,6 +195,7 @@ const ValidatedInput = ({
   type = "text",
   hint,
   onBlurTransform,
+  required = true,
 }: FieldProps) => {
   const [touched, setTouched] = useState(false);
   const valid = isValid(value);
@@ -97,7 +203,9 @@ const ValidatedInput = ({
 
   return (
     <Field className="gap-1.5">
-      <FieldLabel className="text-sm font-medium text-ink">{label}</FieldLabel>
+      <FieldLabel className="text-sm font-medium text-ink">
+        {label} {required && <RequiredAsterisk show={!valid} />}
+      </FieldLabel>
       <div className="relative">
         {Icon && (
           <Icon
@@ -354,6 +462,9 @@ const RegisterProductPage = () => {
     setImagePreview(null);
   };
 
+  const skuFormatValid = isValidSku(sku);
+  const skuAvailability = useSkuAvailability(sku, skuFormatValid);
+
   const selectedCollection = collections.find((item) => item.id === collectionId) ?? null;
   const tileArea = selectedCollection ? Number(selectedCollection.tileAreaSqm) : null;
   const boxCoverageValue = boxCoverage.trim() === "" ? null : Number(boxCoverage);
@@ -366,7 +477,8 @@ const RegisterProductPage = () => {
 
   const formValid =
     isValidName(name) &&
-    isValidSku(sku) &&
+    skuFormatValid &&
+    skuAvailability === "available" &&
     selectedCollection !== null &&
     roomTypes.length > 0 &&
     isPositiveNumber(price) &&
@@ -441,7 +553,9 @@ const RegisterProductPage = () => {
       >
         <div className="grid items-start gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_1.4fr]">
           <section className="rounded-2xl bg-card p-5 sm:p-6">
-            <h2 className="text-lg font-bold text-ink">{t("stock.newProduct.productImage")}</h2>
+            <h2 className="text-lg font-bold text-ink">
+              {t("stock.newProduct.productImage")} <RequiredAsterisk show={imageFile === null} />
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">{t("stock.newProduct.productImageSub")}</p>
             <div className="mt-5">
               <ImageDropzone previewUrl={imagePreview} onSelect={handleImageSelect} onClear={clearImage} />
@@ -461,18 +575,11 @@ const RegisterProductPage = () => {
                 errorMessage={t("stock.newProduct.nameError")}
                 icon={Tag}
               />
-              <ValidatedInput
-                label={t("stock.newProduct.sku")}
-                placeholder={t("stock.newProduct.skuPlaceholder")}
-                value={sku}
-                onChange={(value) => setSku(value.toUpperCase())}
-                isValid={isValidSku}
-                errorMessage={t("stock.newProduct.skuError")}
-                hint={t("stock.newProduct.skuHint")}
-                icon={ClipboardCheck}
-              />
+              <SkuField value={sku} onChange={setSku} availability={skuAvailability} />
               <Field className="gap-1.5 sm:col-span-2">
-                <FieldLabel className="text-sm font-medium text-ink">{t("stock.newProduct.collection")}</FieldLabel>
+                <FieldLabel className="text-sm font-medium text-ink">
+                  {t("stock.newProduct.collection")} <RequiredAsterisk show={!selectedCollection} />
+                </FieldLabel>
                 <Select value={collectionId} onValueChange={(value) => setCollectionId(value ?? "")}>
                   <SelectTrigger className="h-11 text-sm">
                     <SelectValue>
@@ -523,7 +630,9 @@ const RegisterProductPage = () => {
             </div>
 
             <div className="mt-5">
-              <FieldLabel className="text-sm font-medium text-ink">{t("stock.newProduct.roomTypes")}</FieldLabel>
+              <FieldLabel className="text-sm font-medium text-ink">
+                {t("stock.newProduct.roomTypes")} <RequiredAsterisk show={roomTypes.length === 0} />
+              </FieldLabel>
               <p className="mt-0.5 text-xs text-muted-foreground">{t("stock.newProduct.roomTypesHint")}</p>
               <div className="mt-2.5 flex flex-wrap gap-2">
                 {roomTypeOptions.map((option) => {
@@ -609,7 +718,10 @@ const RegisterProductPage = () => {
             <p className="mt-1 text-sm text-muted-foreground">{t("stock.newProduct.inventorySub")}</p>
             <div className="mt-5 grid gap-5">
               <Field className="gap-1.5">
-                <FieldLabel className="text-sm font-medium text-ink">{t("stock.newProduct.initialStock")}</FieldLabel>
+                <FieldLabel className="text-sm font-medium text-ink">
+                  {t("stock.newProduct.initialStock")}{" "}
+                  <RequiredAsterisk show={!(quantityValue !== null && quantityValue >= 0)} />
+                </FieldLabel>
                 <div className="relative">
                   <Sparkles
                     aria-hidden="true"
@@ -636,6 +748,7 @@ const RegisterProductPage = () => {
                 errorMessage={t("stock.newProduct.costPriceError")}
                 hint={t("stock.newProduct.costPriceHint")}
                 icon={Coins}
+                required={false}
               />
               {status && (
                 <span
@@ -652,7 +765,9 @@ const RegisterProductPage = () => {
         </div>
 
         <section className="rounded-2xl bg-card p-5 sm:p-6">
-          <h2 className="text-lg font-bold text-ink">{t("stock.newProduct.description")}</h2>
+          <h2 className="text-lg font-bold text-ink">
+            {t("stock.newProduct.description")} <RequiredAsterisk show={!isValidDescription(description)} />
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">{t("stock.newProduct.descriptionSub")}</p>
           <div className="mt-5">
             <BoldTextarea
