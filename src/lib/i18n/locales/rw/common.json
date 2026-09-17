@@ -190,7 +190,10 @@
     "favorited": "Byakunzwe",
     "addToFavorites": "Kunda iri karo",
     "addToCart": "Shyira mu Gatebo",
-    "compare": "Gereranya",
+    "compare": "Gereranya iri karo",
+    "compareHint": "Rigereranye n'andi makaro uruhande ku rundi",
+    "favoriteHint": "Bika iri karo ku rutonde rwawe",
+    "addToCartHint": "Shyira ubuso bwabazwe mu gikapu",
     "notFound": {
       "title": "Igicuruzwa nticyabonetse",
       "body": "Ikaro urimo gushaka ntiribaho cyangwa rishobora kuba ryarakuweho.",
@@ -2040,7 +2043,9 @@
       "crumbDashboard": "Imbonerahamwe",
       "crumbTiles": "Isesengura ry'Amakaro",
       "views": "Ibirebwa",
+      "likes": "Ibikundwa",
       "applications": "Ishyirwaho",
+      "comparisons": "Ibyagereranyijwe",
       "purchases": "Kugura",
       "selectionRate": "Igipimo cyo Gutoranya",
       "purchaseConversion": "Ihindura ry'Igura",
@@ -2258,6 +2263,7 @@
     "knowledgeBase": {
       "title": "Ububiko bw'Ubumenyi bwa Chatbot",
       "subtitle": "Ibisubizo umufasha wa AI yemerewe gutanga uko byanditswe.",
+      "loading": "Harimo gupakirwa ububiko bw'ubumenyi…",
       "addEntry": "Ongeramo Inyandiko",
       "statTotalEntries": "Inyandiko zose",
       "statActive": "Zikoreshwa",
@@ -2295,7 +2301,9 @@
       "toastEntryAddedDesc": "Umufasha arayikoresha guhera ku kiganiro gikurikira.",
       "toastEntryActivated": "Inyandiko yakoreshwa",
       "toastEntryDeactivated": "Inyandiko yahagaritswe",
-      "toastEntryDeleted": "Inyandiko yasibwe"
+      "toastEntryDeleted": "Inyandiko yasibwe",
+      "toastSaveFailed": "Ntibyashobotse kubika inyandiko",
+      "toastDeleteFailed": "Ntibyashobotse gusiba inyandiko"
     },
     "rooms": {
       "title": "Ibyumba bya 3D",
@@ -2622,9 +2630,17 @@
       "startOrder": "Tangira itumizo",
       "manageCollection": "Gucunga icyegeranyo",
       "analytics": {
+        "title": "Isesengura ry'ikaro",
+        "summary": "Kurebwa no gukundwa kw'ikaro",
         "views": "Ibirebwa",
+        "likes": "Ibikundwa",
         "applications": "Ibyakoreshejwe",
+        "comparisons": "Ibyagereranyijwe",
         "purchases": "Ibyaguzwe",
+        "selectionRate": "Igipimo cyo guhitamo",
+        "purchaseConversion": "Igipimo cyo kugura",
+        "loadError": "Isesengura ry'ikaro ntiryashoboye kuboneka.",
+        "retry": "Ongera ugerageze",
         "viewFull": "Reba isesengura ryuzuye"
       }
     }

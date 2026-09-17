@@ -9,7 +9,7 @@ import { DeliveryDetailsDialog } from "@/components/delivery-details-dialog";
 import { ordersApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import type { ApiOrderDelivery } from "@/lib/api/types";
-import type { DeliveryDetails } from "@/data/order-workflow";
+import type { DeliveryDetails } from "@/lib/domain-types";
 
 const toDeliveryDetails = (delivery: ApiOrderDelivery): DeliveryDetails => ({
   contactName: delivery.contactName,

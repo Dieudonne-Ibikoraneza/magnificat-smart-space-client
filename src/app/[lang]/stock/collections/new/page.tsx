@@ -1,11 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Bold, CheckCircle2, ImagePlus, Layers3, Ruler, Save, Tag, X } from "lucide-react";
 import { StockDetailHeader } from "@/app/[lang]/stock/layout";
+import { FileImagePreview, filePreviewKey } from "@/components/file-image-preview";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, RequiredAsterisk } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -86,18 +86,7 @@ const ValidatedInput = ({ label, placeholder, value, onChange, isValid, errorMes
 const ImageFileField = ({ file, onChange }: { file: File | null; onChange: (file: File | null) => void }) => {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
-
-  useEffect(() => {
-    if (!file) {
-      setPreviewUrl(null);
-      return;
-    }
-    const objectUrl = URL.createObjectURL(file);
-    setPreviewUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [file]);
 
   const handleFile = (nextFile: File | undefined) => {
     if (!nextFile || !nextFile.type.startsWith("image/")) {
@@ -115,9 +104,13 @@ const ImageFileField = ({ file, onChange }: { file: File | null; onChange: (file
 
   return (
     <div>
-      {previewUrl ? (
+      {file ? (
         <div className="relative aspect-4/3 w-full overflow-hidden rounded-xl bg-muted-background">
-          <Image src={previewUrl} alt={t("stock.newCollection.previewAlt")} fill unoptimized className="object-cover" />
+          <FileImagePreview
+            key={filePreviewKey(file)}
+            file={file}
+            alt={t("stock.newCollection.previewAlt")}
+          />
           <Button
             type="button"
             variant="secondary"

@@ -1,11 +1,5 @@
-export const roomOptions = ["Living Room", "Bathroom", "Bedroom", "Kitchen"];
-
-/**
- * Suggested prompts shown once the assistant has made its first recommendation
- * — each sends its resolved `textKey` (see `chatbot.followUps.*`) as a real
- * chat message.
- */
-export type FollowUp = {
+/** Static prompt shortcuts are UI configuration, not fallback conversation data. */
+export type ChatbotFollowUp = {
   id: string;
   textKey:
     | "chatbot.followUps.livingRoom"
@@ -14,7 +8,7 @@ export type FollowUp = {
     | "chatbot.followUps.durable";
 };
 
-export const followUps: FollowUp[] = [
+export const chatbotFollowUps: ChatbotFollowUp[] = [
   { id: "living-room", textKey: "chatbot.followUps.livingRoom" },
   { id: "bathroom", textKey: "chatbot.followUps.bathroom" },
   { id: "kitchen", textKey: "chatbot.followUps.kitchen" },

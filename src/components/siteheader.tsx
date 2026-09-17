@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useSyncExternalStore } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -35,6 +35,8 @@ const navigationLinks = [
 export const SiteHeader = () => {
   const { t } = useTranslation();
   const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   // Routes are matched against the locale-free path so `/rw/collections`
   // still lights up the "Collections" tab.
   const routePath = stripLocale(pathname ?? "/");
@@ -42,6 +44,45 @@ export const SiteHeader = () => {
   const cart = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuClosing, setMenuClosing] = useState(false);
+  const isProductsRoute = routePath === "/" || routePath.startsWith("/products");
+  const urlSearchValue = isProductsRoute ? (searchParams.get("search") ?? "") : "";
+  const [searchValue, setSearchValue] = useState(urlSearchValue);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // The URL's `?search=` can change from outside this component (browser
+  // back/forward, navigating away and back) — resync by adjusting state
+  // during render rather than in an effect (React docs' "adjusting state
+  // when a prop changes" pattern).
+  const [syncedSearchValue, setSyncedSearchValue] = useState(urlSearchValue);
+  if (urlSearchValue !== syncedSearchValue) {
+    setSyncedSearchValue(urlSearchValue);
+    setSearchValue(urlSearchValue);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, []);
+
+  const navigateToSearch = (value: string) => {
+    const query = value.trim();
+    // The catalog is the root route, not `/products` — that path is only
+    // used for individual product detail pages (`/products/[id]`).
+    router.push(query ? `/?search=${encodeURIComponent(query)}` : "/");
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchValue(value);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => navigateToSearch(value), 300);
+  };
+
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    navigateToSearch(searchValue);
+  };
   const mounted = useSyncExternalStore(
     () => () => undefined,
     () => true,
@@ -84,10 +125,17 @@ export const SiteHeader = () => {
         </nav>
 
         <div className="ml-auto hidden max-w-md flex-1 md:block">
-          <div className="relative">
+          <form className="relative" role="search" onSubmit={handleSearchSubmit}>
             <Search aria-hidden="true" className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
-            <Input className="h-10 rounded-full bg-transparent pl-11 pr-4 text-sm" placeholder={t("header.searchPlaceholder")} />
-          </div>
+            <Input
+              type="search"
+              value={searchValue}
+              onChange={(event) => handleSearchChange(event.target.value)}
+              className="h-10 rounded-full bg-transparent pl-11 pr-4 text-sm"
+              placeholder={t("header.searchPlaceholder")}
+              aria-label={t("header.searchPlaceholder")}
+            />
+          </form>
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-3 text-muted sm:gap-5">
@@ -146,10 +194,17 @@ export const SiteHeader = () => {
       </div>
 
       <div className="mx-auto px-4 pb-2 md:hidden">
-        <div className="relative">
+        <form className="relative" role="search" onSubmit={handleSearchSubmit}>
           <Search aria-hidden="true" className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
-          <Input className="h-10 w-full rounded-full bg-transparent pl-11 pr-4 text-sm" placeholder={t("header.searchPlaceholder")} />
-        </div>
+          <Input
+            type="search"
+            value={searchValue}
+            onChange={(event) => handleSearchChange(event.target.value)}
+            className="h-10 w-full rounded-full bg-transparent pl-11 pr-4 text-sm"
+            placeholder={t("header.searchPlaceholder")}
+            aria-label={t("header.searchPlaceholder")}
+          />
+        </form>
       </div>
 
       {mounted && menuOpen && createPortal(

@@ -53,31 +53,17 @@ export type ConversionFunnelStage = {
   conversionFromPrevious?: number;
 };
 
-const mockFunnel: ConversionFunnelStage[] = [
-  { stage: "OPENED_SYSTEM", customers: 5240 },
-  { stage: "CREATED_ROOM", customers: 4892, conversionFromPrevious: 93 },
-  { stage: "ENTERED_DIMENSIONS", customers: 4520, conversionFromPrevious: 92 },
-  { stage: "VIEWED_TILE", customers: 3812, conversionFromPrevious: 84 },
-  { stage: "APPLIED_TILE", customers: 2450, conversionFromPrevious: 64 },
-  { stage: "SAVED_DESIGN", customers: 1945, conversionFromPrevious: 79 },
-  { stage: "REQUESTED_QUOTATION", customers: 1420, conversionFromPrevious: 73 },
-  { stage: "NEGOTIATED", customers: 1105, conversionFromPrevious: 77 },
-  { stage: "PLACED_ORDER", customers: 842, conversionFromPrevious: 76 },
-];
-
 /**
  * Renders the given stages (from `GET /analytics/journey`) in funnel order,
  * as an icon-circle + proportional-width bar row — the funnel style used
  * everywhere except Customer Analytics (see `CustomerConversionFunnel` for
  * that page's simpler label + bar list, which matches its own design).
- * Falls back to placeholder data when no `stages` prop is passed, so
- * screens not yet wired to the real endpoint still render something.
  */
 export const ConversionFunnel = ({
-  stages = mockFunnel,
+  stages,
   getHref,
 }: {
-  stages?: ConversionFunnelStage[];
+  stages: ConversionFunnelStage[];
   /**
    * Builds the URL a stage's row links to (its own Journey Analytics page,
    * pre-selected on that stage via `?stage=`) — omit it on a page with no
@@ -279,7 +265,7 @@ export const ConversionFunnel = ({
  * value/conversion-% row, matching that page's design exactly. Every other
  * page uses the icon-circle `ConversionFunnel` above instead.
  */
-export const CustomerConversionFunnel = ({ stages = mockFunnel }: { stages?: ConversionFunnelStage[] }) => {
+export const CustomerConversionFunnel = ({ stages }: { stages: ConversionFunnelStage[] }) => {
   const { t } = useTranslation();
   const maxCustomers = Math.max(1, ...stages.map((row) => row.customers));
 

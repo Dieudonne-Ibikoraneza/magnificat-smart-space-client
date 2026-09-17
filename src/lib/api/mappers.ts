@@ -1,5 +1,5 @@
 import type { Product } from "@/components/product-card";
-import type { Collection } from "@/data/collections";
+import type { Collection } from "@/lib/domain-types";
 import type { Locale } from "@/lib/i18n";
 import type { ApiCollection, ApiProduct, HearAboutUs, RoomType, SuitableFor } from "./types";
 

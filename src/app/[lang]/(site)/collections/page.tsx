@@ -12,7 +12,7 @@ import { collectionsApi, toCollection } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
 import { useCurrentUser } from "@/lib/current-user";
 import { useLocale } from "@/lib/i18n";
-import type { Collection } from "@/data/collections";
+import type { Collection } from "@/lib/domain-types";
 
 const CollectionCard = ({ collection }: { collection: Collection }) => {
   const { t } = useTranslation();

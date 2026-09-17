@@ -190,7 +190,10 @@
     "favorited": "Favorited",
     "addToFavorites": "Add to Favorites",
     "addToCart": "Add to Cart",
-    "compare": "Compare",
+    "compare": "Compare this tile",
+    "compareHint": "Review it side by side with other tiles",
+    "favoriteHint": "Keep this tile in your saved list",
+    "addToCartHint": "Add the calculated area to your cart",
     "notFound": {
       "title": "Product not found",
       "body": "The tile you are looking for does not exist or may have been removed.",
@@ -2040,7 +2043,9 @@
       "crumbDashboard": "Dashboard",
       "crumbTiles": "Tiles Analytics",
       "views": "Views",
+      "likes": "Likes",
       "applications": "Applications",
+      "comparisons": "Comparisons",
       "purchases": "Purchases",
       "selectionRate": "Selection Rate",
       "purchaseConversion": "Purchase Conversion",
@@ -2258,6 +2263,7 @@
     "knowledgeBase": {
       "title": "Chatbot Knowledge Base",
       "subtitle": "Answers the AI assistant is allowed to give word for word.",
+      "loading": "Loading knowledge base…",
       "addEntry": "Add entry",
       "statTotalEntries": "Total entries",
       "statActive": "Active",
@@ -2295,7 +2301,9 @@
       "toastEntryAddedDesc": "The assistant can use it from the next conversation.",
       "toastEntryActivated": "Entry activated",
       "toastEntryDeactivated": "Entry deactivated",
-      "toastEntryDeleted": "Entry deleted"
+      "toastEntryDeleted": "Entry deleted",
+      "toastSaveFailed": "Couldn't save the entry",
+      "toastDeleteFailed": "Couldn't delete the entry"
     },
     "rooms": {
       "title": "3D Rooms",
@@ -2622,9 +2630,17 @@
       "startOrder": "Start an order",
       "manageCollection": "Manage collection",
       "analytics": {
+        "title": "Tile analytics",
+        "summary": "Tile views and likes",
         "views": "Views",
+        "likes": "Likes",
         "applications": "Applications",
+        "comparisons": "Comparisons",
         "purchases": "Purchases",
+        "selectionRate": "Selection rate",
+        "purchaseConversion": "Purchase conversion",
+        "loadError": "Tile analytics could not be loaded.",
+        "retry": "Retry",
         "viewFull": "View full analytics"
       }
     }

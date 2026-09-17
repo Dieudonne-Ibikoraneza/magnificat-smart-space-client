@@ -16,7 +16,7 @@ import { ordersApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { useCart, type CartLine } from "@/lib/cart-store";
 import { useCurrentUser } from "@/lib/current-user";
-import type { DeliveryDetails } from "@/data/order-workflow";
+import type { DeliveryDetails } from "@/lib/domain-types";
 import type { StockShortage } from "@/lib/api/types";
 
 const formatPrice = (value: number) => `RWF ${Math.round(value).toLocaleString()}`;

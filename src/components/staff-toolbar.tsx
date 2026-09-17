@@ -5,16 +5,11 @@ import { useTranslation } from "react-i18next";
 import {
   ArrowUpRight,
   Boxes,
-  Eye,
-  MousePointerSquareDashed,
   Plus,
-  ShoppingBasket,
   Warehouse,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { analyticsApi } from "@/lib/api";
-import { useApi } from "@/lib/api/use-api";
-import { formatCompactNumber } from "@/lib/utils";
+import { TileAnalyticsSummary, canViewTileAnalytics } from "@/components/tile-analytics-summary";
 import type { ApiProduct, Role } from "@/lib/api/types";
 
 /**
@@ -32,16 +27,6 @@ const ORDER_BASE: Partial<Record<Role, string>> = {
   STOCK_MANAGER: "/stock",
   ADMIN: "/admin",
 };
-/**
- * Only data analyst gets the analytics strip/link — `/analytics/*` is now
- * strictly the analyst's own dashboard (see `ANALYTICS_ROLES`), and admin's
- * equivalent (`/admin/analytics/tiles`) has no per-product detail route to
- * link into, so admin doesn't get this panel at all rather than a dead link.
- */
-const CAN_SEE_ANALYTICS: Partial<Record<Role, true>> = {
-  DATA_ANALYST: true,
-};
-
 /**
  * Where "start an order with this product" deep-links to for a given staff
  * role, or `undefined` when that role can't create orders (data analyst —
@@ -85,30 +70,6 @@ export const StaffCatalogActions = ({ role, kind = "product" }: { role: Role; ki
   );
 };
 
-/** Compact analytics strip — only fetched for roles that can actually see `/analytics/tiles/:id` (`AnalyticsController`'s `@Roles`). */
-const AnalyticsStrip = ({ productId }: { productId: string }) => {
-  const { t } = useTranslation();
-  const { data: rates } = useApi(() => analyticsApi.tileRates(productId), [productId]);
-
-  const stats = [
-    { key: "views", icon: Eye, label: t("staffToolbar.product.analytics.views"), value: rates ? formatCompactNumber(rates.viewed) : "—" },
-    { key: "applications", icon: MousePointerSquareDashed, label: t("staffToolbar.product.analytics.applications"), value: rates ? formatCompactNumber(rates.applied) : "—" },
-    { key: "purchases", icon: ShoppingBasket, label: t("staffToolbar.product.analytics.purchases"), value: rates ? formatCompactNumber(rates.purchased) : "—" },
-  ];
-
-  return (
-    <div className="grid grid-cols-3 gap-3">
-      {stats.map(({ key, icon: Icon, label, value }) => (
-        <div key={key} className="rounded-xl bg-white/70 p-3 text-center">
-          <Icon className="mx-auto size-4 text-ink" />
-          <p className="mt-1.5 text-[10px] font-bold uppercase tracking-wide text-muted">{label}</p>
-          <p className="mt-0.5 text-base font-black text-ink">{value}</p>
-        </div>
-      ))}
-    </div>
-  );
-};
-
 /**
  * Product-detail staff panel: real, staff-only data the API already sends
  * this viewer (`quantityOnHandSqm`, `reservedAreaSqm` — see `ApiProduct`),
@@ -119,7 +80,7 @@ export const StaffProductToolbar = ({ role, product }: { role: Role; product: Ap
   const { t } = useTranslation();
   const inventoryBase = INVENTORY_BASE[role];
   const orderHref = staffOrderHref(role, product.id);
-  const showAnalytics = CAN_SEE_ANALYTICS[role] === true;
+  const showAnalytics = canViewTileAnalytics(role);
 
   return (
     <section className="space-y-5 rounded-2xl border border-dashed border-amber/50 bg-amber/5 p-6">
@@ -145,9 +106,14 @@ export const StaffProductToolbar = ({ role, product }: { role: Role; product: Ap
         </div>
       )}
 
-      {showAnalytics && <AnalyticsStrip productId={product.id} />}
+      {showAnalytics && (
+        <TileAnalyticsSummary
+          productId={product.id}
+          className="border-amber/20 bg-white/50"
+        />
+      )}
 
-      <div className="flex flex-wrap gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         {inventoryBase && (
           <Button
             type="button"
@@ -155,7 +121,7 @@ export const StaffProductToolbar = ({ role, product }: { role: Role; product: Ap
             size="sm"
             nativeButton={false}
             render={<Link href={`${inventoryBase}/inventory/${product.id}`} />}
-            className="gap-1.5 font-bold"
+            className="h-11 justify-between rounded-xl bg-white/80 px-4 font-bold hover:bg-white"
           >
             {t("staffToolbar.product.manageInventory")} <ArrowUpRight className="size-4" />
           </Button>
@@ -167,19 +133,19 @@ export const StaffProductToolbar = ({ role, product }: { role: Role; product: Ap
             size="sm"
             nativeButton={false}
             render={<Link href={orderHref} />}
-            className="gap-1.5 font-bold"
+            className="h-11 justify-between rounded-xl bg-white/80 px-4 font-bold hover:bg-white"
           >
             {t("staffToolbar.product.startOrder")} <ArrowUpRight className="size-4" />
           </Button>
         )}
-        {showAnalytics && (
+        {role === "DATA_ANALYST" && (
           <Button
             type="button"
             variant="outline"
             size="sm"
             nativeButton={false}
             render={<Link href={`/analytics/tiles/${product.id}`} />}
-            className="gap-1.5 font-bold"
+            className="h-11 justify-between rounded-xl bg-white/80 px-4 font-bold hover:bg-white"
           >
             {t("staffToolbar.product.analytics.viewFull")} <ArrowUpRight className="size-4" />
           </Button>

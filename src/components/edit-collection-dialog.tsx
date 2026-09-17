@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { ImagePlus, Pencil, Trash2, X } from "lucide-react";
 import {
@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { FileImagePreview, filePreviewKey } from "@/components/file-image-preview";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -50,23 +51,12 @@ export const EditCollectionDialog = ({
   );
   const [image, setImage] = useState(collection.image ?? "");
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const titleValid = title.trim().length >= 2;
   const sizeValid = /^\d+(?:\.\d+)?\s*[×x]\s*\d+(?:\.\d+)?\s*cm$/i.test(size.trim());
   const valid = titleValid && sizeValid;
-
-  useEffect(() => {
-    if (!imageFile) {
-      setPreviewUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(imageFile);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [imageFile]);
 
   const resetToCollection = () => {
     setTitle(isRw ? (collection.titleRw ?? collection.title) : collection.title);
@@ -148,9 +138,23 @@ export const EditCollectionDialog = ({
           <Field>
             <FieldLabel>{t("staff.editCollection.coverImage")}</FieldLabel>
             <div className="mt-1">
-              {previewUrl || image ? (
+              {imageFile || image ? (
                 <div className="relative aspect-4/3 overflow-hidden rounded-xl bg-muted-background">
-                  <Image src={previewUrl ?? image} alt={t("staff.editCollection.previewAlt")} fill unoptimized className="object-cover" />
+                  {imageFile ? (
+                    <FileImagePreview
+                      key={filePreviewKey(imageFile)}
+                      file={imageFile}
+                      alt={t("staff.editCollection.previewAlt")}
+                    />
+                  ) : (
+                    <Image
+                      src={image}
+                      alt={t("staff.editCollection.previewAlt")}
+                      fill
+                      unoptimized
+                      className="object-cover"
+                    />
+                  )}
                   <Button type="button" variant="secondary" size="icon-sm" onClick={() => { setImageFile(null); setImage(""); }} className="absolute top-3 right-3 rounded-full bg-white/95 text-ink shadow-sm">
                     <X className="size-4" />
                   </Button>

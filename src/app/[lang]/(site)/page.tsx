@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { ProductCatalog } from "@/components/product-catalog";
@@ -23,6 +24,8 @@ const ProductsPage = () => {
   const { locale } = useLocale();
   const { user } = useCurrentUser();
   const isClient = user?.role === "CLIENT";
+  const searchParams = useSearchParams();
+  const initialSearch = searchParams.get("search") ?? "";
   const { data, loading, error, reload } = useApi(() => productsApi.list({ limit: 100 }));
   const products = data?.items.map((product) => toProduct(product, undefined, locale)) ?? [];
 
@@ -35,7 +38,12 @@ const ProductsPage = () => {
   return (
     <>
       {user && !isClient && <StaffCatalogActions role={user.role} />}
-      <ProductCatalog products={products} showFavorites={isClient} showAddToCart={isClient} />
+      <ProductCatalog
+        products={products}
+        showFavorites={isClient}
+        showAddToCart={isClient}
+        initialSearch={initialSearch}
+      />
     </>
   );
 };

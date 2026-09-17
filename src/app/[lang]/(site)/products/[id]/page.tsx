@@ -12,10 +12,10 @@ import {
   Heart,
   Layers3,
   Maximize2,
-  Scale,
   ShoppingCart,
 } from "lucide-react";
 import { ApiErrorState } from "@/components/api-state";
+import { ProductCompareButton } from "@/components/product-compare-button";
 import { stockStyles } from "@/components/product-card";
 import { ProductDetailSkeleton } from "@/components/skeletons";
 import { StaffProductToolbar } from "@/components/staff-toolbar";
@@ -257,6 +257,7 @@ const ProductDetailsPage = ({
               </p>
             </section>
           )}
+          {!isClient && user && <StaffProductToolbar role={user.role} product={apiProduct} />}
         </div>
 
         <div className="space-y-8">
@@ -370,8 +371,8 @@ const ProductDetailsPage = ({
             onChange={setRequiredArea}
           />
 
-          {/* Save it, cart it, or compare it — favorites/cart are a customer feature, so staff only get compare. */}
-          <div className={`grid gap-3 ${isClient ? "sm:grid-cols-3" : "sm:grid-cols-1"}`}>
+          {/* Customer actions stay customer-only; compare remains useful to every role. */}
+          <div className={`grid gap-3 ${isClient ? "sm:grid-cols-2" : "max-w-md"}`}>
             {isClient && (
               <Button
                 type="button"
@@ -379,37 +380,45 @@ const ProductDetailsPage = ({
                 onClick={() => void toggleFavorite()}
                 disabled={favoriteBusy}
                 aria-pressed={isFavorited}
-                className="h-14 min-h-14 w-full gap-2 py-3 font-bold disabled:opacity-60"
+                className="h-16 min-h-16 w-full justify-start gap-3 rounded-xl px-4 py-3 font-bold disabled:opacity-60"
               >
-                <Heart
-                  className={isFavorited ? "fill-red-500 text-red-500" : ""}
-                />
-                {isFavorited
-                  ? t("productDetail.favorited")
-                  : t("productDetail.addToFavorites")}
+                <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-red-50">
+                  <Heart
+                    className={`size-5 text-red-500 ${isFavorited ? "fill-red-500" : ""}`}
+                  />
+                </span>
+                <span className="text-left">
+                  <span className="block text-sm">
+                    {isFavorited ? t("productDetail.favorited") : t("productDetail.addToFavorites")}
+                  </span>
+                  <span className="block text-xs font-medium text-muted">
+                    {t("productDetail.favoriteHint")}
+                  </span>
+                </span>
               </Button>
             )}
             {isClient && (
               <Button
                 type="button"
                 onClick={addToCart}
-                className="h-14 min-h-14 w-full gap-2 py-3 font-bold bg-primary text-ink hover:bg-primary/90"
+                className="h-16 min-h-16 w-full justify-start gap-3 rounded-xl bg-primary px-4 py-3 font-bold text-ink hover:bg-primary/90"
               >
-                <ShoppingCart className="size-5" /> {t("productDetail.addToCart")}
+                <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-ink/10">
+                  <ShoppingCart className="size-5" />
+                </span>
+                <span className="text-left">
+                  <span className="block text-sm">{t("productDetail.addToCart")}</span>
+                  <span className="block text-xs font-medium text-ink/65">
+                    {t("productDetail.addToCartHint")}
+                  </span>
+                </span>
               </Button>
             )}
-            <Button
-              type="button"
-              variant="outline"
-              nativeButton={false}
-              render={<Link href={`/compare?ids=${product.id}`} />}
-              className="h-14 min-h-14 w-full gap-2 py-3 font-bold"
-            >
-              <Scale className="size-5" /> {t("productDetail.compare")}
-            </Button>
+            <ProductCompareButton
+              productId={product.id}
+              className={isClient ? "sm:col-span-2" : undefined}
+            />
           </div>
-
-          {!isClient && user && <StaffProductToolbar role={user.role} product={apiProduct} />}
         </div>
       </div>
     </div>

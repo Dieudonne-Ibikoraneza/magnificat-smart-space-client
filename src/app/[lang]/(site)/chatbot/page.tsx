@@ -42,7 +42,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { ChatProductCard } from "@/components/chat-product-card";
-import { followUps } from "@/data/chat";
+import { chatbotFollowUps } from "@/lib/chatbot-follow-ups";
 import { chatbotApi, eventsApi, productsApi, settingsApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { roomTypeLabels } from "@/lib/api/mappers";
@@ -1020,7 +1020,7 @@ export default function ChatbotPage() {
 
   const selectFollowUp = (followUpId: string) => {
     if (isTyping) return;
-    const followUp = followUps.find((item) => item.id === followUpId);
+    const followUp = chatbotFollowUps.find((item) => item.id === followUpId);
     if (!followUp) return;
     void sendToAssistant(t(followUp.textKey));
   };
@@ -1457,7 +1457,7 @@ export default function ChatbotPage() {
                     {t("chatbot.followUpsTitle")}
                   </h2>
                   <div className="mt-3 divide-y divide-slate-200/70">
-                    {followUps.map((followUp) => (
+                    {chatbotFollowUps.map((followUp) => (
                       <Button
                         key={followUp.id}
                         type="button"

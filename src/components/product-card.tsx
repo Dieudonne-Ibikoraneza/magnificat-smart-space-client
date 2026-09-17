@@ -7,6 +7,7 @@ import { type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowRight, Check, Heart, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TileAnalyticsSummary } from "@/components/tile-analytics-summary";
 import { toast } from "@/components/ui/toast";
 import { tokenStore } from "@/lib/api";
 import { useCart } from "@/lib/cart-store";
@@ -191,6 +192,7 @@ export const ProductCard = ({
         <p className="line-clamp-2 text-sm leading-5 text-muted">
           {product.description}
         </p>
+        <TileAnalyticsSummary productId={product.id} variant="compact" className="mt-3" />
         <div className="mt-auto flex items-center justify-between pt-4 sm:pt-5">
           <p className="text-lg font-bold text-ink">
             RWF {product.price.toLocaleString()}{" "}

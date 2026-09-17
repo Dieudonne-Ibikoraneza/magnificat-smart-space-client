@@ -20,6 +20,7 @@ import { staffStockDisplay } from "@/lib/stock-display";
 import { cn } from "@/lib/utils";
 import { AdminPageHeader } from "@/app/[lang]/admin/layout";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
+import { TileAnalyticsSummary } from "@/components/tile-analytics-summary";
 import { productsApi } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
 import type { ApiProduct, StockStatus } from "@/lib/api/types";
@@ -105,6 +106,7 @@ export const AdminInventoryProductCard = ({ product, basePath = "/admin/inventor
         <p className="line-clamp-2 min-h-10 text-sm leading-5 text-muted">
           {product.description || t("stock.inventory.noDescription")}
         </p>
+        <TileAnalyticsSummary productId={product.id} variant="compact" className="mt-3" />
 
         <div className="mt-auto flex items-center justify-between gap-3 pt-4 sm:pt-5">
           <p className={cn("text-xl font-bold", status.quantity)}>

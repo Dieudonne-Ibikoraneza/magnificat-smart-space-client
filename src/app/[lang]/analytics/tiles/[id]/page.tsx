@@ -7,6 +7,8 @@ import { useTranslation } from "react-i18next";
 import {
   Boxes,
   Eye,
+  GitCompareArrows,
+  Heart,
   Layers3,
   Maximize2,
   MousePointerClick,
@@ -19,6 +21,7 @@ import { AnalyticsDetailHeader } from "@/app/[lang]/analytics/layout";
 import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Button } from "@/components/ui/button";
 import { QuantityCalculator } from "@/components/quantity-calculator";
+import { ProductCompareButton } from "@/components/product-compare-button";
 import { analyticsApi, productsApi } from "@/lib/api";
 import { toProduct } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
@@ -91,7 +94,9 @@ const TileDetailPage = ({ params }: TileDetailPageProps) => {
 
   const interactionStats = [
     { key: "views", icon: Eye, label: t("analytics.tileDetail.views"), value: rates ? formatCompactNumber(rates.viewed) : "—" },
+    { key: "likes", icon: Heart, label: t("analytics.tileDetail.likes"), value: rates ? formatCompactNumber(rates.saved) : "—" },
     { key: "applications", icon: MousePointerSquareDashed, label: t("analytics.tileDetail.applications"), value: rates ? formatCompactNumber(rates.applied) : "—" },
+    { key: "comparisons", icon: GitCompareArrows, label: t("analytics.tileDetail.comparisons"), value: rates ? formatCompactNumber(rates.compared) : "—" },
     { key: "purchases", icon: ShoppingBasket, label: t("analytics.tileDetail.purchases"), value: rates ? formatCompactNumber(rates.purchased) : "—" },
     { key: "selectionRate", icon: MousePointerClick, label: t("analytics.tileDetail.selectionRate"), value: rates ? `${rates.selectionRate.toFixed(1)}%` : "—" },
     { key: "purchaseConversion", icon: Wallet, label: t("analytics.tileDetail.purchaseConversion"), value: rates ? `${rates.purchaseConversion.toFixed(1)}%` : "—" },
@@ -109,9 +114,9 @@ const TileDetailPage = ({ params }: TileDetailPageProps) => {
       />
 
       <div className="space-y-5 sm:space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
           {ratesLoading && !rates
-            ? Array.from({ length: 5 }).map((_, index) => (
+            ? Array.from({ length: 7 }).map((_, index) => (
                 <article key={index} className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
                   <div className="h-5 w-5 animate-pulse rounded bg-muted-background" />
                   <div className="mt-6 h-3 w-20 animate-pulse rounded bg-muted-background" />
@@ -123,11 +128,15 @@ const TileDetailPage = ({ params }: TileDetailPageProps) => {
                   key={key}
                   className="flex flex-col rounded-2xl bg-card p-5 transition-transform duration-200 active:scale-95 sm:p-6"
                 >
-                  <Icon className="size-5 stroke-2 text-ink" />
+                  <Icon
+                    className={`size-5 stroke-2 ${key === "likes" ? "fill-red-500 text-red-500" : "text-ink"}`}
+                  />
                   <p className="mt-4 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
                     {label}
                   </p>
-                  <p className="mt-1 truncate text-xl font-black text-ink">{value}</p>
+                  <p className={`mt-1 truncate text-xl font-black ${key === "likes" ? "text-red-600" : "text-ink"}`}>
+                    {value}
+                  </p>
                 </article>
               ))}
         </div>
@@ -262,6 +271,7 @@ const TileDetailPage = ({ params }: TileDetailPageProps) => {
               )}
             </section>
             <QuantityCalculator product={product} />
+            <ProductCompareButton productId={product.id} />
           </div>
         </div>
       </div>

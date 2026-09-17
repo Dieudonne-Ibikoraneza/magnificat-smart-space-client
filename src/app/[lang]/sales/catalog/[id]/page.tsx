@@ -17,6 +17,7 @@ import {
 import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Button } from "@/components/ui/button";
 import { QuantityCalculator } from "@/components/quantity-calculator";
+import { ProductCompareButton } from "@/components/product-compare-button";
 import { productsApi } from "@/lib/api";
 import { toProduct } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
@@ -202,6 +203,7 @@ const SalesProductDetailsPage = ({ params }: SalesProductDetailsProps) => {
             )}
           </section>
           <QuantityCalculator product={product} />
+          <ProductCompareButton productId={product.id} />
         </div>
       </div>
     </>

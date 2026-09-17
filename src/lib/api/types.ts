@@ -826,6 +826,9 @@ export type TileRates = {
   productId: string;
   viewed: number;
   applied: number;
+  compared: number;
+  /** Cumulative save/favorite events, presented as likes in the analytics UI. */
+  saved: number;
   purchased: number;
   selectionRate: number;
   purchaseConversion: number;

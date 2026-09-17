@@ -97,11 +97,6 @@ const useTileTexture = (
 
     let active = true;
     let attempt = 0;
-    setLoaded((current) =>
-      current.id === product.id && current.ready
-        ? current
-        : { id: product.id, texture: current.texture, tileSize: current.tileSize, ready: false },
-    );
 
     const loader = new THREE.TextureLoader();
     loader.setCrossOrigin("anonymous");
@@ -203,25 +198,19 @@ const GROUT_DARKEN = 0.4;
  * shimmer/moire as the camera moves further from the floor.
  */
 const useTileMaterial = (texture: THREE.Texture | null, tileSize: [number, number] | null) => {
-  const material = useMemo(
-    () =>
-      texture && tileSize
-        ? new THREE.MeshStandardMaterial({
-            map: texture,
-            roughness: 0.45,
-            metalness: 0.05,
-            side: THREE.DoubleSide,
-          })
-        : null,
-    [texture, tileSize],
-  );
+  const material = useMemo(() => {
+    if (!texture || !tileSize) return null;
 
-  useEffect(() => {
-    if (!material || !tileSize) return;
+    const nextMaterial = new THREE.MeshStandardMaterial({
+      map: texture,
+      roughness: 0.45,
+      metalness: 0.05,
+      side: THREE.DoubleSide,
+    });
     const [width, height] = tileSize;
     const groutFractionX = Math.min(GROUT_WIDTH_M / width, 0.45);
     const groutFractionY = Math.min(GROUT_WIDTH_M / height, 0.45);
-    material.onBeforeCompile = (shader) => {
+    nextMaterial.onBeforeCompile = (shader) => {
       shader.fragmentShader = shader.fragmentShader.replace(
         "#include <map_fragment>",
         `
@@ -240,8 +229,8 @@ const useTileMaterial = (texture: THREE.Texture | null, tileSize: [number, numbe
         `,
       );
     };
-    material.needsUpdate = true;
-  }, [material, tileSize]);
+    return nextMaterial;
+  }, [texture, tileSize]);
 
   useEffect(() => () => material?.dispose(), [material]);
 
@@ -1198,8 +1187,10 @@ const RoomModel = ({
   // plastered surface back rather than leaving the last tile stuck on.
   const originals = useRef(new Map<string, THREE.Material | THREE.Material[]>());
   const onReadyRef = useRef(onReady);
-  onReadyRef.current = onReady;
-  const [revealed, setRevealed] = useState(false);
+
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
 
   useEffect(() => {
     if (!tilesReady) return;
@@ -1272,13 +1263,12 @@ const RoomModel = ({
       object.material = hasTrim ? [replacement, originalMaterial] : replacement;
     });
 
-    setRevealed(true);
     onReadyRef.current?.();
   }, [room, modelUrl, floorMaterial, wallMaterial, surfaceOverride, tilesReady]);
 
-  // Stay hidden until the first successful prepare pass — not on later tile
-  // switches, which would blank the room while the next image fetches.
-  return <primitive object={room} visible={revealed} />;
+  // Keep the previous prepared shell visible while a replacement tile texture
+  // is loading; the effect above swaps materials before the next rendered frame.
+  return <primitive object={room} />;
 };
 
 /** Warm key light sitting inside the ceiling fixture, plus cool fill through the windows. */

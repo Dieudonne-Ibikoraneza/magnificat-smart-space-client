@@ -58,7 +58,7 @@ export default function StockReportsPage() {
         ) : journey.error ? (
           <ApiErrorState message={journey.error} onRetry={journey.reload} className="rounded-[14px] shadow-sm" />
         ) : (
-          <ConversionFunnel stages={journey.data?.stages} />
+          <ConversionFunnel stages={journey.data?.stages ?? []} />
         )}
       </div>
     </div>

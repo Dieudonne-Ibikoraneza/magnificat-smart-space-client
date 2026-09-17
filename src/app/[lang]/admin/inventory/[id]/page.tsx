@@ -12,6 +12,8 @@ import { QuantityCalculator } from "@/components/quantity-calculator";
 import { StockLevelPanel } from "@/components/stock-level-panel";
 import { EditProductDialog } from "@/components/edit-product-dialog";
 import { DeleteProductButton } from "@/components/delete-product-button";
+import { ProductCompareButton } from "@/components/product-compare-button";
+import { TileAnalyticsSummary } from "@/components/tile-analytics-summary";
 import { productsApi } from "@/lib/api";
 import { toProduct } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
@@ -98,6 +100,7 @@ const AdminProductDetailsPage = ({ params }: AdminProductDetailsProps) => {
           </section>
         </div>
         <div className="space-y-6">
+          <TileAnalyticsSummary productId={product.id} />
           <section className="rounded-2xl bg-card p-5 sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -202,10 +205,13 @@ const AdminProductDetailsPage = ({ params }: AdminProductDetailsProps) => {
             )}
           </section>
           <QuantityCalculator product={product} />
-          <div className="grid grid-cols-2 gap-3">
-            <EditProductDialog product={apiProduct} onUpdated={reload} />
-            <DeleteProductButton productId={product.id} productName={product.name} redirectTo="/admin/inventory" />
-          </div>
+          <section className="space-y-3 rounded-2xl bg-card p-4 sm:p-5">
+            <ProductCompareButton productId={product.id} />
+            <div className="grid grid-cols-2 gap-3">
+              <EditProductDialog product={apiProduct} onUpdated={reload} />
+              <DeleteProductButton productId={product.id} productName={product.name} redirectTo="/admin/inventory" />
+            </div>
+          </section>
         </div>
       </div>
     </>

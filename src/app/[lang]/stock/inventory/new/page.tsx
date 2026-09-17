@@ -423,6 +423,7 @@ const RegisterProductPage = () => {
   const searchParams = useSearchParams();
   const { data: collectionsData } = useApi(() => collectionsApi.list({ limit: 100 }));
   const collections = collectionsData?.items ?? [];
+  const requestedCollectionId = searchParams.get("collectionId");
 
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
@@ -438,12 +439,11 @@ const RegisterProductPage = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    const requestedCollectionId = searchParams.get("collectionId");
-    if (requestedCollectionId && collections.some((item) => item.id === requestedCollectionId)) {
-      setCollectionId(requestedCollectionId);
-    }
-  }, [searchParams, collections]);
+  const effectiveCollectionId =
+    collectionId ||
+    (requestedCollectionId && collections.some((item) => item.id === requestedCollectionId)
+      ? requestedCollectionId
+      : "");
 
   const toggleRoomType = (option: RoomType) => {
     setRoomTypes((current) =>
@@ -465,7 +465,7 @@ const RegisterProductPage = () => {
   const skuFormatValid = isValidSku(sku);
   const skuAvailability = useSkuAvailability(sku, skuFormatValid);
 
-  const selectedCollection = collections.find((item) => item.id === collectionId) ?? null;
+  const selectedCollection = collections.find((item) => item.id === effectiveCollectionId) ?? null;
   const tileArea = selectedCollection ? Number(selectedCollection.tileAreaSqm) : null;
   const boxCoverageValue = boxCoverage.trim() === "" ? null : Number(boxCoverage);
   const piecesPerBox =
@@ -580,7 +580,7 @@ const RegisterProductPage = () => {
                 <FieldLabel className="text-sm font-medium text-ink">
                   {t("stock.newProduct.collection")} <RequiredAsterisk show={!selectedCollection} />
                 </FieldLabel>
-                <Select value={collectionId} onValueChange={(value) => setCollectionId(value ?? "")}>
+                <Select value={effectiveCollectionId} onValueChange={(value) => setCollectionId(value ?? "")}>
                   <SelectTrigger className="h-11 text-sm">
                     <SelectValue>
                       {(value) => collections.find((item) => item.id === value)?.title ?? t("stock.newProduct.selectCollection")}

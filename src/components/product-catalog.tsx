@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Check,
@@ -39,7 +40,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { filterGroups as legacyFilterGroups } from "@/data/catalog";
 import {
   buildFilterGroups,
   EMPTY_FILTERS,
@@ -98,14 +98,13 @@ export const FilterOptionsCard = ({
   filters,
   onToggle,
   onReset,
-  groups = legacyFilterGroups,
+  groups,
 }: {
   bare?: boolean;
   filters: CatalogFilters;
   onToggle: (group: keyof CatalogFilters, option: string) => void;
   onReset: () => void;
-  /** Defaults to the static mock list — pass real ones from `buildFilterGroups`. */
-  groups?: FilterGroup[];
+  groups: FilterGroup[];
 }) => {
   const { t } = useTranslation();
 
@@ -444,6 +443,7 @@ export const ProductCatalog = ({
   showFavorites = true,
   showAddToCart = true,
   detailsBasePath = "/products",
+  initialSearch = "",
 }: {
   products: Product[];
   breadcrumb?: ReactNode;
@@ -451,17 +451,44 @@ export const ProductCatalog = ({
   /** Off for staff catalogs (e.g. sales) — a cart is a customer's own. */
   showAddToCart?: boolean;
   detailsBasePath?: string;
+  /** Seeds the search box from a `?search=` param (see the site header). */
+  initialSearch?: string;
 }) => {
   const { t } = useTranslation();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filtersClosing, setFiltersClosing] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchVisible, setSearchVisible] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(Boolean(initialSearch));
+  const [searchVisible, setSearchVisible] = useState(Boolean(initialSearch));
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const searchUrlDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // A `?search=` param can change out from under us (the header search box,
+  // browser back/forward) — resync the local search state when it does, by
+  // adjusting state during render rather than in an effect (React docs'
+  // "adjusting state when a prop changes" pattern).
+  const [syncedSearch, setSyncedSearch] = useState(initialSearch);
+  if (initialSearch !== syncedSearch) {
+    setSyncedSearch(initialSearch);
+    setSearchQuery(initialSearch);
+    setCurrentPage(1);
+    if (initialSearch) {
+      setSearchVisible(true);
+      setSearchOpen(true);
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (searchUrlDebounceRef.current) clearTimeout(searchUrlDebounceRef.current);
+    };
+  }, []);
 
   const isCollectionEmpty = products.length === 0;
 
@@ -524,6 +551,35 @@ export const ProductCatalog = ({
     }, 300);
   };
 
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+
+    if (searchUrlDebounceRef.current) clearTimeout(searchUrlDebounceRef.current);
+    searchUrlDebounceRef.current = setTimeout(() => {
+      const nextParams = new URLSearchParams(searchParams.toString());
+      const trimmed = value.trim();
+      if (trimmed) {
+        nextParams.set("search", trimmed);
+      } else {
+        nextParams.delete("search");
+      }
+      const query = nextParams.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    }, 300);
+  };
+
+  /**
+   * The empty-state CTA needs to clear the search box too, not just the
+   * checkbox filters — otherwise a no-results search is a dead end, since
+   * `hasActiveFilters` (and the filter panel's own "Reset" link) only look
+   * at `filters`, not `searchQuery`.
+   */
+  const handleResetSearchAndFilters = () => {
+    handleResetFilters();
+    handleSearchChange("");
+  };
+
   const toggleSearch = () => {
     if (searchOpen) {
       setSearchOpen(false);
@@ -575,16 +631,13 @@ export const ProductCatalog = ({
               searchVisible={searchVisible}
               onToggleSearch={toggleSearch}
               searchQuery={searchQuery}
-              onSearchChange={(value) => {
-                setSearchQuery(value);
-                setCurrentPage(1);
-              }}
+              onSearchChange={handleSearchChange}
             />
 
             {pagination.items.length === 0 ? (
               <CatalogEmptyState
                 isCollectionEmpty={isCollectionEmpty}
-                onResetFilters={handleResetFilters}
+                onResetFilters={handleResetSearchAndFilters}
               />
             ) : (
               <div

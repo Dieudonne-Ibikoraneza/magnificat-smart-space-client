@@ -20,7 +20,7 @@ import { toast } from "@/components/ui/toast";
 import { PhoneField, RWANDA_PREFIX, toRwandaDigits } from "@/components/phone-field";
 import { useCurrentUser } from "@/lib/current-user";
 import { isValidRwandaMobileDigits } from "@/lib/validation";
-import type { DeliveryDetails } from "@/data/order-workflow";
+import type { DeliveryDetails } from "@/lib/domain-types";
 
 const fieldClassName = "h-11 text-sm";
 

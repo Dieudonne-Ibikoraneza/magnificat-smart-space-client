@@ -14,6 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { AdminPageHeader } from "@/app/[lang]/admin/layout";
+import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -36,12 +37,13 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
-import {
-  knowledgeBaseEntries,
-  type KnowledgeBaseEntry,
-  type KnowledgeBaseLanguage,
-} from "@/data/knowledge-base";
+import { chatbotApi } from "@/lib/api";
+import { ApiError } from "@/lib/api/client";
+import type { ApiKnowledgeBaseEntry, Language } from "@/lib/api/types";
+import { useApi } from "@/lib/api/use-api";
 import { cn } from "@/lib/utils";
+
+type KnowledgeBaseLanguage = Extract<Language, "EN" | "RW">;
 
 type EntryDraft = {
   question: string;
@@ -58,6 +60,8 @@ const LANGUAGE_KEYS: Record<KnowledgeBaseLanguage, string> = {
 };
 
 const languageFilters = ["all", "EN", "RW"] as const;
+const formatDate = (value: string) =>
+  new Date(value).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
 /**
  * Chatbot knowledge base management (doc 3.10). Entries are the answers the AI
@@ -66,12 +70,15 @@ const languageFilters = ["all", "EN", "RW"] as const;
  */
 export default function AdminKnowledgeBasePage() {
   const { t } = useTranslation();
-  const [entries, setEntries] = useState(knowledgeBaseEntries);
+  const { data, loading, error, reload } = useApi(() => chatbotApi.adminKnowledgeBase());
+  const entries = useMemo(() => data ?? [], [data]);
   const [search, setSearch] = useState("");
   const [language, setLanguage] = useState<(typeof languageFilters)[number]>("all");
-  const [editing, setEditing] = useState<KnowledgeBaseEntry | null>(null);
+  const [editing, setEditing] = useState<ApiKnowledgeBaseEntry | null>(null);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<EntryDraft>(emptyDraft);
+  const [submitting, setSubmitting] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -98,7 +105,7 @@ export default function AdminKnowledgeBasePage() {
     setCreating(true);
   };
 
-  const openEdit = (entry: KnowledgeBaseEntry) => {
+  const openEdit = (entry: ApiKnowledgeBaseEntry) => {
     setDraft({
       question: entry.question,
       answer: entry.answer,
@@ -116,7 +123,7 @@ export default function AdminKnowledgeBasePage() {
 
   const valid = draft.question.trim() !== "" && draft.answer.trim() !== "";
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!valid) return;
 
@@ -124,55 +131,91 @@ export default function AdminKnowledgeBasePage() {
       .split(",")
       .map((tag) => tag.trim().toLowerCase())
       .filter(Boolean);
-    const updatedAt = new Date().toLocaleDateString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-    });
-
-    if (editing) {
-      setEntries((current) =>
-        current.map((entry) =>
-          entry.id === editing.id
-            ? { ...entry, question: draft.question, answer: draft.answer, tags, language: draft.language, updatedAt }
-            : entry,
-        ),
-      );
-      toast.success(t("admin.knowledgeBase.toastEntryUpdated"));
-    } else {
-      setEntries((current) => [
-        {
-          id: `kb-${Date.now().toString(36)}`,
-          question: draft.question,
-          answer: draft.answer,
-          tags,
-          language: draft.language,
-          isActive: true,
-          updatedAt,
-        },
-        ...current,
-      ]);
-      toast.success(t("admin.knowledgeBase.toastEntryAdded"), { description: t("admin.knowledgeBase.toastEntryAddedDesc") });
+    setSubmitting(true);
+    try {
+      const body = {
+        question: draft.question.trim(),
+        answer: draft.answer.trim(),
+        tags,
+        language: draft.language,
+      };
+      if (editing) {
+        await chatbotApi.updateKnowledgeBaseEntry(editing.id, body);
+        toast.success(t("admin.knowledgeBase.toastEntryUpdated"));
+      } else {
+        await chatbotApi.createKnowledgeBaseEntry(body);
+        toast.success(t("admin.knowledgeBase.toastEntryAdded"), {
+          description: t("admin.knowledgeBase.toastEntryAddedDesc"),
+        });
+      }
+      closeDialog();
+      reload();
+    } catch (cause) {
+      toast.error(t("admin.knowledgeBase.toastSaveFailed"), {
+        description: cause instanceof ApiError ? cause.message : t("admin.systemSettings.toastTryAgain"),
+      });
+    } finally {
+      setSubmitting(false);
     }
-    closeDialog();
   };
 
-  const toggleActive = (id: string) => {
-    let nowActive = false;
-    setEntries((current) =>
-      current.map((entry) => {
-        if (entry.id !== id) return entry;
-        nowActive = !entry.isActive;
-        return { ...entry, isActive: nowActive };
-      }),
+  const toggleActive = async (entry: ApiKnowledgeBaseEntry) => {
+    setBusyId(entry.id);
+    try {
+      await chatbotApi.updateKnowledgeBaseEntry(entry.id, { isActive: !entry.isActive });
+      toast.success(
+        entry.isActive
+          ? t("admin.knowledgeBase.toastEntryDeactivated")
+          : t("admin.knowledgeBase.toastEntryActivated"),
+      );
+      reload();
+    } catch (cause) {
+      toast.error(t("admin.knowledgeBase.toastSaveFailed"), {
+        description: cause instanceof ApiError ? cause.message : t("admin.systemSettings.toastTryAgain"),
+      });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const remove = async (id: string) => {
+    setBusyId(id);
+    try {
+      await chatbotApi.deleteKnowledgeBaseEntry(id);
+      toast.success(t("admin.knowledgeBase.toastEntryDeleted"));
+      reload();
+    } catch (cause) {
+      toast.error(t("admin.knowledgeBase.toastDeleteFailed"), {
+        description: cause instanceof ApiError ? cause.message : t("admin.systemSettings.toastTryAgain"),
+      });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="pb-10">
+        <AdminPageHeader
+          title={t("admin.knowledgeBase.title")}
+          subtitle={t("admin.knowledgeBase.subtitle")}
+        />
+        <ApiLoading label={t("admin.knowledgeBase.loading")} className="mt-12" />
+      </div>
     );
-    toast.success(nowActive ? t("admin.knowledgeBase.toastEntryActivated") : t("admin.knowledgeBase.toastEntryDeactivated"));
-  };
+  }
 
-  const remove = (id: string) => {
-    setEntries((current) => current.filter((entry) => entry.id !== id));
-    toast.success(t("admin.knowledgeBase.toastEntryDeleted"));
-  };
+  if (error) {
+    return (
+      <div className="pb-10">
+        <AdminPageHeader
+          title={t("admin.knowledgeBase.title")}
+          subtitle={t("admin.knowledgeBase.subtitle")}
+        />
+        <ApiErrorState message={error} onRetry={reload} className="mt-8" />
+      </div>
+    );
+  }
 
   return (
     <div className="pb-10">
@@ -257,7 +300,9 @@ export default function AdminKnowledgeBasePage() {
                     #{tag}
                   </span>
                 ))}
-                <span className="ml-1 text-[11px] text-muted-foreground">{t("admin.knowledgeBase.updated", { date: entry.updatedAt })}</span>
+                <span className="ml-1 text-[11px] text-muted-foreground">
+                  {t("admin.knowledgeBase.updated", { date: formatDate(entry.updatedAt) })}
+                </span>
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
@@ -272,7 +317,8 @@ export default function AdminKnowledgeBasePage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => toggleActive(entry.id)}
+                  onClick={() => void toggleActive(entry)}
+                  disabled={busyId === entry.id}
                   className="h-9 gap-1.5 text-xs font-bold"
                 >
                   {entry.isActive ? <CircleSlash className="size-3.5" /> : <CircleCheck className="size-3.5" />}
@@ -282,7 +328,7 @@ export default function AdminKnowledgeBasePage() {
                   title={t("admin.knowledgeBase.deleteEntryTitle")}
                   description={t("admin.knowledgeBase.deleteEntryDescription")}
                   confirmLabel={t("admin.knowledgeBase.deleteEntryConfirm")}
-                  onConfirm={() => remove(entry.id)}
+                  onConfirm={() => void remove(entry.id)}
                   trigger={
                     <Button
                       type="button"
@@ -380,7 +426,11 @@ export default function AdminKnowledgeBasePage() {
               <Button type="button" variant="outline" onClick={closeDialog} className="h-10 px-5 text-sm font-bold">
                 {t("admin.knowledgeBase.cancel")}
               </Button>
-              <Button type="submit" disabled={!valid} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
+              <Button
+                type="submit"
+                disabled={!valid || submitting}
+                className="h-10 px-5 text-sm font-bold disabled:opacity-60"
+              >
                 {editing ? t("admin.knowledgeBase.saveChanges") : t("admin.knowledgeBase.addEntry")}
               </Button>
             </DialogFooter>

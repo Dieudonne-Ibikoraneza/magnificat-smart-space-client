@@ -21,7 +21,7 @@ import { toast } from "@/components/ui/toast";
 import { ordersApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import type { ApiOrderDelivery, QuotationStatus } from "@/lib/api/types";
-import type { DeliveryDetails } from "@/data/order-workflow";
+import type { DeliveryDetails } from "@/lib/domain-types";
 import { cn } from "@/lib/utils";
 
 const formatRWF = (value: number) => `RWF ${Math.round(value).toLocaleString("en-US")}`;

@@ -494,12 +494,17 @@ export const chatbotApi = {
     }),
 
   knowledgeBase: () => api.get<ApiKnowledgeBaseEntry[]>("/chatbot/knowledge-base"),
+  adminKnowledgeBase: () => api.get<ApiKnowledgeBaseEntry[]>("/chatbot/admin/knowledge-base"),
   createKnowledgeBaseEntry: (body: {
     question: string;
     answer: string;
     tags?: string[];
     language?: Language;
   }) => api.post<ApiKnowledgeBaseEntry>("/chatbot/knowledge-base", body),
+  updateKnowledgeBaseEntry: (
+    id: string,
+    body: Partial<Pick<ApiKnowledgeBaseEntry, "question" | "answer" | "tags" | "language" | "isActive">>,
+  ) => api.patch<ApiKnowledgeBaseEntry>(`/chatbot/knowledge-base/${id}`, body),
   deleteKnowledgeBaseEntry: (id: string) => api.delete<void>(`/chatbot/knowledge-base/${id}`),
 };
 
@@ -509,7 +514,7 @@ export const eventsApi = {
   tile: (body: {
     sessionId: string;
     productId: string;
-    type: "VIEWED" | "APPLIED" | "COMPARED" | "SAVED" | "SELECTED_FROM_RECOMMENDATION" | "PURCHASED";
+    type: "VIEWED" | "APPLIED";
     metadata?: Record<string, unknown>;
   }) => api.post<void>("/events/tile", body),
 
@@ -520,12 +525,7 @@ export const eventsApi = {
       | "CREATED_ROOM"
       | "ENTERED_DIMENSIONS"
       | "VIEWED_TILE"
-      | "APPLIED_TILE"
-      | "SAVED_DESIGN"
-      | "REQUESTED_QUOTATION"
-      | "NEGOTIATED"
-      | "PLACED_ORDER"
-      | "PURCHASED";
+      | "APPLIED_TILE";
     metadata?: Record<string, unknown>;
   }) => api.post<void>("/events/journey", body),
 };
