@@ -781,6 +781,19 @@ export type CameraConfig = {
   bounds?: { min: [number, number, number]; max: [number, number, number] };
   /** Horizontal field of view in degrees; see `ResponsiveCamera`. */
   horizontalFov?: number;
+  /**
+   * When true, mouse-wheel/pinch zoom follows the pointer ray instead of only
+   * dollying toward the fixed orbit target. Useful in compact rooms where a
+   * central target would otherwise send close-up zooms into furniture before
+   * the user can inspect a wall tile.
+   */
+  zoomToCursor?: boolean;
+  /**
+   * Optional box for the OrbitControls target/focus point. `bounds` keeps the
+   * camera body inside the room; this keeps cursor zoom from dragging the
+   * point the camera looks at out toward an exterior edge.
+   */
+  targetBounds?: { min: [number, number, number]; max: [number, number, number] };
 };
 
 // Module constant, not an inline literal: R3F re-applies these when the prop
@@ -957,12 +970,36 @@ const cameraConfigFor = (modelUrl: string): CameraConfig =>
  * `camera.position` on its next update, so a clamped camera simply behaves
  * as though it had been dollied to the wall and stopped there.
  */
-const ContainCamera = ({ bounds }: { bounds: NonNullable<CameraConfig["bounds"]> }) => {
+const ContainCamera = ({
+  bounds,
+  targetBounds,
+}: {
+  bounds: NonNullable<CameraConfig["bounds"]>;
+  targetBounds?: CameraConfig["targetBounds"];
+}) => {
   const min = useMemo(() => new THREE.Vector3(...bounds.min), [bounds]);
   const max = useMemo(() => new THREE.Vector3(...bounds.max), [bounds]);
+  const targetMin = useMemo(
+    () => (targetBounds ? new THREE.Vector3(...targetBounds.min) : null),
+    [targetBounds],
+  );
+  const targetMax = useMemo(
+    () => (targetBounds ? new THREE.Vector3(...targetBounds.max) : null),
+    [targetBounds],
+  );
 
   useFrame((state) => {
     state.camera.position.clamp(min, max);
+    const controls = state.controls;
+    if (
+      targetMin &&
+      targetMax &&
+      controls &&
+      "target" in controls &&
+      controls.target instanceof THREE.Vector3
+    ) {
+      controls.target.clamp(targetMin, targetMax);
+    }
   });
 
   return null;
@@ -1290,7 +1327,9 @@ export const RoomScene = ({
       >
         <color attach="background" args={[0xeceae5]} />
         <ResponsiveCamera config={cameraConfig} />
-        {cameraConfig.bounds ? <ContainCamera bounds={cameraConfig.bounds} /> : null}
+        {cameraConfig.bounds ? (
+          <ContainCamera bounds={cameraConfig.bounds} targetBounds={cameraConfig.targetBounds} />
+        ) : null}
         <RoomLighting />
         <Suspense fallback={null}>
           <ModelErrorBoundary key={modelUrl} onError={() => setMissingUrl(modelUrl)}>
@@ -1309,6 +1348,7 @@ export const RoomScene = ({
           enablePan={false}
           enableDamping
           dampingFactor={0.08}
+          zoomToCursor={cameraConfig.zoomToCursor}
           {...cameraConfig.orbitLimits}
         />
       </Canvas>

@@ -33,42 +33,54 @@ const SURFACE_OVERRIDE: SurfaceOverride = {
  * floor at y≈0.12, ceiling at y≈2.45 — with every fixture (mirror, pendant
  * light, sink cabinet, toilet, framed art) mounted on the back wall at
  * z≈1.8-1.9, and the window on the right side wall (x≈1.55) roughly midway
- * down the room. The front third (z below ~0) is empty floor. `target`/
- * `position` face the back wall head-on from that empty front area — the
- * same straight, centred composition the customer's own reference shot
- * uses, rather than an angled corner view.
+ * down the room. The default camera sits a little lower and looks upward
+ * enough to include the ceiling and upper front wall in the normal view,
+ * while `zoomToCursor` lets wall close-ups follow the customer's pointer
+ * instead of diving into the vanity.
  */
 const CAMERA_CONFIG: CameraConfig = {
-  position: [0.1, 1.35, -2.1],
-  target: [0.1, 1.2, 1.8],
-  near: 0.1,
+  position: [0.1, 0.84, -1.75],
+  target: [0.1, 1.12, 0.45],
+  near: 0.01,
   far: 60,
-  horizontalFov: 78,
+  horizontalFov: 70,
+  zoomToCursor: true,
   orbitLimits: {
     // Close enough to read the tile's texture/grout lines up close; `bounds`
-    // (not this number) is what actually stops short of the vanity/toilet,
-    // so pulling this in further can't newly clip anything.
-    minDistance: 0.4,
-    // Zoomed all the way out, this is the customer's own reference shot:
-    // the whole back wall (mirror, light, cabinet, toilet, art) framed
-    // head-on, with margin of floor and ceiling around it — see the
-    // model's own screenshot this was matched against.
-    maxDistance: 4.1,
-    minAzimuthAngle: (160 * Math.PI) / 180,
-    maxAzimuthAngle: (200 * Math.PI) / 180,
-    minPolarAngle: (80 * Math.PI) / 180,
-    maxPolarAngle: (100 * Math.PI) / 180,
+    // (not this number) is what actually stops at the room shell, so pulling
+    // this in further can't newly expose the outside of the model.
+    minDistance: 0.06,
+    // Keep zoom-out within the room's usable camera volume. Pushing much past
+    // this makes OrbitControls keep asking for a position outside the shell,
+    // while `ContainCamera` clamps it back each frame at the corner, which
+    // reads as flicker.
+    maxDistance: 2.35,
+    // Wide enough to inspect both side walls from inside the bathroom, but
+    // short of the grazing angles that show past the front-left shell edge as
+    // a cream slice of page background.
+    minAzimuthAngle: (152 * Math.PI) / 180,
+    maxAzimuthAngle: (208 * Math.PI) / 180,
+    // Allow a clear ceiling/upper-wall view from the default angle, while
+    // keeping the high overhead end below the actual ceiling plane.
+    minPolarAngle: (62 * Math.PI) / 180,
+    maxPolarAngle: (108 * Math.PI) / 180,
   },
   /**
    * Keeps the camera inside the room regardless of what the orbit limits
    * alone allow — the same guarantee as the other rooms' `bounds`, see
-   * `ContainCamera` in `room-scene.tsx`. `max.z` stops short of the sink
-   * cabinet/toilet against the back wall; `min.z` stops short of the front
-   * wall (floor runs to z≈-2.3).
+   * `ContainCamera` in `room-scene.tsx`. These are pulled just inside the
+   * measured wall planes rather than the floor's outer rectangle. The floor
+   * runs a little beyond the right window/wall plane (x≈1.55) and behind the
+   * back wall plane (z≈1.74); letting the camera use those extra floor bounds
+   * puts it through the wall, which is what exposes the outside background.
    */
   bounds: {
-    min: [-1.1, 0.3, -2.15],
-    max: [1.3, 2.2, 1.3],
+    min: [-1.34, 0.18, -2.2],
+    max: [1.46, 2.3, 1.68],
+  },
+  targetBounds: {
+    min: [-0.9, 0.45, -0.5],
+    max: [1.05, 1.85, 1.45],
   },
 };
 
