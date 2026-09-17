@@ -449,6 +449,11 @@ const rewriteLeadingTriangleUvsToMetres = (object: THREE.Mesh, triangleCount: nu
     uv = new THREE.BufferAttribute(new Float32Array(position.count * 2), 2);
     geometry.setAttribute("uv", uv);
   }
+  // Kept so `restoreOriginalUvs` can put the atlas mapping back if the tile
+  // later goes away (deselected, or its image failed to load).
+  if (!geometry.userData.originalUvs) {
+    geometry.userData.originalUvs = (uv.array as Float32Array).slice();
+  }
 
   object.updateWorldMatrix(true, false);
   const a = new THREE.Vector3();
@@ -476,6 +481,22 @@ const rewriteLeadingTriangleUvsToMetres = (object: THREE.Mesh, triangleCount: nu
 
   uv.needsUpdate = true;
   geometry.userData.metreUvs = true;
+};
+
+/**
+ * Undoes `rewriteLeadingTriangleUvsToMetres`. A surface that ends up on its
+ * own baked material (no tile for that role) has to sample the model's atlas
+ * through the model's own UVs — on metre UVs it shows a garbled patchwork of
+ * whatever else is packed into that atlas.
+ */
+const restoreOriginalUvs = (object: THREE.Mesh) => {
+  const geometry = object.geometry as THREE.BufferGeometry;
+  const original = geometry.userData.originalUvs as Float32Array | undefined;
+  if (!geometry.userData.metreUvs || !original) return;
+  const uv = geometry.attributes.uv as THREE.BufferAttribute;
+  (uv.array as Float32Array).set(original);
+  uv.needsUpdate = true;
+  geometry.userData.metreUvs = false;
 };
 
 const rewriteOrientationUvsToMetres = (object: THREE.Mesh) => {
@@ -1058,6 +1079,7 @@ const RoomModel = ({
   floorTile,
   wallTile,
   surfaceOverride,
+  prepareScene,
   onReady,
 }: {
   modelUrl: string;
@@ -1065,6 +1087,8 @@ const RoomModel = ({
   wallTile?: Product;
   /** Explicit tileable-mesh list; falls back to `MODEL_SURFACE_OVERRIDES[modelUrl]`, then the naming convention. */
   surfaceOverride?: SurfaceOverride;
+  /** See `RoomScene`'s prop of the same name. */
+  prepareScene?: (room: THREE.Object3D) => void;
   /** Fires once the shell is prepared and any selected tile textures have settled. */
   onReady?: () => void;
 }) => {
@@ -1073,15 +1097,25 @@ const RoomModel = ({
   // the `useGLTF` cache, and our orientation/UV rewrites would permanently
   // mutate that cache — every later visit would flash the atlas-on-metre-UVs
   // glitch before materials re-applied.
+  //
+  // `userData` needs its own copy as well: `BufferGeometry.clone()` shares it
+  // by reference, and it's where the split/UV passes below cache their
+  // results. Shared, those flags leaked into the cached geometry, so the
+  // next mount (switching rooms and back) trusted counts it never computed
+  // and skipped its own split — the bathroom's ceiling came back tiled with
+  // the wall tile.
   const room = useMemo(() => {
     const cloned = scene.clone(true);
     cloned.traverse((object) => {
       if (object instanceof THREE.Mesh) {
-        object.geometry = object.geometry.clone();
+        const source = object.geometry as THREE.BufferGeometry;
+        object.geometry = source.clone();
+        object.geometry.userData = { ...source.userData };
       }
     });
+    prepareScene?.(cloned);
     return cloned;
-  }, [scene]);
+  }, [scene, prepareScene]);
 
   const floorTexture = useTileTexture(floorTile);
   const wallTexture = useTileTexture(wallTile);
@@ -1126,7 +1160,14 @@ const RoomModel = ({
       if (!role) return;
 
       const originalMaterial = Array.isArray(original) ? original[0] : original;
-      const replacement = (role === "floor" ? floorMaterial : wallMaterial) ?? originalMaterial;
+      const tileMaterial = role === "floor" ? floorMaterial : wallMaterial;
+      const replacement = tileMaterial ?? originalMaterial;
+      // Metre UVs only under an actual tile; the model's own material needs
+      // its own UVs (see `restoreOriginalUvs`).
+      const syncUvs = (triangleCount: number) => {
+        if (tileMaterial) rewriteLeadingTriangleUvsToMetres(object, triangleCount);
+        else restoreOriginalUvs(object);
+      };
 
       // Sourced wall meshes can weld the ceiling into the same geometry
       // (bathroom side walls). Peel horizontal faces into a second group so
@@ -1135,7 +1176,7 @@ const RoomModel = ({
         const wallTris = prepareWallGroups(object);
         const wallGeometry = object.geometry as THREE.BufferGeometry;
         if (wallGeometry.groups.length >= 2) {
-          if (applyMetreUvs) rewriteLeadingTriangleUvsToMetres(object, wallTris);
+          syncUvs(wallTris);
           object.material = [replacement, originalMaterial];
           return;
         }
@@ -1151,7 +1192,7 @@ const RoomModel = ({
       // Sourced override meshes use 0..1 UVs — rewrite to metres so labelled
       // tile sizes land at their true physical scale (procedural rooms already
       // ship metre UVs from the generator, so leave those alone).
-      if (override && applyMetreUvs) rewriteLeadingTriangleUvsToMetres(object, tileableTris);
+      if (override) syncUvs(tileableTris);
       const grouped = object.geometry as THREE.BufferGeometry;
       const hasTrim = grouped.groups.length === 2 && tileable > 0;
 
@@ -1271,6 +1312,7 @@ export const RoomScene = ({
   className,
   cameraConfig: cameraConfigProp,
   surfaceOverride,
+  prepareScene,
   controls,
 }: {
   modelUrl: string;
@@ -1289,6 +1331,14 @@ export const RoomScene = ({
   cameraConfig?: CameraConfig;
   /** Same idea as `cameraConfig`, for which meshes are tileable. */
   surfaceOverride?: SurfaceOverride;
+  /**
+   * Runs once on this mount's private copy of the model, before any tiling —
+   * for patching a sourced model's own shortcomings (a missing wall, a
+   * material that doesn't hold up close). Anything added here is tiled like
+   * the rest when `surfaceOverride` names it. Must be a stable reference;
+   * a new function re-clones the model.
+   */
+  prepareScene?: (room: THREE.Object3D) => void;
   /** Optional room-owned controls, including their own boundary handling. */
   controls?: ReactNode;
 }) => {
@@ -1341,6 +1391,7 @@ export const RoomScene = ({
               floorTile={floorTile}
               wallTile={wallTile}
               surfaceOverride={surfaceOverride}
+              prepareScene={prepareScene}
               onReady={() => setSceneReady(true)}
             />
           </ModelErrorBoundary>

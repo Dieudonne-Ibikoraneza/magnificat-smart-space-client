@@ -3,7 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { CameraControls, CameraControlsImpl } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Box3, Mesh, Vector3 } from "three";
+import {
+  Box3,
+  Mesh,
+  MeshStandardMaterial,
+  PlaneGeometry,
+  Vector3,
+  type Object3D,
+} from "three";
 import { ArrowDownToLine, ArrowUpToLine, BrickWall, RotateCcw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { CameraConfig, SurfaceOverride } from "@/components/room-scene";
@@ -20,29 +27,80 @@ import { cn } from "@/lib/utils";
 const MODEL_URL = "/models/rooms/modern_bathroom.glb";
 
 /**
+ * The shell's interior, measured per mesh from the GLB itself: floor at
+ * y 0.12, ceiling at y 2.45, left wall at x -1.44, right (window) wall at
+ * x 1.46, back wall at z 1.89 (1.74 below the shelf). The model is a
+ * three-walled set: nothing closes it at z -2.30, so any view with a side
+ * wall in frame used to show the empty background past that edge.
+ */
+const SHELL = { minX: -1.44, maxX: 1.46, minY: 0.12, maxY: 2.45, frontZ: -2.3 };
+const FRONT_WALL_NAME = "Bathroom_FrontWall";
+
+/**
  * Floor and walls are separate meshes (no `combinedShell`), but
  * `Bathroom_SideWalls_0` still welds the ceiling into the wall geometry —
  * `peelCeilingFromWalls` tells `RoomScene` to keep those near-horizontal
  * faces on the plaster via `prepareWallGroups`. Both meshes also ship with
  * 0..1 UVs; metre UV rewrite happens in `RoomScene` the same way as the
- * living room.
+ * living room. The front wall is ours (see `prepareBathroom`) and tiles with
+ * the rest.
  */
 const SURFACE_OVERRIDE: SurfaceOverride = {
   floor: ["Bathroom_Floor_0"],
-  wall: ["Bathroom_BackWall_0", "Bathroom_SideWalls_0"],
+  wall: ["Bathroom_BackWall_0", "Bathroom_SideWalls_0", FRONT_WALL_NAME],
   peelCeilingFromWalls: true,
 };
 
 /**
- * Measured the same way as the other sourced models: dumped
- * `Box3.setFromObject` per mesh from inside the browser. This one is a
- * narrow room — x -1.44..1.64 (3.08 m wide), z -2.30..1.90 (4.2 m deep),
- * floor at y≈0.12, ceiling at y≈2.45 — with every fixture (mirror, pendant
- * light, sink cabinet, toilet, framed art) mounted on the back wall at
- * z≈1.8-1.9, and the window on the right side wall (x≈1.55) roughly midway
- * down the room. BathroomControls owns smooth movement and containment.
- * Its stable focus points prevent repeated scrolling from drifting upward.
+ * `Bathroom_SideWalls_0`'s own material is a baked atlas that is mostly grey
+ * shading — as the ceiling (the only large surface still showing it once the
+ * walls are tiled) it read as a dull, blotchy grey slab, and up close its
+ * texels smeared into soft rows of blobs. A clean matte plaster reads as a
+ * bathroom ceiling at any distance. The slight emissive lift offsets the
+ * hemisphere light's warm-brown ground colour, which is what a downward-
+ * facing surface mostly receives here.
  */
+const PLASTER = new MeshStandardMaterial({
+  name: "BathroomPlaster",
+  color: 0xf4f2ee,
+  emissive: 0xffffff,
+  emissiveIntensity: 0.3,
+  roughness: 0.95,
+  metalness: 0,
+});
+
+/** Patches the model's own gaps; handed to `RoomScene` as `prepareScene`. */
+const prepareBathroom = (room: Object3D) => {
+  room.getObjectByName("Bathroom_SideWalls_0")?.traverse((object) => {
+    if (object instanceof Mesh) object.material = PLASTER;
+  });
+
+  // Closes the open fourth side. A few millimetres wider and taller than the
+  // opening so its edges tuck behind the side walls, floor and ceiling
+  // instead of leaving a hairline seam.
+  const width = SHELL.maxX - SHELL.minX + 0.02;
+  const height = SHELL.maxY - SHELL.minY + 0.02;
+  const frontWall = new Mesh(new PlaneGeometry(width, height), PLASTER);
+  frontWall.name = FRONT_WALL_NAME;
+  frontWall.position.set((SHELL.minX + SHELL.maxX) / 2, (SHELL.minY + SHELL.maxY) / 2, SHELL.frontZ);
+  room.add(frontWall);
+
+  // The glowing pane (`Bathroom_WindowLight_0`, at x 1.55) stops a few
+  // centimetres short of the frame along its edge and arch, and there is
+  // nothing outside the window, so at glancing angles those slivers showed
+  // the empty background. A backing sheet of the same light, just inside
+  // the reveal's outer edge (x 1.64), fills the whole opening
+  // (z -0.13..1.14, up to the arch top at y 2.12).
+  const pane = room.getObjectByName("Bathroom_WindowLight_0");
+  if (pane instanceof Mesh) {
+    const backing = new Mesh(new PlaneGeometry(1.4, 2.1), pane.material);
+    backing.name = "Bathroom_WindowBacking";
+    backing.rotation.y = -Math.PI / 2;
+    backing.position.set(1.62, 1.13, 0.5);
+    room.add(backing);
+  }
+};
+
 const CAMERA_CONFIG: CameraConfig = {
   position: [0.1, 1.15, -1.95],
   target: [0.1, 1.05, 0.25],
@@ -73,33 +131,95 @@ type View = keyof typeof VIEWS;
 const ACTION = CameraControlsImpl.ACTION;
 const MOUSE_BUTTONS = { left: ACTION.ROTATE, middle: ACTION.DOLLY, right: ACTION.NONE, wheel: ACTION.DOLLY };
 const TOUCHES = { one: ACTION.TOUCH_ROTATE, two: ACTION.TOUCH_DOLLY_ROTATE, three: ACTION.NONE };
-const ROOM_BOUNDARY = new Box3(new Vector3(-1.34, 0.32, -2.2), new Vector3(1.46, 2.3, 1.68));
-const COLLIDER_NAMES = new Set([
-  "Bathroom_Cabinet_0",
-  "Bathroom_Toilet_0",
-  "Tree_Tree_0",
-]);
+
+/**
+ * Where the camera body may be. The near plane sits 1 cm out, so anything
+ * the camera gets within a few centimetres of fills the frame as a blurred
+ * slab — which is what the old box allowed: its x max *was* the window wall's
+ * plane, and it reached into the corner boxing, the pendant and the cabinet.
+ * This keeps a clear margin to every shell surface instead. `max.z` stops in
+ * front of the fixtures' own depth; the ones that stand further out into the
+ * room are handled by `FIXTURE_ZONES`.
+ */
+const WALL_CLEARANCE = 0.3;
+const CAMERA_ROOM = new Box3(
+  new Vector3(SHELL.minX + WALL_CLEARANCE, SHELL.minY + 0.33, SHELL.frontZ + WALL_CLEARANCE),
+  new Vector3(SHELL.maxX - WALL_CLEARANCE, SHELL.maxY - WALL_CLEARANCE, 1.45),
+);
+
+/**
+ * Fixtures that stand out into `CAMERA_ROOM`, as their measured bounds padded
+ * by `FIXTURE_CLEARANCE`. The camera is pushed back out of these rather than
+ * relying on camera-controls' collider raycasts, which only shorten the
+ * target→camera line (the boundary clamp afterwards could still slide the
+ * camera into a fixture) and cost four raycasts a frame against the ~40k-
+ * triangle plant.
+ */
+const FIXTURE_CLEARANCE = 0.2;
+const FIXTURE_ZONES = [
+  // Sink cabinet
+  [[-0.09, 0.12, 0.74], [0.86, 1.15, 1.82]],
+  // Toilet
+  [[-1.18, 0.1, 1.13], [-0.39, 1.02, 1.89]],
+  // Potted plant
+  [[0.92, 0.12, 0.99], [1.37, 1.36, 1.54]],
+  // Pendant lamp and its cord
+  [[-0.67, 1.62, 1.32], [-0.38, 2.45, 1.61]],
+].map(([min, max]) =>
+  new Box3(new Vector3(...min), new Vector3(...max)).expandByScalar(FIXTURE_CLEARANCE),
+);
+
+const exitCandidate = new Vector3();
+
+/** Pushes `position` out through the nearest face of any zone it is inside that leads somewhere valid. */
+const leaveFixtureZones = (position: Vector3) => {
+  for (const zone of FIXTURE_ZONES) {
+    if (!zone.containsPoint(position)) continue;
+    const exits: [number, "x" | "y" | "z", number][] = [
+      [position.x - zone.min.x, "x", zone.min.x],
+      [zone.max.x - position.x, "x", zone.max.x],
+      [position.y - zone.min.y, "y", zone.min.y],
+      [zone.max.y - position.y, "y", zone.max.y],
+      [position.z - zone.min.z, "z", zone.min.z],
+      [zone.max.z - position.z, "z", zone.max.z],
+    ];
+    exits.sort((a, b) => a[0] - b[0]);
+    const exit = exits.find(([, axis, value]) => {
+      exitCandidate.copy(position).setComponent("xyz".indexOf(axis), value);
+      return (
+        CAMERA_ROOM.containsPoint(exitCandidate) &&
+        FIXTURE_ZONES.every((other) => other === zone || !other.containsPoint(exitCandidate))
+      );
+    });
+    if (!exit) return false;
+    position.setComponent("xyz".indexOf(exit[1]), exit[2]);
+  }
+  return true;
+};
+
+const lastValidPosition = new Vector3();
 
 function BathroomControls({ view, revision }: { view: View; revision: number }) {
   const controls = useRef<CameraControlsImpl>(null);
   const camera = useThree((state) => state.camera);
 
-  useFrame(({ scene }) => {
-    const instance = controls.current;
-    if (!instance || instance.colliderMeshes.length > 0) return;
-
-    const colliders: Mesh[] = [];
-    scene.traverse((object) => {
-      if (object instanceof Mesh && COLLIDER_NAMES.has(object.name)) colliders.push(object);
-    });
-    if (colliders.length > 0) instance.colliderMeshes = colliders;
+  // Runs after drei's CameraControls (priority -1) has placed the camera for
+  // this frame. The controls rebuild the position from their own spherical
+  // state every frame, so this correction never accumulates or drifts: it
+  // only moves the camera body, and the view keeps aiming the way the
+  // controls pointed it.
+  useFrame(() => {
+    const position = camera.position;
+    position.clamp(CAMERA_ROOM.min, CAMERA_ROOM.max);
+    if (leaveFixtureZones(position)) lastValidPosition.copy(position);
+    else position.copy(lastValidPosition);
   });
 
   useEffect(() => {
     const instance = controls.current;
     if (!instance) return;
-    instance.setBoundary(ROOM_BOUNDARY);
     const { position: p, target: t } = VIEWS[view];
+    lastValidPosition.set(p[0], p[1], p[2]);
     // Reset the complete motion state too, including any queued wheel movement.
     void instance.setLookAt(p[0], p[1], p[2], t[0], t[1], t[2], false);
   }, [camera, view, revision]);
@@ -113,7 +233,6 @@ function BathroomControls({ view, revision }: { view: View; revision: number }) 
       dollySpeed={0.65}
       dollyToCursor={false}
       infinityDolly={false}
-      boundaryEnclosesCamera
       {...CAMERA_CONFIG.orbitLimits}
       mouseButtons={MOUSE_BUTTONS}
       touches={TOUCHES}
@@ -140,6 +259,7 @@ export const Bathroom = ({
         className="size-full"
         cameraConfig={CAMERA_CONFIG}
         surfaceOverride={SURFACE_OVERRIDE}
+        prepareScene={prepareBathroom}
         controls={<BathroomControls {...selection} />}
       />
       <div
