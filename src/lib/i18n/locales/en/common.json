@@ -326,6 +326,15 @@
     "soldOut": "Sold out",
     "add": "Add",
     "inThisDesign": "In this design",
+    "viewDetails": "View details",
+    "viewDetailsOf": "View details of {{name}}",
+    "views": {
+      "toolbar": "Room views",
+      "room": "Reset view",
+      "floor": "Floor view",
+      "wall": "Wall view",
+      "ceiling": "Ceiling view"
+    },
     "pricePerSqm": "/ sqm",
     "configureSpace": "Configure Space",
     "searchPlaceholder": "Search by name or size…",

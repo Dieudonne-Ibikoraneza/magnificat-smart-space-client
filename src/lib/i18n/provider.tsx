@@ -7,8 +7,33 @@ import { I18nextProvider, initReactI18next } from "react-i18next";
 import { DEFAULT_LOCALE, type Locale } from "./config";
 import { DEFAULT_NAMESPACE, NAMESPACES, resources } from "./resources";
 
+/**
+ * Dev only: the translations are bundled into this module, but the i18next
+ * instance lives in `I18nProvider`'s state, which Fast Refresh keeps — so a
+ * key added to a locale file stayed missing (rendered as the raw key, e.g.
+ * `visualizer.viewDetails`) until a full reload. Editing a locale file
+ * re-evaluates this module, so the instances created by earlier evaluations
+ * are kept on `globalThis` and given the new strings here. Browser only: on
+ * the server every request creates an instance, and holding them would leak.
+ */
+const liveInstances =
+  process.env.NODE_ENV !== "production" && typeof window !== "undefined"
+    ? ((globalThis as { __mssI18nInstances?: Set<I18nInstance> }).__mssI18nInstances ??= new Set())
+    : undefined;
+
+liveInstances?.forEach((instance) => {
+  for (const [lng, namespaces] of Object.entries(resources)) {
+    for (const [ns, bundle] of Object.entries(namespaces)) {
+      instance.addResourceBundle(lng, ns, bundle, true, true);
+    }
+  }
+  // Re-renders everything using `useTranslation`.
+  void instance.changeLanguage(instance.language);
+});
+
 const createI18n = (locale: Locale): I18nInstance => {
   const instance = createInstance();
+  liveInstances?.add(instance);
   // Resources are bundled, so `init` completes synchronously and there is
   // no async backend to await. `useSuspense: false` keeps `useTranslation`
   // from suspending on the (already-resolved) load.

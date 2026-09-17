@@ -326,6 +326,15 @@
     "soldOut": "Byashize",
     "add": "Ongeraho",
     "inThisDesign": "Muri iki gishushanyo",
+    "viewDetails": "Reba ibisobanuro",
+    "viewDetailsOf": "Reba ibisobanuro bya {{name}}",
+    "views": {
+      "toolbar": "Uko ureba icyumba",
+      "room": "Garura uko byari biri",
+      "floor": "Reba hasi",
+      "wall": "Reba urukuta",
+      "ceiling": "Reba igisenge"
+    },
     "pricePerSqm": "/ m²",
     "configureSpace": "Genzura Umwanya",
     "searchPlaceholder": "Shakisha ku izina cyangwa ingano…",

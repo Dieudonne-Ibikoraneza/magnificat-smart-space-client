@@ -1,6 +1,15 @@
 "use client";
 
-import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  Component,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, useGLTF, useProgress } from "@react-three/drei";
 import * as THREE from "three";
@@ -389,8 +398,8 @@ const prepareTileableGroups = (geometry: THREE.BufferGeometry): number => {
  * left with its own baked-in material) — reordered into the index buffer the
  * same way `prepareTileableGroups` does, just three-way instead of two.
  *
- * After the split, floor/wall UVs are rewritten to world metres (see
- * `rewriteOrientationUvsToMetres`) so tile `repeat = 1 / tileMetres` matches
+ * After the split, tiled floor/wall UVs are rewritten to world metres (see
+ * `setTriangleRangeUvs`) so tile `repeat = 1 / tileMetres` matches
  * the labelled size — Sketchfab shells ship with 0..1 UVs, which otherwise
  * stretch a 50 cm tile across half a wall.
  */
@@ -421,16 +430,25 @@ const projectMetreUv = (
 /**
  * Sourced models ship with artist 0..1 UVs. `useTileTexture` sizes tiles with
  * `repeat = 1 / tileMetres`, which only reads as physical size when UVs are
- * in metres — so rewrite the leading tileable triangles from world position.
+ * in metres — so a tiled range of triangles gets UVs projected from world
+ * position.
+ *
+ * A range that ends up on the model's own baked material instead (no tile
+ * for that surface, or its image failed to load) needs its original UVs
+ * back: on metre UVs it samples a garbled patchwork of whatever else is
+ * packed into that atlas. `metres` picks which one the range gets; each
+ * range remembers its current state, so repeated calls are free.
  *
  * Indexed geometry is expanded first: a vertex shared by faces that need
  * different projections (floor vs wall, or two wall orientations) cannot
  * carry both UV pairs at once.
  */
-const rewriteLeadingTriangleUvsToMetres = (object: THREE.Mesh, triangleCount: number) => {
-  if (triangleCount <= 0) return;
+const setTriangleRangeUvs = (object: THREE.Mesh, start: number, end: number, metres: boolean) => {
+  if (end <= start) return;
   let geometry = object.geometry as THREE.BufferGeometry;
-  if (geometry.userData.metreUvs) return;
+  const key = `${start}:${end}`;
+  const current = (geometry.userData.metreUvRanges as Record<string, boolean> | undefined)?.[key] ?? false;
+  if (current === metres) return;
 
   if (geometry.index) {
     const groups = geometry.groups.map((group) => ({ ...group }));
@@ -449,61 +467,45 @@ const rewriteLeadingTriangleUvsToMetres = (object: THREE.Mesh, triangleCount: nu
     uv = new THREE.BufferAttribute(new Float32Array(position.count * 2), 2);
     geometry.setAttribute("uv", uv);
   }
-  // Kept so `restoreOriginalUvs` can put the atlas mapping back if the tile
-  // later goes away (deselected, or its image failed to load).
+  // Taken before the first rewrite, so any range can be put back later.
   if (!geometry.userData.originalUvs) {
     geometry.userData.originalUvs = (uv.array as Float32Array).slice();
   }
+  const original = geometry.userData.originalUvs as Float32Array;
 
-  object.updateWorldMatrix(true, false);
-  const a = new THREE.Vector3();
-  const b = new THREE.Vector3();
-  const c = new THREE.Vector3();
-  const ab = new THREE.Vector3();
-  const ac = new THREE.Vector3();
-  const normal = new THREE.Vector3();
-  const world = new THREE.Vector3();
-  const projected = new THREE.Vector2();
+  if (metres) {
+    object.updateWorldMatrix(true, false);
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    const c = new THREE.Vector3();
+    const ab = new THREE.Vector3();
+    const ac = new THREE.Vector3();
+    const normal = new THREE.Vector3();
+    const world = new THREE.Vector3();
+    const projected = new THREE.Vector2();
 
-  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
-    const base = triangle * 3;
-    a.fromBufferAttribute(position, base).applyMatrix4(object.matrixWorld);
-    b.fromBufferAttribute(position, base + 1).applyMatrix4(object.matrixWorld);
-    c.fromBufferAttribute(position, base + 2).applyMatrix4(object.matrixWorld);
-    normal.crossVectors(ab.subVectors(b, a), ac.subVectors(c, a)).normalize();
+    for (let triangle = start; triangle < end; triangle += 1) {
+      const base = triangle * 3;
+      a.fromBufferAttribute(position, base).applyMatrix4(object.matrixWorld);
+      b.fromBufferAttribute(position, base + 1).applyMatrix4(object.matrixWorld);
+      c.fromBufferAttribute(position, base + 2).applyMatrix4(object.matrixWorld);
+      normal.crossVectors(ab.subVectors(b, a), ac.subVectors(c, a)).normalize();
 
-    for (let corner = 0; corner < 3; corner += 1) {
-      world.fromBufferAttribute(position, base + corner).applyMatrix4(object.matrixWorld);
-      projectMetreUv(world, normal, projected);
-      uv.setXY(base + corner, projected.x, projected.y);
+      for (let corner = 0; corner < 3; corner += 1) {
+        world.fromBufferAttribute(position, base + corner).applyMatrix4(object.matrixWorld);
+        projectMetreUv(world, normal, projected);
+        uv.setXY(base + corner, projected.x, projected.y);
+      }
     }
+  } else {
+    (uv.array as Float32Array).set(original.subarray(start * 3 * 2, end * 3 * 2), start * 3 * 2);
   }
 
   uv.needsUpdate = true;
-  geometry.userData.metreUvs = true;
-};
-
-/**
- * Undoes `rewriteLeadingTriangleUvsToMetres`. A surface that ends up on its
- * own baked material (no tile for that role) has to sample the model's atlas
- * through the model's own UVs — on metre UVs it shows a garbled patchwork of
- * whatever else is packed into that atlas.
- */
-const restoreOriginalUvs = (object: THREE.Mesh) => {
-  const geometry = object.geometry as THREE.BufferGeometry;
-  const original = geometry.userData.originalUvs as Float32Array | undefined;
-  if (!geometry.userData.metreUvs || !original) return;
-  const uv = geometry.attributes.uv as THREE.BufferAttribute;
-  (uv.array as Float32Array).set(original);
-  uv.needsUpdate = true;
-  geometry.userData.metreUvs = false;
-};
-
-const rewriteOrientationUvsToMetres = (object: THREE.Mesh) => {
-  const geometry = object.geometry as THREE.BufferGeometry;
-  const floorCount = (geometry.userData.orientationFloorCount as number) ?? 0;
-  const wallCount = (geometry.userData.orientationWallCount as number) ?? 0;
-  rewriteLeadingTriangleUvsToMetres(object, floorCount + wallCount);
+  geometry.userData.metreUvRanges = {
+    ...(geometry.userData.metreUvRanges as Record<string, boolean> | undefined),
+    [key]: metres,
+  };
 };
 
 /**
@@ -571,7 +573,7 @@ const prepareWallGroups = (object: THREE.Mesh): number => {
  * picture, a bed platform, a media-console top. On `modern_bedroom.glb`
  * those are welded into the same mesh as the shell and share its texture
  * atlas, so once misclassified they don't just risk taking the customer's
- * tile — `rewriteOrientationUvsToMetres` rewrites every tileable triangle's
+ * tile — `setTriangleRangeUvs` rewrites every tileable triangle's
  * UVs to a world-metres projection, which samples the wrong part of that
  * atlas even with no tile selected. That's what a flat, wrong-coloured TV
  * or cupboard face is: not a missing texture, a mis-sampled one.
@@ -649,18 +651,11 @@ const filterArchitecturalIslands = (
   return { keep, furniture };
 };
 
-const splitByOrientation = (
-  object: THREE.Mesh,
-  { rewriteUvs = true }: { rewriteUvs?: boolean } = {},
-): { floorCount: number; wallCount: number } => {
+const splitByOrientation = (object: THREE.Mesh): { floorCount: number; wallCount: number } => {
   const geometry = object.geometry as THREE.BufferGeometry;
   const cachedFloor = geometry.userData.orientationFloorCount as number | undefined;
   const cachedWall = geometry.userData.orientationWallCount as number | undefined;
   if (cachedFloor !== undefined && cachedWall !== undefined) {
-    // Only project to metre UVs when a tile material is about to land —
-    // rewriting under the model's own atlas samples the packed sprite sheet
-    // across the room (the brief "glitch" flash before tiles finish loading).
-    if (rewriteUvs) rewriteOrientationUvsToMetres(object);
     return {
       floorCount: cachedFloor,
       wallCount: cachedWall,
@@ -735,7 +730,6 @@ const splitByOrientation = (
 
   geometry.userData.orientationFloorCount = floor.length;
   geometry.userData.orientationWallCount = wall.length;
-  if (rewriteUvs) rewriteOrientationUvsToMetres(object);
   const resultGeometry = object.geometry as THREE.BufferGeometry;
   return {
     floorCount: resultGeometry.userData.orientationFloorCount as number,
@@ -1074,6 +1068,83 @@ const ResponsiveCamera = ({ config }: { config: CameraConfig }) => {
   );
 };
 
+/**
+ * Byte-level download progress of room GLBs, keyed by URL, for the loading
+ * overlay. drei's `useProgress` can't provide it: it counts *files* through
+ * three's global loading manager, so a 30 MB model is a single step, and its
+ * baseline resets whenever a batch finishes — the model download reads 0% →
+ * 100%, then the ~20 textures embedded in it start a new batch at 0% again,
+ * then the tile images once more. That was the flickering bar.
+ *
+ * Module-level on purpose: a model already in `useGLTF`'s cache mounts
+ * without downloading again, and should still read as downloaded.
+ */
+const modelDownloads = new Map<string, number>();
+const modelDownloadListeners = new Set<() => void>();
+
+const reportModelDownload = (url: string, fraction: number) => {
+  if ((modelDownloads.get(url) ?? 0) >= fraction) return;
+  modelDownloads.set(url, fraction);
+  modelDownloadListeners.forEach((listener) => listener());
+};
+
+const subscribeModelDownloads = (listener: () => void) => {
+  modelDownloadListeners.add(listener);
+  return () => {
+    modelDownloadListeners.delete(listener);
+  };
+};
+
+const useModelDownload = (url: string) =>
+  useSyncExternalStore(
+    subscribeModelDownloads,
+    () => modelDownloads.get(url) ?? 0,
+    () => 0,
+  );
+
+/**
+ * Static files are served gzipped without a `Content-Length` (both `next dev`
+ * and `next start` compress by default), so the total is usually unknown.
+ * three still reports the decompressed bytes received, so those map onto a
+ * curve that eases toward — but never reaches — the end of the download,
+ * which only completes on load. The scale suits the room models (16–30 MB):
+ * ~75% of the way at 16 MB, ~92% at 30 MB.
+ */
+const UNKNOWN_SIZE_SCALE_BYTES = 12_000_000;
+const UNKNOWN_SIZE_CAP = 0.95;
+
+const downloadFraction = (loaded: number, total: number) =>
+  total > 0
+    ? Math.min(loaded / total, UNKNOWN_SIZE_CAP)
+    : Math.min(UNKNOWN_SIZE_CAP, 1 - Math.exp(-loaded / UNKNOWN_SIZE_SCALE_BYTES));
+
+const DOWNLOAD_TRACKED = Symbol("roomDownloadTracked");
+
+/**
+ * `useGLTF`'s loader hook. R3F shares one `GLTFLoader` instance across every
+ * `useGLTF` call and runs this on each, so `load` is wrapped only once. This
+ * doesn't touch caching, which is keyed on the loader class and URL.
+ */
+const trackGltfDownload: NonNullable<Parameters<typeof useGLTF>[3]> = (loader) => {
+  const tagged = loader as typeof loader & { [DOWNLOAD_TRACKED]?: true };
+  if (tagged[DOWNLOAD_TRACKED]) return;
+  tagged[DOWNLOAD_TRACKED] = true;
+  const load = loader.load.bind(loader);
+  loader.load = (url, onLoad, onProgress, onError) =>
+    load(
+      url,
+      (gltf) => {
+        reportModelDownload(url, 1);
+        onLoad(gltf);
+      },
+      (event) => {
+        reportModelDownload(url, downloadFraction(event.loaded, event.total));
+        onProgress?.(event);
+      },
+      onError,
+    );
+};
+
 const RoomModel = ({
   modelUrl,
   floorTile,
@@ -1092,7 +1163,7 @@ const RoomModel = ({
   /** Fires once the shell is prepared and any selected tile textures have settled. */
   onReady?: () => void;
 }) => {
-  const { scene } = useGLTF(modelUrl);
+  const { scene } = useGLTF(modelUrl, undefined, undefined, trackGltfDownload);
   // Clone geometry too: `scene.clone(true)` still *shares* BufferGeometry with
   // the `useGLTF` cache, and our orientation/UV rewrites would permanently
   // mutate that cache — every later visit would flash the atlas-on-metre-UVs
@@ -1135,7 +1206,6 @@ const RoomModel = ({
 
     const baseline = originals.current;
     const override = surfaceOverride ?? surfaceOverrideFor(modelUrl);
-    const applyMetreUvs = Boolean(floorMaterial || wallMaterial);
 
     room.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
@@ -1147,7 +1217,12 @@ const RoomModel = ({
 
       if (override?.combinedShell?.includes(object.name)) {
         const originalMaterial = Array.isArray(original) ? original[0] : original;
-        const { floorCount, wallCount } = splitByOrientation(object, { rewriteUvs: applyMetreUvs });
+        const { floorCount, wallCount } = splitByOrientation(object);
+        // Each surface is on metre UVs only while it actually has a tile —
+        // rewriting under the model's own atlas samples the packed sprite
+        // sheet across the room.
+        setTriangleRangeUvs(object, 0, floorCount, Boolean(floorMaterial));
+        setTriangleRangeUvs(object, floorCount, floorCount + wallCount, Boolean(wallMaterial));
         object.material = [
           floorCount > 0 ? (floorMaterial ?? originalMaterial) : originalMaterial,
           wallCount > 0 ? (wallMaterial ?? originalMaterial) : originalMaterial,
@@ -1163,11 +1238,9 @@ const RoomModel = ({
       const tileMaterial = role === "floor" ? floorMaterial : wallMaterial;
       const replacement = tileMaterial ?? originalMaterial;
       // Metre UVs only under an actual tile; the model's own material needs
-      // its own UVs (see `restoreOriginalUvs`).
-      const syncUvs = (triangleCount: number) => {
-        if (tileMaterial) rewriteLeadingTriangleUvsToMetres(object, triangleCount);
-        else restoreOriginalUvs(object);
-      };
+      // its own UVs (see `setTriangleRangeUvs`).
+      const syncUvs = (triangleCount: number) =>
+        setTriangleRangeUvs(object, 0, triangleCount, Boolean(tileMaterial));
 
       // Sourced wall meshes can weld the ceiling into the same geometry
       // (bathroom side walls). Peel horizontal faces into a second group so
@@ -1278,10 +1351,42 @@ class ModelErrorBoundary extends Component<{ onError: () => void; children: Reac
  * Covers the viewport while the GLB (and any selected tile images) download,
  * and until `RoomModel` finishes preparing the shell. Hides the atlas-UV
  * flash that otherwise shows for a few frames on sourced rooms.
+ *
+ * The bar is split by where the wait actually goes: the model download (by
+ * bytes) is most of it, then its embedded textures and the tile images (by
+ * file count, via `useProgress`), then preparing the shell. It only ever
+ * moves forward. Remounted per model (`key`), so each room starts from 0%
+ * rather than the previous room's 100%.
  */
-const RoomLoadingOverlay = ({ visible }: { visible: boolean }) => {
-  const { progress, active } = useProgress();
-  const value = !active && visible ? 100 : Math.min(100, Math.round(progress));
+const DOWNLOAD_SHARE = 85;
+const TEXTURE_SHARE = 14;
+
+const RoomLoadingOverlay = ({ modelUrl, visible }: { modelUrl: string; visible: boolean }) => {
+  const download = useModelDownload(modelUrl);
+  const loaded = useProgress((state) => state.loaded);
+  const total = useProgress((state) => state.total);
+  // three's loading manager counts files cumulatively for the whole page;
+  // only the ones requested after this room started loading count here.
+  const [baseline] = useState(() => {
+    const state = useProgress.getState();
+    return { loaded: state.loaded, total: state.total };
+  });
+  const files =
+    total > baseline.total
+      ? Math.min(1, Math.max(0, (loaded - baseline.loaded) / (total - baseline.total)))
+      : 0;
+
+  const target = !visible
+    ? 100
+    : download < 1
+      ? DOWNLOAD_SHARE * download
+      : DOWNLOAD_SHARE + TEXTURE_SHARE * files;
+  // Files are discovered as loading goes (the textures only once the model
+  // is parsed), so `files` can drop when a new batch starts. Hold the
+  // highest value reached instead of stepping backwards.
+  const [shown, setShown] = useState(0);
+  if (target > shown) setShown(target);
+  const value = Math.min(100, Math.round(Math.max(shown, target)));
 
   return (
     <div
@@ -1344,11 +1449,12 @@ export const RoomScene = ({
 }) => {
   // Which model failed to load, so switching to another room clears it.
   const [missingUrl, setMissingUrl] = useState<string | null>(null);
-  const [sceneReady, setSceneReady] = useState(false);
-
-  useEffect(() => {
-    setSceneReady(false);
-  }, [modelUrl]);
+  // Store which model is ready, rather than a boolean. This makes the loading
+  // state correct during the render where `modelUrl` changes; resetting a
+  // boolean in an effect is one render too late and briefly exposes the new
+  // canvas before its model has mounted.
+  const [readyModelUrl, setReadyModelUrl] = useState<string | null>(null);
+  const sceneReady = readyModelUrl === modelUrl;
 
   if (missingUrl === modelUrl) {
     return (
@@ -1366,7 +1472,7 @@ export const RoomScene = ({
 
   return (
     <div className={cn("relative", className)}>
-      <RoomLoadingOverlay visible={!sceneReady} />
+      <RoomLoadingOverlay key={`loading:${modelUrl}`} modelUrl={modelUrl} visible={!sceneReady} />
       {/* Keyed by modelUrl: switching to a model at a wildly different scale
           (see `MODEL_CAMERA_CONFIGS`) needs a fresh camera/controls instance,
           not OrbitControls carrying over stale internal state tuned for the
@@ -1392,7 +1498,7 @@ export const RoomScene = ({
               wallTile={wallTile}
               surfaceOverride={surfaceOverride}
               prepareScene={prepareScene}
-              onReady={() => setSceneReady(true)}
+              onReady={() => setReadyModelUrl(modelUrl)}
             />
           </ModelErrorBoundary>
         </Suspense>

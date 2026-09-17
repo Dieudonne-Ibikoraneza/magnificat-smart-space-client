@@ -1,11 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Bookmark, Check, Layers3, Search, ShoppingCart } from "lucide-react";
+import { Bookmark, Check, Eye, Layers3, Search, ShoppingCart } from "lucide-react";
 import type { Product } from "@/components/product-card";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
 import {
@@ -24,6 +25,7 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api/client";
 import { collectionsApi, eventsApi, productsApi, roomsApi, toProduct, tokenStore } from "@/lib/api";
@@ -260,6 +262,18 @@ const AppliedTilesCart = ({
               {t(labelKey)} · {formatPrice(product.price)} {t("visualizer.pricePerSqm")}
             </p>
           </div>
+          {/* Every signed-in role can open a tile's page, so unlike the cart
+              button this isn't limited to customers. */}
+          <Tooltip>
+            <TooltipTrigger
+              render={<Link href={`/products/${product.id}`} />}
+              aria-label={t("visualizer.viewDetailsOf", { name: product.name })}
+              className="flex size-9 shrink-0 items-center justify-center rounded-lg text-ink transition-colors hover:bg-muted-background focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              <Eye className="size-4" strokeWidth={2} />
+            </TooltipTrigger>
+            <TooltipContent>{t("visualizer.viewDetails")}</TooltipContent>
+          </Tooltip>
           {onAddToCart && (
             <Button
               type="button"
