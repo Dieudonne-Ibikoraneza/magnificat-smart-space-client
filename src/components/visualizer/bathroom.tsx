@@ -371,8 +371,10 @@ export const Bathroom = ({
         prepareScene={prepareBathroom}
         controls={<BathroomControls {...selection} />}
       />
+      {/* Clears the visualizer page's mobile "Change tile / Save" bar, which
+          is only shown below `lg`. */}
       <div
-        className="absolute bottom-20 right-4 flex gap-1 rounded-lg bg-white/95 p-1 shadow-sm"
+        className="absolute bottom-20 right-4 flex lg:bottom-4 gap-1 rounded-lg bg-white/95 p-1 shadow-sm"
         role="toolbar"
         aria-label="Bathroom views"
       >
