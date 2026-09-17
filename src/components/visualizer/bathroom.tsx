@@ -137,14 +137,17 @@ const TOUCHES = { one: ACTION.TOUCH_ROTATE, two: ACTION.TOUCH_DOLLY_ROTATE, thre
  * the camera gets within a few centimetres of fills the frame as a blurred
  * slab — which is what the old box allowed: its x max *was* the window wall's
  * plane, and it reached into the corner boxing, the pendant and the cabinet.
- * This keeps a clear margin to every shell surface instead. `max.z` stops in
- * front of the fixtures' own depth; the ones that stand further out into the
- * room are handled by `FIXTURE_ZONES`.
+ * This keeps a margin to every shell surface instead: a tight one to the
+ * side and front walls, so a close look at the tile is possible, and a wider
+ * one above the floor and below the ceiling, where the camera would otherwise
+ * end up staring straight down or up at a blank plane. `max.z` stops in front
+ * of the shelf and everything on it; the fixtures that stand further out
+ * into the room are handled by `FIXTURE_ZONES`.
  */
-const WALL_CLEARANCE = 0.3;
+const WALL_CLEARANCE = 0.12;
 const CAMERA_ROOM = new Box3(
   new Vector3(SHELL.minX + WALL_CLEARANCE, SHELL.minY + 0.33, SHELL.frontZ + WALL_CLEARANCE),
-  new Vector3(SHELL.maxX - WALL_CLEARANCE, SHELL.maxY - WALL_CLEARANCE, 1.45),
+  new Vector3(SHELL.maxX - WALL_CLEARANCE, SHELL.maxY - 0.3, 1.45),
 );
 
 /**
@@ -197,6 +200,101 @@ const leaveFixtureZones = (position: Vector3) => {
   return true;
 };
 
+/** Where the camera body actually ends up for a requested position; false if nowhere valid. */
+const containPosition = (position: Vector3) => {
+  position.clamp(CAMERA_ROOM.min, CAMERA_ROOM.max);
+  return leaveFixtureZones(position);
+};
+
+/**
+ * Along a ray from `origin`, the distance at which it last leaves `box`, or
+ * null if it never passes through it. Orbit targets can sit outside
+ * `CAMERA_ROOM` (the floor, wall and ceiling views aim just off a surface),
+ * so this is the far slab crossing, not `Ray.intersectBox`'s nearest one.
+ */
+const exitDistance = (origin: Vector3, direction: Vector3, box: Box3) => {
+  let near = 0;
+  let far = Infinity;
+  for (const axis of ["x", "y", "z"] as const) {
+    const start = origin[axis];
+    const step = direction[axis];
+    if (Math.abs(step) < 1e-9) {
+      if (start < box.min[axis] || start > box.max[axis]) return null;
+      continue;
+    }
+    const a = (box.min[axis] - start) / step;
+    const b = (box.max[axis] - start) / step;
+    near = Math.max(near, Math.min(a, b));
+    far = Math.min(far, Math.max(a, b));
+  }
+  return near <= far ? far : null;
+};
+
+/**
+ * How far the lens can zoom once the camera itself can't get any closer.
+ * 5× on the 70° lens frames roughly half a metre of wall from the far side
+ * of the room — two or three tiles across, enough to read texture and grout.
+ */
+const MAX_LENS_ZOOM = 5;
+/** Below this, a dolly step isn't a visible move — the containment is holding the camera. */
+const MIN_VISIBLE_DOLLY = 0.005;
+
+const orbitDirection = new Vector3();
+const probeNow = new Vector3();
+const probeNext = new Vector3();
+
+/**
+ * Wheel and pinch both go through `_dollyInternal`, so this is the one place
+ * zoom behaviour lives. Dollying alone ran out quickly: every view orbits a
+ * fixed target (the room view's sits mid-room, 1.6 m from the back wall),
+ * so the camera stops at `minDistance` from that point, or at the wall
+ * margin, long before a tile fills the frame. Past that point zooming in
+ * narrows the lens instead, and zooming out opens the lens back to 1× before
+ * the camera starts backing away.
+ */
+class BathroomCameraControlsImpl extends CameraControlsImpl {
+  constructor(...args: ConstructorParameters<typeof CameraControlsImpl>) {
+    super(...args);
+    const dolly = this._dollyInternal;
+    // Negative delta is "in", matching camera-controls' own convention.
+    this._dollyInternal = (delta, x, y) => {
+      if (delta > 0) {
+        if (this._zoomEnd > 1.001) this.lensZoom(delta);
+        else dolly(delta, x, y);
+        return;
+      }
+
+      const { phi, theta } = this._sphericalEnd;
+      orbitDirection.setFromSphericalCoords(1, phi, theta);
+      // Backed out past the room, the first steps in would only shorten an
+      // orbit the containment is already cutting short — no visible change.
+      // Skip straight to where the orbit re-enters the room.
+      const exit = exitDistance(this._targetEnd, orbitDirection, CAMERA_ROOM);
+      if (exit !== null && this._sphericalEnd.radius > Math.max(exit, this.minDistance)) {
+        void this.dollyTo(exit, true);
+      }
+
+      const radius = this._sphericalEnd.radius;
+      const nextRadius = Math.min(
+        Math.max(radius * Math.pow(0.95, -delta * this.dollySpeed), this.minDistance),
+        this.maxDistance,
+      );
+      probeNow.copy(orbitDirection).multiplyScalar(radius).add(this._targetEnd);
+      probeNext.copy(orbitDirection).multiplyScalar(nextRadius).add(this._targetEnd);
+      const moves =
+        containPosition(probeNow) &&
+        containPosition(probeNext) &&
+        probeNow.distanceTo(probeNext) > MIN_VISIBLE_DOLLY;
+      if (moves) dolly(delta, x, y);
+      else this.lensZoom(delta);
+    };
+  }
+
+  private lensZoom(delta: number) {
+    void this.zoomTo(this._zoomEnd * Math.pow(0.95, delta * this.dollySpeed), true);
+  }
+}
+
 const lastValidPosition = new Vector3();
 
 function BathroomControls({ view, revision }: { view: View; revision: number }) {
@@ -210,9 +308,16 @@ function BathroomControls({ view, revision }: { view: View; revision: number }) 
   // controls pointed it.
   useFrame(() => {
     const position = camera.position;
-    position.clamp(CAMERA_ROOM.min, CAMERA_ROOM.max);
-    if (leaveFixtureZones(position)) lastValidPosition.copy(position);
+    if (containPosition(position)) lastValidPosition.copy(position);
     else position.copy(lastValidPosition);
+
+    // A drag that turns the view 10° at 1× would swing it 50° at 5×; scale
+    // rotation with the lens so the picture moves at the same pace.
+    const instance = controls.current;
+    if (instance) {
+      instance.azimuthRotateSpeed = 1 / camera.zoom;
+      instance.polarRotateSpeed = 1 / camera.zoom;
+    }
   });
 
   useEffect(() => {
@@ -222,17 +327,21 @@ function BathroomControls({ view, revision }: { view: View; revision: number }) 
     lastValidPosition.set(p[0], p[1], p[2]);
     // Reset the complete motion state too, including any queued wheel movement.
     void instance.setLookAt(p[0], p[1], p[2], t[0], t[1], t[2], false);
+    void instance.zoomTo(1, false);
   }, [camera, view, revision]);
 
   return (
     <CameraControls
       ref={controls}
+      impl={BathroomCameraControlsImpl}
       makeDefault
       smoothTime={0.22}
       draggingSmoothTime={0.1}
       dollySpeed={0.65}
       dollyToCursor={false}
       infinityDolly={false}
+      minZoom={1}
+      maxZoom={MAX_LENS_ZOOM}
       {...CAMERA_CONFIG.orbitLimits}
       mouseButtons={MOUSE_BUTTONS}
       touches={TOUCHES}
