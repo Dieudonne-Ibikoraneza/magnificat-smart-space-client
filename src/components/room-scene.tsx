@@ -1271,6 +1271,7 @@ export const RoomScene = ({
   className,
   cameraConfig: cameraConfigProp,
   surfaceOverride,
+  controls,
 }: {
   modelUrl: string;
   floorTile?: Product;
@@ -1288,6 +1289,8 @@ export const RoomScene = ({
   cameraConfig?: CameraConfig;
   /** Same idea as `cameraConfig`, for which meshes are tileable. */
   surfaceOverride?: SurfaceOverride;
+  /** Optional room-owned controls, including their own boundary handling. */
+  controls?: ReactNode;
 }) => {
   // Which model failed to load, so switching to another room clears it.
   const [missingUrl, setMissingUrl] = useState<string | null>(null);
@@ -1327,7 +1330,7 @@ export const RoomScene = ({
       >
         <color attach="background" args={[0xeceae5]} />
         <ResponsiveCamera config={cameraConfig} />
-        {cameraConfig.bounds ? (
+        {!controls && cameraConfig.bounds ? (
           <ContainCamera bounds={cameraConfig.bounds} targetBounds={cameraConfig.targetBounds} />
         ) : null}
         <RoomLighting />
@@ -1342,15 +1345,17 @@ export const RoomScene = ({
             />
           </ModelErrorBoundary>
         </Suspense>
-        <OrbitControls
-          makeDefault
-          target={cameraConfig.target}
-          enablePan={false}
-          enableDamping
-          dampingFactor={0.08}
-          zoomToCursor={cameraConfig.zoomToCursor}
-          {...cameraConfig.orbitLimits}
-        />
+        {controls ?? (
+          <OrbitControls
+            makeDefault
+            target={cameraConfig.target}
+            enablePan={false}
+            enableDamping
+            dampingFactor={0.08}
+            zoomToCursor={cameraConfig.zoomToCursor}
+            {...cameraConfig.orbitLimits}
+          />
+        )}
       </Canvas>
     </div>
   );
