@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * The camera rig shared by the sourced rooms that walk the customer around
- * inside the model (kitchen, living room, bathroom): smooth orbit controls, a camera
+ * inside the model (every room in the visualizer): smooth orbit controls, a camera
  * body that can't enter walls or furniture, zoom that keeps going with the
  * lens once the camera can't get closer, and one-tap preset views.
  *
