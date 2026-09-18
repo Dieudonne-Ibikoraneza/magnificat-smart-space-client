@@ -40,6 +40,7 @@ import type {
   Paginated,
   PlaceOrderResult,
   PlatformSettings,
+  PublicPlatformSettings,
   ProfilingQuestion,
   QuantityCalculation,
   QuotationStatus,
@@ -533,7 +534,8 @@ export const eventsApi = {
 // --- Settings ---------------------------------------------------------------
 
 export const settingsApi = {
-  get: () => api.get<PlatformSettings>("/settings", { anonymous: true }),
+  get: () => api.get<PublicPlatformSettings>("/settings", { anonymous: true }),
+  getAdmin: () => api.get<PlatformSettings>("/settings/admin"),
   update: (settings: Record<string, unknown>) => api.patch<PlatformSettings>("/settings", { settings }),
 
   /** `roomType` here is the single room the customer picked — matches questions that are either always-asked or list that room among their own `roomTypes`. */

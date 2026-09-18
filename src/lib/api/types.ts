@@ -562,11 +562,19 @@ export type ChatMediaJob = {
 
 // --- Settings ---------------------------------------------------------------
 
-/** Merged defaults + stored overrides from `GET /settings`. */
-export type PlatformSettings = Record<string, unknown> & {
+/** Anonymous allow-list returned by `GET /settings`. */
+export type PublicPlatformSettings = {
   "platform.name": string;
   "platform.defaultCurrency": string;
   "platform.defaultLanguage": Language;
+  "support.phone": string;
+  "support.email": string;
+  "support.whatsapp": string;
+  "calculator.defaultWastagePercent": number;
+};
+
+/** Complete admin-only settings returned by `GET /settings/admin`. */
+export type PlatformSettings = PublicPlatformSettings & {
   "platform.version": string;
   "notifications.lowStockAlerts": boolean;
   "notifications.orderUpdates": boolean;
@@ -578,10 +586,6 @@ export type PlatformSettings = Record<string, unknown> & {
   "payment.bankAccountName": string;
   "payment.bankAccountNumber": string;
   "payment.bankSwift": string;
-  "support.phone": string;
-  "support.email": string;
-  "support.whatsapp": string;
-  "calculator.defaultWastagePercent": number;
 };
 
 export type ProfilingQuestion = {

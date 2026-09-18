@@ -374,7 +374,7 @@ const AiRecommendations = ({
 
 const AdminSettingsPage = () => {
   const { t } = useTranslation();
-  const { data: settings, loading: settingsLoading, error: settingsError, reload: reloadSettings } = useApi(() => settingsApi.get());
+  const { data: settings, loading: settingsLoading, error: settingsError, reload: reloadSettings } = useApi(() => settingsApi.getAdmin());
   const { data: questionsData, loading: questionsLoading, error: questionsError, reload: reloadQuestions } = useApi(
     () => settingsApi.profilingQuestions(),
   );
