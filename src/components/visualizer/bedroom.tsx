@@ -26,8 +26,11 @@ const SHELL = { minX: -2.57, maxX: 2.57, minY: -1.71, maxY: 1.71, minZ: -3.09, m
 const SHELL_MESH = "Bedroom_Bedroom_0";
 const FRONT_WALL_NAME = "Bedroom_FrontWall";
 const BACKDROP_NAME = "Bedroom_Backdrop";
+const WINDOW_FEATURE_NAME = "Bedroom_WindowFeature";
 /** Everything this far behind the window wall is the backdrop, not the room. */
 const BACKDROP_MAX_Z = -4.5;
+/** The nine decorative panels inside the centre window keep their baked design. */
+const WINDOW_FEATURE = { minX: -0.9, maxX: 0.9, minY: -1.3, maxY: 1.3, minZ: -2.985, maxZ: -2.97 };
 
 /**
  * `Bedroom_Bedroom_0` welds the room shell together with the bed, TV stand,
@@ -36,22 +39,20 @@ const BACKDROP_MAX_Z = -4.5;
  * in `room-scene.tsx` peels the furniture islands back onto the original
  * material so only the real shell takes the customer's tile.
  *
- * `Bedroom_Carpet_0` is its own mesh (the dark rug in front of the bed) —
- * listed as floor so it receives the same floor tile as the shell, instead
- * of staying on the model's flat Carpet material. Duvet, windows/glasses
- * and `Bedroom_Bedroom_0_1` stay untouched. The front wall is ours (see
- * `prepareBedroom`) and tiles with the rest.
+ * `Bedroom_Carpet_0` is its own mesh (the dark rug in front of the bed) and
+ * deliberately stays untouched so selecting a floor tile does not hide it.
+ * Duvet, windows/glasses and `Bedroom_Bedroom_0_1` also stay untouched. The
+ * front wall is ours (see `prepareBedroom`) and tiles with the rest.
  */
 const SURFACE_OVERRIDE: SurfaceOverride = {
   combinedShell: [SHELL_MESH],
-  floor: ["Bedroom_Carpet_0"],
   wall: [FRONT_WALL_NAME],
 };
 
-/** Stands in for the missing wall until a tile is chosen; matches the model's own plaster. */
+/** Clean plaster for the added fourth wall, matched to the bedroom's default grey. */
 const PLASTER = new MeshStandardMaterial({
   name: "BedroomPlaster",
-  color: 0xe6e4e0,
+  color: 0xaaa9a3,
   roughness: 0.95,
   metalness: 0,
 });
@@ -78,26 +79,44 @@ const prepareBedroom = (room: Object3D) => {
 
     const keep: number[] = [];
     const backdrop: number[] = [];
+    const windowFeature: number[] = [];
     for (let triangle = 0; triangle < triangles; triangle += 1) {
       const corners = [0, 1, 2].map((corner) => vertexOf(triangle, corner));
       const outside = corners.every(
         (vertex) =>
           worldVertex.fromBufferAttribute(position, vertex).applyMatrix4(object.matrixWorld).z < BACKDROP_MAX_Z,
       );
-      (outside ? backdrop : keep).push(...corners);
+      const onWindowFeature = !outside && corners.every((vertex) => {
+        worldVertex.fromBufferAttribute(position, vertex).applyMatrix4(object.matrixWorld);
+        return (
+          worldVertex.x >= WINDOW_FEATURE.minX &&
+          worldVertex.x <= WINDOW_FEATURE.maxX &&
+          worldVertex.y >= WINDOW_FEATURE.minY &&
+          worldVertex.y <= WINDOW_FEATURE.maxY &&
+          worldVertex.z >= WINDOW_FEATURE.minZ &&
+          worldVertex.z <= WINDOW_FEATURE.maxZ
+        );
+      });
+      (outside ? backdrop : onWindowFeature ? windowFeature : keep).push(...corners);
     }
     if (backdrop.length === 0) return;
 
-    const backdropGeometry = geometry.clone();
-    // `clone()` shares `userData`, where the split caches its results.
-    backdropGeometry.userData = {};
-    backdropGeometry.setIndex(backdrop);
-    backdropGeometry.clearGroups();
+    const makeUntiledPart = (name: string, indices: number[]) => {
+      if (indices.length === 0) return;
+      const partGeometry = geometry.clone();
+      // `clone()` shares `userData`, where the split caches its results.
+      partGeometry.userData = {};
+      partGeometry.setIndex(indices);
+      partGeometry.clearGroups();
+      const part = new Mesh(partGeometry, object.material);
+      part.name = name;
+      object.add(part);
+    };
+
     geometry.setIndex(keep);
     geometry.clearGroups();
-    const backdropMesh = new Mesh(backdropGeometry, object.material);
-    backdropMesh.name = BACKDROP_NAME;
-    object.add(backdropMesh);
+    makeUntiledPart(BACKDROP_NAME, backdrop);
+    makeUntiledPart(WINDOW_FEATURE_NAME, windowFeature);
   });
 
   // Closes the open side. A little oversized so its edges tuck behind the
