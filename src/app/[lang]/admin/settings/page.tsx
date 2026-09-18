@@ -453,7 +453,12 @@ const AdminSettingsPage = () => {
             <Save className="size-[18px]" /> {saving ? t("admin.systemSettings.saving") : t("admin.systemSettings.saveAllChanges")}
           </Button>
           <p className="text-xs text-muted-foreground">
-            {lastSyncedAt ? t("admin.systemSettings.lastSynced", { time: lastSyncedAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) }) : t("staff.loading")}
+            {lastSyncedAt
+              ? t("admin.systemSettings.lastSynced", {
+                  date: lastSyncedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+                  time: lastSyncedAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+                })
+              : t("staff.loading")}
           </p>
         </div>
       </AdminPageHeader>

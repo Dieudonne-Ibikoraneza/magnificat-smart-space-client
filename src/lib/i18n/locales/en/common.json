@@ -2183,7 +2183,7 @@
       "subtitle": "Configure core platform settings and preferences.",
       "saveAllChanges": "Save All Changes",
       "saving": "Saving…",
-      "lastSynced": "Last synced: {{time}}",
+      "lastSynced": "Last synced: {{date}}, {{time}}",
       "aiRecommendations": "AI Recommendations",
       "aiRecommendationsSub": "Manage AI recommendation logic and customer profiling questions.",
       "addQuestion": "Add Question",

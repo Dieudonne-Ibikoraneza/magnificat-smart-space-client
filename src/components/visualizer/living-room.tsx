@@ -32,7 +32,8 @@ const BACKDROP_MIN_Z = 3;
 /**
  * The model welds floor, walls, ceiling — and the backdrop — into one mesh,
  * so `combinedShell` splits it by face orientation (`splitByOrientation` in
- * `room-scene.tsx`). The added right wall is a plain mesh and tiles as a wall.
+ * `room-scene.tsx`). The added right wall is tileable too; its plaster only
+ * appears as the fallback while a selected wall texture is loading.
  */
 const SURFACE_OVERRIDE: SurfaceOverride = {
   combinedShell: [SHELL_MESH],
@@ -40,13 +41,17 @@ const SURFACE_OVERRIDE: SurfaceOverride = {
 };
 
 /**
- * Stands in for the missing wall until a tile is chosen. The model's own
- * walls are a baked light-grey plaster.
+ * Fallback for the missing wall while a selected tile texture loads or cannot
+ * be fetched. Sampling the source shell's untouched side wall gives #b1b4b5;
+ * its material also uses the same texture as a full-strength emissive map, so
+ * mirror that lift here to keep the fallback visually consistent.
  */
 const PLASTER = new MeshStandardMaterial({
   name: "LivingRoomPlaster",
-  color: 0xe9e8e4,
-  roughness: 0.95,
+  color: 0xb1b4b5,
+  emissive: 0xb1b4b5,
+  emissiveIntensity: 1,
+  roughness: 0.82,
   metalness: 0,
 });
 

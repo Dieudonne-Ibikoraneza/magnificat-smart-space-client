@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Bookmark, Check, Eye, Layers3, Search, ShoppingCart } from "lucide-react";
 import type { Product } from "@/components/product-card";
@@ -568,6 +568,9 @@ const VisualizerPage = () => {
   const [pickerClosing, setPickerClosing] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const tabBarRef = useRef<HTMLDivElement>(null);
+  const tabButtonRefs = useRef<Partial<Record<RoomType, HTMLButtonElement>>>({});
+  const [activeTabPill, setActiveTabPill] = useState({ left: 0, width: 0 });
   // Keyed by room type — a tile picked while designing the bathroom must
   // never bleed onto the bedroom (or any other room) just because they share
   // this one page. Each room keeps its own floor/wall picks, and switching
@@ -608,6 +611,18 @@ const VisualizerPage = () => {
   // derived value, not state, so there's nothing to synchronize via effect.
   const effectiveRoomType = activeRoomType ?? visibleTabs[0]?.type ?? null;
   const activeRoomRow = effectiveRoomType ? roomsByType.get(effectiveRoomType) : undefined;
+
+  const switchRoom = (nextRoom: RoomType) => {
+    if (nextRoom === effectiveRoomType) return;
+    setActiveRoomType(nextRoom);
+  };
+
+  useLayoutEffect(() => {
+    const bar = tabBarRef.current;
+    const button = effectiveRoomType ? tabButtonRefs.current[effectiveRoomType] : undefined;
+    if (!bar || !button) return;
+    setActiveTabPill({ left: button.offsetLeft, width: button.offsetWidth });
+  }, [effectiveRoomType, visibleTabs]);
 
   const { data: existingDesign } = useApi(
     () => (designIdParam ? roomsApi.getDesign(designIdParam) : Promise.resolve(null)),
@@ -1004,17 +1019,29 @@ const VisualizerPage = () => {
                 same viewport at the same z-index, and DOM order alone would
                 let a room mid-load paint over these tabs and hide them. */}
             <div className="absolute left-3 right-3 top-3 z-20 sm:left-4 sm:right-auto">
-              <div className="scrollbar-hide flex gap-1 overflow-x-auto rounded-full bg-white/95 p-1 shadow-sm backdrop-blur-sm">
+              <div
+                ref={tabBarRef}
+                className="scrollbar-hide relative flex gap-1 overflow-x-auto rounded-full bg-white/95 p-1 shadow-sm backdrop-blur-sm"
+              >
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute bottom-1 left-0 top-1 z-0 rounded-full bg-ink transition-[left,width] duration-300 ease-out"
+                  style={{ left: activeTabPill.left, width: activeTabPill.width }}
+                />
                 {visibleTabs.map((tab) => (
                   <Button
                     key={tab.type}
                     type="button"
                     variant="ghost"
-                    onClick={() => setActiveRoomType(tab.type)}
+                    onClick={() => switchRoom(tab.type)}
+                    ref={(button) => {
+                      if (button) tabButtonRefs.current[tab.type] = button;
+                      else delete tabButtonRefs.current[tab.type];
+                    }}
                     className={cn(
-                      "h-9 shrink-0 rounded-full px-4 text-sm font-semibold transition-all duration-300 sm:h-10 sm:px-5",
+                      "relative z-10 h-9 shrink-0 rounded-full px-4 text-sm font-semibold transition-colors duration-200 sm:h-10 sm:px-5",
                       effectiveRoomType === tab.type
-                        ? "bg-ink text-white hover:bg-ink hover:text-white"
+                        ? "text-white hover:bg-transparent hover:text-white"
                         : "text-ink hover:bg-muted-background",
                     )}
                   >

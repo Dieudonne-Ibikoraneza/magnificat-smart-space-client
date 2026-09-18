@@ -2183,7 +2183,7 @@
       "subtitle": "Shyiraho igenamiterere n'ibyifuzo by'ibanze bya sisiteme.",
       "saveAllChanges": "Bika Impinduka Zose",
       "saving": "Kubika…",
-      "lastSynced": "Byahinduwe bwa nyuma: {{time}}",
+      "lastSynced": "Byahinduwe bwa nyuma: {{date}}, {{time}}",
       "aiRecommendations": "Ibyifuzo bya AI",
       "aiRecommendationsSub": "Genzura uburyo AI itanga ibyifuzo n'ibibazo bimenyesha abakiriya.",
       "addQuestion": "Ongeramo Ikibazo",

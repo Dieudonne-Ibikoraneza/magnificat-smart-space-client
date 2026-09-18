@@ -23,6 +23,9 @@ const MODEL_URL = "/models/rooms/modern_bathroom.glb";
  */
 const SHELL = { minX: -1.44, maxX: 1.46, minY: 0.12, maxY: 2.45, frontZ: -2.3 };
 const FRONT_WALL_NAME = "Bathroom_FrontWall";
+/** Bounds measured from the arched opening and the outside edge of its black trim. */
+const WINDOW_OPENING = { frontZ: -0.128, backZ: 1.142, trimX: 1.51 };
+const SKIRTING_INSET = 0.006;
 
 /**
  * Floor and walls are separate meshes (no `combinedShell`), but
@@ -50,9 +53,9 @@ const SURFACE_OVERRIDE: SurfaceOverride = {
  */
 const PLASTER = new MeshStandardMaterial({
   name: "BathroomPlaster",
-  color: 0xf4f2ee,
-  emissive: 0xffffff,
-  emissiveIntensity: 0.3,
+  color: 0xeceae5,
+  emissive: 0xeceae5,
+  emissiveIntensity: 0.16,
   roughness: 0.95,
   metalness: 0,
 });
@@ -88,15 +91,43 @@ const prepareBathroom = (room: Object3D) => {
     room.add(backing);
   }
 
-  // Skirting round the floor. The window wall's run is split either side of
-  // the window, which reaches the floor in its own alcove (z -0.13..1.14),
-  // and the boxed corner at the back right gets its own two faces.
+  // Skirting round the floor. The window wall's straight runs stop at the
+  // floor-level arched opening, then short perpendicular returns bridge from
+  // those corners to the black window trim. Accounting for the shared inset
+  // makes each pair meet exactly rather than overlap or leave a gap.
   addSkirting(room, {
     floorY: SHELL.minY,
+    inset: SKIRTING_INSET,
     walls: [
       { axis: "x", at: SHELL.minX, from: SHELL.frontZ, to: 1.89, inward: 1 },
-      { axis: "x", at: SHELL.maxX, from: SHELL.frontZ, to: -0.13, inward: -1 },
-      { axis: "x", at: SHELL.maxX, from: 1.14, to: 1.6, inward: -1 },
+      {
+        axis: "x",
+        at: SHELL.maxX,
+        from: SHELL.frontZ,
+        to: WINDOW_OPENING.frontZ + SKIRTING_INSET,
+        inward: -1,
+      },
+      {
+        axis: "z",
+        at: WINDOW_OPENING.frontZ,
+        from: SHELL.maxX - SKIRTING_INSET,
+        to: WINDOW_OPENING.trimX,
+        inward: 1,
+      },
+      {
+        axis: "z",
+        at: WINDOW_OPENING.backZ,
+        from: SHELL.maxX - SKIRTING_INSET,
+        to: WINDOW_OPENING.trimX,
+        inward: -1,
+      },
+      {
+        axis: "x",
+        at: SHELL.maxX,
+        from: WINDOW_OPENING.backZ - SKIRTING_INSET,
+        to: 1.6,
+        inward: -1,
+      },
       { axis: "z", at: SHELL.frontZ, from: SHELL.minX, to: SHELL.maxX, inward: 1 },
       // The back wall's lower half stands 15 cm in front of the upper half.
       { axis: "z", at: 1.74, from: SHELL.minX, to: 1.1, inward: -1 },

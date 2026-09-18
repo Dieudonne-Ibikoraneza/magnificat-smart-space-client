@@ -58,10 +58,14 @@ const SURFACE_OVERRIDE: SurfaceOverride = {
   wall: ["WindowWall_Wall_0", "Structure_Wall_0", "Tiles_Tiles_0", LEFT_WALL_NAME],
 };
 
-/** Stands in for the missing wall until a tile is chosen; matches the model's own plaster. */
+/**
+ * Fallback for the missing wall while a selected tile image loads or cannot
+ * be fetched. The source model's untouched side-wall texture averages to this
+ * warm off-white, so the fallback does not flash a different grey.
+ */
 const PLASTER = new MeshStandardMaterial({
   name: "KitchenPlaster",
-  color: 0xe8e7e3,
+  color: 0xf4f2f0,
   roughness: 0.95,
   metalness: 0,
 });
@@ -132,8 +136,9 @@ const RIG: RoomCameraRig = {
     },
   },
   views: {
-    // The open floor in front of the island.
-    floor: { position: [0.7, 1.9, 1.4], target: [0.7, -0.05, 2.6] },
+    // Open floor behind the stool backs (stools end at x -0.96).
+    // Both the camera and its zoom target stay on this side of the island.
+    floor: { position: [-1.8, 1.8, 2.1], target: [-1.8, -0.05, 0.5] },
     // The splashback behind the counters — the kitchen's tiled wall.
     wall: { position: [1.4, 1.15, 0.3], target: [2.95, 1.05, 0.3] },
     // Up past the island's pendant lights.
@@ -145,8 +150,12 @@ const RIG: RoomCameraRig = {
   ),
   fixtureZones: fixtureZones(
     [
-      // Island, its stools and the pendant lights hanging over it.
-      [[-1.0, -0.08, -0.89], [0.24, 2.36, 1.89]],
+      // The stools are deliberately not a single collision zone: their
+      // combined mesh spans the gaps between them, and that box blocked the
+      // open floor behind the chairs. The camera may inspect that floor; the
+      // counter and wall zones below still prevent it entering solid fixtures.
+      // Pendant lights are narrow enough to keep as their own ceiling zone.
+      [[-0.11, 1.7, -0.47], [0.11, 2.36, 1.54]],
       // Counter run: base units, splashback, wall units and the oven column.
       [[1.85, -0.08, -1.98], [3.07, 2.36, 1.93]],
       // Behind the partition at the back corner is the stairwell, not the kitchen.

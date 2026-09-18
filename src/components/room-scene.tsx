@@ -183,6 +183,15 @@ const GROUT_WIDTH_M = 0.003;
 const GROUT_DARKEN = 0.4;
 
 /**
+ * Tile photos already contain their own neutral colour information. A small
+ * texture-coloured self-fill stops the room's warm/cool directional lights
+ * from making identical tiles look like different products on perpendicular
+ * walls or on the floor, while still leaving enough physical shading to show
+ * corners and depth.
+ */
+const TILE_SELF_FILL = 0.25;
+
+/**
  * Source photos for tiles like these (`Terrazzo Tile No Lighting No
  * Border.png`, `Beige Tile Only No Lighting HD.png`) are shot edge-to-edge
  * with no grout baked in, so a repeating texture alone reads as one seamless
@@ -203,8 +212,11 @@ const useTileMaterial = (texture: THREE.Texture | null, tileSize: [number, numbe
 
     const nextMaterial = new THREE.MeshStandardMaterial({
       map: texture,
-      roughness: 0.45,
-      metalness: 0.05,
+      emissive: 0xffffff,
+      emissiveMap: texture,
+      emissiveIntensity: TILE_SELF_FILL,
+      roughness: 0.55,
+      metalness: 0.02,
       side: THREE.DoubleSide,
     });
     const [width, height] = tileSize;
