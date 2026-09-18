@@ -241,33 +241,6 @@ const isFloor = (name: string) => name === "Floor";
 const isWall = (name: string) => name.startsWith("Wall_");
 
 /**
- * The `Floor` / `Wall_*` naming convention above is a contract this app
- * controls — it's what `scripts/generate-room-models.mjs` deliberately names
- * things. A model sourced elsewhere (e.g. a downloaded Sketchfab asset) comes
- * with whatever names its own author used, so it needs its tileable meshes
- * looked up by an explicit list instead. Keyed by `modelUrl`; a model with no
- * entry here falls through to the naming convention as normal.
- */
-const MODEL_SURFACE_OVERRIDES: Record<string, SurfaceOverride> = {
-  "/models/rooms/modern_kitchen.glb": {
-    floor: ["Floor_Wall_0"],
-    /**
-     * Both walls, despite the confusingly similar `*_Wall_0` names:
-     *
-     * - `WindowWall_Wall_0` is the kitchen's big interior wall — the broad
-     *   surface beside the window.
-     * - `Structure_Wall_0` is the house shell, which is what the stairs side
-     *   of the room is made of.
-     *
-     * The shell also carries the window's reveal welded into the same mesh;
-     * `prepareTileableGroups` separates that out so the tile lands on the
-     * wall and not on the few centimetres of jamb around the glass.
-     */
-    wall: ["WindowWall_Wall_0", "Structure_Wall_0"],
-  },
-};
-
-/**
  * A sourced model can weld unrelated trim into the same mesh as the wall it
  * borders. `modern_kitchen.glb`'s `Structure_Wall_0` is one such mesh: it is
  * the house shell (22.5 m across, ~498 m² of surface) *plus* a separate
@@ -726,7 +699,13 @@ const splitByOrientation = (object: THREE.Mesh): { floorCount: number; wallCount
   };
 };
 
-/** A model's tileable meshes, explicit rather than guessed from names — see `MODEL_SURFACE_OVERRIDES`. */
+/**
+ * A model's tileable meshes, explicit rather than guessed from names. A
+ * sourced model (e.g. a downloaded Sketchfab asset) comes with whatever
+ * names its own author used, so each room component passes its own list;
+ * models from `scripts/generate-room-models.mjs` follow the `Floor` /
+ * `Wall_*` convention above instead and need none.
+ */
 export type SurfaceOverride = {
   /** Meshes tiled wholesale as floor. */
   floor?: string[];
@@ -743,8 +722,6 @@ export type SurfaceOverride = {
   /** Meshes needing `splitByOrientation` because they weld floor/wall/ceiling into one surface. */
   combinedShell?: string[];
 };
-
-const surfaceOverrideFor = (modelUrl: string): SurfaceOverride | undefined => MODEL_SURFACE_OVERRIDES[modelUrl];
 
 const roleForSurface = (name: string, override: SurfaceOverride | undefined): "floor" | "wall" | null => {
   if (override) {
@@ -807,10 +784,10 @@ const GL = { antialias: true };
 
 /**
  * Default camera rig, tuned for the ~4 m procedurally generated rooms (see
- * `scripts/generate-room-models.mjs`). A model with its own entry in
- * `MODEL_CAMERA_CONFIGS` below overrides this wholesale — a downloaded asset
- * can be built at an entirely different scale and origin, so there's no
- * sensible way to derive its rig from this one.
+ * `scripts/generate-room-models.mjs`). A sourced model can be built at an
+ * entirely different scale and origin, so there's no sensible way to derive
+ * its rig from this one: those pass their own `cameraConfig` (see
+ * `components/visualizer/*`).
  */
 const DEFAULT_CAMERA_CONFIG: CameraConfig = {
   // Chosen to sit comfortably inside `orbitLimits` below (~4 m out, ~80°
@@ -854,117 +831,6 @@ const DEFAULT_CAMERA_CONFIG: CameraConfig = {
     maxPolarAngle: Math.PI / 2.05, // ~87.8° off vertical.
   },
 };
-
-/**
- * `modern_kitchen.glb` (doc: sourced from Sketchfab, not generated here) is
- * a whole open-plan ground floor — kitchen, stairwell, and all — built many
- * times larger than the procedural rooms and centred nowhere near its own
- * origin. `position`/`target` below were measured by dumping this model's
- * own bounding boxes (`Box3.setFromObject` per mesh) rather than guessed:
- * the kitchen run (cupboards/counters/sink/hob) centres around world x≈3,
- * z≈0.5, and the floor sits at y≈-0.18, so a standing eye-height target is
- * y≈1.3. The camera itself sits back near where the breakfast stools are,
- * a little above eye height, angled in on that run — the same kind of
- * three-quarter framing as the source listing's own preview render.
- *
- * `position.x` is deliberately kept a couple of metres clear of the
- * exterior wall (which sits at x≈-6.48, the floor mesh's own boundary): an
- * earlier attempt put the camera at x=-6.5 — almost touching that wall — so
- * one edge of frame was a metres-away, badly minified close-up of it,
- * blown out to a flat wash by the tile texture's own mip levels (the same
- * effect the procedural rooms' curtains hit at a grazing angle), while the
- * rest of frame read fine. It looked exactly like "the wall tile is on the
- * wrong spot" — it wasn't; the camera was just standing inside the wall's
- * near field.
- */
-const MODEL_CAMERA_CONFIGS: Record<string, CameraConfig> = {
-  "/models/rooms/modern_kitchen.glb": {
-    /**
-     * ~9.2 m back along the same three-quarter line as before (was 8 m), so
-     * more of the run is in frame from the outset.
-     *
-     * The target sits at 0.8 m rather than eye height, which drops the whole
-     * rig (the position is the target plus an offset) to a camera height of
-     * ~1.7 m. That is what puts floor *behind the stools* in frame: the
-     * bottom of the frame is a fixed angle below the view axis, so how close
-     * to the camera it meets the floor depends on how high the camera is,
-     * not on how far back it is. At the old 2.4 m the nearest visible floor
-     * was x≈-1.4 — level with the stools at x≈-1.6, so they sat hard on the
-     * bottom edge. At 1.7 m it reaches x≈-2.5, clearing ~0.9 m behind them.
-     * Raising the camera instead does the opposite: it lifts the near floor
-     * further out of frame.
-     */
-    position: [-5.1, 1.44, 3.76],
-    target: [3, 0.5, -0.5],
-    near: 0.1,
-    far: 100,
-    /**
-     * This default `position`/`target` pair sits at azimuth ≈ -62°, not 0°
-     * (it's a deliberately angled three-quarter view, matching the source
-     * listing's own preview render) — so unlike the procedural rooms, the
-     * azimuth window here is centred on *that* angle, not on dead-ahead.
-     * Centring it on 0° instead once clamped the default view itself down
-     * to a near-zero-distance snap on mount, because the un-clamped default
-     * fell way outside a window centred elsewhere. The window is narrow
-     * (±20°) because, unlike the procedural rooms' closed boxes, this is an
-     * open-plan house shell — swing much further and the camera points at
-     * the blank back of unfurnished walls and the stairwell that were never
-     * meant to be seen head-on.
-     */
-    /**
-     * Wide, because the camera is boxed in indoors. Backing up runs into a
-     * wall at ~10 m from this target, and at the old 50° that framed only
-     * ~9 m of room — *less* than before it was confined, which is the wrong
-     * direction. At 75° the same 10 m frames ~15 m, so the whole 13.4 m room
-     * fits with the camera still inside it.
-     */
-    horizontalFov: 75,
-    orbitLimits: {
-      // Close enough to read the tile's texture/grout lines up close;
-      // `bounds` (not this number) is what actually stops the dolly before
-      // a wall, so pulling this in further can't newly clip anything.
-      minDistance: 0.6,
-      // Deliberately past what the room allows: `bounds` is the real stop,
-      // so the dolly runs until the camera actually reaches a wall rather
-      // than halting early at a number that has to guess where the walls are.
-      maxDistance: 16,
-      // Asymmetric on purpose: swinging toward 0° (measured, camera at
-      // pos≈(-4.2,2.6,7.45)) put the camera almost against a wall past the
-      // kitchen's far corner, filling the frame with a close-up of it.
-      minAzimuthAngle: (-62.24 - 20) * (Math.PI / 180),
-      maxAzimuthAngle: (-62.24 + 8) * (Math.PI / 180),
-      // 72°, not 69°: at the far end of the dolly the shallower angle lifted
-      // the camera to roughly ceiling height, which is where the view started
-      // looking down onto the top of the model instead of into the room.
-      minPolarAngle: (72 * Math.PI) / 180,
-      maxPolarAngle: Math.PI / 2.05,
-    },
-    /**
-     * The room's own interior, measured off the model, pulled in far enough
-     * that the camera never sits in a wall: the floor runs x -6.48..6.90 and
-     * z -4.46..7.45, and the walls stop at y 5.32 (`WindowWall_Wall_0` is
-     * 5.5 m tall from a floor at y -0.18, and the ceiling slab's underside
-     * agrees).
-     *
-     * `max[1]` is well under that, at 3.6 rather than something closer to
-     * the walls' own 5.32 — not for the walls' sake, but for the pendant
-     * lights hanging over the island: their cords run most of the way up to
-     * the ceiling, and swinging to the far azimuth limit while tilted all
-     * the way up put the camera up near y=4.9, close enough to one that its
-     * thin cord — nearly end-on from up there — stretched across the frame.
-     * 3.6 sits just above the ~3.34 the default azimuth's own tilt-up
-     * reaches (already checked clean), so the well-behaved views keep their
-     * full range and only the combination that reached the cords is cut off.
-     */
-    bounds: {
-      min: [-6.25, 0.8, -4.15],
-      max: [6.65, 3.6, 7.15],
-    },
-  },
-};
-
-const cameraConfigFor = (modelUrl: string): CameraConfig =>
-  MODEL_CAMERA_CONFIGS[modelUrl] ?? DEFAULT_CAMERA_CONFIG;
 
 /**
  * Keeps the camera inside the room, whatever the orbit limits allow. Runs at
@@ -1145,7 +1011,7 @@ const RoomModel = ({
   modelUrl: string;
   floorTile?: Product;
   wallTile?: Product;
-  /** Explicit tileable-mesh list; falls back to `MODEL_SURFACE_OVERRIDES[modelUrl]`, then the naming convention. */
+  /** Explicit tileable-mesh list; falls back to the `Floor` / `Wall_*` naming convention. */
   surfaceOverride?: SurfaceOverride;
   /** See `RoomScene`'s prop of the same name. */
   prepareScene?: (room: THREE.Object3D) => void;
@@ -1196,7 +1062,7 @@ const RoomModel = ({
     if (!tilesReady) return;
 
     const baseline = originals.current;
-    const override = surfaceOverride ?? surfaceOverrideFor(modelUrl);
+    const override = surfaceOverride;
 
     room.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
@@ -1415,13 +1281,9 @@ export const RoomScene = ({
   wallTile?: Product;
   className?: string;
   /**
-   * Own the room's camera rig here instead of adding another entry to the
-   * internal `MODEL_CAMERA_CONFIGS` map — the point of taking it as a prop
-   * (see `components/visualizer/living-room.tsx`) is that a per-room
-   * component can carry its own tuning without this file growing an entry
-   * per sourced model. Falls back to `MODEL_CAMERA_CONFIGS[modelUrl]`, then
-   * `DEFAULT_CAMERA_CONFIG`, for callers (Kitchen, still wired inline in the
-   * visualizer page) that predate this prop.
+   * Each room owns its own camera rig (see `components/visualizer/*`), so
+   * this file doesn't grow an entry per sourced model. Falls back to
+   * `DEFAULT_CAMERA_CONFIG`, which suits the procedurally generated rooms.
    */
   cameraConfig?: CameraConfig;
   /** Same idea as `cameraConfig`, for which meshes are tileable. */
@@ -1458,13 +1320,13 @@ export const RoomScene = ({
     );
   }
 
-  const cameraConfig = cameraConfigProp ?? cameraConfigFor(modelUrl);
+  const cameraConfig = cameraConfigProp ?? DEFAULT_CAMERA_CONFIG;
 
   return (
     <div className={cn("relative", className)}>
       <RoomLoadingOverlay key={`loading:${modelUrl}`} modelUrl={modelUrl} visible={!sceneReady} />
       {/* Keyed by modelUrl: switching to a model at a wildly different scale
-          (see `MODEL_CAMERA_CONFIGS`) needs a fresh camera/controls instance,
+          needs a fresh camera/controls instance,
           not OrbitControls carrying over stale internal state tuned for the
           previous room's size. */}
       <Canvas

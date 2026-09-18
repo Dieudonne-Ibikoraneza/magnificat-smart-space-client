@@ -43,9 +43,9 @@ type SurfaceSelections = Record<Surface, Product | null>;
 const EMPTY_SELECTIONS: SurfaceSelections = { floor: null, walls: null };
 
 /**
- * The four room types the app supports, each with a 3D scene authored
- * (`RoomScene`'s generic GLB viewer for Kitchen, dedicated tuned components
- * for the rest). A room with no backing `Room` row is filtered out below
+ * The four room types the app supports, each with its own tuned 3D scene
+ * component (`components/visualizer/*`). A room with no backing `Room` row is
+ * filtered out below
  * rather than shown as a tab that goes nowhere.
  */
 type RoomTabKey =
@@ -66,16 +66,6 @@ const surfaceToRoomSurface: Record<Surface, "FLOOR" | "WALL"> = {
   walls: "WALL",
 };
 
-/**
- * `RoomScene`'s own camera rig and tileable-mesh maps (`room-scene.tsx`) are
- * keyed by this exact literal string — never swap in the backend `Room` row's
- * `modelUrl` here, even though the same Kitchen room also has one: a
- * different GLB (however similarly named) has no entry in those maps and
- * silently falls back to generic camera/surface defaults, which is a broken
- * scene, not just a different-looking one.
- */
-const KITCHEN_MODEL_URL = "/models/rooms/modern_kitchen.glb";
-
 // three.js pulls in a WebGL renderer that can't run during SSR, and a room
 // GLB runs from several hundred KB to tens of MB — both are reasons to keep
 // it out of the initial page bundle and mount it only in the browser.
@@ -88,7 +78,7 @@ const RoomLoadingFallback = () => {
   );
 };
 
-const RoomScene = dynamic(() => import("@/components/room-scene").then((mod) => mod.RoomScene), {
+const Kitchen = dynamic(() => import("@/components/visualizer/kitchen"), {
   ssr: false,
   loading: RoomLoadingFallback,
 });
@@ -1045,12 +1035,7 @@ const VisualizerPage = () => {
             ) : effectiveRoomType === "BEDROOM" ? (
               <Bedroom floorTile={floorTile} wallTile={wallTile} className="relative flex-1" />
             ) : effectiveRoomType === "KITCHEN" ? (
-              <RoomScene
-                modelUrl={KITCHEN_MODEL_URL}
-                floorTile={floorTile}
-                wallTile={wallTile}
-                className="relative flex-1"
-              />
+              <Kitchen floorTile={floorTile} wallTile={wallTile} className="relative flex-1" />
             ) : null}
 
             {/* Same reasoning as the tabs above — kept above the room's own loading overlay. */}
