@@ -389,12 +389,14 @@ export const cartNegotiationsApi = {
   submit: (
     items: { productId: string; productName: string; requestedAreaSqm: number; availabilityNote: string }[],
     body: string,
-  ) => api.post<ApiCartNegotiation>("/cart-negotiations", { items, body }),
+    /** `true` when `items` is the whole cart ("share my cart") — products no longer in it leave the thread's item list. */
+    snapshot?: boolean,
+  ) => api.post<ApiCartNegotiation>("/cart-negotiations", { items, body, snapshot }),
 
   /** The calling customer's own thread, or `null` if they've never had one. */
   mine: () => api.get<ApiCartNegotiation | null>("/cart-negotiations/mine"),
 
-  /** Deletes the calling customer's own thread entirely — a fresh start, not an archive. */
+  /** Clears the customer's own view of their thread — a fresh start for them; the stock team keeps the full record. */
   clearMine: () => api.delete<{ cleared: boolean }>("/cart-negotiations/mine"),
 
   postMessage: (id: string, body: string) =>

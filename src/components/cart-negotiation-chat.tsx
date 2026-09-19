@@ -32,8 +32,8 @@ export type CartLineSummary = {
  * conversation exists — lowering a quantity or a restock ends the shortage, not
  * the conversation, so the customer can still read and answer a later staff
  * reply (a new one shows as an unread count on the bubble). It leaves only
- * when the customer clears the chat. The thread itself is otherwise never
- * deleted: the stock manager keeps it in their inbox as a permanent record.
+ * when the customer clears the chat — which clears their own view, never the
+ * thread: the stock manager keeps it in their inbox as a permanent record.
  */
 export const CartNegotiationChat = ({
   shortages,
@@ -224,7 +224,7 @@ export const CartNegotiationChat = ({
     setSharing(true);
     stickToBottomRef.current = true;
     try {
-      const updated = await cartNegotiationsApi.submit(cartItems, "Here's my current cart.");
+      const updated = await cartNegotiationsApi.submit(cartItems, "Here's my current cart.", true);
       setNegotiation(updated);
     } catch (cause) {
       toast.error(t("dash.cartNegotiation.toastShareFailed"), {
@@ -235,7 +235,7 @@ export const CartNegotiationChat = ({
     }
   };
 
-  /** Deletes this thread outright — a fresh start, not an archive. */
+  /** A fresh start for this customer's own view — the stock team keeps the whole conversation as its record. */
   const clearChat = async () => {
     setClearing(true);
     try {
