@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { DeliveryDetailsDialog } from "@/components/delivery-details-dialog";
+import { DeliveryDetailsDialog, type DeliverySubmitResult } from "@/components/delivery-details-dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -111,7 +111,7 @@ export const OrderQuotationPanel = ({
 
   const deliveryEditable = canEditDelivery && quotationStatus === "AWAITING_REVIEW" && !orderCancelled;
 
-  const handleSaveDelivery = async (values: DeliveryDetails) => {
+  const handleSaveDelivery = async (values: DeliveryDetails): Promise<DeliverySubmitResult> => {
     setSavingDelivery(true);
     try {
       await ordersApi.saveDeliveryDetails(orderId, {
@@ -123,10 +123,12 @@ export const OrderQuotationPanel = ({
         notes: values.notes || undefined,
       });
       onUpdated();
+      return "saved";
     } catch (cause) {
       toast.error(t("staff.quotationPanel.toastSaveDeliveryFailedTitle"), {
         description: cause instanceof ApiError ? cause.message : t("staff.quotationPanel.toastTryAgain"),
       });
+      return "retry";
     } finally {
       setSavingDelivery(false);
     }
@@ -197,7 +199,7 @@ export const OrderQuotationPanel = ({
                   ? toDeliveryDetails(deliveryDetails)
                   : { contactName: customerName ?? "", phone: customerPhone ?? "", address: "", city: "", preferredDate: "", notes: "" }
               }
-              onSubmit={(values) => void handleSaveDelivery(values)}
+              onSubmit={handleSaveDelivery}
               successDescription={t("staff.quotationPanel.deliverySaved")}
               defaultOpen={autoOpenDelivery && !deliveryDetails}
               trigger={

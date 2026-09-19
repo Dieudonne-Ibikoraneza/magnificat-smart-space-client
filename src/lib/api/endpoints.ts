@@ -298,6 +298,15 @@ export const ordersApi = {
     items: { productId: string; areaSqm: number }[];
     customerId?: string;
     notes?: string;
+    /** Saved in the same transaction as the order — checkout is one request, not create-then-save. */
+    delivery?: {
+      contactName: string;
+      phone: string;
+      address: string;
+      city: string;
+      preferredDate?: string;
+      notes?: string;
+    };
   }) => api.post<PlaceOrderResult>("/orders", body),
 
   list: (

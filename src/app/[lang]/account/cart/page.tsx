@@ -9,7 +9,7 @@ import { CartSkeleton } from "@/components/skeletons";
 import { stockLabels } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { DeliveryDetailsDialog } from "@/components/delivery-details-dialog";
+import { DeliveryDetailsDialog, type DeliverySubmitResult } from "@/components/delivery-details-dialog";
 import { CartNegotiationChat, type CartLineSummary } from "@/components/cart-negotiation-chat";
 import { toast } from "@/components/ui/toast";
 import { ordersApi } from "@/lib/api";
@@ -95,12 +95,26 @@ const CartPage = () => {
     availabilityNote: stockLabels[line.product.stockStatus],
   }));
 
-  const handleOrderSubmit = async (deliveryDetails: DeliveryDetails) => {
+  /**
+   * One request: the order and its delivery details are created together, so a
+   * failure can't leave an order behind (a retry would then place a second one
+   * and hold the stock twice). The dialog stays open on failure and closes only
+   * once the order exists.
+   */
+  const handleOrderSubmit = async (deliveryDetails: DeliveryDetails): Promise<DeliverySubmitResult> => {
     setPlacingOrder(true);
     try {
       const result = await ordersApi.create({
         type: "PURCHASE",
         items: cart.lines.map((line) => ({ productId: line.productId, areaSqm: line.areaSqm })),
+        delivery: {
+          contactName: deliveryDetails.contactName,
+          phone: deliveryDetails.phone,
+          address: deliveryDetails.address,
+          city: deliveryDetails.city,
+          preferredDate: deliveryDetails.preferredDate || undefined,
+          notes: deliveryDetails.notes || undefined,
+        },
       });
 
       if (!result.orderCreated) {
@@ -114,26 +128,20 @@ const CartPage = () => {
         toast.warning(t("dash.cart.toastCantPlaceTitle"), {
           description: t("dash.cart.toastCantPlaceBody"),
         });
-        return;
+        return "dismiss";
       }
 
       const order = result.order;
       const waitlisted = order.status === "WAITLISTED";
-      await ordersApi.saveDeliveryDetails(order.id, {
-        contactName: deliveryDetails.contactName,
-        phone: deliveryDetails.phone,
-        address: deliveryDetails.address,
-        city: deliveryDetails.city,
-        preferredDate: deliveryDetails.preferredDate || undefined,
-        notes: deliveryDetails.notes || undefined,
-      });
       cart.clear();
       setSubmitted({ deliveryDetails, orderId: order.id, waitlisted });
       toast.success(waitlisted ? t("dash.cart.toastWaitlistedTitle") : t("dash.cart.toastSubmittedTitle"), {
         description: waitlisted ? t("dash.cart.toastWaitlistedBody") : t("dash.cart.toastSubmittedBody"),
       });
+      return "dismiss";
     } catch (cause) {
       toast.error(t("dash.cart.toastPlaceFailedTitle"), { description: errorMessage(cause, t("dash.tryAgain")) });
+      return "retry";
     } finally {
       setPlacingOrder(false);
     }
@@ -351,7 +359,7 @@ const CartPage = () => {
             <strong className="text-2xl">{formatPrice(cart.total)}</strong>
           </div>
           <DeliveryDetailsDialog
-            onSubmit={(details) => void handleOrderSubmit(details)}
+            onSubmit={handleOrderSubmit}
             trigger={
               <Button
                 type="button"

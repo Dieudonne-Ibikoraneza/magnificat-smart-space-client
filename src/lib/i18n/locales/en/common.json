@@ -711,6 +711,7 @@
       "notesPlaceholder": "Access instructions, site contact, etc.",
       "cancel": "Cancel",
       "save": "Save delivery details",
+      "saving": "Saving…",
       "toastSaved": "Delivery details saved",
       "defaultSuccess": "Attached to your order for the stock team to review."
     },

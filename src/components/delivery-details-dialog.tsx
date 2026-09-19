@@ -33,6 +33,15 @@ const emptyDetails: DeliveryDetails = {
   notes: "",
 };
 
+/**
+ * What the caller's `onSubmit` reports back. The dialog only closes — and only
+ * announces success — once the work has actually finished:
+ * - `saved` (also what a plain `void` means): close and toast "saved".
+ * - `retry`: it failed; stay open with the typed values so the user can try again.
+ * - `dismiss`: close without the "saved" toast (the caller has its own outcome to show).
+ */
+export type DeliverySubmitResult = "saved" | "retry" | "dismiss";
+
 export const DeliveryDetailsDialog = ({
   trigger,
   initialValue,
@@ -42,7 +51,7 @@ export const DeliveryDetailsDialog = ({
 }: {
   trigger: ReactElement;
   initialValue?: DeliveryDetails;
-  onSubmit: (details: DeliveryDetails) => void;
+  onSubmit: (details: DeliveryDetails) => Promise<DeliverySubmitResult | void> | DeliverySubmitResult | void;
   /** Customer-facing copy by default; staff callers (adding it on a customer's behalf) pass their own. */
   successDescription?: string;
   /** Opens the dialog immediately on mount — e.g. right after a staff member creates an order, prompting for delivery details before they even look for the button. */
@@ -59,6 +68,7 @@ export const DeliveryDetailsDialog = ({
 
   const [open, setOpen] = useState(defaultOpen);
   const [values, setValues] = useState<DeliveryDetails>(defaultValue);
+  const [submitting, setSubmitting] = useState(false);
 
   const update = (key: keyof DeliveryDetails) => (event: { target: { value: string } }) =>
     setValues((current) => ({ ...current, [key]: event.target.value }));
@@ -72,18 +82,29 @@ export const DeliveryDetailsDialog = ({
     values.address.trim() !== "" &&
     values.city.trim() !== "";
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!valid) return;
-    onSubmit(values);
+    if (!valid || submitting) return;
+    setSubmitting(true);
+    let result: DeliverySubmitResult | void;
+    try {
+      result = await onSubmit(values);
+    } catch {
+      result = "retry";
+    } finally {
+      setSubmitting(false);
+    }
+    if (result === "retry") return;
     setOpen(false);
-    toast.success(t("dash.deliveryDialog.toastSaved"), { description: successText });
+    if (result !== "dismiss") toast.success(t("dash.deliveryDialog.toastSaved"), { description: successText });
   };
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
+        // Not while a save is in flight — closing would hide its outcome.
+        if (submitting) return;
         setOpen(next);
         if (next) setValues(defaultValue());
       }}
@@ -100,7 +121,7 @@ export const DeliveryDetailsDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+        <form onSubmit={(event) => void handleSubmit(event)} className="mt-5 space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field>
               <FieldLabel htmlFor="delivery-contact-name" className="text-sm font-medium text-ink">{t("dash.deliveryDialog.contactName")}</FieldLabel>
@@ -128,11 +149,11 @@ export const DeliveryDetailsDialog = ({
           </Field>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="h-10 px-5 text-sm font-bold">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
               {t("dash.deliveryDialog.cancel")}
             </Button>
-            <Button type="submit" disabled={!valid} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
-              {t("dash.deliveryDialog.save")}
+            <Button type="submit" disabled={!valid || submitting} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
+              {submitting ? t("dash.deliveryDialog.saving") : t("dash.deliveryDialog.save")}
             </Button>
           </DialogFooter>
         </form>

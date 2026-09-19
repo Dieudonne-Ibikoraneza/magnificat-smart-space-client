@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { CalendarClock, MapPin, Pencil, Phone, StickyNote, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
-import { DeliveryDetailsDialog } from "@/components/delivery-details-dialog";
+import { DeliveryDetailsDialog, type DeliverySubmitResult } from "@/components/delivery-details-dialog";
 import { ordersApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import type { ApiOrderDelivery } from "@/lib/api/types";
@@ -42,7 +42,7 @@ export const DeliveryDetailsCard = ({
   const [saving, setSaving] = useState(false);
   const details = initial ? toDeliveryDetails(initial) : undefined;
 
-  const handleSubmit = async (values: DeliveryDetails) => {
+  const handleSubmit = async (values: DeliveryDetails): Promise<DeliverySubmitResult> => {
     setSaving(true);
     try {
       const saved = await ordersApi.saveDeliveryDetails(orderId, {
@@ -54,10 +54,12 @@ export const DeliveryDetailsCard = ({
         notes: values.notes || undefined,
       });
       onSaved(saved);
+      return "saved";
     } catch (cause) {
       toast.error(t("dash.deliveryCard.toastFailed"), {
         description: cause instanceof ApiError ? cause.message : t("dash.tryAgain"),
       });
+      return "retry";
     } finally {
       setSaving(false);
     }
@@ -77,7 +79,7 @@ export const DeliveryDetailsCard = ({
         ) : (
           <DeliveryDetailsDialog
             initialValue={details}
-            onSubmit={(values) => void handleSubmit(values)}
+            onSubmit={handleSubmit}
             trigger={
               <Button type="button" variant="outline" size="sm" disabled={saving} className="h-8 gap-1.5 text-xs font-bold">
                 <Pencil className="size-3.5" /> {details ? t("dash.deliveryCard.edit") : t("dash.deliveryCard.add")}
