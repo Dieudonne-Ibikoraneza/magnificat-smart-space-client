@@ -56,6 +56,7 @@ export const OrderQuotationPanel = ({
   customerPhone,
   quotationStatus,
   orderCancelled,
+  orderWaitlisted,
   transportFee,
   transportFeeNote,
   canManage,
@@ -72,6 +73,8 @@ export const OrderQuotationPanel = ({
   quotationStatus: QuotationStatus;
   /** Cancelled is terminal (enforced server-side too) — nothing here stays editable once it's true. */
   orderCancelled: boolean;
+  /** A waitlisted order holds no stock yet — the server refuses to quote it (`orders.service.ts#sendQuotation`). */
+  orderWaitlisted: boolean;
   transportFee: number | null;
   transportFeeNote?: string | null;
   canManage: boolean;
@@ -97,6 +100,15 @@ export const OrderQuotationPanel = ({
   // delivery details lock the moment a quotation goes out (the transport fee
   // was costed against exactly this address), and everything locks once the
   // order is cancelled.
+  // The server also refuses a quotation for a waitlisted order or one without
+  // delivery details (the quotation locks them) — say so here instead of
+  // letting the button fail.
+  const quotationBlockedReason = orderWaitlisted
+    ? t("staff.quotationPanel.quotationNeedsStock")
+    : !deliveryDetails
+      ? t("staff.quotationPanel.quotationNeedsDelivery")
+      : null;
+
   const deliveryEditable = canEditDelivery && quotationStatus === "AWAITING_REVIEW" && !orderCancelled;
 
   const handleSaveDelivery = async (values: DeliveryDetails) => {
@@ -244,9 +256,14 @@ export const OrderQuotationPanel = ({
           {/* Once sent, the transport fee is final — no edit/delete path, on
               purpose: the customer's quotation (and whatever they've already
               paid against it) shouldn't shift under them after the fact. */}
+          {quotationStatus === "AWAITING_REVIEW" && quotationBlockedReason && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-center text-xs font-medium text-amber-700">{quotationBlockedReason}</p>
+          )}
           {quotationStatus === "AWAITING_REVIEW" && (
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger render={<Button type="button" className="h-11 w-full gap-2 text-sm font-bold" />}>
+              <DialogTrigger
+                render={<Button type="button" disabled={quotationBlockedReason !== null} className="h-11 w-full gap-2 text-sm font-bold" />}
+              >
                 <Truck className="size-4" />
                 {t("staff.quotationPanel.addFeeSendQuotation")}
               </DialogTrigger>

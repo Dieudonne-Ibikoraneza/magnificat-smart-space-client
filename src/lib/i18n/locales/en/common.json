@@ -935,6 +935,8 @@
         "PAYMENT_SUBMITTED": "Payment Submitted",
         "PAYMENT_VERIFIED": "Payment Verified"
       },
+      "quotationNeedsStock": "This order is waitlisted — no stock is held for it yet. You can send the quotation once it has been promoted.",
+      "quotationNeedsDelivery": "Add the delivery details first — the quotation locks them once it is sent.",
       "deliveryDetails": "Delivery details",
       "edit": "Edit",
       "add": "Add",

@@ -286,6 +286,7 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
               customerPhone={order.customer?.phone}
               quotationStatus={order.quotationStatus}
               orderCancelled={order.status === "CANCELLED"}
+              orderWaitlisted={order.status === "WAITLISTED"}
               transportFee={order.transportFee ? Number(order.transportFee) : null}
               transportFeeNote={order.transportFeeNote}
               canManage={false}

@@ -935,6 +935,8 @@
         "PAYMENT_SUBMITTED": "Ubwishyu Bwatanzwe",
         "PAYMENT_VERIFIED": "Ubwishyu Bwemejwe"
       },
+      "quotationNeedsStock": "Iri tumizo riri ku rutonde rw'abategereje — nta bicuruzwa biribikiwe. Igiciro kizoherezwa rimaze kwimurwa.",
+      "quotationNeedsDelivery": "Banza wongere ibisobanuro byo gutanga ibicuruzwa — bifungwa igiciro kimaze koherezwa.",
       "deliveryDetails": "Amakuru yo kugezaho",
       "edit": "Hindura",
       "add": "Ongeraho",
