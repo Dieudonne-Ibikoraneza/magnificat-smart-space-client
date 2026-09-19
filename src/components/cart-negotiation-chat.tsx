@@ -28,10 +28,12 @@ export type CartLineSummary = {
  * the customer via `cartNegotiationsApi` and reaches the stock manager's
  * negotiations inbox — see `CartNegotiation` in the server schema for why.
  *
- * Only ever shown while the cart currently has a shortage — placing a working
- * order clears the cart, `shortages` empties, and this resets out of view.
- * The thread itself is never deleted though: the stock manager keeps it in
- * their inbox regardless, as a permanent record.
+ * Shown while the cart currently has a shortage, and for as long as a
+ * conversation exists — lowering a quantity or a restock ends the shortage, not
+ * the conversation, so the customer can still read and answer a later staff
+ * reply (a new one shows as an unread count on the bubble). It leaves only
+ * when the customer clears the chat. The thread itself is otherwise never
+ * deleted: the stock manager keeps it in their inbox as a permanent record.
  */
 export const CartNegotiationChat = ({
   shortages,
@@ -49,6 +51,8 @@ export const CartNegotiationChat = ({
   const [open, setOpen] = useState(false);
   const [negotiation, setNegotiation] = useState<ApiCartNegotiation | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  /** Staff replies that arrived while the chat was minimized. */
+  const [unread, setUnread] = useState(0);
   const [draft, setDraft] = useState("");
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -63,6 +67,12 @@ export const CartNegotiationChat = ({
   // exactly on a 0 -> >0 transition — once, not on every re-render while a
   // shortage persists (which would fight a customer who deliberately closed it).
   const hadShortageRef = useRef(false);
+  // Read from the socket callback and the refetch below without re-running them.
+  const openRef = useRef(false);
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
+  const refreshTokenRef = useRef(refreshToken);
 
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
     const el = listRef.current;
@@ -90,7 +100,14 @@ export const CartNegotiationChat = ({
     cartNegotiationsApi
       .mine()
       .then((found) => {
-        if (active) setNegotiation(found);
+        if (!active) return;
+        setNegotiation(found);
+        // A refetch triggered by a blocked "Place Order" opened this thread
+        // server-side — show it, even though the cart itself may not (yet)
+        // flag a shortage locally.
+        const triggeredByPlaceOrder = refreshTokenRef.current !== refreshToken;
+        refreshTokenRef.current = refreshToken;
+        if (triggeredByPlaceOrder && found && found.messages.length > 0) setOpen(true);
       })
       .catch(() => undefined)
       .finally(() => {
@@ -120,12 +137,14 @@ export const CartNegotiationChat = ({
     negotiation ? { kind: "cart", id: negotiation.id } : null,
     (message) => {
       setNegotiation((current) => current && { ...current, messages: appendMessageOnce(current.messages, message) });
+      if (message.author === "STAFF" && !openRef.current) setUnread((count) => count + 1);
     },
   );
 
-  if (shortages.length === 0 || !hydrated) return null;
-
   const messages = negotiation?.messages ?? [];
+
+  // A shortage, or a conversation still on record — see the component doc.
+  if (!hydrated || (shortages.length === 0 && messages.length === 0)) return null;
 
   // Appears the instant the customer hits send — the API call and the socket
   // echo of it both happen in the background afterwards, never blocking the
@@ -279,7 +298,11 @@ export const CartNegotiationChat = ({
               />
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  // Whatever arrived while it was open has been seen.
+                  setUnread(0);
+                  setOpen(false);
+                }}
                 aria-label={t("dash.cartNegotiation.minimizeAria")}
                 className="rounded-md p-1 text-white transition-colors hover:bg-white/10 hover:text-white"
               >
@@ -366,12 +389,14 @@ export const CartNegotiationChat = ({
           className="relative size-14 shrink-0 rounded-full bg-ink text-primary shadow-lg hover:bg-ink/90"
         >
           <MessageCircle className="size-6" />
-          <span className="absolute -top-1 -right-1 flex size-4">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-destructive/60" />
-            <span className="relative flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground ring-2 ring-card">
-              {shortages.length}
+          {(unread > 0 || shortages.length > 0) && (
+            <span className="absolute -top-1 -right-1 flex size-4">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-destructive/60" />
+              <span className="relative flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground ring-2 ring-card">
+                {unread > 0 ? unread : shortages.length}
+              </span>
             </span>
-          </span>
+          )}
         </Button>
       )}
     </div>
