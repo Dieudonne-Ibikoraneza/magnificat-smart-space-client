@@ -198,14 +198,6 @@ export type ApiProduct = {
   averageCostPrice?: number;
   /** `quantityOnHandSqm * averageCostPrice` — same visibility as both. */
   inventoryValue?: number;
-  /**
-   * Cart-line only (`GET /cart`) — not staff-gated like the two fields above.
-   * The same exact number this customer is shown anyway the moment they place
-   * the order (`CreatedOrder.shortages`), just surfaced a step earlier so the
-   * cart can flag *this specific requested quantity* against it live, without
-   * a round trip. Absent everywhere else (catalog, product detail, compare).
-   */
-  availableAreaSqm?: number;
   /** Present when the endpoint nests it (e.g. cart lines) — absent elsewhere, where `size` above already covers it. */
   collection?: { id: string; title: string; titleRw: string | null; slug: string; size: string };
 };
@@ -255,7 +247,7 @@ export type ApiCartItem = {
   /** The same box/piece breakdown `calculateTileQuantity` gives everywhere else — computed server-side from `areaSqm`. */
   quantity: TileQuantity;
   totalPrice: number;
-  /** Whether `areaSqm` (once rounded to whole pieces) exceeds `product.availableAreaSqm` — server-computed, so this always tracks the actual saved quantity. */
+  /** Whether `areaSqm` (once rounded to whole pieces) exceeds what's available — decided server-side, since the exact available area is staff-only, so this always tracks the actual saved quantity. */
   exceedsStock: boolean;
 };
 

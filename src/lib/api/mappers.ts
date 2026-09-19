@@ -88,7 +88,6 @@ export const toProduct = (product: ApiProduct, collectionTitle?: string, locale:
   stockStatus: product.stockStatus,
   roomTypes: product.roomTypes.map((roomType) => roomTypeLabels[roomType]),
   suitableFor: suitableForLabels[product.suitableFor],
-  availableAreaSqm: product.availableAreaSqm,
 });
 
 export const toCollection = (collection: ApiCollection, locale: Locale = "en"): Collection => ({

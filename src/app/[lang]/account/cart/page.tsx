@@ -67,7 +67,7 @@ const CartPage = () => {
 
   /**
    * Tracks the quantity actually typed for each line (`exceedsStock`, from
-   * `cart.service.ts`'s per-line `availableAreaSqm`) rather than the
+   * `cart.service.ts`'s per-line verdict) rather than the
    * product's general `stockStatus` badge — that stays fixed regardless of
    * how much of it is in the cart, so it flagged every line as short even
    * once the customer lowered the quantity to something well within stock.
@@ -78,16 +78,14 @@ const CartPage = () => {
       productId: line.productId,
       productName: line.product.name,
       requestedAreaSqm: line.quantity.purchasedArea,
-      availableAreaSqm: line.product.availableAreaSqm ?? 0,
     }));
 
   const shortageFor = (productId: string) => shortages.find((shortage) => shortage.productId === productId);
 
   /** Every cart line, not just the short ones — what "Share my cart" sends the stock team. */
-  // `stockLabels`, never the exact `availableAreaSqm` — that number is
-  // staff-only everywhere else in the app (doc 3.2) and a negotiation chat
-  // the customer can read is no exception, even though the cart response
-  // itself happens to carry the raw figure for the shortage check above.
+  // `stockLabels`, never an exact available area — that number is staff-only
+  // everywhere in the app (doc 3.2), the cart response included, and a
+  // negotiation chat the customer can read is no exception.
   const cartNegotiationItems: CartLineSummary[] = cart.lines.map((line) => ({
     productId: line.productId,
     productName: line.product.name,
