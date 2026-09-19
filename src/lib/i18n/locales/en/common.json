@@ -904,6 +904,7 @@
       "cancel": "Cancel",
       "save": "Save",
       "saving": "Saving…",
+      "unpaidHint": "An unpaid order can only be cancelled. Verify the customer's payment first to move it forward.",
       "toastUpdatedTitle": "Order status updated",
       "toastUpdatedBody": "Order is now {{status}}.",
       "toastFailedTitle": "Couldn't update status",

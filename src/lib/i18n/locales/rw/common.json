@@ -904,6 +904,7 @@
       "cancel": "Hagarika",
       "save": "Bika",
       "saving": "Kubika…",
+      "unpaidHint": "Itumizo ritarishyurwa ushobora kurihagarika gusa. Banza wemeze ubwishyu bw'umukiriya kugira ngo ritambuke.",
       "toastUpdatedTitle": "Uko itumizo rihagaze byahinduwe",
       "toastUpdatedBody": "Itumizo ubu ni {{status}}.",
       "toastFailedTitle": "Ntibyashobotse guhindura uko rihagaze",

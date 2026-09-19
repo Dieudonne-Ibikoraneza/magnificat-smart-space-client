@@ -38,18 +38,30 @@ const statusVariant: Record<OrderStatus, NonNullable<BadgeProps["variant"]>> = {
   CANCELLED: "destructive",
 };
 
-const statuses: OrderStatus[] = [
-  "PENDING",
-  "PROCESSING",
-  "READY_FOR_DISPATCH",
-  "SHIPPED",
-  "DELIVERED",
-  "CANCELLED",
-];
+/** Mirrors `ORDER_STATUS_TRANSITIONS` in the server's `order-status-transitions.ts` — the server is what actually enforces it. */
+const nextStatuses: Record<OrderStatus, OrderStatus[]> = {
+  WAITLISTED: ["CANCELLED"],
+  PENDING: ["PROCESSING", "CANCELLED"],
+  PROCESSING: ["READY_FOR_DISPATCH", "CANCELLED"],
+  READY_FOR_DISPATCH: ["SHIPPED", "CANCELLED"],
+  SHIPPED: ["DELIVERED"],
+  DELIVERED: [],
+  CANCELLED: [],
+};
 
-/** A waitlisted order only ever leaves that status automatically (once stock covers it) or by being cancelled outright — see `orders.service.ts#updateStatus`. */
-const selectableStatuses = (current: OrderStatus): OrderStatus[] =>
-  current === "WAITLISTED" ? ["WAITLISTED", "CANCELLED"] : statuses;
+/**
+ * The current status (so the picker can sit on "no change") plus where the
+ * order may go next. An unpaid PENDING order can only be cancelled: moving it
+ * onward would release its stock hold before the payment deducts that stock
+ * (`orders.service.ts#updateStatus`).
+ */
+const selectableStatuses = (current: OrderStatus, paymentVerified: boolean): OrderStatus[] => {
+  const next =
+    current === "PENDING" && !paymentVerified
+      ? nextStatuses.PENDING.filter((status) => status === "CANCELLED")
+      : nextStatuses[current];
+  return [current, ...next];
+};
 
 /** Plain, read-only status badge — no click behavior. Pair with `OrderStatusControl` for the actual "Update Status" action, kept as its own button elsewhere in the header. */
 export const OrderStatusBadge = ({ status }: { status: OrderStatus }) => {
@@ -61,10 +73,13 @@ export const OrderStatusBadge = ({ status }: { status: OrderStatus }) => {
 export const OrderStatusControl = ({
   orderId,
   status,
+  paymentVerified,
   onUpdated,
 }: {
   orderId: string;
   status: OrderStatus;
+  /** Whether the customer's payment has been verified — gates moving a PENDING order onward. */
+  paymentVerified: boolean;
   /** Called after a successful status change so the parent can refetch the order. */
   onUpdated: () => void;
 }) => {
@@ -74,11 +89,10 @@ export const OrderStatusControl = ({
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Cancelled and delivered are end states: a cancelled order can't change
-  // at all (`orders.service.ts` rejects it), and a delivered one has reached
-  // the end of fulfilment — there's nothing left for this control to move it
-  // to, so it's hidden rather than left offering a pointless dialog.
-  if (status === "CANCELLED" || status === "DELIVERED") return null;
+  // Cancelled and delivered are end states — there's nothing left for this
+  // control to move them to, so it's hidden rather than left offering a
+  // pointless dialog.
+  if (nextStatuses[status].length === 0) return null;
 
   const handleSave = async () => {
     setSubmitting(true);
@@ -150,7 +164,7 @@ export const OrderStatusControl = ({
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {selectableStatuses(status).map((item) => (
+                {selectableStatuses(status, paymentVerified).map((item) => (
                   <SelectItem key={item} value={item}>
                     <Badge variant={statusVariant[item]}>{t(`staff.orderStatus.${item}`)}</Badge>
                   </SelectItem>
@@ -168,6 +182,11 @@ export const OrderStatusControl = ({
               placeholder={t("staff.orderStatusControl.notePlaceholder")}
             />
           </Field>
+          {status === "PENDING" && !paymentVerified && (
+            <p className="rounded-lg bg-secondary/60 px-3 py-2.5 text-xs text-muted-foreground">
+              {t("staff.orderStatusControl.unpaidHint")}
+            </p>
+          )}
           {nextStatus !== status && (
             <p className="flex items-center gap-2.5 rounded-lg bg-secondary/60 px-3 py-2.5 text-xs text-muted-foreground">
               <Badge variant={statusVariant[status]}>{t(`staff.orderStatus.${status}`)}</Badge>
@@ -180,7 +199,7 @@ export const OrderStatusControl = ({
           <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
             {t("staff.orderStatusControl.cancel")}
           </Button>
-          <Button type="button" onClick={() => void handleSave()} disabled={submitting} className="h-10 px-5 text-sm font-bold">
+          <Button type="button" onClick={() => void handleSave()} disabled={submitting || nextStatus === status} className="h-10 px-5 text-sm font-bold">
             {submitting ? t("staff.orderStatusControl.saving") : t("staff.orderStatusControl.save")}
           </Button>
         </DialogFooter>

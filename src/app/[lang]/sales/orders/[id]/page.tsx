@@ -146,7 +146,12 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
               <Printer className="size-4" />
               {t("sales.orderDetail.printInvoice")}
             </Button>
-            <OrderStatusControl orderId={order.id} status={order.status} onUpdated={reload} />
+            <OrderStatusControl
+              orderId={order.id}
+              status={order.status}
+              paymentVerified={order.quotationStatus === "PAYMENT_VERIFIED"}
+              onUpdated={reload}
+            />
           </>
         }
         meta={
