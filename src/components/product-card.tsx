@@ -9,6 +9,7 @@ import { ArrowRight, Check, Heart, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TileAnalyticsSummary } from "@/components/tile-analytics-summary";
 import { toast } from "@/components/ui/toast";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { tokenStore } from "@/lib/api";
 import { useCart } from "@/lib/cart-store";
 import { useFavorites } from "@/lib/favorites-store";
@@ -188,7 +189,16 @@ export const ProductCard = ({
         <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#d4c09e]">
           {product.collection} • {product.size}
         </p>
-        <h2 className={`${list ? "text-lg" : "text-base"} mb-1 font-bold text-ink`}>{product.name}</h2>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <h2 className={`${list ? "text-lg" : "text-base"} mb-1 line-clamp-2 font-bold text-ink`} />
+            }
+          >
+            {product.name}
+          </TooltipTrigger>
+          <TooltipContent side="top">{product.name}</TooltipContent>
+        </Tooltip>
         <p className="line-clamp-2 text-sm leading-5 text-muted">
           {product.description}
         </p>

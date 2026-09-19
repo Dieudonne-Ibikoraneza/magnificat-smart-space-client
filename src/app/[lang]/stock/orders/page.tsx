@@ -13,7 +13,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { StockPageHeader } from "@/app/[lang]/stock/layout";
+import { DashboardPageHeader as StockPageHeader } from "@/components/dashboard-page-headers";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
 import { ListPagination } from "@/components/list-pagination";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";

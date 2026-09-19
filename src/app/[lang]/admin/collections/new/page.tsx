@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Bold, CheckCircle2, ImagePlus, Layers3, Ruler, Save, Tag, X } from "lucide-react";
-import { AdminDetailHeader } from "@/app/[lang]/admin/layout";
+import { DashboardDetailHeader as AdminDetailHeader } from "@/components/dashboard-page-headers";
 import { FileImagePreview, filePreviewKey } from "@/components/file-image-preview";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";

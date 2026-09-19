@@ -20,7 +20,7 @@ import {
   TrendingUpDown,
   BroomSparkles,
 } from "lucide-react";
-import { AdminPageHeader } from "@/app/[lang]/admin/layout";
+import { DashboardPageHeader as AdminPageHeader } from "@/components/dashboard-page-headers";
 import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { FilterOptionsCard } from "@/components/product-catalog";
@@ -382,7 +382,7 @@ const TopRecommendedProducts = ({ rows, loading }: { rows: RecommendationRow[]; 
                   </TableCell>
                   <TableCell>
                     <Link
-                      href={`/analytics/tiles/${product.productId}`}
+                      href={`/admin/inventory/${product.productId}`}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold whitespace-nowrap text-ink hover:-translate-y-0.5 hover:shadow-md active:scale-95"
                     >
                       {t("analytics.common.viewDetails")} <ArrowUpRight className="size-3.5" />
@@ -474,7 +474,7 @@ const TileCard = ({ product }: { product: FilterableRecommendation }) => {
             <span className="text-sm font-medium text-muted">{t("analytics.common.sqm")}</span>
           </p>
           <Link
-            href={`/analytics/tiles/${product.productId}`}
+            href={`/admin/inventory/${product.productId}`}
             aria-label={t("analytics.common.viewName", { name: product.name })}
             className="inline-flex size-11 items-center justify-center rounded-full border border-slate-100 bg-muted-background text-ink hover:bg-primary"
           >

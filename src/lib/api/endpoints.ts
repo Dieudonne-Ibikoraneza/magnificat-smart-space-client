@@ -22,6 +22,8 @@ import type {
   ApiChatConversation,
   ChatConversationSummary,
   AskedQuestionsPage,
+  CursorPage,
+  NegotiationInboxThread,
   CustomerAnalytics,
   CustomerDetail,
   CustomerSummary,
@@ -83,22 +85,26 @@ export const authApi = {
   resendOtp: (email: string) =>
     api.post<OtpSendResult>("/auth/otp/resend", { email }, { anonymous: true }),
 
-  /** Completes registration or logs in; the returned tokens are stored for you. */
+  /**
+   * Completes registration or logs in. The API answers with the access token
+   * (kept in memory for you) and sets the refresh token as an HttpOnly cookie
+   * — `credentials: "include"` is what lets the browser accept it from the
+   * API's separate origin.
+   */
   verifyOtp: async (email: string, otp: string) => {
-    const tokens = await api.post<AuthTokens>("/auth/verify-otp", { email, otp }, { anonymous: true });
-    tokenStore.set(tokens);
+    const tokens = await api.post<AuthTokens>(
+      "/auth/verify-otp",
+      { email, otp },
+      { anonymous: true, credentials: "include" },
+    );
+    tokenStore.set(tokens, { signIn: true });
     return tokens;
   },
 
-  refresh: (refreshToken: string) =>
-    api.post<AuthTokens>("/auth/refresh", { refreshToken }, { anonymous: true }),
-
+  /** Revokes the session server-side and clears its cookie; the local session is dropped either way. */
   logout: async () => {
-    const refreshToken = tokenStore.getRefreshToken();
-    if (refreshToken) {
-      // A failed revoke must not strand the user in a signed-in UI.
-      await api.post<void>("/auth/logout", { refreshToken }, { anonymous: true }).catch(() => undefined);
-    }
+    // A failed revoke must not strand the user in a signed-in UI.
+    await api.post<void>("/auth/logout", {}, { anonymous: true, credentials: "include" }).catch(() => undefined);
     tokenStore.clear();
   },
 };
@@ -355,6 +361,20 @@ export const ordersApi = {
  * it exceeds stock on hand. Linked to the customer, not an order — see
  * `ApiCartNegotiation`.
  */
+/**
+ * The staff negotiation inbox (stock manager + admin) — one paginated call
+ * for every order and cart thread, newest activity first, instead of one
+ * request per thread.
+ */
+export const negotiationInboxApi = {
+  list: (params: { cursor?: string; limit?: number; search?: string } = {}) =>
+    api.get<CursorPage<NegotiationInboxThread>>("/negotiations/inbox", { query: params }),
+
+  /** One thread's inbox row — refreshes a single line after a live update. */
+  summary: (kind: "order" | "cart", id: string) =>
+    api.get<NegotiationInboxThread>(`/negotiations/inbox/${kind}/${id}`),
+};
+
 export const cartNegotiationsApi = {
   /** Opens (or continues) the calling customer's thread with a first/next message. */
   submit: (
@@ -422,7 +442,9 @@ export const roomsApi = {
   }) => api.post<ApiRoomDesign>("/rooms/designs", body),
 
   myDesigns: () => api.get<ApiRoomDesign[]>("/rooms/designs/mine"),
-  sharedDesigns: () => api.get<ApiRoomDesign[]>("/rooms/designs/shared"),
+  /** Staff: designs customers shared with the sales team — newest first, cursor-paginated, `search` runs on the server. */
+  sharedDesigns: (params: { cursor?: string; limit?: number; search?: string } = {}) =>
+    api.get<CursorPage<ApiRoomDesign>>("/rooms/designs/shared", { query: params }),
   getDesign: (id: string) => api.get<ApiRoomDesign>(`/rooms/designs/${id}`),
 };
 

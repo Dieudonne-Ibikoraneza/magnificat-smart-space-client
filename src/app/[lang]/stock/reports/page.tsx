@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { StockPageHeader } from "@/app/[lang]/stock/layout";
+import { DashboardPageHeader as StockPageHeader } from "@/components/dashboard-page-headers";
 import {
   AnalyticsPeriodSwitcher,
   periodToRange,
@@ -10,9 +10,11 @@ import {
 } from "@/components/analytics-period-switcher";
 import { ConversionFunnel } from "@/components/conversion-funnel";
 import { ApiErrorState } from "@/components/api-state";
+import { StockReportView } from "@/components/stock-report-view";
+import { Skeleton } from "@/components/ui/skeleton";
 import { analyticsApi } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
-import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 const FunnelSkeleton = () => (
   <div className="rounded-[14px] bg-white p-6 shadow-sm sm:p-8">
@@ -30,14 +32,20 @@ const FunnelSkeleton = () => (
   </div>
 );
 
+const tabs = ["stock", "funnel"] as const;
+type ReportTab = (typeof tabs)[number];
+
 /**
- * This page is deliberately just the Conversion Funnel — every other widget
- * that used to live here (Sales Overview, AI Assistant, Repeat Rate, Stock
- * Movements) was removed at the stock manager's own request; this is the
- * one report this role wants here.
+ * Reports for the stock manager: the stock report (summary, movement trend,
+ * the full movement feed, low stock, the fulfilment queue — see
+ * `StockReportView`, also shown to admin and the data analyst), plus the
+ * conversion funnel, kept as its own tab per the stock manager's earlier
+ * request. Sales/AI/repeat-rate figures deliberately stay out of this page;
+ * they live under `/analytics/*`, which this role can also reach.
  */
 export default function StockReportsPage() {
   const { t } = useTranslation();
+  const [tab, setTab] = useState<ReportTab>("stock");
   const [periodDays, setPeriodDays] = useState<AnalyticsPeriodDays>(30);
   const period = periodToRange[periodDays];
 
@@ -45,20 +53,43 @@ export default function StockReportsPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1070px]">
-      <StockPageHeader
-        title={t("stock.reports.title")}
-        subtitle={t("stock.reports.subtitle")}
-      >
+      <StockPageHeader title={t("stock.reports.title")} subtitle={t("stock.reports.subtitle")}>
         <AnalyticsPeriodSwitcher period={periodDays} onChange={setPeriodDays} />
       </StockPageHeader>
 
-      <div className="mt-7">
-        {journey.loading ? (
-          <FunnelSkeleton />
-        ) : journey.error ? (
-          <ApiErrorState message={journey.error} onRetry={journey.reload} className="rounded-[14px] shadow-sm" />
+      <div
+        role="tablist"
+        aria-label={t("stock.reports.tabsAria")}
+        className="mt-6 inline-flex h-11 items-center gap-1 rounded-xl border border-[#edf0eb] bg-white p-1 shadow-sm"
+      >
+        {tabs.map((value) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={tab === value}
+            onClick={() => setTab(value)}
+            className={cn(
+              "h-9 rounded-lg px-4 text-sm font-bold transition-colors",
+              tab === value ? "bg-ink text-primary" : "text-[#514c4d] hover:bg-[#f5f5f5]",
+            )}
+          >
+            {value === "funnel" ? t("staff.conversionFunnel.title") : t("stock.reports.tabStockReport")}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-6">
+        {tab === "funnel" ? (
+          journey.loading ? (
+            <FunnelSkeleton />
+          ) : journey.error ? (
+            <ApiErrorState message={journey.error} onRetry={journey.reload} className="rounded-[14px] shadow-sm" />
+          ) : (
+            <ConversionFunnel stages={journey.data?.stages ?? []} />
+          )
         ) : (
-          <ConversionFunnel stages={journey.data?.stages ?? []} />
+          <StockReportView area="stock" period={period} />
         )}
       </div>
     </div>

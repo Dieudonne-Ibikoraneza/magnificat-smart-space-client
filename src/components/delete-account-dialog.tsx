@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
-import { tokenStore, usersApi } from "@/lib/api";
+import { authApi, usersApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { useCart } from "@/lib/cart-store";
 import { useCurrentUser } from "@/lib/current-user";
@@ -42,7 +42,8 @@ export const DeleteAccountDialog = () => {
     setSubmitting(true);
     try {
       await usersApi.closeMyAccount();
-      tokenStore.clear();
+      // Every session was just revoked server-side; this also clears the (now dead) session cookie.
+      await authApi.logout();
       resetCart();
       refresh();
       setClosed(true);

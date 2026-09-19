@@ -14,8 +14,8 @@ import {
   Search,
 } from "lucide-react";
 import { notFound, useRouter } from "next/navigation";
-import { StockDetailHeader } from "@/app/[lang]/stock/layout";
-import { InventoryProductCard } from "@/app/[lang]/stock/inventory/page";
+import { DashboardDetailHeader as StockDetailHeader } from "@/components/dashboard-page-headers";
+import { InventoryProductCard } from "@/components/inventory-product-card";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
 import { DeleteCollectionDialog, EditCollectionDialog } from "@/components/edit-collection-dialog";
 import { getVisiblePages } from "@/lib/catalog-utils";

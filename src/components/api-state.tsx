@@ -3,6 +3,7 @@
 import { CircleAlert, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { useCurrentUser } from "@/lib/current-user";
 import { cn } from "@/lib/utils";
 
 /** Shown while an API-backed section is still loading. */
@@ -75,3 +76,17 @@ export const ApiEmptyState = ({
     {message}
   </p>
 );
+
+/**
+ * What a role-gated layout shows until it knows who is signed in: the usual
+ * loading state, or — when the session check itself failed (network down, API
+ * error) — a retryable error. That case must not look like "signed out": the
+ * session may be perfectly good, so `useRequireRole` doesn't redirect either.
+ */
+export const SessionPending = ({ label, className }: { label?: string; className?: string }) => {
+  const { t } = useTranslation();
+  const { error, refresh } = useCurrentUser();
+
+  if (error) return <ApiErrorState message={t("common.sessionCheckFailed")} onRetry={refresh} className={className} />;
+  return <ApiLoading label={label} className={className} />;
+};

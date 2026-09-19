@@ -23,7 +23,7 @@ import {
   User,
   X,
 } from "lucide-react";
-import { StockDetailHeader } from "@/app/[lang]/stock/layout";
+import { DashboardDetailHeader as StockDetailHeader } from "@/components/dashboard-page-headers";
 import { AdjustStockDialog } from "@/components/adjust-stock-dialog";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
 import { SelectableProductCard } from "@/components/selectable-product-card";

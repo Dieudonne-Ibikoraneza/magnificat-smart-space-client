@@ -22,7 +22,7 @@ import type { Role } from "@/lib/api/types";
  * (and the data fetches that come with it) until the check has passed.
  */
 export const useRequireRole = (allowed: readonly Role[]) => {
-  const { user, loading } = useCurrentUser();
+  const { user, loading, error } = useCurrentUser();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -31,11 +31,15 @@ export const useRequireRole = (allowed: readonly Role[]) => {
   useEffect(() => {
     if (loading) return;
     if (!user) {
+      // The session check failed (network, 5xx) — that isn't "signed out", so
+      // stay put and let the layout offer a retry instead of bouncing to /auth.
+      if (error) return;
       // A token is still sitting in storage right after login navigates here,
       // before the provider's own refresh has resolved — that's "still
       // checking," not "signed out," so wait for it instead of bouncing to
-      // /auth. (An invalid/expired token never lingers: the provider clears
-      // it the moment a check fails, so this can't wait forever on a dead one.)
+      // /auth. (A rejected token never lingers: the provider clears it the
+      // moment the API says the session is over, so this can't wait forever
+      // on a dead one. A check that merely failed is the `error` case above.)
       if (tokenStore.getAccessToken()) return;
       const requestedPath = stripLocale(pathname ?? "/");
       const query = searchParams.toString();
@@ -46,11 +50,12 @@ export const useRequireRole = (allowed: readonly Role[]) => {
     if (!allowedKey.split(",").includes(user.role)) {
       router.replace(roleHomePath(user.role));
     }
-  }, [user, loading, router, allowedKey, pathname, searchParams]);
+  }, [user, loading, error, router, allowedKey, pathname, searchParams]);
 
   return {
     user,
     loading,
+    error,
     authorized: !loading && !!user && allowedKey.split(",").includes(user.role),
   };
 };

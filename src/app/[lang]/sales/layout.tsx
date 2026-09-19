@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   BarChart3,
@@ -10,10 +10,9 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import { ApiLoading } from "@/components/api-state";
+import { SessionPending } from "@/components/api-state";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
-import { PageHeader, type PageHeaderProps } from "@/components/page-header";
-import { DetailPageHeader, type DetailPageHeaderProps } from "@/components/detail-page-header";
+import { DashboardMenuProvider } from "@/components/dashboard-page-headers";
 import { SALES_ROLES } from "@/lib/auth-routes";
 import { useRequireRole } from "@/lib/require-role";
 import { getInitials } from "@/lib/utils";
@@ -31,32 +30,6 @@ const navigation = [
   { labelKey: "sales.nav.designs", href: "/sales/designs", icon: Sparkles },
   { labelKey: "sales.nav.settings", href: "/sales/settings", icon: BarChart3 },
 ] as const;
-
-type SalesMenuContextValue = {
-  openMenu: () => void;
-};
-
-const SalesMenuContext = createContext<SalesMenuContextValue | null>(null);
-
-export const useSalesMenu = () => {
-  const context = useContext(SalesMenuContext);
-
-  if (!context) {
-    throw new Error("useSalesMenu must be used inside SalesLayout");
-  }
-
-  return context;
-};
-
-export const SalesPageHeader = (props: Omit<PageHeaderProps, "onOpenMenu">) => {
-  const { openMenu } = useSalesMenu();
-  return <PageHeader {...props} onOpenMenu={openMenu} />;
-};
-
-export const SalesDetailHeader = (props: Omit<DetailPageHeaderProps, "onOpenMenu">) => {
-  const { openMenu } = useSalesMenu();
-  return <DetailPageHeader {...props} onOpenMenu={openMenu} />;
-};
 
 const SalesLayout = ({ children }: { children: React.ReactNode }) => {
   const { t } = useTranslation();
@@ -81,7 +54,7 @@ const SalesLayout = ({ children }: { children: React.ReactNode }) => {
   if (!authorized || !user) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
-        <ApiLoading label={t("staff.loading")} />
+        <SessionPending label={t("staff.loading")} />
       </div>
     );
   }
@@ -89,7 +62,7 @@ const SalesLayout = ({ children }: { children: React.ReactNode }) => {
   const sidebarUser = { initials: getInitials(user.fullName), name: user.fullName, email: user.email ?? "" };
 
   return (
-    <SalesMenuContext.Provider value={{ openMenu }}>
+    <DashboardMenuProvider openMenu={openMenu}>
       <div className="min-h-dvh bg-background">
       <DashboardSidebar links={navLinks} ariaLabel={t("sales.nav.navAria")} user={sidebarUser} />
       {menuOpen && (
@@ -115,7 +88,7 @@ const SalesLayout = ({ children }: { children: React.ReactNode }) => {
           </div>
         </main>
       </div>
-    </SalesMenuContext.Provider>
+    </DashboardMenuProvider>
   );
 };
 

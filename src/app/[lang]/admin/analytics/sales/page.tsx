@@ -15,7 +15,7 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import { AdminPageHeader } from "@/app/[lang]/admin/layout";
+import { DashboardPageHeader as AdminPageHeader } from "@/components/dashboard-page-headers";
 import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { OrderStatusBadge } from "@/components/order-status-control";

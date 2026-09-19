@@ -29,7 +29,7 @@ import {
   Wallet,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { AdminPageHeader } from "@/app/[lang]/admin/layout";
+import { DashboardPageHeader as AdminPageHeader } from "@/components/dashboard-page-headers";
 import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays, type AnalyticsRange } from "@/components/analytics-period-switcher";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { JOURNEY_STAGE_TITLE_KEYS } from "@/components/conversion-funnel";
@@ -350,7 +350,15 @@ const DesignDetailDialog = ({ action, onClose }: { action: JourneyStageAction | 
                   {t("analytics.journey.designDialogRoomType")}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-ink">
-                  {t(ROOM_TYPE_KEYS[detail.roomType] ?? detail.roomType)} · {detail.roomName}
+                  {(() => {
+                    const roomTypeLabel = t(ROOM_TYPE_KEYS[detail.roomType] ?? detail.roomType);
+                    // A design left at its default name ("Kitchen" for a
+                    // kitchen) would otherwise show as "Kitchen · Kitchen" —
+                    // only append the name when it's actually distinct.
+                    return detail.roomName.trim().toLowerCase() === roomTypeLabel.trim().toLowerCase()
+                      ? roomTypeLabel
+                      : `${roomTypeLabel} · ${detail.roomName}`;
+                  })()}
                 </p>
               </div>
               <div>

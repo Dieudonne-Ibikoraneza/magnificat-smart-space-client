@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import { AdminPageHeader } from "@/app/[lang]/admin/layout";
+import { DashboardPageHeader as AdminPageHeader } from "@/components/dashboard-page-headers";
 import { AccountProfileForm } from "@/components/account-profile-form";
 import { DeleteAccountDialog } from "@/components/delete-account-dialog";
 

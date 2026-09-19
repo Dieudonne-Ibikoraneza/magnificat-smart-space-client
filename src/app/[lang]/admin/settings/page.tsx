@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactElement, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Bell,
@@ -15,7 +15,7 @@ import {
   Trash2,
   Wrench,
 } from "lucide-react";
-import { AdminPageHeader } from "@/app/[lang]/admin/layout";
+import { DashboardPageHeader as AdminPageHeader } from "@/components/dashboard-page-headers";
 import { ApiErrorState } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ import { ApiError } from "@/lib/api/client";
 import { roomTypeLabels } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
 import type { ProfilingQuestion, RoomType } from "@/lib/api/types";
+import { useSortableList } from "@/lib/use-sortable-list";
 import { cn } from "@/lib/utils";
 
 const roomTypeOptions = Object.keys(roomTypeLabels) as RoomType[];
@@ -249,6 +250,23 @@ const AiRecommendations = ({
   onChanged: () => void;
 }) => {
   const { t } = useTranslation();
+  const tbodyRef = useRef<HTMLTableSectionElement>(null);
+  const { order, draggingId, saving, getHandleProps } = useSortableList({
+    items: questions,
+    containerRef: tbodyRef,
+    onReorder: async (ordered) => {
+      try {
+        await settingsApi.reorderProfilingQuestions(ordered.map((question, index) => ({ id: question.id, position: index })));
+      } catch (cause) {
+        toast.error(t("admin.systemSettings.toastOrderFailed"), {
+          description: cause instanceof ApiError ? cause.message : t("admin.systemSettings.toastTryAgain"),
+        });
+        throw cause;
+      }
+      toast.success(t("admin.systemSettings.toastOrderSaved"));
+      onChanged();
+    },
+  });
   const requiredCount = questions.filter((question) => question.isRequired && question.roomTypes.length === 0).length;
   const conditionalCount = questions.filter((question) => question.roomTypes.length > 0).length;
 
@@ -309,7 +327,7 @@ const AiRecommendations = ({
                 <th className="pb-3 font-bold whitespace-nowrap">{t("admin.systemSettings.colActions")}</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody ref={tbodyRef} className={cn(draggingId && "select-none")}>
               {loading && questions.length === 0
                 ? Array.from({ length: 4 }).map((_, index) => (
                     <tr key={index} className="border-b border-border last:border-0">
@@ -318,11 +336,29 @@ const AiRecommendations = ({
                       </td>
                     </tr>
                   ))
-                : questions.map((question, index) => (
-                    <tr key={question.id} className="border-b border-border last:border-0">
+                : order.map((question, index) => (
+                    <tr
+                      key={question.id}
+                      data-sortable-id={question.id}
+                      className={cn(
+                        "border-b border-border last:border-0",
+                        draggingId === question.id && "relative bg-primary/10 shadow-md",
+                      )}
+                    >
                       <td className="py-4 pr-4">
                         <div className="flex items-center gap-3">
-                          <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground" />
+                          <button
+                            type="button"
+                            disabled={saving}
+                            aria-label={t("admin.systemSettings.reorderQuestion", { n: index + 1 })}
+                            {...getHandleProps(question.id)}
+                            className={cn(
+                              "shrink-0 cursor-grab touch-none rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-ink focus-visible:bg-secondary focus-visible:text-ink disabled:cursor-wait disabled:opacity-50",
+                              draggingId === question.id && "cursor-grabbing bg-secondary text-ink",
+                            )}
+                          >
+                            <GripVertical className="size-4" />
+                          </button>
                           <span className="w-6 shrink-0 font-data text-sm font-semibold text-muted-foreground">
                             {String(index + 1).padStart(2, "0")}
                           </span>
@@ -378,6 +414,11 @@ const AdminSettingsPage = () => {
   const { data: questionsData, loading: questionsLoading, error: questionsError, reload: reloadQuestions } = useApi(
     () => settingsApi.profilingQuestions(),
   );
+
+  // A stable array between fetches — the drag-to-reorder list below adopts new
+  // server data whenever this identity changes, so a fresh `[]` on every render
+  // would reset it every time.
+  const questionList = useMemo(() => questionsData ?? [], [questionsData]);
 
   const [lowStockAlerts, setLowStockAlerts] = useState<boolean | null>(null);
   const [lowStockThreshold, setLowStockThreshold] = useState<string | null>(null);
@@ -465,7 +506,7 @@ const AdminSettingsPage = () => {
 
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
         <AiRecommendations
-          questions={questionsData ?? []}
+          questions={questionList}
           loading={questionsLoading}
           error={questionsError}
           onRetry={reloadQuestions}

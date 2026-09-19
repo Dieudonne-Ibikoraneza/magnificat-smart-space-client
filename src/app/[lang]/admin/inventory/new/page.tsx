@@ -20,7 +20,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { AdminDetailHeader } from "@/app/[lang]/admin/layout";
+import { DashboardDetailHeader as AdminDetailHeader } from "@/components/dashboard-page-headers";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";

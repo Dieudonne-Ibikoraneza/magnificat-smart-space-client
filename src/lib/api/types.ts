@@ -10,6 +10,16 @@
 /** Every successful response is wrapped by the server's TransformInterceptor. */
 export type ApiEnvelope<T> = { success: true; data: T };
 
+/**
+ * A keyset-paginated page (`GET /rooms/designs/shared`, `/negotiations/inbox`,
+ * `/chatbot/admin/asked-questions`): pass `nextCursor` back as `cursor` for the
+ * next one; `null` means that was the last page.
+ */
+export type CursorPage<T> = {
+  items: T[];
+  nextCursor: string | null;
+};
+
 export type Paginated<T> = {
   items: T[];
   meta: { page: number; limit: number; total: number; totalPages: number };
@@ -89,7 +99,8 @@ export type ApiUser = {
   updatedAt: string;
 };
 
-export type AuthTokens = { accessToken: string; refreshToken: string };
+/** What sign-in returns — the refresh token is deliberately absent: it only ever travels as an HttpOnly cookie. */
+export type AuthTokens = { accessToken: string };
 
 /** What `register` / `login` / `otp/resend` return — the code itself never reaches the client. */
 export type OtpSendResult = { message: string; expiresInSeconds: number };
@@ -533,11 +544,27 @@ export type AskedQuestion = {
   conversation: { id: string; sessionId: string; language: Language; title: string | null } | null;
 };
 
-/** `GET /chatbot/admin/asked-questions` — cursor-paginated for infinite scroll (see the endpoint's own doc). */
-export type AskedQuestionsPage = {
-  items: AskedQuestion[];
-  nextCursor: string | null;
+/**
+ * One row of the staff negotiation inbox (`GET /negotiations/inbox`): who the
+ * thread is with, its newest message and message count — never the whole
+ * conversation. Fetch that on demand from `GET /orders/:id/messages` (order
+ * threads) or `GET /cart-negotiations/:id` (cart threads).
+ */
+export type NegotiationInboxThread = {
+  kind: "order" | "cart";
+  id: string;
+  /** Order threads only. */
+  orderNumber: string | null;
+  customer: { id: string; fullName: string; email: string | null };
+  messageCount: number;
+  lastMessageAt: string;
+  lastMessage: { id: string; author: OrderMessageAuthor; senderId: string | null; body: string; createdAt: string };
+  /** The newest message wasn't written by staff. */
+  awaitingReply: boolean;
 };
+
+/** `GET /chatbot/admin/asked-questions` — cursor-paginated for infinite scroll (see the endpoint's own doc). */
+export type AskedQuestionsPage = CursorPage<AskedQuestion>;
 
 export type ApiKnowledgeBaseEntry = {
   id: string;

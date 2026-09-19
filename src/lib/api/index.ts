@@ -1,7 +1,8 @@
 export {
   API_BASE_URL,
   ApiError,
-  SESSION_EXPIRED_EVENT,
+  SESSION_CHANGED_EVENT,
+  getFreshAccessToken,
   api,
   apiRequest,
   buildQuery,

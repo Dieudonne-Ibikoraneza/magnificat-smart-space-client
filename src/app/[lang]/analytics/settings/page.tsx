@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import { AnalyticsPageHeader } from "@/app/[lang]/analytics/layout";
+import { DashboardPageHeader as AnalyticsPageHeader } from "@/components/dashboard-page-headers";
 import { AccountProfileForm } from "@/components/account-profile-form";
 import { DeleteAccountDialog } from "@/components/delete-account-dialog";
 

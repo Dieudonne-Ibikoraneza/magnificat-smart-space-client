@@ -29,6 +29,7 @@ type DashboardSidebarProps = {
   ariaLabel?: string;
   user?: DashboardSidebarUser;
   className?: string;
+  showLogo?: boolean;
 };
 
 const defaultUser: DashboardSidebarUser = {
@@ -43,6 +44,7 @@ export const DashboardSidebar = ({
   ariaLabel,
   user = defaultUser,
   className = "fixed inset-y-0 left-0 z-30 hidden w-70 bg-card lg:block xl:w-80",
+  showLogo = true,
 }: DashboardSidebarProps) => {
   const { t } = useTranslation();
   // Routes here now live under `/[lang]/…` — compare against the path with
@@ -64,16 +66,21 @@ export const DashboardSidebar = ({
         </button>
       )}
       <div className="flex h-full min-h-0 flex-col px-5 py-6">
-        <div className="shrink-0 px-2 pb-8">
-          <Image
-            src="/images/logo.png"
-            alt="Magnificat Smart Space"
-            width={240}
-            height={180}
-            className="mx-auto w-40 object-contain"
-          />
-        </div>
-        <nav className="scrollbar-hide min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto" aria-label={navAriaLabel}>
+        {showLogo && (
+          <div className="shrink-0 px-2 pb-8">
+            <Image
+              src="/images/logo.png"
+              alt="Magnificat Smart Space"
+              width={240}
+              height={180}
+              className="mx-auto w-40 object-contain"
+            />
+          </div>
+        )}
+        <nav
+          className={`scrollbar-hide min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto ${!showLogo && close ? "pt-8" : ""}`}
+          aria-label={navAriaLabel}
+        >
           {links.map(({ label, href, icon: Icon, active, section }, index) => {
             const isActive = active?.(pathname) ?? pathname.startsWith(href);
             const showSectionHeading = section && section !== links[index - 1]?.section;

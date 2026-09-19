@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import { ApiLoading } from "@/components/api-state";
+import { SessionPending } from "@/components/api-state";
 import { SiteHeader } from "@/components/siteheader";
 import { ALL_ROLES } from "@/lib/auth-routes";
 import { useRequireRole } from "@/lib/require-role";
@@ -21,7 +21,7 @@ const SiteLayout = ({ children }: { children: React.ReactNode }) => {
   if (!authorized) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
-        <ApiLoading label={t("common.loading")} />
+        <SessionPending label={t("common.loading")} />
       </div>
     );
   }

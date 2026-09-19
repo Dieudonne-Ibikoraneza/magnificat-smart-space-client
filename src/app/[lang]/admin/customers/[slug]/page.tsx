@@ -5,7 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, Plus, Wallet } from "lucide-react";
-import { AdminDetailHeader } from "@/app/[lang]/admin/layout";
+import { DashboardDetailHeader as AdminDetailHeader } from "@/components/dashboard-page-headers";
 import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

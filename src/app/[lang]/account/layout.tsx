@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { History, Menu, Settings, ShoppingCart, Sparkles, Star } from "lucide-react";
-import { ApiLoading } from "@/components/api-state";
+import { SessionPending } from "@/components/api-state";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { SiteHeader } from "@/components/siteheader";
 import { ACCOUNT_ROLES } from "@/lib/auth-routes";
@@ -35,7 +35,7 @@ const AccountLayout = ({ children }: { children: React.ReactNode }) => {
   if (!authorized || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <ApiLoading label={t("dash.loadingAccount")} />
+        <SessionPending label={t("dash.loadingAccount")} />
       </div>
     );
   }
@@ -49,6 +49,7 @@ const AccountLayout = ({ children }: { children: React.ReactNode }) => {
         links={navLinks}
         ariaLabel={t("dash.nav.aria")}
         user={sidebarUser}
+        showLogo={false}
         className="fixed inset-y-0 left-0 top-20 z-30 hidden h-[calc(100vh-5rem)] w-70 bg-card lg:block xl:w-80"
       />
       {menuOpen && (
@@ -64,6 +65,7 @@ const AccountLayout = ({ children }: { children: React.ReactNode }) => {
             ariaLabel={t("dash.nav.aria")}
             user={sidebarUser}
             close={() => setMenuOpen(false)}
+            showLogo={false}
             className="fixed left-4 right-4 top-24 z-[60] max-h-[calc(100vh-8rem)] w-auto animate-in fade-in slide-in-from-top-4 overflow-y-auto rounded-2xl bg-card shadow-2xl duration-200 sm:left-6 sm:right-auto sm:w-84 lg:hidden"
           />
         </>

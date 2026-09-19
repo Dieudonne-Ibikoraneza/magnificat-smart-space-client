@@ -26,7 +26,7 @@ import {
   TrendingUp,
   UsersRound,
 } from "lucide-react";
-import { SalesPageHeader } from "@/app/[lang]/sales/layout";
+import { DashboardPageHeader as SalesPageHeader } from "@/components/dashboard-page-headers";
 import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { ChartAxisTick } from "@/components/chart-axis-tick";

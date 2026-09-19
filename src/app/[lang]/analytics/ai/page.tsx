@@ -20,7 +20,7 @@ import {
   TrendingUpDown,
   BroomSparkles,
 } from "lucide-react";
-import { AnalyticsPageHeader } from "@/app/[lang]/analytics/layout";
+import { DashboardPageHeader as AnalyticsPageHeader } from "@/components/dashboard-page-headers";
 import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { FilterOptionsCard } from "@/components/product-catalog";

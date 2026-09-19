@@ -121,6 +121,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     let active = true;
 
     const load = async () => {
+      // The access token only exists again once the session cookie has been
+      // exchanged after a page load — deciding "signed out" before that would
+      // also wipe the cached copy below.
+      await tokenStore.ready();
+      if (!active) return;
       if (!tokenStore.getAccessToken()) {
         if (active) {
           setLines([]);

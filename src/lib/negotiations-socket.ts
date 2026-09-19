@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { io, type Socket } from "socket.io-client";
 import { API_BASE_URL } from "@/lib/api/client";
-import { tokenStore } from "@/lib/api";
+import { getFreshAccessToken } from "@/lib/api";
 
 export type NegotiationKind = "order" | "cart";
 export type NegotiationThread = { kind: NegotiationKind; id: string };
@@ -23,9 +23,11 @@ const getSocket = (): Socket => {
   const origin = new URL(API_BASE_URL).origin;
   socket = io(`${origin}/negotiations`, {
     autoConnect: false,
-    // A function (not a plain object) so a reconnect after the access token
-    // was refreshed sends the current one, not whatever was live at mount.
-    auth: (callback) => callback({ token: tokenStore.getAccessToken() }),
+    // A function (not a plain object) so a reconnect sends a current token —
+    // refreshed first if the one held has expired — not whatever was live at mount.
+    auth: (callback) => {
+      void getFreshAccessToken().then((token) => callback({ token }));
+    },
   });
   return socket;
 };

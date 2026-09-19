@@ -1,16 +1,21 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Bot,
   MessageSquareText,
+  BookOpen,
   Boxes,
+  Box,
+  FileText,
   LayoutGrid,
   Layers,
+  MessagesSquare,
   Settings,
   ShelvingUnit,
   ShoppingCart,
+  Sparkles,
   User,
   UserCog,
   Users,
@@ -18,10 +23,9 @@ import {
   WalletCards,
   Workflow,
 } from "lucide-react";
-import { ApiLoading } from "@/components/api-state";
+import { SessionPending } from "@/components/api-state";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
-import { PageHeader, type PageHeaderProps } from "@/components/page-header";
-import { DetailPageHeader, type DetailPageHeaderProps } from "@/components/detail-page-header";
+import { DashboardMenuProvider } from "@/components/dashboard-page-headers";
 import { ADMIN_ROLES } from "@/lib/auth-routes";
 import { useRequireRole } from "@/lib/require-role";
 import { getInitials } from "@/lib/utils";
@@ -37,36 +41,22 @@ const navigation = [
   { labelKey: "admin.nav.orders", href: "/admin/orders", icon: ShoppingCart, sectionKey: "admin.nav.sectionOperations" },
   { labelKey: "admin.nav.inventory", href: "/admin/inventory", icon: ShelvingUnit, sectionKey: "admin.nav.sectionOperations" },
   { labelKey: "admin.nav.customers", href: "/admin/customers", icon: User, sectionKey: "admin.nav.sectionOperations" },
+  { labelKey: "admin.nav.designs", href: "/admin/designs", icon: Sparkles, sectionKey: "admin.nav.sectionOperations" },
+  { labelKey: "admin.nav.negotiations", href: "/admin/negotiations", icon: MessagesSquare, sectionKey: "admin.nav.sectionOperations" },
   { labelKey: "admin.nav.collections", href: "/admin/collections", icon: Layers, sectionKey: "admin.nav.sectionOperations" },
+  { labelKey: "admin.nav.rooms", href: "/admin/rooms", icon: Box, sectionKey: "admin.nav.sectionOperations" },
   { labelKey: "admin.nav.customerAnalytics", href: "/admin/analytics/customers", icon: Users, sectionKey: "admin.nav.sectionAnalytics" },
   { labelKey: "admin.nav.salesAnalytics", href: "/admin/analytics/sales", icon: WalletCards, sectionKey: "admin.nav.sectionAnalytics" },
   { labelKey: "admin.nav.tilesAnalytics", href: "/admin/analytics/tiles", icon: Boxes, sectionKey: "admin.nav.sectionAnalytics" },
+  { labelKey: "admin.nav.stockReport", href: "/admin/analytics/stock", icon: FileText, sectionKey: "admin.nav.sectionAnalytics" },
   { labelKey: "admin.nav.journeyAnalytics", href: "/admin/analytics/journey", icon: Workflow, sectionKey: "admin.nav.sectionAnalytics" },
   { labelKey: "admin.nav.aiAnalytics", href: "/admin/analytics/ai", icon: Bot, sectionKey: "admin.nav.sectionAnalytics" },
   { labelKey: "admin.nav.askedQuestions", href: "/admin/asked-questions", icon: MessageSquareText, sectionKey: "admin.nav.sectionAnalytics" },
+  { labelKey: "admin.nav.knowledgeBase", href: "/admin/knowledge-base", icon: BookOpen, sectionKey: "admin.nav.sectionManagement" },
   { labelKey: "admin.nav.staff", href: "/admin/staff", icon: UsersRound, sectionKey: "admin.nav.sectionManagement" },
   { labelKey: "admin.nav.systemSettings", href: "/admin/settings", icon: Settings, sectionKey: "admin.nav.sectionManagement" },
   { labelKey: "admin.nav.accountSettings", href: "/admin/account-settings", icon: UserCog, sectionKey: "admin.nav.sectionManagement" },
 ] as const;
-
-type AdminMenuContextValue = { openMenu: () => void };
-const AdminMenuContext = createContext<AdminMenuContextValue | null>(null);
-
-export const useAdminMenu = () => {
-  const context = useContext(AdminMenuContext);
-  if (!context) throw new Error("useAdminMenu must be used inside AdminLayout");
-  return context;
-};
-
-export const AdminPageHeader = (props: Omit<PageHeaderProps, "onOpenMenu">) => {
-  const { openMenu } = useAdminMenu();
-  return <PageHeader {...props} onOpenMenu={openMenu} />;
-};
-
-export const AdminDetailHeader = (props: Omit<DetailPageHeaderProps, "onOpenMenu">) => {
-  const { openMenu } = useAdminMenu();
-  return <DetailPageHeader {...props} onOpenMenu={openMenu} />;
-};
 
 const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   const { t } = useTranslation();
@@ -91,7 +81,7 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   if (!authorized || !user) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
-        <ApiLoading label={t("staff.loading")} />
+        <SessionPending label={t("staff.loading")} />
       </div>
     );
   }
@@ -99,7 +89,7 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   const sidebarUser = { initials: getInitials(user.fullName), name: user.fullName, email: user.email ?? "" };
 
   return (
-    <AdminMenuContext.Provider value={{ openMenu }}>
+    <DashboardMenuProvider openMenu={openMenu}>
       <div className="min-h-dvh bg-background">
         <DashboardSidebar links={navLinks} ariaLabel={t("admin.nav.navAria")} user={sidebarUser} />
         {menuOpen && (
@@ -123,7 +113,7 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
           <div className="mx-auto w-full max-w-360">{children}</div>
         </main>
       </div>
-    </AdminMenuContext.Provider>
+    </DashboardMenuProvider>
   );
 };
 

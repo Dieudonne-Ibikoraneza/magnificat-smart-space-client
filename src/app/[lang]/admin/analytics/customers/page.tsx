@@ -13,7 +13,7 @@ import {
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { ArrowRight, ListFilter, Repeat2, Search, UserRoundPlus, UsersRound } from "lucide-react";
-import { AdminPageHeader } from "@/app/[lang]/admin/layout";
+import { DashboardPageHeader as AdminPageHeader } from "@/components/dashboard-page-headers";
 import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";

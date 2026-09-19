@@ -29,12 +29,6 @@ export const roomTypeLabels: Record<RoomType, string> = {
   KITCHEN: "Kitchen",
 };
 
-const roomTypeByLabel = new Map<string, RoomType>(
-  (Object.entries(roomTypeLabels) as [RoomType, string][]).map(([value, label]) => [label, value]),
-);
-
-export const toRoomType = (label: string): RoomType | undefined => roomTypeByLabel.get(label);
-
 /** Display labels for the "how did you hear about us" enum — used on Customer Analytics' acquisition-channel chart. */
 export const hearAboutUsLabels: Record<HearAboutUs, string> = {
   SOCIAL_MEDIA: "Social Media",

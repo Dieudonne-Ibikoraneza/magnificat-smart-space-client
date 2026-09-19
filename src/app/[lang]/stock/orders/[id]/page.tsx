@@ -19,7 +19,7 @@ import {
   Printer,
   Wallet,
 } from "lucide-react";
-import { StockDetailHeader } from "@/app/[lang]/stock/layout";
+import { DashboardDetailHeader as StockDetailHeader } from "@/components/dashboard-page-headers";
 import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -181,7 +181,7 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
               </p>
               {key === "customer" && order.customerId ? (
                 <Link
-                  href={"/sales/customers/" + order.customerId}
+                  href={"/stock/customers/" + order.customerId}
                   className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-ink transition-transform duration-200 hover:translate-x-1"
                 >
                   {t("sales.orderDetail.viewProfile")} <ChevronRight className="size-3.5" />
@@ -305,7 +305,7 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
                       <span className="flex size-9 items-center justify-center rounded-full bg-ink text-xs font-semibold text-card">
                         {order.customer.fullName.split(" ").map((part) => part[0]).join("")}
                       </span>
-                      <Link href={"/sales/customers/" + order.customer.id} className="font-medium text-ink underline decoration-primary decoration-2 underline-offset-4 hover:opacity-70">
+                      <Link href={"/stock/customers/" + order.customer.id} className="font-medium text-ink underline decoration-primary decoration-2 underline-offset-4 hover:opacity-70">
                         {order.customer.fullName}
                       </Link>
                     </dd>

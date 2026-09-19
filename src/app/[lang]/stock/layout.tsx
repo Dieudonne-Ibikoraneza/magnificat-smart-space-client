@@ -1,21 +1,21 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   FileText,
   LayoutGrid,
   MessagesSquare,
   ShelvingUnit,
+  Sparkles,
   Settings,
   ShoppingCart,
   Boxes,
   User,
 } from "lucide-react";
-import { ApiLoading } from "@/components/api-state";
+import { SessionPending } from "@/components/api-state";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
-import { PageHeader, type PageHeaderProps } from "@/components/page-header";
-import { DetailPageHeader, type DetailPageHeaderProps } from "@/components/detail-page-header";
+import { DashboardMenuProvider } from "@/components/dashboard-page-headers";
 import { STOCK_ROLES } from "@/lib/auth-routes";
 import { useRequireRole } from "@/lib/require-role";
 import { getInitials } from "@/lib/utils";
@@ -30,30 +30,12 @@ const navigation = [
   { labelKey: "stock.nav.inventory", href: "/stock/inventory", icon: ShelvingUnit },
   { labelKey: "stock.nav.orders", href: "/stock/orders", icon: ShoppingCart },
   { labelKey: "stock.nav.customers", href: "/stock/customers", icon: User },
+  { labelKey: "stock.nav.designs", href: "/stock/designs", icon: Sparkles },
   { labelKey: "stock.nav.negotiations", href: "/stock/negotiations", icon: MessagesSquare },
   { labelKey: "stock.nav.collections", href: "/stock/collections", icon: Boxes },
   { labelKey: "stock.nav.reports", href: "/stock/reports", icon: FileText },
   { labelKey: "stock.nav.settings", href: "/stock/settings", icon: Settings },
 ] as const;
-
-type StockMenuContextValue = { openMenu: () => void };
-const StockMenuContext = createContext<StockMenuContextValue | null>(null);
-
-export const useStockMenu = () => {
-  const context = useContext(StockMenuContext);
-  if (!context) throw new Error("useStockMenu must be used inside StockLayout");
-  return context;
-};
-
-export const StockPageHeader = (props: Omit<PageHeaderProps, "onOpenMenu">) => {
-  const { openMenu } = useStockMenu();
-  return <PageHeader {...props} onOpenMenu={openMenu} />;
-};
-
-export const StockDetailHeader = (props: Omit<DetailPageHeaderProps, "onOpenMenu">) => {
-  const { openMenu } = useStockMenu();
-  return <DetailPageHeader {...props} onOpenMenu={openMenu} />;
-};
 
 const StockLayout = ({ children }: { children: React.ReactNode }) => {
   const { t } = useTranslation();
@@ -78,7 +60,7 @@ const StockLayout = ({ children }: { children: React.ReactNode }) => {
   if (!authorized || !user) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
-        <ApiLoading label={t("staff.loading")} />
+        <SessionPending label={t("staff.loading")} />
       </div>
     );
   }
@@ -86,7 +68,7 @@ const StockLayout = ({ children }: { children: React.ReactNode }) => {
   const sidebarUser = { initials: getInitials(user.fullName), name: user.fullName, email: user.email ?? "" };
 
   return (
-    <StockMenuContext.Provider value={{ openMenu }}>
+    <DashboardMenuProvider openMenu={openMenu}>
       <div className="min-h-dvh bg-background">
         <DashboardSidebar links={navLinks} ariaLabel={t("stock.nav.navAria")} user={sidebarUser} />
         {menuOpen && (
@@ -110,7 +92,7 @@ const StockLayout = ({ children }: { children: React.ReactNode }) => {
           <div className="mx-auto w-full max-w-360">{children}</div>
         </main>
       </div>
-    </StockMenuContext.Provider>
+    </DashboardMenuProvider>
   );
 };
 

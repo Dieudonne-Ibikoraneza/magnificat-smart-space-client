@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import { ApiLoading } from "@/components/api-state";
+import { SessionPending } from "@/components/api-state";
 import { useRequireRole } from "@/lib/require-role";
 import type { Role } from "@/lib/api/types";
 
@@ -26,7 +26,7 @@ const ChatbotLayout = ({ children }: { children: React.ReactNode }) => {
   if (!authorized) {
     return (
       <div className="flex h-[calc(100dvh-8.5rem)] items-center justify-center md:h-[calc(100dvh-5rem)]">
-        <ApiLoading label={t("chatbot.loading")} />
+        <SessionPending label={t("chatbot.loading")} />
       </div>
     );
   }

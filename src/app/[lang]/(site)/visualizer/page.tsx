@@ -154,7 +154,12 @@ const TilePickerCard = ({
         </span>
       )}
     </div>
-    <p className="mt-2 truncate text-xs font-medium text-ink">{product.name}</p>
+    <Tooltip>
+      <TooltipTrigger render={<p className="mt-2 truncate text-xs font-medium text-ink" />}>
+        {product.name}
+      </TooltipTrigger>
+      <TooltipContent side="top">{product.name}</TooltipContent>
+    </Tooltip>
   </button>
   );
 };
@@ -247,7 +252,12 @@ const AppliedTilesCart = ({
             <Image src={product.image} alt={product.name} fill unoptimized className="object-cover" sizes="48px" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-ink">{product.name}</p>
+            <Tooltip>
+              <TooltipTrigger render={<p className="truncate text-sm font-semibold text-ink" />}>
+                {product.name}
+              </TooltipTrigger>
+              <TooltipContent side="top">{product.name}</TooltipContent>
+            </Tooltip>
             <p className="text-xs text-muted">
               {t(labelKey)} · {formatPrice(product.price)} {t("visualizer.pricePerSqm")}
             </p>
@@ -475,7 +485,7 @@ const SaveDesignDialog = ({
 }) => {
   const { t } = useTranslation();
   const [name, setName] = useState("");
-  const [shared, setShared] = useState(false);
+  const [shared, setShared] = useState(true);
   const [wasOpen, setWasOpen] = useState(open);
 
   // Reset the form whenever the dialog transitions from closed to open —
@@ -485,7 +495,7 @@ const SaveDesignDialog = ({
     setWasOpen(open);
     if (open) {
       setName(t("visualizer.saveDialog.nameDefault", { room: roomLabel }));
-      setShared(false);
+      setShared(true);
     }
   }
 
@@ -524,14 +534,14 @@ const SaveDesignDialog = ({
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="h-10 px-5 text-sm font-bold">
             {t("visualizer.saveDialog.cancel")}
           </Button>
           <Button
             type="button"
             disabled={saving || name.trim().length === 0}
             onClick={() => onSave(name.trim(), shared)}
-            className="bg-primary text-ink hover:bg-primary/90"
+            className="h-10 px-5 text-sm font-bold bg-primary text-ink hover:bg-primary/90 disabled:opacity-60"
           >
             {saving ? t("visualizer.saveDialog.saving") : t("visualizer.saveDialog.save")}
           </Button>

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { ArrowRight, Pencil, Plus, Trash2 } from "lucide-react";
-import { AdminPageHeader } from "@/app/[lang]/admin/layout";
+import { DashboardPageHeader as AdminPageHeader } from "@/components/dashboard-page-headers";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";

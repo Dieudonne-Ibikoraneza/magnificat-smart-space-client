@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ListFilter, Search, ShoppingCart } from "lucide-react";
-import { StockPageHeader } from "@/app/[lang]/stock/layout";
+import { Eye, ListFilter, Search, ShoppingCart } from "lucide-react";
+import { DashboardPageHeader as StockPageHeader } from "@/components/dashboard-page-headers";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,9 +21,9 @@ const statusBadge: Record<UserStatus, "primary" | "muted" | "destructive"> = {
 };
 
 /**
- * Read-only view — stock managers can look customers up and start an order
- * on their behalf, but customer management itself (editing, suspending)
- * stays with admin/sales.
+ * Read-only view — stock managers can look customers up, open their profile
+ * (`/stock/customers/[slug]`) and start an order on their behalf, but
+ * customer management itself (editing, suspending) stays with admin/sales.
  */
 const StockCustomersPage = () => {
   const { t } = useTranslation();
@@ -142,15 +142,26 @@ const StockCustomersPage = () => {
                     </dd>
                   </div>
                 </dl>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.push(`/stock/orders/new?customer=${customer.id}`)}
-                  className="mt-5 h-auto gap-2 rounded-md border-border bg-transparent py-2.5 text-xs font-bold tracking-wider text-ink uppercase transition-all hover:border-primary hover:bg-primary active:scale-95"
-                >
-                  <ShoppingCart className="size-4" strokeWidth={1.9} />
-                  {t("stock.customers.createOrder")}
-                </Button>
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.push(`/stock/customers/${customer.id}`)}
+                    className="h-auto gap-2 rounded-md bg-transparent py-2.5 text-xs font-bold tracking-wider text-ink uppercase transition-all hover:bg-secondary active:scale-95"
+                  >
+                    <Eye className="size-4" strokeWidth={1.9} />
+                    {t("stock.customers.view")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.push(`/stock/orders/new?customer=${customer.id}`)}
+                    className="h-auto gap-2 rounded-md border-border bg-transparent py-2.5 text-xs font-bold tracking-wider text-ink uppercase transition-all hover:border-primary hover:bg-primary active:scale-95"
+                  >
+                    <ShoppingCart className="size-4" strokeWidth={1.9} />
+                    {t("stock.customers.createOrder")}
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>

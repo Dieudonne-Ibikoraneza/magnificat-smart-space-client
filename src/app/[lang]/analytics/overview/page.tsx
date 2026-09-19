@@ -21,7 +21,7 @@ import {
   Truck,
   UsersRound,
 } from "lucide-react";
-import { AnalyticsPageHeader } from "@/app/[lang]/analytics/layout";
+import { DashboardPageHeader as AnalyticsPageHeader } from "@/components/dashboard-page-headers";
 import {
   AnalyticsPeriodSwitcher,
   periodToRange,

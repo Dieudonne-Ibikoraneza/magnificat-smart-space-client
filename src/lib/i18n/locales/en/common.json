@@ -29,6 +29,7 @@
     "empty": "Nothing here yet",
     "error": "Something went wrong",
     "retry": "Try again",
+    "sessionCheckFailed": "We couldn't check your sign-in right now. Your session is fine — check your connection and try again.",
     "relativeTime": {
       "justNow": "Just now",
       "minutesAgo": "{{count}} min ago",
@@ -1159,7 +1160,9 @@
       "surfaces": "Surfaces",
       "surfaceFloor": "Floor",
       "surfaceWalls": "Walls",
-      "startOrder": "Start order for this customer"
+      "startOrder": "Start order for this customer",
+      "loadMore": "Load more",
+      "loadMoreError": "Couldn't load more designs. Please try again."
     },
     "customers": {
       "title": "Customers",
@@ -1449,7 +1452,8 @@
       "reports": "Reports",
       "settings": "Account Settings",
       "navAria": "Stock manager navigation",
-      "closeMenu": "Close menu"
+      "closeMenu": "Close menu",
+      "designs": "Shared Designs"
     },
     "settings": {
       "title": "Account Settings",
@@ -1477,7 +1481,8 @@
       "lastOrder": "Last Order",
       "noOrdersYet": "No orders yet",
       "totalSpend": "Total Spend",
-      "createOrder": "Create Order"
+      "createOrder": "Create Order",
+      "view": "View"
     },
     "overview": {
       "title": "Overview",
@@ -1775,7 +1780,9 @@
       "hoursAgo": "{{count}}h ago",
       "daysAgo": "{{count}}d ago",
       "toastNotSentTitle": "Message not sent",
-      "toastTryAgain": "Please try again."
+      "toastTryAgain": "Please try again.",
+      "loadMore": "Load more",
+      "loadMoreError": "Couldn't load more conversations. Please try again."
     },
     "reports": {
       "title": "Reports",
@@ -1806,7 +1813,59 @@
       "colType": "Type",
       "colQty": "Qty (sqm)",
       "colBy": "By",
-      "colTime": "Time"
+      "colTime": "Time",
+      "tabsAria": "Report type",
+      "tabStockReport": "Stock Report",
+      "summaryTitle": "Stock Summary",
+      "summarySub": "Inventory levels and value for the selected period.",
+      "outOfStockItems": "Out of Stock Items",
+      "trendTitle": "Net Stock Movement",
+      "trendSub": "Net change in on-hand area per period — inbound minus outbound.",
+      "lowStockReportTitle": "Low Stock Report",
+      "lowStockReportSub": "Every active product at or below its low-stock threshold.",
+      "colThreshold": "Threshold"
+    },
+    "customerDetail": {
+      "loading": "Loading customer…",
+      "crumbOverview": "Overview",
+      "crumbCustomers": "Customers",
+      "newOrder": "New Order",
+      "joined": "Joined {{date}}",
+      "totalLifetimeSpend": "Total Lifetime Spend",
+      "lastOrderDate": "Last Order Date",
+      "noOrdersYet": "No orders yet",
+      "profileDetails": "Profile Details",
+      "fullNames": "Full Names",
+      "contactInfo": "Contact Info",
+      "orders": "Orders",
+      "ordersTotal": "{{count}} total",
+      "recentOrders": "Recent Orders",
+      "noOrders": "No orders yet.",
+      "colOrderId": "Order ID",
+      "colDate": "Date",
+      "colAmount": "Amount",
+      "colStatus": "Status",
+      "colAction": "Action",
+      "view": "View",
+      "staffFallback": "Staff"
+    },
+    "designs": {
+      "title": "Shared Designs",
+      "subtitle": "Rooms customers styled in the 3D visualizer and shared with the sales team.",
+      "searchPlaceholder": "Search by customer, room or design name...",
+      "searchAria": "Search shared designs",
+      "loading": "Loading shared designs…",
+      "emptyTitle": "No shared designs yet",
+      "emptyBody": "Once a customer saves a design in the 3D visualizer and shares it with sales, it'll show up here with their contact details and the exact tiles they chose.",
+      "noSearchResults": "No shared designs match that search.",
+      "previewAlt": "Preview of {{name}}",
+      "shared": "Shared {{date}}",
+      "surfaces": "Surfaces",
+      "surfaceFloor": "Floor",
+      "surfaceWalls": "Walls",
+      "startOrder": "Start order for this customer",
+      "loadMore": "Load more",
+      "loadMoreError": "Couldn't load more designs. Please try again."
     }
   },
   "analytics": {
@@ -1819,7 +1878,9 @@
       "ai": "AI Analytics",
       "settings": "Account Settings",
       "navAria": "Data analyst navigation",
-      "closeMenu": "Close menu"
+      "closeMenu": "Close menu",
+      "stockReport": "Stock Reports",
+      "askedQuestions": "Asked Questions"
     },
     "settings": {
       "title": "Account Settings",
@@ -2148,6 +2209,10 @@
       "notFoundTitle": "Order not found",
       "notFoundBody": "This order doesn't exist.",
       "back": "Back to Sales Analytics"
+    },
+    "stockReport": {
+      "title": "Stock Reports",
+      "subtitle": "Read-only view of stock movements, low stock and the fulfilment queue across the warehouse."
     }
   },
   "admin": {
@@ -2157,6 +2222,8 @@
       "inventory": "Stock & Inventory",
       "customers": "Customers",
       "collections": "Collections",
+      "rooms": "3D Rooms",
+      "knowledgeBase": "Knowledge Base",
       "customerAnalytics": "Customer Analytics",
       "salesAnalytics": "Sales Analytics",
       "tilesAnalytics": "Tiles Analytics",
@@ -2171,7 +2238,10 @@
       "sectionAnalytics": "Analytics",
       "sectionManagement": "Management",
       "navAria": "Admin navigation",
-      "closeMenu": "Close menu"
+      "closeMenu": "Close menu",
+      "designs": "Shared Designs",
+      "negotiations": "Negotiations",
+      "stockReport": "Stock Reports"
     },
     "accountSettings": {
       "title": "Account Settings",
@@ -2243,7 +2313,10 @@
       "platformName": "Platform Name",
       "defaultCurrency": "Default Currency",
       "defaultCurrencyValue": "{{code}} (Rwandan Franc)",
-      "systemVersion": "System Version"
+      "systemVersion": "System Version",
+      "reorderQuestion": "Reorder question {{n}} — drag, or use the up and down arrow keys",
+      "toastOrderSaved": "Question order saved",
+      "toastOrderFailed": "Couldn't save the new order"
     },
     "askedQuestions": {
       "title": "Asked Questions",
@@ -2539,6 +2612,32 @@
       "viewsCount": "{{value}} views",
       "applicationsCount": "{{value}} applications",
       "salesCount": "{{value}} sales"
+    },
+    "designs": {
+      "title": "Shared Designs",
+      "subtitle": "Rooms customers styled in the 3D visualizer and shared with the sales team.",
+      "searchPlaceholder": "Search by customer, room or design name...",
+      "searchAria": "Search shared designs",
+      "loading": "Loading shared designs…",
+      "emptyTitle": "No shared designs yet",
+      "emptyBody": "Once a customer saves a design in the 3D visualizer and shares it with sales, it'll show up here with their contact details and the exact tiles they chose.",
+      "noSearchResults": "No shared designs match that search.",
+      "previewAlt": "Preview of {{name}}",
+      "shared": "Shared {{date}}",
+      "surfaces": "Surfaces",
+      "surfaceFloor": "Floor",
+      "surfaceWalls": "Walls",
+      "startOrder": "Start order for this customer",
+      "loadMore": "Load more",
+      "loadMoreError": "Couldn't load more designs. Please try again."
+    },
+    "negotiations": {
+      "title": "Negotiations",
+      "subtitle": "Chat with customers whose orders — or carts — exceeded stock on hand."
+    },
+    "stockReport": {
+      "title": "Stock Reports",
+      "subtitle": "Stock movements, low stock and the fulfilment queue across the warehouse."
     }
   },
   "auth": {

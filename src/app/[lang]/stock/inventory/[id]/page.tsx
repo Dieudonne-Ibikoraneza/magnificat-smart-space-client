@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useTranslation } from "react-i18next";
 import { Boxes, Layers3, Maximize2, Package } from "lucide-react";
-import { StockDetailHeader } from "@/app/[lang]/stock/layout";
+import { DashboardDetailHeader as StockDetailHeader } from "@/components/dashboard-page-headers";
 import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Button } from "@/components/ui/button";
 import { QuantityCalculator } from "@/components/quantity-calculator";

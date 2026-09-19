@@ -276,6 +276,12 @@ body {
        exposes the browser's default white instead of the app's cream, most
        visible as a white strip down the right edge while a dialog is open. */
     @apply bg-background font-sans;
+    /* Reserves the scrollbar's gutter up front, always — not just while a
+       dialog has locked scroll — so the page is exactly as wide with a
+       dialog open as without one. That's what actually stops the sliver
+       above from ever appearing on a browser that supports this (the
+       `bg-background` fallback above still covers the ones that don't). */
+    scrollbar-gutter: stable;
   }
 }
 

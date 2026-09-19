@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useTranslation } from "react-i18next";
 import { Layers3, Maximize2 } from "lucide-react";
-import { SalesPageHeader } from "@/app/[lang]/sales/layout";
+import { DashboardPageHeader as SalesPageHeader } from "@/components/dashboard-page-headers";
 import {
   Breadcrumb,
   BreadcrumbItem,

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { ProductCatalog } from "@/components/product-catalog";
 import { ProductsPageSkeleton } from "@/components/skeletons";
-import { SalesPageHeader } from "@/app/[lang]/sales/layout";
+import { DashboardPageHeader as SalesPageHeader } from "@/components/dashboard-page-headers";
 import { productsApi, toProduct } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
 import { useLocale } from "@/lib/i18n";

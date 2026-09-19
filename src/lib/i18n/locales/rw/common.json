@@ -29,6 +29,7 @@
     "empty": "Nta kintu kirahari",
     "error": "Hari ikitagenze neza",
     "retry": "Ongera ugerageze",
+    "sessionCheckFailed": "Ntitwashoboye kugenzura ko winjiye ubu. Konti yawe iracyafunguye — reba interineti wongere ugerageze.",
     "relativeTime": {
       "justNow": "Nonaha",
       "minutesAgo": "hashize iminota {{count}}",
@@ -1159,7 +1160,9 @@
       "surfaces": "Ubuso",
       "surfaceFloor": "Hasi",
       "surfaceWalls": "Inkuta",
-      "startOrder": "Tangira itumizo ry'uyu mukiriya"
+      "startOrder": "Tangira itumizo ry'uyu mukiriya",
+      "loadMore": "Kuzana ibindi",
+      "loadMoreError": "Ntibishobotse kuzana ibindi bishushanyo. Ongera ugerageze."
     },
     "customers": {
       "title": "Abakiriya",
@@ -1449,7 +1452,8 @@
       "reports": "Raporo",
       "settings": "Igenamiterere rya Konti",
       "navAria": "Ubuyobozi bw'umucungabubiko",
-      "closeMenu": "Funga menu"
+      "closeMenu": "Funga menu",
+      "designs": "Ibishushanyo Byasangijwe"
     },
     "settings": {
       "title": "Igenamiterere rya Konti",
@@ -1477,7 +1481,8 @@
       "lastOrder": "Itumizo rya nyuma",
       "noOrdersYet": "Nta byatumijwe biraboneka",
       "totalSpend": "Amafaranga yose",
-      "createOrder": "Kora Itumizo"
+      "createOrder": "Kora Itumizo",
+      "view": "Reba"
     },
     "overview": {
       "title": "Incamake",
@@ -1775,7 +1780,9 @@
       "hoursAgo": "hashize amasaha {{count}}",
       "daysAgo": "hashize iminsi {{count}}",
       "toastNotSentTitle": "Ubutumwa ntibwoherejwe",
-      "toastTryAgain": "Ongera ugerageze."
+      "toastTryAgain": "Ongera ugerageze.",
+      "loadMore": "Kuzana ibindi",
+      "loadMoreError": "Ntibishobotse kuzana ibindi biganiro. Ongera ugerageze."
     },
     "reports": {
       "title": "Raporo",
@@ -1806,7 +1813,59 @@
       "colType": "Ubwoko",
       "colQty": "Ingano (m²)",
       "colBy": "Wabikoze",
-      "colTime": "Igihe"
+      "colTime": "Igihe",
+      "tabsAria": "Ubwoko bwa raporo",
+      "tabStockReport": "Raporo y'Ububiko",
+      "summaryTitle": "Incamake y'Ububiko",
+      "summarySub": "Ingano n'agaciro k'ububiko mu gihe cyatoranyijwe.",
+      "outOfStockItems": "Ibicuruzwa Byashize",
+      "trendTitle": "Impinduka Rusange z'Ububiko",
+      "trendSub": "Impinduka rusange y'ubuso buri mu bubiko ku gihe — ibyinjiye bikuwemo ibyasohotse.",
+      "lowStockReportTitle": "Raporo y'Ububiko Buke",
+      "lowStockReportSub": "Buri gicuruzwa gikora kiri ku rugero rwo hasi cyangwa munsi yarwo.",
+      "colThreshold": "Urugero"
+    },
+    "customerDetail": {
+      "loading": "Kuzana umukiriya…",
+      "crumbOverview": "Ikibaho",
+      "crumbCustomers": "Abakiriya",
+      "newOrder": "Itumizo Rishya",
+      "joined": "Yinjiye {{date}}",
+      "totalLifetimeSpend": "Amafaranga Yose Yakoreshejwe",
+      "lastOrderDate": "Itariki y'Itumizo Rya Nyuma",
+      "noOrdersYet": "Nta byatumijwe biraboneka",
+      "profileDetails": "Amakuru y'Umwirondoro",
+      "fullNames": "Amazina Yuzuye",
+      "contactInfo": "Aho Guhurira",
+      "orders": "Ibyatumijwe",
+      "ordersTotal": "{{count}} yose hamwe",
+      "recentOrders": "Ibyatumijwe Vuba",
+      "noOrders": "Nta byatumijwe biraboneka.",
+      "colOrderId": "Nomero y'Itumizo",
+      "colDate": "Itariki",
+      "colAmount": "Umubare",
+      "colStatus": "Imiterere",
+      "colAction": "Igikorwa",
+      "view": "Reba",
+      "staffFallback": "Umukozi"
+    },
+    "designs": {
+      "title": "Ibishushanyo Bisangiwe",
+      "subtitle": "Ibyumba abakiriya bateguye muri 3D visualizer maze babisangiza abacuruzi.",
+      "searchPlaceholder": "Shakisha ku mukiriya, icyumba cyangwa izina ry'igishushanyo...",
+      "searchAria": "Shakisha ibishushanyo bisangiwe",
+      "loading": "Kuzana ibishushanyo bisangiwe…",
+      "emptyTitle": "Nta bishushanyo bisangiwe biraboneka",
+      "emptyBody": "Iyo umukiriya abitse igishushanyo muri 3D visualizer maze akagisangiza abacuruzi, kizagaragara hano gifite amakuru ye yo kumugezaho n'amakaro yatoranyije.",
+      "noSearchResults": "Nta bishushanyo bisangiwe bihuye n'ishakisha.",
+      "previewAlt": "Igaragazambere rya {{name}}",
+      "shared": "Byasangijwe {{date}}",
+      "surfaces": "Ubuso",
+      "surfaceFloor": "Hasi",
+      "surfaceWalls": "Inkuta",
+      "startOrder": "Tangira itumizo ry'uyu mukiriya",
+      "loadMore": "Kuzana ibindi",
+      "loadMoreError": "Ntibishobotse kuzana ibindi bishushanyo. Ongera ugerageze."
     }
   },
   "analytics": {
@@ -1819,7 +1878,9 @@
       "ai": "Isesengura rya AI",
       "settings": "Igenamiterere rya Konti",
       "navAria": "Ubuyobozi bw'umusesenguzi w'amakuru",
-      "closeMenu": "Funga menu"
+      "closeMenu": "Funga menu",
+      "stockReport": "Raporo z'Ububiko",
+      "askedQuestions": "Ibibazo Byabajijwe"
     },
     "settings": {
       "title": "Igenamiterere rya Konti",
@@ -2148,6 +2209,10 @@
       "notFoundTitle": "Itumizo ntiryabonetse",
       "notFoundBody": "Iri tumizo ntiribaho.",
       "back": "Subira ku Isesengura ry'Ibicuruzwa"
+    },
+    "stockReport": {
+      "title": "Raporo z'Ububiko",
+      "subtitle": "Reba gusa ibinyeganyega by'ububiko, ububiko buke n'itumizo ritegereje gutangwa mu bubiko."
     }
   },
   "admin": {
@@ -2157,6 +2222,8 @@
       "inventory": "Ububiko n'Ibicuruzwa",
       "customers": "Abakiriya",
       "collections": "Amakoreksiyo",
+      "rooms": "Ibyumba bya 3D",
+      "knowledgeBase": "Ubumenyi bwa Chatbot",
       "customerAnalytics": "Isesengura ry'Abakiriya",
       "salesAnalytics": "Isesengura ry'Ibyagurishijwe",
       "tilesAnalytics": "Isesengura ry'Amakaro",
@@ -2171,7 +2238,10 @@
       "sectionAnalytics": "Isesengura",
       "sectionManagement": "Ubuyobozi",
       "navAria": "Ubuyobozi bw'Ikibaho",
-      "closeMenu": "Funga menu"
+      "closeMenu": "Funga menu",
+      "designs": "Ibishushanyo Byasangijwe",
+      "negotiations": "Ibiganiro",
+      "stockReport": "Raporo z'Ububiko"
     },
     "accountSettings": {
       "title": "Igenamiterere rya Konti",
@@ -2243,7 +2313,10 @@
       "platformName": "Izina rya Porogaramu",
       "defaultCurrency": "Ifaranga Rikoreshwa",
       "defaultCurrencyValue": "{{code}} (Ifaranga ry'u Rwanda)",
-      "systemVersion": "Verisiyo ya Sisiteme"
+      "systemVersion": "Verisiyo ya Sisiteme",
+      "reorderQuestion": "Hindura umwanya w'ikibazo {{n}} — kurura, cyangwa koresha imyambi hejuru no hasi",
+      "toastOrderSaved": "Uko ibibazo bikurikirana byabitswe",
+      "toastOrderFailed": "Ntibishobotse kubika uko ibibazo bikurikirana"
     },
     "askedQuestions": {
       "title": "Ibibazo Byabajijwe",
@@ -2539,6 +2612,32 @@
       "viewsCount": "Kurebwa {{value}}",
       "applicationsCount": "Gukoreshwa {{value}}",
       "salesCount": "Byagurishijwe {{value}}"
+    },
+    "designs": {
+      "title": "Ibishushanyo Bisangiwe",
+      "subtitle": "Ibyumba abakiriya bateguye muri 3D visualizer maze babisangiza abacuruzi.",
+      "searchPlaceholder": "Shakisha ku mukiriya, icyumba cyangwa izina ry'igishushanyo...",
+      "searchAria": "Shakisha ibishushanyo bisangiwe",
+      "loading": "Kuzana ibishushanyo bisangiwe…",
+      "emptyTitle": "Nta bishushanyo bisangiwe biraboneka",
+      "emptyBody": "Iyo umukiriya abitse igishushanyo muri 3D visualizer maze akagisangiza abacuruzi, kizagaragara hano gifite amakuru ye yo kumugezaho n'amakaro yatoranyije.",
+      "noSearchResults": "Nta bishushanyo bisangiwe bihuye n'ishakisha.",
+      "previewAlt": "Igaragazambere rya {{name}}",
+      "shared": "Byasangijwe {{date}}",
+      "surfaces": "Ubuso",
+      "surfaceFloor": "Hasi",
+      "surfaceWalls": "Inkuta",
+      "startOrder": "Tangira itumizo ry'uyu mukiriya",
+      "loadMore": "Kuzana ibindi",
+      "loadMoreError": "Ntibishobotse kuzana ibindi bishushanyo. Ongera ugerageze."
+    },
+    "negotiations": {
+      "title": "Ibiganiro",
+      "subtitle": "Ganira n'abakiriya ibyatumijwe byabo — cyangwa amagaseke — byarenze ububiko buhari."
+    },
+    "stockReport": {
+      "title": "Raporo z'Ububiko",
+      "subtitle": "Ibinyeganyega by'ububiko, ububiko buke n'itumizo ritegereje gutangwa mu bubiko."
     }
   },
   "auth": {

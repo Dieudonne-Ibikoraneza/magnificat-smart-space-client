@@ -1,20 +1,21 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   WalletCards,
   Bot,
   Boxes,
+  FileText,
   LayoutGrid,
+  MessageSquareText,
   Settings,
   Users,
   Workflow,
 } from "lucide-react";
-import { ApiLoading } from "@/components/api-state";
+import { SessionPending } from "@/components/api-state";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
-import { PageHeader, type PageHeaderProps } from "@/components/page-header";
-import { DetailPageHeader, type DetailPageHeaderProps } from "@/components/detail-page-header";
+import { DashboardMenuProvider } from "@/components/dashboard-page-headers";
 import { ANALYTICS_ROLES } from "@/lib/auth-routes";
 import { useRequireRole } from "@/lib/require-role";
 import { getInitials } from "@/lib/utils";
@@ -31,27 +32,10 @@ const navigation = [
   { labelKey: "analytics.nav.tiles", href: "/analytics/tiles", icon: Boxes },
   { labelKey: "analytics.nav.journey", href: "/analytics/journey", icon: Workflow },
   { labelKey: "analytics.nav.ai", href: "/analytics/ai", icon: Bot },
+  { labelKey: "analytics.nav.stockReport", href: "/analytics/stock", icon: FileText },
+  { labelKey: "analytics.nav.askedQuestions", href: "/analytics/asked-questions", icon: MessageSquareText },
   { labelKey: "analytics.nav.settings", href: "/analytics/settings", icon: Settings },
 ] as const;
-
-type AnalyticsMenuContextValue = { openMenu: () => void };
-const AnalyticsMenuContext = createContext<AnalyticsMenuContextValue | null>(null);
-
-export const useAnalyticsMenu = () => {
-  const context = useContext(AnalyticsMenuContext);
-  if (!context) throw new Error("useAnalyticsMenu must be used inside AnalyticsLayout");
-  return context;
-};
-
-export const AnalyticsPageHeader = (props: Omit<PageHeaderProps, "onOpenMenu">) => {
-  const { openMenu } = useAnalyticsMenu();
-  return <PageHeader {...props} onOpenMenu={openMenu} />;
-};
-
-export const AnalyticsDetailHeader = (props: Omit<DetailPageHeaderProps, "onOpenMenu">) => {
-  const { openMenu } = useAnalyticsMenu();
-  return <DetailPageHeader {...props} onOpenMenu={openMenu} />;
-};
 
 const AnalyticsLayout = ({ children }: { children: React.ReactNode }) => {
   const { t } = useTranslation();
@@ -76,7 +60,7 @@ const AnalyticsLayout = ({ children }: { children: React.ReactNode }) => {
   if (!authorized || !user) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background">
-        <ApiLoading label={t("staff.loading")} />
+        <SessionPending label={t("staff.loading")} />
       </div>
     );
   }
@@ -84,7 +68,7 @@ const AnalyticsLayout = ({ children }: { children: React.ReactNode }) => {
   const sidebarUser = { initials: getInitials(user.fullName), name: user.fullName, email: user.email ?? "" };
 
   return (
-    <AnalyticsMenuContext.Provider value={{ openMenu }}>
+    <DashboardMenuProvider openMenu={openMenu}>
       <div className="min-h-dvh bg-background">
         <DashboardSidebar links={navLinks} ariaLabel={t("analytics.nav.navAria")} user={sidebarUser} />
         {menuOpen && (
@@ -108,7 +92,7 @@ const AnalyticsLayout = ({ children }: { children: React.ReactNode }) => {
           <div className="mx-auto w-full max-w-360">{children}</div>
         </main>
       </div>
-    </AnalyticsMenuContext.Provider>
+    </DashboardMenuProvider>
   );
 };
 

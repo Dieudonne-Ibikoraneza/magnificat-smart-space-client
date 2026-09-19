@@ -17,7 +17,7 @@ import {
   ShelvingUnit,
   WalletCards,
 } from "lucide-react";
-import { StockPageHeader } from "@/app/[lang]/stock/layout";
+import { DashboardPageHeader as StockPageHeader } from "@/components/dashboard-page-headers";
 import { AdjustStockDialog } from "@/components/adjust-stock-dialog";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { analyticsApi, reportsApi } from "@/lib/api";
@@ -67,9 +67,9 @@ const KpiCard = ({
     <p className="mt-8 text-xs font-medium tracking-[0.6px] text-[#71809a] uppercase">
       {label}
     </p>
-    <p className={`mt-1 text-3xl font-black leading-10 tracking-tight ${valueTone}`}>
+    <div className={`mt-1 text-3xl font-black leading-10 tracking-tight ${valueTone}`}>
       {value}
-    </p>
+    </div>
   </article>
 );
 

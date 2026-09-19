@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Eye, ListFilter, Search, ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { SalesPageHeader } from "@/app/[lang]/sales/layout";
+import { DashboardPageHeader as SalesPageHeader } from "@/components/dashboard-page-headers";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

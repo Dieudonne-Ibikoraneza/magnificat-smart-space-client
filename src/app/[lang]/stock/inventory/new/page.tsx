@@ -21,7 +21,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { StockDetailHeader } from "@/app/[lang]/stock/layout";
+import { DashboardDetailHeader as StockDetailHeader } from "@/components/dashboard-page-headers";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, RequiredAsterisk } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";

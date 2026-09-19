@@ -146,15 +146,19 @@ const ProductDetailsPage = ({
   // feature, and an anonymous visitor can't have any yet either, so skip the
   // call rather than let it 401 in the background.
   useEffect(() => {
-    if (!isClient || !tokenStore.getAccessToken()) return;
+    if (!isClient) return;
     let active = true;
-    favoritesApi
-      .list()
-      .then((favorites) => {
-        if (active)
-          setIsFavorited(favorites.some((item) => item.productId === id));
-      })
-      .catch(() => undefined);
+    // Wait for the session to be restored after a page load before deciding
+    // whether there's a signed-in visitor to check.
+    void tokenStore.ready().then(() => {
+      if (!active || !tokenStore.getAccessToken()) return;
+      return favoritesApi
+        .list()
+        .then((favorites) => {
+          if (active) setIsFavorited(favorites.some((item) => item.productId === id));
+        })
+        .catch(() => undefined);
+    });
     return () => {
       active = false;
     };

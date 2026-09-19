@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowDownWideNarrow, ArrowRight, Boxes, Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { StockPageHeader } from "@/app/[lang]/stock/layout";
+import { DashboardPageHeader as StockPageHeader } from "@/components/dashboard-page-headers";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";

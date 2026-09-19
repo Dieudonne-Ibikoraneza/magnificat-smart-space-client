@@ -340,7 +340,7 @@ const CartPage = () => {
             )}
           </div>
         </section>
-        <aside className="h-fit rounded-3xl bg-white p-6 sm:p-8">
+        <aside className="h-fit rounded-3xl bg-white p-6 sm:p-8 xl:sticky xl:top-24">
           <h2 className="text-xl font-bold text-ink">{t("dash.cart.orderOverview")}</h2>
           <div className="mt-7 flex items-center justify-between border-b border-slate-200 pb-5 text-sm">
             <span>{t("dash.cart.subtotalLine", { count: cart.lines.length })}</span>
@@ -426,7 +426,13 @@ const CartPage = () => {
               {cart.lines.map((line) => (
                 <tr key={line.productId} className="border-b border-slate-100">
                   <td className="py-4 pr-4"><span className="font-semibold">{line.product.name}</span><span className="block text-xs text-muted">{line.product.collection} · {line.product.size}</span></td>
-                  <td className="px-4 py-4 text-right">{line.areaSqm} {t("dash.cart.quote.sqm")}</td>
+                  {/* Billed on `purchasedArea` (rounded up to whole pieces), same basis as `totalPrice` below — showing the raw typed `areaSqm` here would make quantity × unit price not match the printed total. */}
+                  <td className="px-4 py-4 text-right">
+                    {line.quantity.purchasedArea} {t("dash.cart.quote.sqm")}
+                    <span className="block text-xs font-normal text-muted">
+                      {t("dash.cart.boxesLine", { boxes: line.quantity.completeBoxes, pieces: line.quantity.remainingPieces, total: line.quantity.totalPieces })}
+                    </span>
+                  </td>
                   <td className="py-4 pl-4 text-right font-semibold">{formatPrice(line.totalPrice)}</td>
                 </tr>
               ))}

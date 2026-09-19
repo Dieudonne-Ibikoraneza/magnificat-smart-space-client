@@ -17,7 +17,7 @@ import {
   Phone,
   Wallet,
 } from "lucide-react";
-import { AnalyticsDetailHeader } from "@/app/[lang]/analytics/layout";
+import { DashboardDetailHeader as AnalyticsDetailHeader } from "@/components/dashboard-page-headers";
 import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
