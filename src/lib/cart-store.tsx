@@ -1,8 +1,11 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import type { Product } from "@/components/product-card";
+import { toast } from "@/components/ui/toast";
 import { cartApi, tokenStore } from "@/lib/api";
+import { ApiError } from "@/lib/api/client";
 import { toProduct } from "@/lib/api/mappers";
 import { useLocale } from "@/lib/i18n";
 import { calculateTileQuantity, type TileQuantity } from "@/lib/tile-calculator";
@@ -98,9 +101,16 @@ const writeCache = (lines: CartLine[]) => {
  * replaces whatever's local, which also self-heals from a background save
  * that failed earlier (a dropped connection, say) instead of leaving the
  * cart permanently out of sync with what's actually stored.
+ *
+ * Every server write goes through ONE ordered queue (`enqueue`): a save that
+ * is already in flight can't land after a later clear/remove and bring the
+ * item back, because the clear only starts once that save has finished. A write
+ * that fails is reported once and the cart is re-read, so the screen shows what
+ * the server really holds instead of silently drifting from it.
  */
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const { locale } = useLocale();
+  const { t } = useTranslation();
   const [lines, setLines] = useState<CartLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [generation, setGeneration] = useState(0);
@@ -111,6 +121,16 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     linesRef.current = lines;
   }, [lines]);
+  // Server writes run strictly one after another, in the order they were made.
+  const queueRef = useRef<Promise<void>>(Promise.resolve());
+  const pendingRef = useRef(0);
+  /** Bumps on every local cart change and on sign-out — a read that started before one is stale. */
+  const epochRef = useRef(0);
+  /** Bumps on sign-out: writes queued for the previous session are dropped, not sent. */
+  const sessionRef = useRef(0);
+  /** Set when a write failed, or a read had to be skipped: re-read the cart once the queue drains. */
+  const reconcileRef = useRef(false);
+  const failureShownRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -138,8 +158,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       if (cached.length > 0 && active) setLines(cached);
 
       try {
+        const startEpoch = epochRef.current;
         const cart = await cartApi.view();
         if (!active) return;
+        // Changed locally (or signed out) while this read was in flight, or
+        // writes are still on their way: this answer describes the past, and
+        // applying it would bring back what was just cleared. Look again once
+        // the queue has drained instead.
+        if (epochRef.current !== startEpoch || pendingRef.current > 0) {
+          if (pendingRef.current > 0) reconcileRef.current = true;
+          return;
+        }
         const nextLines = cart.items
           .filter((item): item is typeof item & { product: NonNullable<typeof item.product> } => !!item.product)
           .map((item) => buildLine(toProduct(item.product, undefined, locale), Number(item.areaSqm), item.exceedsStock));
@@ -192,23 +221,58 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       });
   }, []);
 
-  const syncUpsert = useCallback((productId: string, areaSqm: number, onSynced?: () => void) => {
-    if (syncTimers.current[productId]) window.clearTimeout(syncTimers.current[productId]);
-    syncTimers.current[productId] = window.setTimeout(() => {
-      // Failures are never surfaced — the cart stays local-first even when
-      // this fails; the next fresh mount's server reconcile is what
-      // recovers it (or gives up and shows what's actually saved).
-      cartApi
-        .upsertItem(productId, areaSqm)
-        .then(() => onSynced?.())
-        .catch((cause) => {
-          console.error("Cart sync (upsert) failed:", cause);
+  /**
+   * Runs a server write after every earlier one has finished. A failure is
+   * shown once per burst (not once per retry) and makes the cart re-read from
+   * the server when the queue is empty, so the screen ends up showing what is
+   * really saved.
+   */
+  const enqueue = useCallback(
+    (label: string, write: () => Promise<unknown>) => {
+      const session = sessionRef.current;
+      pendingRef.current += 1;
+      queueRef.current = queueRef.current.then(async () => {
+        try {
+          if (session === sessionRef.current) {
+            await write();
+            failureShownRef.current = false;
+          }
+        } catch (cause) {
+          console.error(`Cart sync (${label}) failed:`, cause);
+          reconcileRef.current = true;
+          if (!failureShownRef.current) {
+            failureShownRef.current = true;
+            toast.error(t("dash.cart.toastSyncFailedTitle"), { description: t("dash.cart.toastSyncFailedBody") });
+          }
+        } finally {
+          pendingRef.current -= 1;
+          if (pendingRef.current === 0 && reconcileRef.current) {
+            reconcileRef.current = false;
+            refresh();
+          }
+        }
+      });
+    },
+    [refresh, t],
+  );
+
+  const syncUpsert = useCallback(
+    (productId: string, areaSqm: number, onSynced?: () => void) => {
+      if (syncTimers.current[productId]) window.clearTimeout(syncTimers.current[productId]);
+      syncTimers.current[productId] = window.setTimeout(() => {
+        delete syncTimers.current[productId];
+        enqueue("upsert", async () => {
+          await cartApi.upsertItem(productId, areaSqm);
+          onSynced?.();
         });
-    }, SYNC_DEBOUNCE_MS);
-  }, []);
+      }, SYNC_DEBOUNCE_MS);
+    },
+    [enqueue],
+  );
 
   const setQuantity = useCallback(
     (product: Product, areaSqm: number) => {
+      epochRef.current += 1;
       const clamped = Math.round(Math.max(0.01, areaSqm) * 100) / 100;
       setLines((current) => {
         const existing = current.find((line) => line.productId === product.id);
@@ -228,29 +292,44 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     [syncUpsert, syncFlags],
   );
 
-  const removeItem = useCallback((productId: string) => {
-    if (syncTimers.current[productId]) window.clearTimeout(syncTimers.current[productId]);
-    setLines((current) => {
-      const next = current.filter((line) => line.productId !== productId);
-      writeCache(next);
-      return next;
-    });
-    cartApi.removeItem(productId).catch((cause) => {
-      console.error("Cart sync (remove) failed:", cause);
-    });
-  }, []);
+  const removeItem = useCallback(
+    (productId: string) => {
+      epochRef.current += 1;
+      // A save still waiting out its debounce is dropped; one already sent is
+      // finished first (the queue), so it can't re-add the line afterwards.
+      if (syncTimers.current[productId]) window.clearTimeout(syncTimers.current[productId]);
+      delete syncTimers.current[productId];
+      setLines((current) => {
+        const next = current.filter((line) => line.productId !== productId);
+        writeCache(next);
+        return next;
+      });
+      enqueue("remove", async () => {
+        try {
+          await cartApi.removeItem(productId);
+        } catch (cause) {
+          // Never saved in the first place (added and removed within the
+          // debounce) — already as removed as it can be.
+          if (!(cause instanceof ApiError && cause.status === 404)) throw cause;
+        }
+      });
+    },
+    [enqueue],
+  );
 
   const clear = useCallback(() => {
+    epochRef.current += 1;
     Object.values(syncTimers.current).forEach((timer) => window.clearTimeout(timer));
     syncTimers.current = {};
     setLines([]);
     writeCache([]);
-    cartApi.clear().catch((cause) => {
-      console.error("Cart sync (clear) failed:", cause);
-    });
-  }, []);
+    enqueue("clear", () => cartApi.clear());
+  }, [enqueue]);
 
   const reset = useCallback(() => {
+    epochRef.current += 1;
+    sessionRef.current += 1;
+    reconcileRef.current = false;
     Object.values(syncTimers.current).forEach((timer) => window.clearTimeout(timer));
     syncTimers.current = {};
     setLines([]);

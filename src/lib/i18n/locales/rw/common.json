@@ -682,6 +682,8 @@
       "toastWaitlistedTitle": "Itumizo ryemewe — riri ku rutonde rw'ategereje ububiko",
       "toastSubmittedBody": "Ryoherejwe ku itsinda ryacu ry'ububiko kugira ngo barirebe. Uzarisanga mubyatumijwe rimaze kwemezwa.",
       "toastWaitlistedBody": "Igice cyaryo nticyari mu bubiko ubu. Tuzakwandikira imeri igihe kizabonekera.",
+      "toastSyncFailedTitle": "Ntitwashoboye kuvugurura agatebo kawe",
+      "toastSyncFailedBody": "Turerekana ibyabitswe koko. Ongera ugerageze.",
       "toastPlaceFailedTitle": "Ntitwashoboye gushyira itumizo",
       "quote": {
         "eyebrow": "Ifatabuguzi",

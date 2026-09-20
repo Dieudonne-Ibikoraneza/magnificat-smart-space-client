@@ -682,6 +682,8 @@
       "toastWaitlistedTitle": "Order accepted — waitlisted for stock",
       "toastSubmittedBody": "Sent to our stock team for review. You'll find it under My Orders once it's confirmed.",
       "toastWaitlistedBody": "Part of it isn't in stock right now. We'll email you the moment it's available.",
+      "toastSyncFailedTitle": "Couldn't update your cart",
+      "toastSyncFailedBody": "We're showing what is actually saved. Please try again.",
       "toastPlaceFailedTitle": "Couldn't place order",
       "quote": {
         "eyebrow": "Quotation",
