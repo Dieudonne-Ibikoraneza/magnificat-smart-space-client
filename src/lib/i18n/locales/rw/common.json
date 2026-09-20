@@ -1774,6 +1774,7 @@
       "selectToView": "Hitamo umukiriya kugira ngo urebe ubutumwa bw'ikiganiro",
       "backToConversations": "Subira ku biganiro",
       "viewOrder": "Reba itumizo",
+      "customerClearedNote": "Umukiriya yakuyeho ikiganiro ku ruhande rwe. Ikiganiro cya mbere kibitswe hano nk'inyandiko.",
       "itemChip": "{{name}} · {{area}} m² · {{note}}",
       "scrollToLatest": "Manuka ku butumwa bwa nyuma",
       "typeMessage": "Andika ubutumwa…",

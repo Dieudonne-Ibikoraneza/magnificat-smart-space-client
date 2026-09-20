@@ -1774,6 +1774,7 @@
       "selectToView": "Select customer to view chat messages",
       "backToConversations": "Back to conversations",
       "viewOrder": "View order",
+      "customerClearedNote": "The customer cleared their chat view. The earlier conversation is kept here as a record.",
       "itemChip": "{{name}} · {{area}} sqm · {{note}}",
       "scrollToLatest": "Scroll to latest messages",
       "typeMessage": "Type a message…",

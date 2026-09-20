@@ -153,6 +153,16 @@ const byLatestActivity = (a: Conversation, b: Conversation) =>
  * (socket events), so an inbox load costs one request however many orders
  * exist, instead of one per order.
  */
+/**
+ * The staff-only note the server leaves when a customer clears their chat view
+ * (`CLEARED_NOTE` in cart-negotiations.service.ts). It is stored in English, so
+ * it is matched here and shown in the staff member's own language.
+ */
+const CUSTOMER_CLEARED_NOTE = "The customer cleared their chat view. The earlier conversation is kept here as a record.";
+
+const noteText = (body: string, t: (key: string) => string) =>
+  body === CUSTOMER_CLEARED_NOTE ? t("stock.negotiations.customerClearedNote") : body;
+
 export const NegotiationsInbox = ({ area }: { area: NegotiationsArea }) => {
   const { t } = useTranslation();
   const { user } = useCurrentUser();
@@ -453,7 +463,7 @@ export const NegotiationsInbox = ({ area }: { area: NegotiationsArea }) => {
                                   )}
                                 >
                                   {last.author === "STAFF" ? t("stock.negotiations.you") : ""}
-                                  {last.body}
+                                  {noteText(last.body, t)}
                                 </span>
                                 {needsReply && (
                                   <span
@@ -573,7 +583,7 @@ export const NegotiationsInbox = ({ area }: { area: NegotiationsArea }) => {
                         >
                           {message.author === "SYSTEM" ? (
                             <p className="max-w-[85%] rounded-lg bg-amber-50 px-3 py-2 text-center text-xs font-medium break-words text-amber-800">
-                              {message.body}
+                              {noteText(message.body, t)}
                             </p>
                           ) : (
                             <div
