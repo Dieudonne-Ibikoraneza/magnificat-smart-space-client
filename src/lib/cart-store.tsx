@@ -7,6 +7,7 @@ import { toast } from "@/components/ui/toast";
 import { cartApi, tokenStore } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { toProduct } from "@/lib/api/mappers";
+import { useCurrentUser } from "@/lib/current-user";
 import { useLocale } from "@/lib/i18n";
 import { calculateTileQuantity, type TileQuantity } from "@/lib/tile-calculator";
 
@@ -66,26 +67,49 @@ const buildLine = (product: Product, areaSqm: number, exceedsStock?: boolean): C
 
 type CachedLine = { productId: string; areaSqm: number; product: Product; exceedsStock?: boolean };
 
-const readCache = (): CartLine[] => {
+/**
+ * The local copy belongs to one account — stored with the id of the user it was
+ * saved for and read back only for that same user, so it can never show one
+ * person's cart to whoever signs in next on this device.
+ */
+const readCache = (userId: string | null): CartLine[] => {
   try {
+    if (!userId) return [];
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as CachedLine[];
-    return parsed.map((entry) => buildLine(entry.product, entry.areaSqm, entry.exceedsStock));
+    const parsed = JSON.parse(raw) as { userId?: string; lines?: CachedLine[] } | CachedLine[];
+    // An older, unkeyed copy has no owner — it can't be trusted for anyone. Someone
+    // else's copy is dropped from this device now that a different account is known.
+    if (Array.isArray(parsed) || parsed.userId !== userId) {
+      window.localStorage.removeItem(STORAGE_KEY);
+      return [];
+    }
+    return (parsed.lines ?? []).map((entry) => buildLine(entry.product, entry.areaSqm, entry.exceedsStock));
   } catch {
     return [];
   }
 };
 
-const writeCache = (lines: CartLine[]) => {
+/** Nobody is signed in: the local copy belongs to no one and is removed. */
+const clearCache = () => {
   try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Storage unavailable — nothing was kept.
+  }
+};
+
+/** Saves the local copy for `userId`. While the account isn't known yet (a session check in progress) there is nothing to file it under, so nothing is written. */
+const writeCache = (lines: CartLine[], userId: string | null) => {
+  try {
+    if (!userId) return;
     const cached: CachedLine[] = lines.map((line) => ({
       productId: line.productId,
       areaSqm: line.areaSqm,
       product: line.product,
       exceedsStock: line.exceedsStock,
     }));
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cached));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ userId, lines: cached }));
   } catch {
     // Storage unavailable (private window, blocked site data) — the cart
     // still works for this visit, it just won't survive a reload.
@@ -111,9 +135,24 @@ const writeCache = (lines: CartLine[]) => {
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const { locale } = useLocale();
   const { t } = useTranslation();
+  const { user, loading: sessionLoading } = useCurrentUser();
+  const userId = user?.id ?? null;
+  const userIdRef = useRef<string | null>(userId);
+  useEffect(() => {
+    userIdRef.current = userId;
+  }, [userId]);
   const [lines, setLines] = useState<CartLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [generation, setGeneration] = useState(0);
+  // Whose cart `lines` holds. When the signed-in account changes — signed out,
+  // session ended, someone else signed in — the previous account's lines are
+  // dropped at once, before anything of the new account's is shown. A session
+  // check that is merely in progress never counts as a change.
+  const [owner, setOwner] = useState<string | null | undefined>(undefined);
+  if (!sessionLoading && owner !== userId) {
+    setOwner(userId);
+    if (owner) setLines([]);
+  }
   const syncTimers = useRef<Record<string, number>>({});
   // Read inside `setQuantity` without making it depend on (and get
   // re-memoized every time) `lines` itself.
@@ -144,7 +183,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       if (!tokenStore.getAccessToken()) {
         if (active) {
           setLines([]);
-          writeCache([]);
+          clearCache();
           setLoading(false);
         }
         return;
@@ -154,7 +193,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       // server round trip below even starts. Deliberately not read during
       // the initial render itself (that would desync client/server markup);
       // this async task is the earliest point that's still hydration-safe.
-      const cached = readCache();
+      const cached = readCache(userId);
       if (cached.length > 0 && active) setLines(cached);
 
       try {
@@ -173,7 +212,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           .filter((item): item is typeof item & { product: NonNullable<typeof item.product> } => !!item.product)
           .map((item) => buildLine(toProduct(item.product, undefined, locale), Number(item.areaSqm), item.exceedsStock));
         setLines(nextLines);
-        writeCache(nextLines);
+        writeCache(nextLines, userIdRef.current);
       } catch {
         // A failed background read isn't worth an error screen over — the
         // visitor still has whatever was cached (or an empty cart).
@@ -191,9 +230,24 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     // correct way to re-localize already-loaded lines — the raw `ApiProduct`
     // behind each `CartLine` isn't kept around once `toProduct` picks a
     // language, so there's nothing cheaper to re-derive from locally.
-  }, [generation, locale]);
+  }, [generation, locale, userId]);
 
   const refresh = useCallback(() => setGeneration((value) => value + 1), []);
+
+  // A different account is now signed in: writes still queued or waiting out
+  // their debounce were the previous account's, and must not be sent as this one's.
+  const knownOwnerRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (sessionLoading) return;
+    const previous = knownOwnerRef.current;
+    knownOwnerRef.current = userId;
+    if (previous === undefined || previous === userId) return;
+    epochRef.current += 1;
+    sessionRef.current += 1;
+    reconcileRef.current = false;
+    Object.values(syncTimers.current).forEach((timer) => window.clearTimeout(timer));
+    syncTimers.current = {};
+  }, [userId, sessionLoading]);
 
   /**
    * Re-reads the cart and takes only the server's `exceedsStock` verdicts —
@@ -212,7 +266,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
               ? { ...line, exceedsStock: server.exceedsStock }
               : line;
           });
-          writeCache(next);
+          writeCache(next, userIdRef.current);
           return next;
         });
       })
@@ -282,7 +336,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         const next = existing
           ? current.map((entry) => (entry.productId === product.id ? line : entry))
           : [...current, line];
-        writeCache(next);
+        writeCache(next, userIdRef.current);
         return next;
       });
       // Whether the quantity fits stock is the server's call (the exact
@@ -301,7 +355,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       delete syncTimers.current[productId];
       setLines((current) => {
         const next = current.filter((line) => line.productId !== productId);
-        writeCache(next);
+        writeCache(next, userIdRef.current);
         return next;
       });
       enqueue("remove", async () => {
@@ -322,7 +376,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     Object.values(syncTimers.current).forEach((timer) => window.clearTimeout(timer));
     syncTimers.current = {};
     setLines([]);
-    writeCache([]);
+    writeCache([], userIdRef.current);
     enqueue("clear", () => cartApi.clear());
   }, [enqueue]);
 
@@ -333,7 +387,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     Object.values(syncTimers.current).forEach((timer) => window.clearTimeout(timer));
     syncTimers.current = {};
     setLines([]);
-    writeCache([]);
+    writeCache([], userIdRef.current);
   }, []);
 
   const count = lines.length;

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { buildContentSecurityPolicy } from "@/lib/security-headers";
 import {
   LOCALE_COOKIE,
   isLocale,
@@ -59,12 +60,33 @@ const setLocaleCookie = (response: NextResponse, locale: Locale): void => {
   });
 };
 
+/**
+ * Every response carries the Content-Security-Policy, built with a fresh nonce.
+ * The nonce goes on the *request* too (`x-nonce` and the CSP header), which is
+ * how Next.js learns it and stamps it onto its own inline scripts.
+ */
+const withSecurity = (request: NextRequest, respond: (headers: Headers) => NextResponse): NextResponse => {
+  const nonce = btoa(crypto.randomUUID());
+  const csp = buildContentSecurityPolicy(nonce);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", csp);
+  const response = respond(requestHeaders);
+  response.headers.set("Content-Security-Policy", csp);
+  return response;
+};
+
 export function proxy(request: NextRequest): NextResponse {
+  return withSecurity(request, (requestHeaders) => route(request, requestHeaders));
+}
+
+function route(request: NextRequest, requestHeaders: Headers): NextResponse {
   const { pathname } = request.nextUrl;
   const firstSegment = pathname.split("/")[1];
+  const pass = () => NextResponse.next({ request: { headers: requestHeaders } });
 
   if (isLocale(firstSegment)) {
-    const response = NextResponse.next();
+    const response = pass();
     if (request.cookies.get(LOCALE_COOKIE)?.value !== firstSegment) {
       setLocaleCookie(response, firstSegment);
     }
@@ -80,7 +102,7 @@ export function proxy(request: NextRequest): NextResponse {
     return response;
   }
 
-  return NextResponse.next();
+  return pass();
 }
 
 export const config = {

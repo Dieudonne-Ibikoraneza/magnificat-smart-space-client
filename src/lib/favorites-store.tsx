@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { favoritesApi, tokenStore } from "@/lib/api";
+import { useCurrentUser } from "@/lib/current-user";
 import { ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/toast";
 import type { Product } from "@/components/product-card";
@@ -26,18 +27,42 @@ const FavoritesContext = createContext<FavoritesState | null>(null);
 
 const STORAGE_KEY = "mss.favorites.v1";
 
-const readCache = (): string[] => {
+/**
+ * The local copy belongs to one account: it is stored with the id of the user
+ * it was saved for and only ever read back for that same user. An unkeyed copy
+ * would show the previous person's favorites to whoever signs in next on this
+ * device — until the server answers, and for good if it never does.
+ */
+const readCache = (userId: string): string[] => {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as { userId?: string; ids?: string[] } | string[];
+    // An older, unkeyed copy has no owner — it can't be trusted for anyone. Someone
+    // else's copy is dropped from this device now that a different account is known.
+    if (Array.isArray(parsed) || parsed.userId !== userId) {
+      window.localStorage.removeItem(STORAGE_KEY);
+      return [];
+    }
+    return parsed.ids ?? [];
   } catch {
     return [];
   }
 };
 
-const writeCache = (ids: Iterable<string>) => {
+/** Nobody is signed in: the local copy belongs to no one and is removed. */
+const clearCache = () => {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Storage unavailable — nothing was kept.
+  }
+};
+
+/** Saves the local copy for `userId`; while the account isn't known yet there is nothing to file it under. */
+const writeCache = (ids: Iterable<string>, userId: string | null) => {
+  try {
+    if (userId) window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ userId, ids: [...ids] }));
   } catch {
     // Storage unavailable (private window, blocked site data) — favorites
     // still work for this visit, they just won't survive a reload.
@@ -54,9 +79,25 @@ const writeCache = (ids: Iterable<string>) => {
  * with what's actually stored.
  */
 export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
+  const { user, loading: sessionLoading } = useCurrentUser();
+  const userId = user?.id ?? null;
   const [ids, setIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [generation, setGeneration] = useState(0);
+  // Whose favorites `ids` holds. When the signed-in account changes — signed out,
+  // session ended, someone else signed in — the previous account's list is
+  // dropped at once, before anything of the new account's is shown. A session
+  // check that is merely in progress says nothing about who is signed in, so it
+  // never counts as a change.
+  const [owner, setOwner] = useState<string | null | undefined>(undefined);
+  if (!sessionLoading && owner !== userId) {
+    setOwner(userId);
+    if (owner) setIds(new Set());
+  }
+  const userIdRef = useRef<string | null>(userId);
+  useEffect(() => {
+    userIdRef.current = userId;
+  }, [userId]);
   // Read inside `toggle` without making it depend on (and get re-memoized
   // every time) `ids` itself.
   const idsRef = useRef<Set<string>>(ids);
@@ -76,15 +117,16 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
       if (!tokenStore.getAccessToken()) {
         if (active) {
           setIds(new Set());
-          writeCache([]);
+          clearCache();
           setLoading(false);
         }
         return;
       }
 
-      // Instant paint from whatever was cached last session, before the
-      // server round trip below even starts — same reasoning as the cart.
-      const cached = readCache();
+      // Instant paint from what was cached for THIS account last session,
+      // before the server round trip below even starts — same reasoning as the
+      // cart. Nothing is painted until we know whose it would be.
+      const cached = userId ? readCache(userId) : [];
       if (cached.length > 0 && active) setIds(new Set(cached));
 
       try {
@@ -92,7 +134,7 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
         if (!active) return;
         const nextIds = favorites.map((row) => row.productId);
         setIds(new Set(nextIds));
-        writeCache(nextIds);
+        writeCache(nextIds, userId);
       } catch {
         // A failed background read isn't worth an error screen over — the
         // visitor still has whatever was cached (or an empty list).
@@ -106,7 +148,7 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       active = false;
     };
-  }, [generation]);
+  }, [generation, userId]);
 
   const refresh = useCallback(() => setGeneration((value) => value + 1), []);
 
@@ -120,7 +162,7 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
       const next = new Set(current);
       if (nextFavorited) next.add(product.id);
       else next.delete(product.id);
-      writeCache(next);
+      writeCache(next, userIdRef.current);
       return next;
     });
 
@@ -132,7 +174,7 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
         const next = new Set(current);
         if (nextFavorited) next.delete(product.id);
         else next.add(product.id);
-        writeCache(next);
+        writeCache(next, userIdRef.current);
         return next;
       });
       toast.error(nextFavorited ? "Couldn't save that favorite" : "Couldn't remove that favorite", {

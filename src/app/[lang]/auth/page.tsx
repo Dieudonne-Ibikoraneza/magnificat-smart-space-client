@@ -39,7 +39,7 @@ import {
 } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { useApi } from "@/lib/api/use-api";
-import { isPathAllowedForRole, roleHomePath } from "@/lib/auth-routes";
+import { isPathAllowedForRole, safeInternalPath, roleHomePath } from "@/lib/auth-routes";
 import { useCart } from "@/lib/cart-store";
 import { useCurrentUser } from "@/lib/current-user";
 import {
@@ -288,10 +288,8 @@ const AuthPage = () => {
   // just because they had it in the URL.
   const destinationFor = useCallback(
     (role: Role): string => {
-      const next = searchParams.get("next");
-      if (next && next.startsWith("/") && !next.startsWith("//") && isPathAllowedForRole(next, role)) {
-        return next;
-      }
+      const next = safeInternalPath(searchParams.get("next"));
+      if (next && isPathAllowedForRole(next, role)) return next;
       return roleHomePath(role);
     },
     [searchParams],

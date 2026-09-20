@@ -72,3 +72,26 @@ export const isPathAllowedForRole = (path: string, role: Role): boolean => {
   const area = AREA_ROLES.find(({ prefix }) => path === prefix || path.startsWith(`${prefix}/`));
   return area ? (area.roles as readonly Role[]).includes(role) : true;
 };
+
+/**
+ * `?next=` comes from the address bar, so anyone can craft a sign-in link with
+ * one. It is only ever a valid destination if it is a path inside this site.
+ * Beyond the obvious `//host`, browsers read `/\host` as `//host` (they treat a
+ * backslash as a slash), and tabs/newlines are stripped from URLs before they
+ * are parsed — both turn an innocent-looking "/…" into a link to another site.
+ * Returns the path (with query and hash) when it is safe, otherwise `null`.
+ */
+export const safeInternalPath = (candidate: string | null | undefined): string | null => {
+  if (!candidate) return null;
+  // Backslashes and control characters (tab, CR, LF, …) have no place in a path we generated.
+  if (/[\\\u0000-\u001f\u007f]/.test(candidate)) return null;
+  if (!candidate.startsWith("/") || candidate.startsWith("//")) return null;
+  try {
+    const base = "http://internal.invalid";
+    const url = new URL(candidate, base);
+    if (url.origin !== base) return null;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return null;
+  }
+};
