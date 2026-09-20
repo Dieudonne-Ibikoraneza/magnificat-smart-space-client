@@ -2819,6 +2819,7 @@
     "users.staffNotFound": "Umukozi ntabonetse.",
     "users.phoneInUse": "Indi konti isanzwe ikoresha iyi telefone.",
     "users.cannotDeactivateSelf": "Ntushobora guhagarika konti yawe bwite.",
+    "users.lastAdmin": "Uri admin wenyine ukora. Banza ushyireho undi admin, hanyuma ufunge iyi konti.",
     "users.customerNotFound": "Umukiriya ntabonetse.",
     "upload.imageTypeNotAllowed": "Amafoto yemewe ni JPEG, PNG na WebP gusa.",
     "upload.imageRequired": "Ifoto irakenewe mu gasanduku \"file\".",
