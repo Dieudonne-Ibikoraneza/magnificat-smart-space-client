@@ -500,7 +500,7 @@ const InventoryOverview = ({
     ? [
         { key: "value", label: t("admin.overview.totalInventoryValue"), value: formatCompactCurrency(overview.totalInventoryValue), icon: Wallet },
         { key: "active", label: t("admin.overview.activeProducts"), value: overview.activeProducts.toLocaleString(), icon: PackageCheck },
-        { key: "pending", label: t("admin.overview.pendingFulfillments"), value: overview.pendingOrders.toLocaleString(), icon: Clock3 },
+        { key: "pending", label: t("admin.overview.pendingFulfillments"), value: overview.pendingFulfillments.toLocaleString(), icon: Clock3 },
         { key: "lowStock", label: t("admin.overview.lowStockItems"), value: overview.lowStockItems.toLocaleString(), icon: AlertTriangle, warn: true },
       ]
     : [];
@@ -801,6 +801,7 @@ type AnalyticsOverviewLike = {
   lowStockItems: number;
   outOfStockItems: number;
   pendingOrders: number;
+  pendingFulfillments: number;
   totalInventoryValue: number;
   averageOrderValue: number;
   revenueTrend: { label: string; value: number }[];

@@ -680,7 +680,10 @@ export type AnalyticsOverview = {
   /** Delivery/transport fees earned orders were quoted, kept independent of `totalSales` on purpose. */
   totalTransportFees: number;
   totalOrders: number;
+  /** Placed but unpaid. */
   pendingOrders: number;
+  /** Paid, not yet shipped. */
+  pendingFulfillments: number;
   averageOrderValue: number;
   byCreator: { createdByType: OrderCreatorType; count: number; total: number }[];
   creatorTrend: CreatorTrendPoint[];
