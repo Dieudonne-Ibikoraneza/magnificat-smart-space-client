@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { localizeSystemText } from "@/lib/system-text";
 import { cartNegotiationsApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { useCurrentUser } from "@/lib/current-user";
@@ -335,7 +336,7 @@ export const CartNegotiationChat = ({
                           : "rounded-bl-sm bg-secondary text-ink",
                     )}
                   >
-                    {message.body}
+                    {localizeSystemText(message.body, t)}
                   </div>
                 );
               })

@@ -1774,7 +1774,6 @@
       "selectToView": "Select customer to view chat messages",
       "backToConversations": "Back to conversations",
       "viewOrder": "View order",
-      "customerClearedNote": "The customer cleared their chat view. The earlier conversation is kept here as a record.",
       "itemChip": "{{name}} · {{area}} sqm · {{note}}",
       "scrollToLatest": "Scroll to latest messages",
       "typeMessage": "Type a message…",
@@ -2748,5 +2747,21 @@
         "viewFull": "View full analytics"
       }
     }
+  },
+  "systemText": {
+    "customerCleared": "The customer cleared their chat view. The earlier conversation is kept here as a record.",
+    "shareCart": "Here's my current cart.",
+    "cartShort": "Cart couldn't be fully covered by stock on hand: {{items}}.",
+    "requestedItem": "{{name}} (requested {{area}} sqm)",
+    "requestedItemWithNote": "{{name}} ({{note}}, requested {{area}} sqm)",
+    "triedToOrderCart": "I tried to place an order for this cart, but part of it isn't available right now — let's work out the details.",
+    "orderWaitlisted": "This order is waitlisted: part of it exceeds what's currently on hand. We'll email you the moment there's enough stock and hold it for you. You'll then have {{minutes}} minutes to complete payment once your quotation is sent.",
+    "orderPartlyShort": "Part of this order exceeds what is currently on hand. Our stock team will confirm what can be released now and when the rest can follow.",
+    "orderUpdatedStillShort": "The order was updated, but part of the revised quantity is still waiting on stock.",
+    "orderUpdatedWaitlisted": "The order was updated and remains on the waitlist — it will be promoted, in order, as soon as stock is available.",
+    "orderUpdatedRequote": "The order quantities were updated by the stock team. The quotation will be prepared again for the revised order.",
+    "triedToOrder": "I tried to place an order for {{names}}, but it's more than you have in stock. Can you help?",
+    "exceedsStock": "Exceeds what we currently have in stock",
+    "onlyOnHand": "Only {{area}} m² on hand right now."
   }
 }

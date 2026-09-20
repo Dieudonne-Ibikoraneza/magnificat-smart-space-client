@@ -10,6 +10,7 @@ import { useCurrentUser } from "@/lib/current-user";
 import type { ApiOrderMessage, StockShortage } from "@/lib/api/types";
 import { appendMessageOnce, useNegotiationThread } from "@/lib/negotiations-socket";
 import { cn } from "@/lib/utils";
+import { localizeSystemText } from "@/lib/system-text";
 
 const formatTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -147,7 +148,7 @@ export const OrderNegotiationPanel = ({
             >
               {message.author === "SYSTEM" ? (
                 <p className="max-w-[85%] rounded-lg bg-amber-100 px-3 py-2 text-center text-xs font-medium text-amber-800">
-                  {message.body}
+                  {localizeSystemText(message.body, t)}
                 </p>
               ) : (
                 <div
@@ -158,7 +159,7 @@ export const OrderNegotiationPanel = ({
                       : "rounded-bl-sm bg-white text-ink",
                   )}
                 >
-                  <p className="whitespace-pre-wrap">{message.body}</p>
+                  <p className="whitespace-pre-wrap">{localizeSystemText(message.body, t)}</p>
                   <p
                     className={cn(
                       "mt-1 text-right text-[10px]",

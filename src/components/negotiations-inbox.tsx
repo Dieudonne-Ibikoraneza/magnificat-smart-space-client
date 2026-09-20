@@ -24,6 +24,7 @@ import { appendMessageOnce, useNegotiationsInboxFeed, useNegotiationThread } fro
 import { useCursorList } from "@/lib/use-cursor-list";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { cn } from "@/lib/utils";
+import { localizeSystemText } from "@/lib/system-text";
 
 /** Shared shape of `ApiOrderMessage` and `ApiCartNegotiationMessage`. */
 type ThreadMessage = {
@@ -153,16 +154,6 @@ const byLatestActivity = (a: Conversation, b: Conversation) =>
  * (socket events), so an inbox load costs one request however many orders
  * exist, instead of one per order.
  */
-/**
- * The staff-only note the server leaves when a customer clears their chat view
- * (`CLEARED_NOTE` in cart-negotiations.service.ts). It is stored in English, so
- * it is matched here and shown in the staff member's own language.
- */
-const CUSTOMER_CLEARED_NOTE = "The customer cleared their chat view. The earlier conversation is kept here as a record.";
-
-const noteText = (body: string, t: (key: string) => string) =>
-  body === CUSTOMER_CLEARED_NOTE ? t("stock.negotiations.customerClearedNote") : body;
-
 export const NegotiationsInbox = ({ area }: { area: NegotiationsArea }) => {
   const { t } = useTranslation();
   const { user } = useCurrentUser();
@@ -463,7 +454,7 @@ export const NegotiationsInbox = ({ area }: { area: NegotiationsArea }) => {
                                   )}
                                 >
                                   {last.author === "STAFF" ? t("stock.negotiations.you") : ""}
-                                  {noteText(last.body, t)}
+                                  {localizeSystemText(last.body, t)}
                                 </span>
                                 {needsReply && (
                                   <span
@@ -555,7 +546,7 @@ export const NegotiationsInbox = ({ area }: { area: NegotiationsArea }) => {
                           {t("stock.negotiations.itemChip", {
                             name: item.productName,
                             area: item.requestedAreaSqm,
-                            note: item.availabilityNote,
+                            note: localizeSystemText(item.availabilityNote, t),
                           })}
                         </span>
                       ))}
@@ -583,7 +574,7 @@ export const NegotiationsInbox = ({ area }: { area: NegotiationsArea }) => {
                         >
                           {message.author === "SYSTEM" ? (
                             <p className="max-w-[85%] rounded-lg bg-amber-50 px-3 py-2 text-center text-xs font-medium break-words text-amber-800">
-                              {noteText(message.body, t)}
+                              {localizeSystemText(message.body, t)}
                             </p>
                           ) : (
                             <div
@@ -594,7 +585,7 @@ export const NegotiationsInbox = ({ area }: { area: NegotiationsArea }) => {
                                   : "rounded-bl-sm bg-white text-ink",
                               )}
                             >
-                              <p className="break-words whitespace-pre-wrap">{message.body}</p>
+                              <p className="break-words whitespace-pre-wrap">{localizeSystemText(message.body, t)}</p>
                               <p
                                 className={cn(
                                   "mt-1 text-right text-[10px]",

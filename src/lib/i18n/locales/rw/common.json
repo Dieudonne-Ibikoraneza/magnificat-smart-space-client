@@ -1774,7 +1774,6 @@
       "selectToView": "Hitamo umukiriya kugira ngo urebe ubutumwa bw'ikiganiro",
       "backToConversations": "Subira ku biganiro",
       "viewOrder": "Reba itumizo",
-      "customerClearedNote": "Umukiriya yakuyeho ikiganiro ku ruhande rwe. Ikiganiro cya mbere kibitswe hano nk'inyandiko.",
       "itemChip": "{{name}} · {{area}} m² · {{note}}",
       "scrollToLatest": "Manuka ku butumwa bwa nyuma",
       "typeMessage": "Andika ubutumwa…",
@@ -2748,5 +2747,21 @@
         "viewFull": "Reba isesengura ryuzuye"
       }
     }
+  },
+  "systemText": {
+    "customerCleared": "Umukiriya yakuyeho ikiganiro ku ruhande rwe. Ikiganiro cya mbere kibitswe hano nk'inyandiko.",
+    "shareCart": "Dore agatebo kanjye ubu.",
+    "cartShort": "Agatebo ntikabashije kuzuzwa n'ibiri mu bubiko byose: {{items}}.",
+    "requestedItem": "{{name}} (byasabwe: {{area}} m²)",
+    "requestedItemWithNote": "{{name}} ({{note}}, byasabwe: {{area}} m²)",
+    "triedToOrderCart": "Nagerageje gutumiza ibiri muri aka gatebo, ariko igice cyako ntikiboneka ubu — reka dushakire hamwe igisubizo.",
+    "orderWaitlisted": "Iri tumizo riri ku rutonde rw'abategereje: igice cyaryo kirenze ibiri mu bubiko ubu. Tuzakoherereza imeyili ubwo ububiko buhagije buboneka, tunabikubikire. Uzahita ugira iminota {{minutes}} yo kwishyura igiciro cyawe kimaze koherezwa.",
+    "orderPartlyShort": "Igice cy'iri tumizo kirenze ibiri mu bubiko ubu. Itsinda ryacu ry'ububiko rizemeza ibishobora gutangwa ubu n'igihe ibisigaye bizakurikiraho.",
+    "orderUpdatedStillShort": "Itumizo ryavuguruwe, ariko igice cy'ingano nshya kiracyategereje ububiko.",
+    "orderUpdatedWaitlisted": "Itumizo ryavuguruwe kandi riracyari ku rutonde rw'abategereje — rizimurwa hakurikijwe uko ryaje, ububiko bugihagije.",
+    "orderUpdatedRequote": "Ingano y'itumizo yavuguruwe n'itsinda ry'ububiko. Igiciro kizongera gutegurwa ku itumizo ryavuguruwe.",
+    "triedToOrder": "Nagerageje gutumiza {{names}}, ariko birenze ibyo mufite mu bubiko. Mwamfasha?",
+    "exceedsStock": "Birenze ibyo dufite mu bubiko ubu",
+    "onlyOnHand": "Hasigaye {{area}} m² gusa mu bubiko ubu."
   }
 }
