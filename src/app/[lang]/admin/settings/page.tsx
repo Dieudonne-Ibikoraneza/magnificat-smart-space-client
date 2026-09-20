@@ -14,6 +14,7 @@ import {
   Save,
   Trash2,
   Wrench,
+  Landmark,
 } from "lucide-react";
 import { DashboardPageHeader as AdminPageHeader } from "@/components/dashboard-page-headers";
 import { ApiErrorState } from "@/components/api-state";
@@ -39,7 +40,7 @@ import { settingsApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { roomTypeLabels } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
-import type { ProfilingQuestion, RoomType } from "@/lib/api/types";
+import type { PlatformSettings, ProfilingQuestion, RoomType } from "@/lib/api/types";
 import { useSortableList } from "@/lib/use-sortable-list";
 import { cn } from "@/lib/utils";
 
@@ -408,6 +409,144 @@ const AiRecommendations = ({
   );
 };
 
+type PaymentField = {
+  key:
+    | "payment.momoCode"
+    | "payment.momoName"
+    | "payment.bankName"
+    | "payment.bankAccountName"
+    | "payment.bankAccountNumber"
+    | "payment.bankSwift";
+  labelKey: string;
+  maxLength: number;
+};
+
+const PAYMENT_FIELDS: PaymentField[] = [
+  { key: "payment.momoCode", labelKey: "momoCode", maxLength: 60 },
+  { key: "payment.momoName", labelKey: "momoName", maxLength: 100 },
+  { key: "payment.bankName", labelKey: "bankName", maxLength: 100 },
+  { key: "payment.bankAccountName", labelKey: "bankAccountName", maxLength: 100 },
+  { key: "payment.bankAccountNumber", labelKey: "bankAccountNumber", maxLength: 60 },
+  { key: "payment.bankSwift", labelKey: "bankSwift", maxLength: 11 },
+];
+
+const SWIFT_PATTERN = /^[A-Za-z0-9]{8}([A-Za-z0-9]{3})?$/;
+
+/**
+ * Where customers send money. Printed on every quotation PDF, so it has its own
+ * save button and asks for confirmation first: a wrong or tampered value here
+ * means customers pay the wrong account.
+ */
+const PaymentDetailsCard = ({
+  settings,
+  loading,
+  error,
+  onRetry,
+  onSaved,
+}: {
+  settings: PlatformSettings | null | undefined;
+  loading: boolean;
+  error: string | null | undefined;
+  onRetry: () => void;
+  onSaved: () => void;
+}) => {
+  const { t } = useTranslation();
+  const [values, setValues] = useState<Record<string, string> | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Seeded once from the server, during render, so a background refetch never overwrites what is being typed.
+  if (settings && values === null) {
+    setValues(Object.fromEntries(PAYMENT_FIELDS.map((field) => [field.key, String(settings[field.key] ?? "")])));
+  }
+
+  const saved = settings
+    ? Object.fromEntries(PAYMENT_FIELDS.map((field) => [field.key, String(settings[field.key] ?? "")]))
+    : null;
+  const dirty = !!values && !!saved && PAYMENT_FIELDS.some((field) => values[field.key].trim() !== saved[field.key]);
+  const swiftValue = values?.["payment.bankSwift"].trim() ?? "";
+  const swiftInvalid = swiftValue !== "" && !SWIFT_PATTERN.test(swiftValue);
+  const nothingSet =
+    !!values && values["payment.momoCode"].trim() === "" && values["payment.bankAccountNumber"].trim() === "";
+
+  const handleSave = async () => {
+    if (!values || swiftInvalid) return;
+    setSaving(true);
+    try {
+      await settingsApi.update(Object.fromEntries(PAYMENT_FIELDS.map((field) => [field.key, values[field.key].trim()])));
+      toast.success(t("admin.systemSettings.payment.saved"), { description: t("admin.systemSettings.payment.savedBody") });
+      setValues(null); // re-seeded from what the server now holds
+      onSaved();
+    } catch (cause) {
+      toast.error(t("admin.systemSettings.payment.saveFailed"), {
+        description: cause instanceof ApiError ? cause.message : t("admin.systemSettings.toastTryAgain"),
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="rounded-2xl bg-card p-5 sm:p-6">
+      <div className="flex items-center gap-2">
+        <Landmark className="size-5 text-ink" />
+        <h2 className="text-lg font-bold text-ink">{t("admin.systemSettings.payment.title")}</h2>
+      </div>
+      <p className="mt-1 text-sm text-muted-foreground">{t("admin.systemSettings.payment.subtitle")}</p>
+
+      {error ? (
+        <ApiErrorState message={error} onRetry={onRetry} className="mt-5" />
+      ) : loading || !values ? (
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          {Array.from({ length: 6 }, (_, index) => (
+            <Skeleton key={index} className="h-14 w-full" />
+          ))}
+        </div>
+      ) : (
+        <>
+          {nothingSet && (
+            <p role="status" className="mt-4 rounded-lg bg-amber-50 px-3 py-2.5 text-xs font-medium text-amber-800">
+              {t("admin.systemSettings.payment.notSet")}
+            </p>
+          )}
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            {PAYMENT_FIELDS.map((field) => (
+              <Field key={field.key}>
+                <FieldLabel htmlFor={field.key}>{t(`admin.systemSettings.payment.${field.labelKey}`)}</FieldLabel>
+                <Input
+                  id={field.key}
+                  value={values[field.key]}
+                  maxLength={field.maxLength}
+                  autoComplete="off"
+                  aria-invalid={field.key === "payment.bankSwift" && swiftInvalid}
+                  onChange={(event) => setValues((current) => ({ ...(current ?? {}), [field.key]: event.target.value }))}
+                  className="h-11 text-sm"
+                />
+                {field.key === "payment.bankSwift" && swiftInvalid && (
+                  <p className="mt-1 text-xs text-red-600">{t("admin.systemSettings.payment.swiftInvalid")}</p>
+                )}
+              </Field>
+            ))}
+          </div>
+          <div className="mt-5 flex justify-end">
+            <ConfirmDialog
+              destructive={false}
+              trigger={
+                <Button type="button" disabled={!dirty || swiftInvalid || saving} className="h-11 gap-2 px-5 text-sm font-bold">
+                  <Save className="size-[18px]" /> {saving ? t("admin.systemSettings.payment.saving") : t("admin.systemSettings.payment.save")}
+                </Button>
+              }
+              title={t("admin.systemSettings.payment.confirmTitle")}
+              description={t("admin.systemSettings.payment.confirmDescription")}
+              confirmLabel={t("admin.systemSettings.payment.confirmLabel")}
+              onConfirm={() => void handleSave()}
+            />
+          </div>
+        </>
+      )}
+    </section>
+  );
+};
+
 const AdminSettingsPage = () => {
   const { t } = useTranslation();
   const { data: settings, loading: settingsLoading, error: settingsError, reload: reloadSettings } = useApi(() => settingsApi.getAdmin());
@@ -588,6 +727,14 @@ const AdminSettingsPage = () => {
             )}
           </section>
         </div>
+
+        <PaymentDetailsCard
+          settings={settings}
+          loading={settingsLoading}
+          error={settingsError}
+          onRetry={reloadSettings}
+          onSaved={reloadSettings}
+        />
 
         <div className="grid grid-cols-1 gap-4 px-1 sm:grid-cols-3">
           {(settingsLoading && !settings ? Array.from({ length: 3 }, () => null) : platformInfo).map((item, index) =>

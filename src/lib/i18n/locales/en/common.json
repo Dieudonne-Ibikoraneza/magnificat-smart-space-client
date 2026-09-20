@@ -2265,6 +2265,26 @@
       "management": "Account Management"
     },
     "systemSettings": {
+      "payment": {
+        "title": "Payment details",
+        "subtitle": "Where customers pay. These are printed on every quotation they receive.",
+        "momoCode": "MoMo code / number",
+        "momoName": "MoMo account name",
+        "bankName": "Bank",
+        "bankAccountName": "Bank account name",
+        "bankAccountNumber": "Bank account number",
+        "bankSwift": "SWIFT / BIC (optional)",
+        "swiftInvalid": "A SWIFT/BIC code has 8 or 11 letters and digits.",
+        "notSet": "No payment details are set. Quotations will tell customers that our team will send them the details. Fill in a MoMo code or a bank account number below.",
+        "save": "Save payment details",
+        "saving": "Saving…",
+        "confirmTitle": "Change where customers pay?",
+        "confirmDescription": "Every quotation opened from now on will show these details. Double-check the numbers — customers will send money to them.",
+        "confirmLabel": "Save payment details",
+        "saved": "Payment details saved",
+        "savedBody": "New quotations show the updated details.",
+        "saveFailed": "Couldn't save the payment details"
+      },
       "title": "System Settings",
       "subtitle": "Configure core platform settings and preferences.",
       "saveAllChanges": "Save All Changes",

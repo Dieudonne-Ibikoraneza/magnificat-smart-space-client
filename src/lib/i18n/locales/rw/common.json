@@ -2265,6 +2265,26 @@
       "management": "Imicungire ya Konti"
     },
     "systemSettings": {
+      "payment": {
+        "title": "Amakuru y'ubwishyu",
+        "subtitle": "Aho abakiriya bishyurira. Aya makuru ari ku giciro cyose bahabwa.",
+        "momoCode": "Kode / nimero ya MoMo",
+        "momoName": "Izina kuri konti ya MoMo",
+        "bankName": "Banki",
+        "bankAccountName": "Izina kuri konti ya banki",
+        "bankAccountNumber": "Nimero ya konti ya banki",
+        "bankSwift": "SWIFT / BIC (si itegeko)",
+        "swiftInvalid": "Kode ya SWIFT/BIC igira inyuguti n'imibare 8 cyangwa 11.",
+        "notSet": "Nta makuru y'ubwishyu yashyizweho. Ibiciro bizabwira abakiriya ko itsinda ryacu rizabohereza amakuru. Andika kode ya MoMo cyangwa nimero ya konti ya banki hepfo.",
+        "save": "Bika amakuru y'ubwishyu",
+        "saving": "Birabikwa…",
+        "confirmTitle": "Guhindura aho abakiriya bishyurira?",
+        "confirmDescription": "Igiciro cyose gifunguwe guhera ubu kizerekana aya makuru. Ongera urebe neza imibare — abakiriya bazohereza amafaranga kuri yo.",
+        "confirmLabel": "Bika amakuru y'ubwishyu",
+        "saved": "Amakuru y'ubwishyu yabitswe",
+        "savedBody": "Ibiciro bishya birerekana amakuru mashya.",
+        "saveFailed": "Ntitwashoboye kubika amakuru y'ubwishyu"
+      },
       "title": "Igenamiterere rya Sisiteme",
       "subtitle": "Shyiraho igenamiterere n'ibyifuzo by'ibanze bya sisiteme.",
       "saveAllChanges": "Bika Impinduka Zose",
