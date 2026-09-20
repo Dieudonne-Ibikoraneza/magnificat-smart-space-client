@@ -1,3 +1,4 @@
+import { networkErrorMessage, translateApiError } from "./error-messages";
 import type { ApiEnvelope } from "./types";
 
 /**
@@ -22,6 +23,12 @@ export class ApiError extends Error {
   ) {
     super(message);
     this.name = "ApiError";
+  }
+
+  /** The API's stable error code (e.g. `orders.deliveryLocked`), when it sent one. */
+  get code(): string | undefined {
+    const code = (this.body as { code?: unknown } | undefined)?.code;
+    return typeof code === "string" ? code : undefined;
   }
 
   get isUnauthorized() {
@@ -176,16 +183,7 @@ const parseBody = async (response: Response): Promise<unknown> => {
   }
 };
 
-const errorMessageOf = (body: unknown, fallback: string): string => {
-  if (typeof body === "string" && body) return body;
-  if (body && typeof body === "object") {
-    const message = (body as { message?: unknown }).message;
-    if (typeof message === "string") return message;
-    // class-validator returns an array of messages for a failed DTO.
-    if (Array.isArray(message) && message.length > 0) return message.join(" ");
-  }
-  return fallback;
-};
+const errorMessageOf = (body: unknown, fallback: string): string => translateApiError(body, fallback);
 
 type RefreshOutcome = "ok" | "rejected" | "unreachable";
 
@@ -398,7 +396,7 @@ export const apiRequest = async <T>(path: string, options: RequestOptions = {}):
     response = await send(path, options);
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
-    throw new ApiError(0, "Could not reach the server. Check your connection and try again.");
+    throw new ApiError(0, networkErrorMessage());
   }
 
   // One retry after a refresh; the retry itself never refreshes again.
@@ -437,7 +435,7 @@ export const apiUpload = async <T>(path: string, formData: FormData): Promise<T>
   try {
     response = await sendForm();
   } catch {
-    throw new ApiError(0, "Could not reach the server. Check your connection and try again.");
+    throw new ApiError(0, networkErrorMessage());
   }
 
   if (response.status === 401 && sessionState === "active") {
