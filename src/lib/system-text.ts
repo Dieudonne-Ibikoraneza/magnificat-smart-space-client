@@ -9,6 +9,7 @@
  *   orders.service.ts            — order thread messages, the "tried to place an order" message
  *   cart-negotiations.service.ts — "Cart couldn't be fully covered…", the cleared note, item notes
  *   cart-negotiation-chat.tsx    — "Here's my current cart."
+ *   orders.service.ts            — "Payment not confirmed: <reason>" (rejectPayment)
  */
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
@@ -76,6 +77,10 @@ export const localizeSystemText = (body: string, t: Translate): string => {
 
   const tried = /^I tried to place an order for (.+), but it's more than you have in stock\. Can you help\?$/.exec(body);
   if (tried) return t("systemText.triedToOrder", { names: tried[1] });
+
+  // Written by `OrdersService#rejectPayment`; the reason after the colon is what staff typed.
+  const rejected = /^Payment not confirmed: ([\s\S]+)$/.exec(body);
+  if (rejected) return t("systemText.paymentRejected", { reason: rejected[1] });
 
   const onHand = /^Only ([\d.,]+) m² on hand right now\.$/.exec(body);
   if (onHand) return t("systemText.onlyOnHand", { area: onHand[1] });

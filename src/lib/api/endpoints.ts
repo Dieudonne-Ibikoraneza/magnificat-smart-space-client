@@ -298,6 +298,8 @@ export const ordersApi = {
     items: { productId: string; areaSqm: number }[];
     customerId?: string;
     notes?: string;
+    /** One per checkout attempt, re-sent on retries: if the first reply was lost, the retry gets the same order back. */
+    idempotencyKey?: string;
     /** Saved in the same transaction as the order — checkout is one request, not create-then-save. */
     delivery?: {
       contactName: string;
@@ -360,6 +362,10 @@ export const ordersApi = {
 
   markPaymentSubmitted: (id: string) => api.post<ApiOrder>(`/orders/${id}/quotation/payment-submitted`),
   verifyPayment: (id: string) => api.post<ApiOrder>(`/orders/${id}/quotation/verify`),
+
+  /** Stock/admin: the payment couldn't be confirmed — the customer is told `reason` and can pay again. */
+  rejectPayment: (id: string, reason: string) =>
+    api.post<ApiOrder>(`/orders/${id}/quotation/reject-payment`, { reason }),
 
   listMessages: (id: string) => api.get<ApiOrderMessage[]>(`/orders/${id}/messages`),
   postMessage: (id: string, body: string) => api.post<ApiOrderMessage>(`/orders/${id}/messages`, { body }),

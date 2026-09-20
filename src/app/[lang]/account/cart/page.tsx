@@ -14,6 +14,7 @@ import { CartNegotiationChat, type CartLineSummary } from "@/components/cart-neg
 import { toast } from "@/components/ui/toast";
 import { ordersApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
+import { checkoutKeyFor, checkoutSignature, clearCheckoutKey } from "@/lib/checkout-key";
 import { useCart, type CartLine } from "@/lib/cart-store";
 import { useCurrentUser } from "@/lib/current-user";
 import type { DeliveryDetails } from "@/lib/domain-types";
@@ -105,6 +106,9 @@ const CartPage = () => {
       const result = await ordersApi.create({
         type: "PURCHASE",
         items: cart.lines.map((line) => ({ productId: line.productId, areaSqm: line.areaSqm })),
+        // The same key on every retry of this cart: if the first attempt's reply
+        // never reached us, the retry gets that order back instead of a second one.
+        idempotencyKey: checkoutKeyFor(checkoutSignature(cart.lines)),
         delivery: {
           contactName: deliveryDetails.contactName,
           phone: deliveryDetails.phone,
@@ -114,6 +118,9 @@ const CartPage = () => {
           notes: deliveryDetails.notes || undefined,
         },
       });
+
+      // Answered — an order or a negotiation — so this attempt is over.
+      clearCheckoutKey();
 
       if (!result.orderCreated) {
         // Part of the cart exceeds what's on hand *in total*, not just
@@ -138,6 +145,9 @@ const CartPage = () => {
       });
       return "dismiss";
     } catch (cause) {
+      // A key the server refused (already used for a different cart) can't be reused; any other
+      // failure keeps it, so the retry is recognised if the order was in fact created.
+      if (cause instanceof ApiError && cause.status === 409) clearCheckoutKey();
       toast.error(t("dash.cart.toastPlaceFailedTitle"), { description: errorMessage(cause, t("dash.tryAgain")) });
       return "retry";
     } finally {

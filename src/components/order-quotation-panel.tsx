@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CircleDollarSign, MapPin, Pencil, ShieldCheck, Truck } from "lucide-react";
+import { CircleDollarSign, MapPin, Pencil, ShieldCheck, ShieldX, Truck } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -149,6 +149,30 @@ export const OrderQuotationPanel = ({
       });
     } catch (cause) {
       toast.error(t("staff.quotationPanel.toastQuotationFailedTitle"), {
+        description: cause instanceof ApiError ? cause.message : t("staff.quotationPanel.toastTryAgain"),
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+
+  const handleRejectPayment = async () => {
+    const reason = rejectReason.trim();
+    if (!reason) return;
+    setSubmitting(true);
+    try {
+      await ordersApi.rejectPayment(orderId, reason);
+      setRejectOpen(false);
+      setRejectReason("");
+      onUpdated();
+      toast.success(t("staff.quotationPanel.toastRejectedTitle"), {
+        description: t("staff.quotationPanel.toastRejectedBody"),
+      });
+    } catch (cause) {
+      toast.error(t("staff.quotationPanel.toastRejectFailedTitle"), {
         description: cause instanceof ApiError ? cause.message : t("staff.quotationPanel.toastTryAgain"),
       });
     } finally {
@@ -318,9 +342,59 @@ export const OrderQuotationPanel = ({
           )}
 
           {quotationStatus === "PAYMENT_SUBMITTED" && (
-            <Button type="button" onClick={() => void handleVerifyPayment()} disabled={submitting} className="h-11 w-full gap-2 text-sm font-bold">
-              <ShieldCheck className="size-4" /> {submitting ? t("staff.quotationPanel.verifying") : t("staff.quotationPanel.verifyPayment")}
-            </Button>
+            <div className="space-y-2.5">
+              <Button type="button" onClick={() => void handleVerifyPayment()} disabled={submitting} className="h-11 w-full gap-2 text-sm font-bold">
+                <ShieldCheck className="size-4" /> {submitting ? t("staff.quotationPanel.verifying") : t("staff.quotationPanel.verifyPayment")}
+              </Button>
+              <Dialog
+                open={rejectOpen}
+                onOpenChange={(next) => {
+                  // Not while the request is in flight — closing would hide its outcome.
+                  if (submitting) return;
+                  setRejectOpen(next);
+                  if (!next) setRejectReason("");
+                }}
+              >
+                <DialogTrigger
+                  render={<Button type="button" variant="outline" disabled={submitting} className="h-11 w-full gap-2 text-sm font-bold text-red-600 hover:text-red-700" />}
+                >
+                  <ShieldX className="size-4" /> {t("staff.quotationPanel.rejectPayment")}
+                </DialogTrigger>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle>{t("staff.quotationPanel.rejectTitle")}</DialogTitle>
+                    <DialogDescription>{t("staff.quotationPanel.rejectDescription")}</DialogDescription>
+                  </DialogHeader>
+                  <div className="mt-5">
+                    <Field>
+                      <FieldLabel htmlFor="reject-reason">{t("staff.quotationPanel.rejectReasonLabel")}</FieldLabel>
+                      <Textarea
+                        id="reject-reason"
+                        rows={3}
+                        maxLength={500}
+                        value={rejectReason}
+                        onChange={(event) => setRejectReason(event.target.value)}
+                        placeholder={t("staff.quotationPanel.rejectReasonPlaceholder")}
+                      />
+                    </Field>
+                  </div>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setRejectOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
+                      {t("staff.quotationPanel.cancel")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      disabled={submitting || rejectReason.trim() === ""}
+                      onClick={() => void handleRejectPayment()}
+                      className="h-10 px-5 text-sm font-bold"
+                    >
+                      {submitting ? t("staff.quotationPanel.rejecting") : t("staff.quotationPanel.rejectConfirm")}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           )}
 
           {quotationStatus === "PAYMENT_VERIFIED" && (
