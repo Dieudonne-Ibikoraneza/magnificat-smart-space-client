@@ -731,7 +731,12 @@ export type SalesAnalytics = {
   totalTransportFees: number;
   previousTotalSales: number;
   percentChangeVsLastPeriod: number;
+  /** Orders placed in the period. */
   totalOrders: number;
+  /** How many of them earned money (payment verified, not cancelled). */
+  paidOrders: number;
+  /** Waiting for the customer to pay, right now (not per period). */
+  unpaidOrders: number;
   averageOrderValue: number;
   repeatCustomers: number;
   totalCustomers: number;

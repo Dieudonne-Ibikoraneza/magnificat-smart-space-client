@@ -136,7 +136,7 @@ const SalesOverviewPage = () => {
   );
   const recentOrders = ordersData?.items ?? [];
 
-  const pendingOrders = sales?.byStatus.find((row) => row.status === "PENDING")?.count ?? 0;
+  const pendingOrders = sales?.unpaidOrders ?? 0;
 
   return (
     <>
