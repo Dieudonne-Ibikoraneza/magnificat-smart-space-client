@@ -25,6 +25,7 @@
     "loadMore": "Erekana byinshi"
   },
   "common": {
+    "orderArea": { "requested": "Wasabye: {{value}} m²" },
     "loading": "Biratunganywa…",
     "empty": "Nta kintu kirahari",
     "error": "Hari ikitagenze neza",
@@ -2820,6 +2821,7 @@
     "users.phoneInUse": "Indi konti isanzwe ikoresha iyi telefone.",
     "users.cannotDeactivateSelf": "Ntushobora guhagarika konti yawe bwite.",
     "users.lastAdmin": "Uri admin wenyine ukora. Banza ushyireho undi admin, hanyuma ufunge iyi konti.",
+    "users.lastAdminChange": "Hagomba guhora hariho admin umwe ukora. Banza ushyireho undi admin, hanyuma uhindure iyi konti.",
     "users.customerNotFound": "Umukiriya ntabonetse.",
     "upload.imageTypeNotAllowed": "Amafoto yemewe ni JPEG, PNG na WebP gusa.",
     "upload.imageRequired": "Ifoto irakenewe mu gasanduku \"file\".",

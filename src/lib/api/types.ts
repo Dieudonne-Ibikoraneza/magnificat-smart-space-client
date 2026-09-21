@@ -271,7 +271,10 @@ export type ApiOrderItem = {
   id: string;
   orderId: string;
   productId: string;
+  /** What the customer asked for. */
   requiredAreaSqm: string;
+  /** What is actually sold and billed: whole pieces, fixed at checkout (so >= requested). */
+  purchasedAreaSqm: string;
   boxes: number;
   additionalPieces: number;
   totalPieces: number;

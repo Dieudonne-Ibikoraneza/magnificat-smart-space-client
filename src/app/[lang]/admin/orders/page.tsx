@@ -1,5 +1,6 @@
 "use client";
 
+import { billedAreaOf } from "@/lib/order-area";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "next/navigation";
@@ -126,7 +127,7 @@ const matchesDateFilter = (
 };
 
 const totalSqm = (items: ApiOrderItem[]) =>
-  items.reduce((total, item) => total + Number(item.requiredAreaSqm), 0);
+  items.reduce((total, item) => total + billedAreaOf(item), 0);
 
 const formatPrice = (value: string | number) => `RWF ${Math.round(Number(value)).toLocaleString("en-US")}`;
 

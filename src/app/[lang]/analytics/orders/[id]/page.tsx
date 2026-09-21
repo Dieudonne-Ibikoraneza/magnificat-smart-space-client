@@ -4,6 +4,8 @@ import { use } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useTranslation } from "react-i18next";
+import { billedAreaOf } from "@/lib/order-area";
+import { RequestedAreaNote } from "@/components/requested-area-note";
 import {
   Boxes,
   Building2,
@@ -86,7 +88,7 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
   if (!order) return null;
 
   const items = order.items ?? [];
-  const totalVolumeSqm = items.reduce((sum, item) => sum + Number(item.requiredAreaSqm), 0);
+  const totalVolumeSqm = items.reduce((sum, item) => sum + billedAreaOf(item), 0);
 
   const summary = [
     { key: "total", icon: Wallet, label: t("sales.orderDetail.totalAmount"), value: formatPrice(order.total), note: null as string | null },
@@ -184,7 +186,7 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
                       </Link>
                       <div className="mt-2 flex items-center justify-between gap-3 text-sm">
                         <span className="text-muted-foreground">
-                          {Number(item.requiredAreaSqm)} m² • {t("sales.orderDetail.quantityLine", {
+                          {billedAreaOf(item)} m² • {t("sales.orderDetail.quantityLine", {
                             boxes: item.boxes,
                             extra: item.additionalPieces > 0 ? t("sales.orderDetail.quantityExtra", { count: item.additionalPieces }) : "",
                             pieces: item.totalPieces,
@@ -219,7 +221,8 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
                           </Link>
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-ink">
-                          <span className="block">{Number(item.requiredAreaSqm)} m²</span>
+                          <span className="block">{billedAreaOf(item)} m²</span>
+                          <RequestedAreaNote item={item} />
                           <span className="mt-1 block text-xs text-muted-foreground">
                             {t("sales.orderDetail.quantityLine", {
                               boxes: item.boxes,

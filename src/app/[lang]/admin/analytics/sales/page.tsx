@@ -1,5 +1,6 @@
 "use client";
 
+import { billedAreaOf } from "@/lib/order-area";
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -233,7 +234,7 @@ const RecentOrders = ({ orders, loading, error, onRetry }: { orders: ApiOrder[];
         <ul className="mt-5 grid gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
           {results.map((order) => {
             const items = order.items ?? [];
-            const totalVolume = items.reduce((sum, item) => sum + Number(item.requiredAreaSqm), 0);
+            const totalVolume = items.reduce((sum, item) => sum + billedAreaOf(item), 0);
             return (
               <li key={order.id} className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-3">

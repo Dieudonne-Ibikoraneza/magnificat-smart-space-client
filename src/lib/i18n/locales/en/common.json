@@ -25,6 +25,7 @@
     "loadMore": "Load more"
   },
   "common": {
+    "orderArea": { "requested": "Requested: {{value}} m²" },
     "loading": "Loading…",
     "empty": "Nothing here yet",
     "error": "Something went wrong",
@@ -2820,6 +2821,7 @@
     "users.phoneInUse": "Another account already uses this phone number.",
     "users.cannotDeactivateSelf": "You cannot deactivate your own account.",
     "users.lastAdmin": "You are the only active admin. Make another admin first, then close this account.",
+    "users.lastAdminChange": "There must always be one active admin. Make another admin first, then change this account.",
     "users.customerNotFound": "Customer not found.",
     "upload.imageTypeNotAllowed": "Only JPEG, PNG, and WebP images are allowed.",
     "upload.imageRequired": "An image file is required in the \"file\" field.",

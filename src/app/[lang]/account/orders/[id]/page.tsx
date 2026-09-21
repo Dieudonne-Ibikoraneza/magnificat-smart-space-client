@@ -4,6 +4,8 @@ import { use } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
+import { billedAreaOf } from "@/lib/order-area";
+import { RequestedAreaNote } from "@/components/requested-area-note";
 import {
   Boxes,
   CalendarDays,
@@ -102,7 +104,7 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
   if (!order) return null;
 
   const items = order.items ?? [];
-  const totalVolumeSqm = items.reduce((sum, item) => sum + Number(item.requiredAreaSqm), 0);
+  const totalVolumeSqm = items.reduce((sum, item) => sum + billedAreaOf(item), 0);
   const isCancelled = order.status === "CANCELLED";
   const currentStepIndex = ACTIVE_STEPS.indexOf(order.status);
 
@@ -217,7 +219,8 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
                           </Link>
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-ink">
-                          <span className="block">{Number(item.requiredAreaSqm)} m²</span>
+                          <span className="block">{billedAreaOf(item)} m²</span>
+                          <RequestedAreaNote item={item} />
                           <span className="mt-1 block text-xs text-muted">{t("dash.orderDetail.boxes", { count: item.boxes })}{item.additionalPieces > 0 ? t("dash.orderDetail.plusPieces", { count: item.additionalPieces }) : ""} ({item.totalPieces} pcs)</span>
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-muted">{formatPrice(item.unitPrice)} / m²</TableCell>
