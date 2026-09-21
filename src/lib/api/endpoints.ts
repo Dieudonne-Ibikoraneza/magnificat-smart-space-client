@@ -533,6 +533,13 @@ export const chatbotApi = {
       decision,
     }),
 
+  /** One reaction to a whole card, saved together or not at all. */
+  setRecommendationDecisions: (recommendationIds: string[], decision: RecommendationDecision) =>
+    api.patch<{ ids: string[]; decision: RecommendationDecision }>("/chatbot/recommendations", {
+      recommendationIds,
+      decision,
+    }),
+
   knowledgeBase: () => api.get<ApiKnowledgeBaseEntry[]>("/chatbot/knowledge-base"),
   adminKnowledgeBase: () => api.get<ApiKnowledgeBaseEntry[]>("/chatbot/admin/knowledge-base"),
   createKnowledgeBaseEntry: (body: {

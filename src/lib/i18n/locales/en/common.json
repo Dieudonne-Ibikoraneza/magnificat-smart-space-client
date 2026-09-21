@@ -2892,6 +2892,7 @@
     "chatbot.roomPhotoRequired": "A room photo is required in the \"file\" field.",
     "chatbot.conversationNotFound": "Conversation not found.",
     "chatbot.recommendationNotFound": "Recommendation not found.",
+    "chatbot.roomPhotoNotYours": "That room photo was not uploaded by your account. Upload it again and retry.",
     "chatbot.knowledgeEntryNotFound": "Knowledge base entry not found.",
     "calculator.areaOrDimensionsRequired": "Provide either totalAreaSqm or both length and width.",
     "quotes.notFound": "Quote request not found.",

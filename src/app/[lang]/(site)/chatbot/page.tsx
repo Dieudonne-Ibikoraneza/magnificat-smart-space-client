@@ -722,9 +722,9 @@ export default function ChatbotPage() {
    * One reaction for the whole batch of picks in a bot turn, not per card —
    * final, not a toggle: once the customer says a batch helped or didn't,
    * that's their answer, not a setting to keep flipping. The buttons switch
-   * to a thank-you the instant this is clicked — the actual save happens
-   * afterwards, in the background, so a slow or failed request never blocks
-   * (or un-does) what the customer already told us.
+   * to a thank-you the instant this is clicked — the save happens in the
+   * background as one request for the whole card, and if it fails the card
+   * goes back to undecided (with a message) so it can be answered again.
    */
   const decideBatch = (message: ChatMessage, next: "ACCEPTED" | "REJECTED") => {
     if (batchDecisions[message.id] && batchDecisions[message.id] !== "PENDING")
@@ -740,19 +740,21 @@ export default function ChatbotPage() {
       ]) ?? [];
     if (recommendationIds.length === 0) return;
 
+    // Optimistic, but honest: one request saves the whole card together, and if it fails the
+    // card goes back to undecided so the customer can answer again — the screen never claims
+    // something the server didn't save.
     setBatchDecisions((current) => ({ ...current, [message.id]: next }));
-    void Promise.all(
-      recommendationIds.map((recommendationId) =>
-        chatbotApi.setRecommendationDecision(recommendationId, next),
-      ),
-    ).catch((cause) => {
-      toast.error(t("chatbot.toast.feedbackFailedTitle"), {
-        description:
-          cause instanceof ApiError
-            ? cause.message
-            : t("chatbot.toast.feedbackFailedBody"),
+    void chatbotApi
+      .setRecommendationDecisions([...new Set(recommendationIds)], next)
+      .catch((cause) => {
+        setBatchDecisions((current) => ({ ...current, [message.id]: "PENDING" }));
+        toast.error(t("chatbot.toast.feedbackFailedTitle"), {
+          description:
+            cause instanceof ApiError
+              ? cause.message
+              : t("chatbot.toast.feedbackFailedBody"),
+        });
       });
-    });
   };
 
   /**

@@ -2892,6 +2892,7 @@
     "chatbot.roomPhotoRequired": "Ifoto y'icyumba irakenewe mu gasanduku \"file\".",
     "chatbot.conversationNotFound": "Ikiganiro ntikibonetse.",
     "chatbot.recommendationNotFound": "Inama ntiyabonetse.",
+    "chatbot.roomPhotoNotYours": "Iyi foto y\u2019icyumba ntabwo yashyizweho na konti yawe. Yongere uyishyireho ubundi ugerageze.",
     "chatbot.knowledgeEntryNotFound": "Icyanditswe mu bumenyi ntikibonetse.",
     "calculator.areaOrDimensionsRequired": "Tanga ubuso bwose (totalAreaSqm) cyangwa uburebure n'ubugari byombi.",
     "quotes.notFound": "Ubusabe bw'igiciro ntibubonetse.",
