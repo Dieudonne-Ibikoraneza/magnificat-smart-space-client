@@ -90,6 +90,7 @@ const StockProductDetailsPage = ({ params }: StockProductDetailsProps) => {
               priority
             />
           </div>
+          <TileAnalyticsSummary productId={product.id} />
           <section className="rounded-2xl bg-card p-5 sm:p-6">
             <h2 className="border-b border-slate-100 pb-4 text-xl font-bold text-ink">
               {t("stock.inventoryDetail.productStory")}
@@ -100,7 +101,6 @@ const StockProductDetailsPage = ({ params }: StockProductDetailsProps) => {
           </section>
         </div>
         <div className="space-y-6">
-          <TileAnalyticsSummary productId={product.id} />
           <section className="rounded-2xl bg-card p-5 sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
