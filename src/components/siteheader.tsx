@@ -109,7 +109,7 @@ export const SiteHeader = () => {
     <header className="sticky top-0 z-50 border-b border-white/60 bg-white/80 shadow-sm backdrop-blur-xl supports-[backdrop-filter]:bg-white/65">
       <div className="mx-auto flex h-20 max-w-360 items-center gap-4 px-4 sm:gap-6 sm:px-6 lg:px-8">
         <Link href="/" className="shrink-0" aria-label={t("header.homeAria")} onClick={closeMenu}>
-          <Image src="/images/logo.png" alt="Magnificat Smart Space" width={72} height={56} className="h-14 w-18 object-contain" priority />
+          <Image src="/images/logo-transparent.png" alt="Magnificat Smart Space" width={72} height={56} className="h-14 w-18 object-contain" priority />
         </Link>
 
         <nav className="hidden items-center gap-8 lg:flex" aria-label={t("header.primaryNav")}>

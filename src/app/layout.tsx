@@ -16,6 +16,7 @@ const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
 export const metadata: Metadata = {
   title: "Magnificat Smart Space",
   description: "Your smarter, simpler living space.",
+  icons: { icon: "/images/logo-transparent.png" },
 };
 
 const RootLayout = async ({ children }: LayoutProps<"/">) => {
