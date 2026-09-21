@@ -516,7 +516,7 @@ export type ApiChatConversation = {
   userId: string | null;
   sessionId: string;
   language: Language;
-  /** Auto-set from the customer's first message — `null` for a brand-new, still-empty conversation. */
+  /** User-editable project name; new conversations start as "New Project". */
   title: string | null;
   createdAt: string;
   updatedAt: string;

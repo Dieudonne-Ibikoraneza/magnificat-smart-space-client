@@ -179,6 +179,7 @@ const AiHelpCard = () => {
       <h3 className="mb-2 text-lg font-bold">{t("catalog.aiHelp.title")}</h3>
       <p className="mb-5 text-sm leading-5 text-white/75">{t("catalog.aiHelp.body")}</p>
       <Button
+        nativeButton={false}
         className="h-12 min-h-12 w-full py-3 font-semibold text-ink bg-primary hover:bg-primary/90"
         render={<Link href="/chatbot" />}
       >

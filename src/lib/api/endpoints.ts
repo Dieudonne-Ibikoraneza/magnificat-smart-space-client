@@ -493,6 +493,10 @@ export const chatbotApi = {
   startConversation: (language?: Language) =>
     api.post<ApiChatConversation>("/chatbot/conversations", { language }),
 
+  /** Renames one of the signed-in customer's projects. */
+  renameConversation: (conversationId: string, title: string) =>
+    api.patch<ApiChatConversation>(`/chatbot/conversations/${conversationId}`, { title }),
+
   /** The signed-in customer's own conversations, most recent first. */
   myConversations: () => api.get<ChatConversationSummary[]>("/chatbot/conversations"),
 

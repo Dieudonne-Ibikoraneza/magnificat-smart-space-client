@@ -21,6 +21,7 @@ import {
   History,
   Maximize2,
   Paperclip,
+  Pencil,
   RotateCcw,
   Search,
   Send,
@@ -40,6 +41,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { ChatProductCard } from "@/components/chat-product-card";
 import { chatbotFollowUps } from "@/lib/chatbot-follow-ups";
@@ -48,6 +55,7 @@ import { ApiError } from "@/lib/api/client";
 import { roomTypeLabels } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
 import type {
+  ApiChatConversation,
   ChatConversationSummary,
   ChatMessageAttachment,
   ChatRecommendation,
@@ -109,15 +117,14 @@ const readSavedConversation = (userId: string): SavedConversation | null => {
 };
 
 /**
- * The pre-recommendation questionnaire has no conversation yet to persist it
- * against (that's only created once the first message actually reaches the
- * backend) — without saving progress somewhere, a crash, a bad connection, or
- * just an accidental reload partway through Q&A threw away every answer the
- * customer had already given, back to question 1. Saved after every answer,
- * cleared the moment a real conversation exists (`sendToAssistant`'s success
- * path) or "start new project" is chosen.
+ * Profiling answers are not server chat messages yet, so a crash, a bad
+ * connection, or an accidental reload partway through Q&A would otherwise
+ * throw away every answer and return the customer to question 1. Saved after
+ * every answer and cleared once `sendToAssistant` persists the completed brief
+ * or "start new project" is chosen.
  */
 type SavedProfilingProgress = {
+  conversationId?: string;
   activeQueue: ProfilingQuestion[];
   profilingIndex: number;
   profilingAnswers: { question: string; answer: string }[];
@@ -271,7 +278,7 @@ export default function ChatbotPage() {
   const [conversationId, setConversationId] = useState<string | undefined>(
     undefined,
   );
-  /** The session id this conversation was (or will be) created under — see `SavedConversation`. `null` until either a saved one is restored or the first send mints one. */
+  /** The session id this conversation was created under — see `SavedConversation`. `null` only while the initial project is being created. */
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(true);
@@ -322,6 +329,11 @@ export default function ChatbotPage() {
   >(null);
   const [pastConversationsLoading, setPastConversationsLoading] =
     useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [renameTarget, setRenameTarget] =
+    useState<ChatConversationSummary | null>(null);
+  const [renameTitle, setRenameTitle] = useState("");
+  const [isRenamingProject, setIsRenamingProject] = useState(false);
 
   // Tile choices for the room-photo preview — only fetched once a photo is
   // actually picked, and re-fetched as the customer searches within them.
@@ -341,6 +353,10 @@ export default function ChatbotPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   /** Every object URL handed out, so none leak when the page unmounts. */
   const objectUrlsRef = useRef<string[]>([]);
+  /** Reused across React Strict Mode's development-only effect replay so the
+   * first visit creates exactly one empty project, not two. */
+  const initialConversationPromiseRef =
+    useRef<Promise<ApiChatConversation> | null>(null);
 
   useEffect(
     () => () => {
@@ -421,7 +437,7 @@ export default function ChatbotPage() {
     isStillActive: () => boolean = () => true,
   ) => {
     const history = await chatbotApi.history(conversationId);
-    if (!isStillActive()) return;
+    if (!isStillActive()) return undefined;
     setConversationId(conversationId);
     setChatSessionId(sessionId);
     setPhase("chatting");
@@ -456,8 +472,17 @@ export default function ChatbotPage() {
           sessionId,
         } satisfies SavedConversation),
       );
-      clearSavedProfilingProgress(user.id);
+      if (history.length > 0) {
+        const savedProgress = readSavedProfilingProgress(user.id);
+        if (
+          !savedProgress?.conversationId ||
+          savedProgress.conversationId === conversationId
+        ) {
+          clearSavedProfilingProgress(user.id);
+        }
+      }
     }
+    return history;
   };
 
   /** Fetches the customer's past projects on demand — called when the switcher is opened. */
@@ -485,7 +510,36 @@ export default function ChatbotPage() {
     clearPendingPhoto();
     resetInput();
     try {
-      await openConversation(conversation.id, conversation.sessionId);
+      const history = await openConversation(
+        conversation.id,
+        conversation.sessionId,
+      );
+      if (history?.length === 0) {
+        const savedProgress = user?.id
+          ? readSavedProfilingProgress(user.id)
+          : null;
+        if (
+          savedProgress &&
+          (!savedProgress.conversationId ||
+            savedProgress.conversationId === conversation.id)
+        ) {
+          setActiveQueue(savedProgress.activeQueue);
+          setProfilingIndex(savedProgress.profilingIndex);
+          setProfilingAnswers(savedProgress.profilingAnswers);
+          setSelectedRoomType(savedProgress.selectedRoomType);
+          setMessages(savedProgress.messages);
+          setPhase("profiling");
+          setIsTyping(false);
+        } else {
+          setActiveQueue([]);
+          setProfilingIndex(0);
+          setProfilingAnswers([]);
+          setSelectedRoomType(null);
+          setMessages(initialMessages);
+          setPhase("room-select");
+          revealBotMessage(t("chatbot.roomSelectPrompt"));
+        }
+      }
     } catch (cause) {
       toast.error(t("chatbot.toast.reachFailedTitle"), {
         description:
@@ -530,24 +584,77 @@ export default function ChatbotPage() {
             return questions;
           });
 
-        const saved = user?.id ? readSavedConversation(user.id) : null;
+        const currentUserId = user?.id;
+        const saved = currentUserId
+          ? readSavedConversation(currentUserId)
+          : null;
         if (saved) {
-          questionsPromise.catch(() => undefined);
-          await openConversation(
+          const history = await openConversation(
             saved.conversationId,
             saved.sessionId,
             () => active,
           );
+          if (!active || !history || history.length > 0) {
+            questionsPromise.catch(() => undefined);
+            return;
+          }
+
+          // Empty projects are created before profiling begins. On reload,
+          // resume that local questionnaire rather than treating the empty
+          // server conversation as an already-started free-form chat.
+          await questionsPromise;
+          if (!active) return;
+          if (!currentUserId) return;
+          const savedProgress = readSavedProfilingProgress(currentUserId);
+          if (
+            savedProgress &&
+            (!savedProgress.conversationId ||
+              savedProgress.conversationId === saved.conversationId)
+          ) {
+            setActiveQueue(savedProgress.activeQueue);
+            setProfilingIndex(savedProgress.profilingIndex);
+            setProfilingAnswers(savedProgress.profilingAnswers);
+            setSelectedRoomType(savedProgress.selectedRoomType);
+            setMessages(savedProgress.messages);
+            setPhase("profiling");
+            setIsTyping(false);
+          } else {
+            setPhase("room-select");
+            setMessages(initialMessages);
+            revealBotMessage(t("chatbot.roomSelectPrompt"));
+          }
           return;
         }
-        // No saved conversation for this browser+customer — the first send
-        // below mints a fresh session id, which is what tells the backend
-        // this is a genuinely new conversation rather than resuming one.
-        // Awaited only for `allQuestions` (set inside the promise itself)
-        // to be ready before the room-select step that follows can build a
-        // queue from it.
+        // Awaited for `allQuestions` (set inside the promise itself) to be
+        // ready before the room-select step that follows can build a queue.
         await questionsPromise;
         if (!active) return;
+
+        // A project now exists as soon as the page starts one — before the
+        // customer answers profiling questions or sends a chat message. The
+        // promise is shared across Strict Mode's effect replay so development
+        // doesn't leave a duplicate empty project behind.
+        if (!initialConversationPromiseRef.current) {
+          initialConversationPromiseRef.current =
+            chatbotApi.startConversation("EN");
+        }
+        const conversation = await initialConversationPromiseRef.current;
+        if (!active) return;
+        setConversationId(conversation.id);
+        setChatSessionId(conversation.sessionId);
+        setPastConversations((current) => [
+          { ...conversation, messages: [] },
+          ...(current ?? []).filter((item) => item.id !== conversation.id),
+        ]);
+        if (user?.id) {
+          window.localStorage.setItem(
+            savedConversationKey(user.id),
+            JSON.stringify({
+              conversationId: conversation.id,
+              sessionId: conversation.sessionId,
+            } satisfies SavedConversation),
+          );
+        }
 
         const savedProgress = user?.id
           ? readSavedProfilingProgress(user.id)
@@ -596,6 +703,7 @@ export default function ChatbotPage() {
       window.localStorage.setItem(
         savedProfilingKey(user.id),
         JSON.stringify({
+          conversationId,
           activeQueue,
           profilingIndex,
           profilingAnswers,
@@ -613,6 +721,7 @@ export default function ChatbotPage() {
     }
   }, [
     user?.id,
+    conversationId,
     phase,
     activeQueue,
     profilingIndex,
@@ -634,11 +743,8 @@ export default function ChatbotPage() {
     }
     setIsTyping(true);
     try {
-      // Mint a session id on this turn's very first send rather than at
-      // mount — `startNewProject` clears `chatSessionId` to force exactly
-      // this, since a fresh id (not the previous conversation's) is what
-      // makes `ChatbotService.sendMessage` create a genuinely new
-      // conversation instead of resuming the old one.
+      // A defensive fallback for legacy/local-storage edge cases. Normal
+      // projects already have a server-issued session id before profiling.
       const sessionId = chatSessionId ?? crypto.randomUUID();
       const result = await chatbotApi.sendMessage({
         sessionId,
@@ -694,16 +800,23 @@ export default function ChatbotPage() {
     }
   };
 
-  const startNewProject = () => {
+  const activateNewProject = (conversation: ApiChatConversation) => {
     if (user?.id) {
-      window.localStorage.removeItem(savedConversationKey(user.id));
+      window.localStorage.setItem(
+        savedConversationKey(user.id),
+        JSON.stringify({
+          conversationId: conversation.id,
+          sessionId: conversation.sessionId,
+        } satisfies SavedConversation),
+      );
       clearSavedProfilingProgress(user.id);
     }
-    setConversationId(undefined);
-    // Cleared, not just left alone — the next send must mint a fresh session
-    // id (see `sendToAssistant`), or the backend would resolve the old
-    // (customer, sessionId) pair right back to the conversation being left.
-    setChatSessionId(null);
+    setConversationId(conversation.id);
+    setChatSessionId(conversation.sessionId);
+    setPastConversations((current) => [
+      { ...conversation, messages: [] },
+      ...(current ?? []).filter((item) => item.id !== conversation.id),
+    ]);
     setMessages(initialMessages);
     setBatchDecisions({});
     setProfilingAnswers([]);
@@ -716,6 +829,58 @@ export default function ChatbotPage() {
     // never guessed from free text. See `selectRoomType`.
     setPhase("room-select");
     revealBotMessage(t("chatbot.roomSelectPrompt"));
+  };
+
+  const startNewProject = async () => {
+    if (isCreatingProject) return;
+    setIsCreatingProject(true);
+    try {
+      const conversation = await chatbotApi.startConversation("EN");
+      activateNewProject(conversation);
+    } catch (cause) {
+      toast.error(t("chatbot.createProjectFailed"), {
+        description:
+          cause instanceof ApiError
+            ? cause.message
+            : t("chatbot.toast.connectionBody"),
+      });
+    } finally {
+      setIsCreatingProject(false);
+    }
+  };
+
+  const openRenameProject = (conversation: ChatConversationSummary) => {
+    setRenameTarget(conversation);
+    setRenameTitle(conversation.title ?? "");
+  };
+
+  const renameProject = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const title = renameTitle.trim();
+    if (!renameTarget || !title || isRenamingProject) return;
+
+    setIsRenamingProject(true);
+    try {
+      const renamed = await chatbotApi.renameConversation(renameTarget.id, title);
+      setPastConversations((current) =>
+        current?.map((conversation) =>
+          conversation.id === renamed.id
+            ? { ...conversation, title: renamed.title }
+            : conversation,
+        ) ?? null,
+      );
+      setRenameTarget(null);
+      toast.success(t("chatbot.renameSuccess"));
+    } catch (cause) {
+      toast.error(t("chatbot.renameFailed"), {
+        description:
+          cause instanceof ApiError
+            ? cause.message
+            : t("chatbot.toast.connectionBody"),
+      });
+    } finally {
+      setIsRenamingProject(false);
+    }
   };
 
   /**
@@ -1041,7 +1206,8 @@ export default function ChatbotPage() {
           <div className="p-3">
             <Button
               type="button"
-              onClick={startNewProject}
+              onClick={() => void startNewProject()}
+              disabled={isCreatingProject}
               className="h-10 w-full gap-2 rounded-full text-xs font-bold"
             >
               <RotateCcw className="size-3.5" /> {t("chatbot.newProject")}
@@ -1072,30 +1238,40 @@ export default function ChatbotPage() {
             {pastConversations?.map((conversation) => {
               const isCurrent = conversation.id === conversationId;
               return (
-                <button
+                <div
                   key={conversation.id}
-                  type="button"
-                  onClick={() => void switchToPastConversation(conversation)}
                   className={cn(
                     "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-secondary",
                     isCurrent && "bg-secondary",
                   )}
                 >
-                  {/* The title is already just the first message the customer
-                      sent (see `ChatbotService.sendMessage`) — showing the
-                      conversation's own last message too, on a second line,
-                      doubled the row height for a preview that's often the
-                      assistant's long recommendation text. One line is enough
-                      to tell projects apart. */}
-                  <span className="truncate text-xs font-semibold text-ink">
+                  {/* The editable project title is enough to identify a row;
+                      adding the last message on a second line made long
+                      recommendation text dominate this compact sidebar. */}
+                  <button
+                    type="button"
+                    onClick={() => void switchToPastConversation(conversation)}
+                    className="min-w-0 flex-1 truncate text-left text-xs font-semibold text-ink"
+                  >
                     {conversation.title || t("chatbot.untitledProject")}
-                  </span>
+                  </button>
                   {isCurrent && (
                     <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold text-primary">
                       {t("chatbot.currentProjectBadge")}
                     </span>
                   )}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => openRenameProject(conversation)}
+                    aria-label={t("chatbot.renameProjectAria", {
+                      name:
+                        conversation.title ?? t("chatbot.untitledProject"),
+                    })}
+                    className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-card hover:text-ink"
+                  >
+                    <Pencil className="size-3.5" />
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -1173,9 +1349,16 @@ export default function ChatbotPage() {
                               return (
                                 <DropdownMenuItem
                                   key={conversation.id}
-                                  onClick={() =>
-                                    void switchToPastConversation(conversation)
-                                  }
+                                  onClick={(event) => {
+                                    if (
+                                      (event.target as HTMLElement).closest(
+                                        "[data-rename-project]",
+                                      )
+                                    ) {
+                                      return;
+                                    }
+                                    void switchToPastConversation(conversation);
+                                  }}
                                   className="flex flex-col items-start gap-0.5 py-2"
                                 >
                                   <span className="flex w-full items-center justify-between gap-2">
@@ -1188,6 +1371,19 @@ export default function ChatbotPage() {
                                         {t("chatbot.currentProjectBadge")}
                                       </span>
                                     )}
+                                    <button
+                                      type="button"
+                                      data-rename-project
+                                      onClick={() => openRenameProject(conversation)}
+                                      aria-label={t("chatbot.renameProjectAria", {
+                                        name:
+                                          conversation.title ??
+                                          t("chatbot.untitledProject"),
+                                      })}
+                                      className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-ink"
+                                    >
+                                      <Pencil className="size-3.5" />
+                                    </button>
                                   </span>
                                   {lastMessage && (
                                     <span className="line-clamp-1 w-full text-left text-xs text-muted-foreground">
@@ -1203,7 +1399,8 @@ export default function ChatbotPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={startNewProject}
+                      onClick={() => void startNewProject()}
+                      disabled={isCreatingProject}
                       className="h-9 gap-2 rounded-full px-3 text-xs font-bold"
                     >
                       <RotateCcw className="size-3.5" />{" "}
@@ -1696,6 +1893,50 @@ export default function ChatbotPage() {
             )}
           </div>
         </form>
+
+        <Dialog
+          open={renameTarget !== null}
+          onOpenChange={(open) => {
+            if (!open && !isRenamingProject) setRenameTarget(null);
+          }}
+        >
+          <DialogContent showClose>
+            <form onSubmit={renameProject}>
+              <DialogTitle>{t("chatbot.renameProject")}</DialogTitle>
+              <DialogDescription>
+                {t("chatbot.renameProjectDescription")}
+              </DialogDescription>
+              <Input
+                autoFocus
+                value={renameTitle}
+                onChange={(event) => setRenameTitle(event.target.value)}
+                maxLength={80}
+                aria-label={t("chatbot.projectName")}
+                className="mt-4"
+              />
+              <div className="mt-6 flex justify-end gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setRenameTarget(null)}
+                  disabled={isRenamingProject}
+                  className="h-10 px-5 text-sm font-bold"
+                >
+                  {t("actions.cancel")}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={!renameTitle.trim() || isRenamingProject}
+                  className="h-10 bg-primary px-5 text-sm font-bold text-ink hover:bg-primary/90 disabled:opacity-60"
+                >
+                  {isRenamingProject
+                    ? t("chatbot.savingProjectName")
+                    : t("chatbot.saveProjectName")}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         <ImageLightbox
           url={lightbox?.url ?? null}

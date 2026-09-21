@@ -878,18 +878,9 @@ const VisualizerPage = () => {
     if (pickerOpen) closePicker();
   };
 
-  // The funnel's very first stage — opening the design tool at all, before
-  // any room is even picked — otherwise every later stage (CREATED_ROOM
-  // onward) had real data but this one was always zero, which is what made
-  // the funnel read as broken rather than just slow to fill in.
-  const openedSystemEventFiredRef = useRef(false);
-  useEffect(() => {
-    if (openedSystemEventFiredRef.current) return;
-    openedSystemEventFiredRef.current = true;
-    void eventsApi
-      .journey({ sessionId: getSessionId(), stage: "OPENED_SYSTEM" })
-      .catch(() => undefined);
-  }, []);
+  // The funnel's first stage, OPENED_SYSTEM, is no longer fired from here —
+  // it's recorded once per customer when they reach their dashboard (see
+  // `account/layout.tsx`).
 
   const createdRoomEventFiredRef = useRef(false);
   useEffect(() => {
