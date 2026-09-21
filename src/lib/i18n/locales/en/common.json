@@ -784,7 +784,9 @@
       "callUs": "Call us",
       "emailUs": "Email us",
       "whatsapp": "WhatsApp",
-      "responseNote": "Our team typically responds within one business hour."
+      "responseNote": "Our team typically responds within one business hour.",
+      "noChannels": "Our support team's contact details aren't available right now.",
+      "loadFailed": "Couldn't load our contact details."
     },
     "cartNegotiation": {
       "title": "Stock Negotiation",
@@ -2275,6 +2277,22 @@
       "management": "Account Management"
     },
     "systemSettings": {
+      "support": {
+        "title": "Customer support contacts",
+        "subtitle": "Shown to customers when they need help with an order. Leave a field empty to hide that channel.",
+        "phone": "Phone number",
+        "email": "Support email",
+        "whatsapp": "WhatsApp number",
+        "phoneInvalid": "Use a Rwandan number: +250 then 9 digits starting with 7, e.g. +250 788 300 400.",
+        "whatsappInvalid": "Use an international number starting with +, e.g. +250 788 300 400.",
+        "emailInvalid": "Enter a valid email address.",
+        "noneSet": "No support contacts are set, so customers won't see any way to reach the team from their orders.",
+        "save": "Save support contacts",
+        "saving": "Saving…",
+        "saved": "Support contacts saved",
+        "savedBody": "Customers see the updated details straight away.",
+        "saveFailed": "Couldn't save the support contacts"
+      },
       "payment": {
         "title": "Payment details",
         "subtitle": "Where customers pay. These are printed on every quotation they receive.",
@@ -2918,6 +2936,8 @@
     "settings.invalidLanguage": "Setting \"{{key}}\" must be EN or RW.",
     "settings.invalidCurrency": "Setting \"{{key}}\" must be a 3-letter currency code such as RWF.",
     "settings.invalidEmail": "Setting \"{{key}}\" must be a valid email address.",
+    "settings.invalidPhone": "Setting \"{{key}}\" must be a Rwandan phone number, e.g. +250 788 300 400.",
+    "settings.invalidWhatsapp": "Setting \"{{key}}\" must be an international number starting with +, e.g. +250 788 300 400.",
     "settings.invalidSwift": "Setting \"{{key}}\" must be an 8 or 11 character SWIFT/BIC code.",
     "settings.unknownSettings": "Unknown setting(s): {{keys}}.",
     "settings.questionNotFound": "Profiling question not found.",

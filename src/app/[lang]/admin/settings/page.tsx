@@ -15,6 +15,7 @@ import {
   Trash2,
   Wrench,
   Landmark,
+  Headset,
 } from "lucide-react";
 import { DashboardPageHeader as AdminPageHeader } from "@/components/dashboard-page-headers";
 import { ApiErrorState } from "@/components/api-state";
@@ -547,6 +548,149 @@ const PaymentDetailsCard = ({
   );
 };
 
+type SupportField = {
+  key: "support.phone" | "support.email" | "support.whatsapp";
+  labelKey: "phone" | "email" | "whatsapp";
+  inputType: "tel" | "email";
+  maxLength: number;
+};
+
+const SUPPORT_FIELDS: SupportField[] = [
+  { key: "support.phone", labelKey: "phone", inputType: "tel", maxLength: 40 },
+  { key: "support.email", labelKey: "email", inputType: "email", maxLength: 120 },
+  { key: "support.whatsapp", labelKey: "whatsapp", inputType: "tel", maxLength: 40 },
+];
+
+/** Same rule as the API: +250 then a 9-digit number starting with 7 (spaces and dashes allowed). */
+const RWANDA_MOBILE_PATTERN = /^\+2507\d{8}$/;
+/** WhatsApp: any international number with its country code, 8–15 digits. */
+const INTERNATIONAL_PATTERN = /^\+[1-9]\d{7,14}$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Mirrors the API's own check, so a mistake shows while typing instead of after a failed save. Empty is fine: it hides that channel. */
+const supportFieldError = (
+  key: SupportField["key"],
+  raw: string,
+): "phoneInvalid" | "whatsappInvalid" | "emailInvalid" | null => {
+  const value = raw.trim();
+  if (value === "") return null;
+  if (key === "support.email") return EMAIL_PATTERN.test(value) ? null : "emailInvalid";
+  const compact = value.replace(/[\s-]/g, "");
+  if (RWANDA_MOBILE_PATTERN.test(compact)) return null;
+  // The support phone line is Rwandan only; WhatsApp may be any international number.
+  if (key === "support.phone") return "phoneInvalid";
+  return INTERNATIONAL_PATTERN.test(compact) ? null : "whatsappInvalid";
+};
+
+/** The ways a customer can reach the team from an order ("Need to change this order?"). Saved straight away, no confirmation. */
+const SupportContactsCard = ({
+  settings,
+  loading,
+  error,
+  onRetry,
+  onSaved,
+}: {
+  settings: PlatformSettings | null | undefined;
+  loading: boolean;
+  error: string | null | undefined;
+  onRetry: () => void;
+  onSaved: () => void;
+}) => {
+  const { t } = useTranslation();
+  const [values, setValues] = useState<Record<string, string> | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Seeded once from the server, during render, so a background refetch never overwrites what is being typed.
+  if (settings && values === null) {
+    setValues(Object.fromEntries(SUPPORT_FIELDS.map((field) => [field.key, String(settings[field.key] ?? "")])));
+  }
+
+  const saved = settings
+    ? Object.fromEntries(SUPPORT_FIELDS.map((field) => [field.key, String(settings[field.key] ?? "")]))
+    : null;
+  const dirty = !!values && !!saved && SUPPORT_FIELDS.some((field) => values[field.key].trim() !== saved[field.key]);
+  const errors = Object.fromEntries(
+    SUPPORT_FIELDS.map((field) => [field.key, values ? supportFieldError(field.key, values[field.key]) : null]),
+  );
+  const hasErrors = Object.values(errors).some(Boolean);
+  const nothingSet = !!values && SUPPORT_FIELDS.every((field) => values[field.key].trim() === "");
+
+  const handleSave = async () => {
+    if (!values || hasErrors) return;
+    setSaving(true);
+    try {
+      await settingsApi.update(Object.fromEntries(SUPPORT_FIELDS.map((field) => [field.key, values[field.key].trim()])));
+      toast.success(t("admin.systemSettings.support.saved"), { description: t("admin.systemSettings.support.savedBody") });
+      setValues(null); // re-seeded from what the server now holds
+      onSaved();
+    } catch (cause) {
+      toast.error(t("admin.systemSettings.support.saveFailed"), {
+        description: cause instanceof ApiError ? cause.message : t("admin.systemSettings.toastTryAgain"),
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="rounded-2xl bg-card p-5 sm:p-6">
+      <div className="flex items-center gap-2">
+        <Headset className="size-5 text-ink" />
+        <h2 className="text-lg font-bold text-ink">{t("admin.systemSettings.support.title")}</h2>
+      </div>
+      <p className="mt-1 text-sm text-muted-foreground">{t("admin.systemSettings.support.subtitle")}</p>
+
+      {error ? (
+        <ApiErrorState message={error} onRetry={onRetry} className="mt-5" />
+      ) : loading || !values ? (
+        <div className="mt-5 grid gap-4 sm:grid-cols-3">
+          {Array.from({ length: 3 }, (_, index) => (
+            <Skeleton key={index} className="h-14 w-full" />
+          ))}
+        </div>
+      ) : (
+        <>
+          {nothingSet && (
+            <p role="status" className="mt-4 rounded-lg bg-amber-50 px-3 py-2.5 text-xs font-medium text-amber-800">
+              {t("admin.systemSettings.support.noneSet")}
+            </p>
+          )}
+          <div className="mt-5 grid gap-4 sm:grid-cols-3">
+            {SUPPORT_FIELDS.map((field) => (
+              <Field key={field.key}>
+                <FieldLabel htmlFor={field.key}>{t(`admin.systemSettings.support.${field.labelKey}`)}</FieldLabel>
+                <Input
+                  id={field.key}
+                  type={field.inputType}
+                  value={values[field.key]}
+                  maxLength={field.maxLength}
+                  autoComplete="off"
+                  aria-invalid={!!errors[field.key]}
+                  onChange={(event) => setValues((current) => ({ ...(current ?? {}), [field.key]: event.target.value }))}
+                  className="h-11 text-sm"
+                />
+                {errors[field.key] && (
+                  <p className="mt-1 text-xs text-red-600">{t(`admin.systemSettings.support.${errors[field.key]}`)}</p>
+                )}
+              </Field>
+            ))}
+          </div>
+          <div className="mt-5 flex justify-end">
+            <Button
+              type="button"
+              disabled={!dirty || hasErrors || saving}
+              onClick={() => void handleSave()}
+              className="h-11 gap-2 px-5 text-sm font-bold"
+            >
+              <Save className="size-[18px]" /> {saving ? t("admin.systemSettings.support.saving") : t("admin.systemSettings.support.save")}
+            </Button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+};
+
 const AdminSettingsPage = () => {
   const { t } = useTranslation();
   const { data: settings, loading: settingsLoading, error: settingsError, reload: reloadSettings } = useApi(() => settingsApi.getAdmin());
@@ -729,6 +873,14 @@ const AdminSettingsPage = () => {
         </div>
 
         <PaymentDetailsCard
+          settings={settings}
+          loading={settingsLoading}
+          error={settingsError}
+          onRetry={reloadSettings}
+          onSaved={reloadSettings}
+        />
+
+        <SupportContactsCard
           settings={settings}
           loading={settingsLoading}
           error={settingsError}

@@ -784,7 +784,9 @@
       "callUs": "Duhamagare",
       "emailUs": "Twandikire imeri",
       "whatsapp": "WhatsApp",
-      "responseNote": "Itsinda ryacu risubiza mu isaha imwe y'akazi."
+      "responseNote": "Itsinda ryacu risubiza mu isaha imwe y'akazi.",
+      "noChannels": "Amakuru yo guhamagara itsinda ry'ubufasha ntaboneka ubu.",
+      "loadFailed": "Ntitwashoboye gukura amakuru yo kuduhamagara."
     },
     "cartNegotiation": {
       "title": "Imishyikirano y'Ububiko",
@@ -2275,6 +2277,22 @@
       "management": "Imicungire ya Konti"
     },
     "systemSettings": {
+      "support": {
+        "title": "Uburyo bwo guhamagara ubufasha",
+        "subtitle": "Bugaragara ku bakiriya iyo bakeneye ubufasha ku itumizo ryabo. Reka umwanya usigare ubusa kugira ngo ubwo buryo bwihishwe.",
+        "phone": "Nimero ya telefone",
+        "email": "Imeri y'ubufasha",
+        "whatsapp": "Nimero ya WhatsApp",
+        "phoneInvalid": "Andika nimero yo mu Rwanda: +250 hanyuma imibare 9 itangirana na 7, urugero +250 788 300 400.",
+        "whatsappInvalid": "Andika nimero mpuzamahanga itangirana na +, urugero +250 788 300 400.",
+        "emailInvalid": "Andika imeri nyayo.",
+        "noneSet": "Nta buryo bwo guhamagara ubufasha bwashyizweho, bityo abakiriya ntibazabona uko batugeraho bari ku itumizo ryabo.",
+        "save": "Bika uburyo bwo guhamagara",
+        "saving": "Birabikwa…",
+        "saved": "Uburyo bwo guhamagara bwabitswe",
+        "savedBody": "Abakiriya bahita babona amakuru mashya.",
+        "saveFailed": "Ntitwashoboye kubika uburyo bwo guhamagara"
+      },
       "payment": {
         "title": "Amakuru y'ubwishyu",
         "subtitle": "Aho abakiriya bishyurira. Aya makuru ari ku giciro cyose bahabwa.",
@@ -2918,6 +2936,8 @@
     "settings.invalidLanguage": "Igenamiterere \"{{key}}\" rigomba kuba EN cyangwa RW.",
     "settings.invalidCurrency": "Igenamiterere \"{{key}}\" rigomba kuba kode y'ifaranga y'inyuguti 3, nka RWF.",
     "settings.invalidEmail": "Igenamiterere \"{{key}}\" rigomba kuba imeyili nyayo.",
+    "settings.invalidPhone": "Igenamiterere \"{{key}}\" rigomba kuba nimero ya telefone yo mu Rwanda, urugero +250 788 300 400.",
+    "settings.invalidWhatsapp": "Igenamiterere \"{{key}}\" rigomba kuba nimero mpuzamahanga itangirana na +, urugero +250 788 300 400.",
     "settings.invalidSwift": "Igenamiterere \"{{key}}\" rigomba kuba kode ya SWIFT/BIC y'inyuguti 8 cyangwa 11.",
     "settings.unknownSettings": "Igenamiterere ritazwi: {{keys}}.",
     "settings.questionNotFound": "Ikibazo cy'imyirondoro ntikibonetse.",
