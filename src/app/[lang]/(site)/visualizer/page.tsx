@@ -627,12 +627,28 @@ const VisualizerPage = () => {
     setActiveRoomType(nextRoom);
   };
 
-  useLayoutEffect(() => {
-    const bar = tabBarRef.current;
+  // Keeps the sliding pill under the active tab. It reads the live button each time rather than
+  // holding on to one: React can replace the tab buttons (a language switch, rooms reloading, the
+  // URL being updated), and a measurement of a replaced, detached button is 0 wide — which leaves
+  // the active tab's white label on the white bar, invisible.
+  const measureActiveTab = () => {
     const button = effectiveRoomType ? tabButtonRefs.current[effectiveRoomType] : undefined;
-    if (!bar || !button) return;
-    setActiveTabPill({ left: button.offsetLeft, width: button.offsetWidth });
-  }, [effectiveRoomType, visibleTabs]);
+    if (!button?.isConnected) return;
+    const next = { left: button.offsetLeft, width: button.offsetWidth };
+    setActiveTabPill((current) =>
+      current.left === next.left && current.width === next.width ? current : next,
+    );
+  };
+  // After every commit, since any render can change which buttons exist or how wide they are ...
+  useLayoutEffect(measureActiveTab);
+  // ... and sizes also change with no render at all (web fonts arriving, a window resize).
+  useEffect(() => {
+    const bar = tabBarRef.current;
+    if (!bar) return;
+    const observer = new ResizeObserver(measureActiveTab);
+    observer.observe(bar);
+    return () => observer.disconnect();
+  });
 
   const { data: existingDesign } = useApi(
     () => (designIdParam ? roomsApi.getDesign(designIdParam) : Promise.resolve(null)),
