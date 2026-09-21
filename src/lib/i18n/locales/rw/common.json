@@ -834,8 +834,8 @@
   "orderAlert": {
     "quotationTitle": "Ifatabuguzi ryawe ryiteguye",
     "quotationBody": "Itumizo {{number}} rifite ifatabuguzi ryiteguye kurebwa. Jya ku itumizo urebe igiteranyo cya nyuma maze wishyure.",
-    "waitlistTitle": "Amakuru meza — itumizo ryawe ryiteguye kwishyurwa",
-    "waitlistBody": "Ubu hari ububiko buhagije kuri itumizo {{number}} — ryavuye ku rutonde rw'ategereje. Ufite akanya gato ko kurangiza ubwishyu mbere y'uko ryongera gufungurwa.",
+    "waitlistTitle": "Amakuru meza — itumizo ryawe ryabikiwe",
+    "waitlistBody": "Ubu hari ububiko buhagije kuri itumizo {{number}} — ryavuye ku rutonde rw'abategereje kandi ibicuruzwa byabikiwe. Turaguha igiciro vuba; igihe cyo kwishyura gitangira igiciro kimaze koherezwa.",
     "notNow": "Ubu oya",
     "viewOrder": "Reba itumizo"
   },

@@ -178,7 +178,7 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
                 <ul className="divide-y divide-[#E8E8E8]">
                   {items.map((item) => (
                     <li key={item.id} className="px-5 py-4 font-data">
-                      <Link href={"/products/" + item.productId} className="flex items-center gap-3 font-semibold text-ink uppercase hover:underline">
+                      <Link href={"/analytics/tiles/" + item.productId} className="flex items-center gap-3 font-semibold text-ink uppercase hover:underline">
                         {item.product?.image && (
                           <Image src={item.product.image} alt="" width={48} height={48} unoptimized className="size-12 shrink-0 rounded-sm object-cover" />
                         )}
@@ -213,7 +213,7 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
                     {items.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium text-ink uppercase">
-                          <Link href={"/products/" + item.productId} className="flex items-center gap-3 hover:underline">
+                          <Link href={"/analytics/tiles/" + item.productId} className="flex items-center gap-3 hover:underline">
                             {item.product?.image && (
                               <Image src={item.product.image} alt="" width={64} height={64} unoptimized className="size-16 shrink-0 rounded-sm object-cover" />
                             )}

@@ -834,8 +834,8 @@
   "orderAlert": {
     "quotationTitle": "Your quotation is ready",
     "quotationBody": "Order {{number}} has a quotation ready for viewing. Head to the order to see the final total and pay.",
-    "waitlistTitle": "Good news — your order is ready to pay",
-    "waitlistBody": "Enough stock is now available for order {{number}} — it's been moved off the waitlist. You have a short window to complete payment before it's released again.",
+    "waitlistTitle": "Good news — your order is now reserved",
+    "waitlistBody": "Enough stock is now available for order {{number}} — it's been moved off the waitlist and the stock is held for you. We'll send your quotation shortly; your payment window starts once it's sent.",
     "notNow": "Not now",
     "viewOrder": "View order"
   },
