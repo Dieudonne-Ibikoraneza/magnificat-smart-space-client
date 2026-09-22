@@ -33,6 +33,7 @@ import {
 import { toast } from "@/components/ui/toast";
 import {
   authApi,
+  eventsApi,
   usersApi,
   type DiscoverySource,
   type HearAboutUs,
@@ -48,6 +49,7 @@ import {
   isValidRwandaMobileDigits,
 } from "@/lib/validation";
 import type { Role } from "@/lib/api/types";
+import { getSessionId } from "@/lib/session-id";
 import { PhoneField, RWANDA_PREFIX } from "@/components/phone-field";
 
 /** Matches the server's default `OTP_RESEND_COOLDOWN_SECONDS` — see server/.env. */
@@ -399,6 +401,13 @@ const AuthPage = () => {
     setSubmitting(true);
     try {
       await authApi.verifyOtp(verifiedEmail.trim(), otpCode.join(""));
+      // OTP verification has established the authenticated session, so this
+      // first journey event is now attributed to the real customer rather
+      // than an anonymous browser session. The server keeps only the first
+      // OPENED_SYSTEM event per customer and ignores staff roles.
+      void eventsApi
+        .journey({ sessionId: getSessionId(), stage: "OPENED_SYSTEM" })
+        .catch(() => undefined);
       const user = await usersApi.me();
       // Refreshes the shared session and cart so the destination's sidebar,
       // header cart count etc. show this user immediately, rather than only

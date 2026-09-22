@@ -1,15 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { History, Menu, Settings, ShoppingCart, Sparkles, Star } from "lucide-react";
 import { SessionPending } from "@/components/api-state";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { SiteHeader } from "@/components/siteheader";
-import { eventsApi } from "@/lib/api";
 import { ACCOUNT_ROLES } from "@/lib/auth-routes";
 import { useRequireRole } from "@/lib/require-role";
-import { getSessionId } from "@/lib/session-id";
 import { getInitials } from "@/lib/utils";
 
 const accountNavigation = [
@@ -30,20 +28,6 @@ const AccountLayout = ({ children }: { children: React.ReactNode }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, authorized } = useRequireRole(ACCOUNT_ROLES);
   const navLinks = accountNavigation.map((link) => ({ ...link, label: t(link.labelKey) }));
-
-  // The journey funnel's first stage: a customer reaching their dashboard.
-  // The server keeps only the first one per customer for good (a return visit
-  // tomorrow or next month is ignored there), so this is safe to fire on every
-  // fresh load of the area — the ref just stops it repeating within one.
-  const openedSystemEventFiredRef = useRef(false);
-  const signedInUserId = authorized ? user?.id : undefined;
-  useEffect(() => {
-    if (!signedInUserId || openedSystemEventFiredRef.current) return;
-    openedSystemEventFiredRef.current = true;
-    void eventsApi
-      .journey({ sessionId: getSessionId(), stage: "OPENED_SYSTEM" })
-      .catch(() => undefined);
-  }, [signedInUserId]);
 
   // Holds the whole area — sidebar included — until we know who this is: a
   // signed-out visitor or the wrong role would otherwise see a flash of a
