@@ -4,9 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
+import { useState } from "react";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { CollectionGridSkeleton, CollectionsBannerSkeleton } from "@/components/skeletons";
 import { StaffCatalogActions } from "@/components/staff-toolbar";
+import { ListPagination } from "@/components/list-pagination";
 import { Button } from "@/components/ui/button";
 import { collectionsApi, toCollection } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
@@ -51,7 +53,8 @@ const CollectionsPage = () => {
   const { t } = useTranslation();
   const { locale } = useLocale();
   const { user } = useCurrentUser();
-  const { data, loading, error, reload } = useApi(() => collectionsApi.list({ limit: 50 }));
+  const [page, setPage] = useState(1);
+  const { data, loading, error, reload } = useApi(() => collectionsApi.list({ page, limit: 20 }), [page]);
   const collections = data?.items.map((collection) => toCollection(collection, locale)) ?? [];
 
   return (
@@ -94,11 +97,14 @@ const CollectionsPage = () => {
         <ApiEmptyState message={t("collections.empty")} />
       )}
       {!loading && !error && collections.length > 0 && (
-        <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {collections.map((collection) => (
-            <CollectionCard key={collection.id} collection={collection} />
-          ))}
-        </section>
+        <>
+          <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {collections.map((collection) => (
+              <CollectionCard key={collection.id} collection={collection} />
+            ))}
+          </section>
+          <ListPagination page={data?.meta.page ?? page} totalPages={data?.meta.totalPages ?? 1} totalItems={data?.meta.total ?? 0} pageSize={20} onPageChange={setPage} />
+        </>
       )}
     </div>
   );

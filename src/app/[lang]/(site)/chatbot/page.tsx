@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { ChatProductCard } from "@/components/chat-product-card";
+import { ListPagination } from "@/components/list-pagination";
 import { chatbotFollowUps } from "@/lib/chatbot-follow-ups";
 import { chatbotApi, eventsApi, productsApi, settingsApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
@@ -291,6 +292,7 @@ export default function ChatbotPage() {
   );
   const [selectedTile, setSelectedTile] = useState<TileOption | null>(null);
   const [tileSearch, setTileSearch] = useState("");
+  const [tilePage, setTilePage] = useState(1);
   const [isSendingPreview, setIsSendingPreview] = useState(false);
   const [generatingPreview, setGeneratingPreview] = useState<{
     roomUrl: string;
@@ -349,9 +351,9 @@ export default function ChatbotPage() {
   const { data: tileResults, loading: tilesLoading } = useApi(
     () =>
       pendingPhoto
-        ? productsApi.list({ search: tileSearch || undefined, limit: 24 })
+        ? productsApi.list({ search: tileSearch || undefined, page: tilePage, limit: 20 })
         : Promise.resolve(undefined),
-    [pendingPhoto, tileSearch],
+    [pendingPhoto, tileSearch, tilePage],
   );
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -2074,7 +2076,7 @@ export default function ChatbotPage() {
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
                 <Input
                   value={tileSearch}
-                  onChange={(event) => setTileSearch(event.target.value)}
+                  onChange={(event) => { setTileSearch(event.target.value); setTilePage(1); }}
                   placeholder={t("chatbot.pendingPhoto.searchTiles")}
                   disabled={isSendingPreview}
                   className="h-9 rounded-full pl-9 text-xs"
@@ -2147,6 +2149,14 @@ export default function ChatbotPage() {
                     );
                   })}
               </div>
+              <ListPagination
+                page={tileResults?.meta.page ?? tilePage}
+                totalPages={tileResults?.meta.totalPages ?? 1}
+                totalItems={tileResults?.meta.total ?? 0}
+                pageSize={20}
+                onPageChange={setTilePage}
+                className="mt-2"
+              />
             </div>
           )}
 

@@ -54,7 +54,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 
 /** Filter dropdown label keys only — the real, server-computed `StockStatus` enum, distinct from the "Fully reserved" nuance `staffStockDisplay` adds per-row below. */
 const FILTER_STATUS_KEYS: Record<StockStatus, string> = {
@@ -85,7 +85,10 @@ const InventoryPage = () => {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const { data, loading, error, reload } = useApi(() => productsApi.list({ limit: 100 }));
+  const { data, loading, error, reload } = useApi(
+    () => productsApi.list({ page: currentPage, limit: PAGE_SIZE, search: query.trim() || undefined, suitableFor: suitableFor === "all" ? undefined : suitableFor as "WALL" | "FLOOR" | "BOTH", roomType: roomType === "all" ? undefined : roomType as RoomType, size: size === "all" ? undefined : size }),
+    [currentPage, query, suitableFor, roomType, size],
+  );
   const allProducts = useMemo(() => data?.items ?? [], [data]);
 
   const sizeOptions = useMemo(
@@ -115,15 +118,15 @@ const InventoryPage = () => {
     [allProducts, query, suitableFor, status, roomType, size, sort],
   );
 
-  const totalResults = results.length;
-  const totalPages = Math.max(1, Math.ceil(totalResults / PAGE_SIZE));
+  const totalResults = data?.meta.total ?? 0;
+  const totalPages = data?.meta.totalPages ?? 1;
   const safePage = Math.min(Math.max(currentPage, 1), totalPages);
   const showingStart = totalResults === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const showingEnd = Math.min(safePage * PAGE_SIZE, totalResults);
 
   const pageItems = useMemo(
-    () => results.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
-    [results, safePage],
+    () => results,
+    [results],
   );
 
   const visiblePages = useMemo(() => getVisiblePages(safePage, totalPages), [safePage, totalPages]);
@@ -430,7 +433,7 @@ const InventoryPage = () => {
         )}
       </div>
 
-      {!loading && !error && totalResults > 0 && (
+      {!loading && !error && totalResults > 0 && totalPages > 1 && (
         <footer className="mt-8 flex flex-col gap-4 text-sm text-[#53604d] sm:flex-row sm:items-center sm:justify-between">
           <p>
             {t("stock.inventory.showingRange", { start: showingStart, end: showingEnd, total: totalResults.toLocaleString() })}

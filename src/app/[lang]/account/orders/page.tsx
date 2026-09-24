@@ -64,38 +64,25 @@ const imagesOf = (order: ApiOrder) =>
 
 const OrdersPage = () => {
   const { t } = useTranslation();
-  const { data, loading, error, reload } = useApi(() => ordersApi.list({ limit: 100 }), []);
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const now = new Date();
+  const createdFrom = dateFilter === "all"
+    ? undefined
+    : dateFilter === "year"
+      ? new Date(now.getFullYear(), 0, 1).toISOString()
+      : new Date(now.getTime() - Number(dateFilter) * 86_400_000).toISOString();
+  const { data, loading, error, reload } = useApi(
+    () => ordersApi.list({ page: currentPage, limit: ORDER_PAGE_SIZE, status: filter === "all" ? undefined : filter, createdFrom }),
+    [currentPage, filter, dateFilter],
+  );
 
   const orders = useMemo(() => data?.items ?? [], [data]);
 
-  const filteredOrders = useMemo(
-    () =>
-      orders.filter((order) => {
-        const matchesStatus = filter === "all" || order.status === filter;
-        if (!matchesStatus || dateFilter === "all") return matchesStatus;
-
-        const orderDate = new Date(order.createdAt);
-        const now = new Date();
-        const startDate = new Date(now);
-        if (dateFilter === "year") {
-          startDate.setMonth(0, 1);
-          startDate.setHours(0, 0, 0, 0);
-        } else {
-          startDate.setDate(now.getDate() - Number(dateFilter));
-        }
-        return orderDate >= startDate && orderDate <= now;
-      }),
-    [orders, dateFilter, filter],
-  );
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / ORDER_PAGE_SIZE));
+  const totalPages = data?.meta.totalPages ?? 1;
   const safePage = Math.min(currentPage, totalPages);
-  const visibleOrders = filteredOrders.slice(
-    (safePage - 1) * ORDER_PAGE_SIZE,
-    safePage * ORDER_PAGE_SIZE,
-  );
+  const visibleOrders = orders;
   const visiblePages = getVisiblePages(safePage, totalPages);
 
   const changeFilter = (value: string | null) => {

@@ -10,6 +10,7 @@ import {
   ChevronsRight,
   LayoutGrid,
   List,
+  Loader2,
   PackageOpen,
   Search,
   SlidersHorizontal,
@@ -190,10 +191,14 @@ const AiHelpCard = () => {
 };
 
 const CatalogEmptyState = ({
-  isCollectionEmpty,
+  mode,
+  searchTerm,
+  onClearSearch,
   onResetFilters,
 }: {
-  isCollectionEmpty: boolean;
+  mode: "collection" | "search" | "filters";
+  searchTerm: string;
+  onClearSearch: () => void;
   onResetFilters: () => void;
 }) => {
   const { t } = useTranslation();
@@ -204,16 +209,29 @@ const CatalogEmptyState = ({
         <PackageOpen className="size-7" />
       </div>
       <h3 className="text-lg font-bold text-ink">
-        {isCollectionEmpty
-          ? t("catalog.empty.noCollectionTitle")
-          : t("catalog.empty.noMatchTitle")}
+        {mode === "search"
+          ? t("catalog.empty.noSearchTitle", { term: searchTerm })
+          : mode === "filters"
+            ? t("catalog.empty.noMatchTitle")
+            : t("catalog.empty.noCollectionTitle")}
       </h3>
       <p className="mt-2 max-w-sm text-sm leading-6 text-muted">
-        {isCollectionEmpty
-          ? t("catalog.empty.noCollectionBody")
-          : t("catalog.empty.noMatchBody")}
+        {mode === "search"
+          ? t("catalog.empty.noSearchBody")
+          : mode === "filters"
+            ? t("catalog.empty.noMatchBody")
+            : t("catalog.empty.noCollectionBody")}
       </p>
-      {!isCollectionEmpty && (
+      {mode === "search" && (
+        <Button
+          type="button"
+          className="mt-6 h-11 px-6 font-semibold text-ink bg-primary hover:bg-primary/90"
+          onClick={onClearSearch}
+        >
+          {t("catalog.empty.clearSearch")}
+        </Button>
+      )}
+      {mode === "filters" && (
         <Button
           type="button"
           className="mt-6 h-11 px-6 font-semibold text-ink bg-primary hover:bg-primary/90"
@@ -222,7 +240,7 @@ const CatalogEmptyState = ({
           {t("catalog.resetFilters")}
         </Button>
       )}
-      {isCollectionEmpty && (
+      {mode === "collection" && (
         <Button
           nativeButton={false}
           render={<Link href="/collections" />}
@@ -448,6 +466,8 @@ export const ProductCatalog = ({
   showAddToCart = true,
   detailsBasePath = "/products",
   initialSearch = "",
+  isRefreshing = false,
+  serverPagination,
 }: {
   products: Product[];
   breadcrumb?: ReactNode;
@@ -457,6 +477,17 @@ export const ProductCatalog = ({
   detailsBasePath?: string;
   /** Seeds the search box from a `?search=` param (see the site header). */
   initialSearch?: string;
+  /** Keeps a zero-result query from briefly looking like an empty catalog while its replacement query loads. */
+  isRefreshing?: boolean;
+  serverPagination?: {
+    page: number;
+    totalPages: number;
+    totalItems: number;
+    pageSize: number;
+    onPageChange: (page: number) => void;
+    onSearchChange?: (search: string) => void;
+    onSortChange?: (sort: SortOption) => void;
+  };
 }) => {
   const { t } = useTranslation();
   const router = useRouter();
@@ -494,11 +525,22 @@ export const ProductCatalog = ({
     };
   }, []);
 
-  const isCollectionEmpty = products.length === 0;
+  const emptyMode = searchQuery.trim()
+    ? "search"
+    : hasActiveFilters(filters)
+      ? "filters"
+      : "collection";
+  // The local field updates before the debounced server query and URL do.
+  // Treat that short gap as loading too, otherwise clearing a zero-result
+  // search briefly masquerades as a genuinely empty collection.
+  const isSearchTransitioning = Boolean(
+    serverPagination && searchQuery.trim() !== initialSearch.trim(),
+  );
 
   const filterGroups = useMemo(() => buildFilterGroups(products), [products]);
 
   const processedProducts = useMemo(() => {
+    if (serverPagination) return filterProducts(products, filters);
     const normalizedSearch = searchQuery.trim().toLowerCase();
     const searchedProducts = products.filter((product) =>
       normalizedSearch === "" ||
@@ -508,12 +550,20 @@ export const ProductCatalog = ({
     );
     const filtered = filterProducts(searchedProducts, filters);
     return sortProducts(filtered, sortBy);
-  }, [products, filters, searchQuery, sortBy]);
+  }, [products, filters, searchQuery, sortBy, serverPagination]);
 
-  const pagination = useMemo(
-    () => paginateProducts(processedProducts, currentPage),
-    [processedProducts, currentPage],
-  );
+  const pagination = useMemo(() => {
+    if (!serverPagination) return paginateProducts(processedProducts, currentPage);
+    const start = (serverPagination.page - 1) * serverPagination.pageSize;
+    return {
+      items: processedProducts,
+      totalPages: serverPagination.totalPages,
+      currentPage: serverPagination.page,
+      showingStart: serverPagination.totalItems === 0 ? 0 : start + 1,
+      showingEnd: Math.min(start + processedProducts.length, serverPagination.totalItems),
+      totalResults: serverPagination.totalItems,
+    };
+  }, [processedProducts, currentPage, serverPagination]);
 
   const visiblePages = useMemo(
     () => getVisiblePages(pagination.currentPage, pagination.totalPages),
@@ -536,10 +586,13 @@ export const ProductCatalog = ({
   const handleSortChange = (value: SortOption) => {
     setSortBy(value);
     setCurrentPage(1);
+    serverPagination?.onSortChange?.(value);
   };
 
   const goToPage = (page: number) => {
-    setCurrentPage(Math.min(Math.max(page, 1), pagination.totalPages));
+    const next = Math.min(Math.max(page, 1), pagination.totalPages);
+    setCurrentPage(next);
+    serverPagination?.onPageChange(next);
   };
 
   const openFilters = () => {
@@ -561,6 +614,7 @@ export const ProductCatalog = ({
 
     if (searchUrlDebounceRef.current) clearTimeout(searchUrlDebounceRef.current);
     searchUrlDebounceRef.current = setTimeout(() => {
+      serverPagination?.onSearchChange?.(value);
       const nextParams = new URLSearchParams(searchParams.toString());
       const trimmed = value.trim();
       if (trimmed) {
@@ -573,16 +627,7 @@ export const ProductCatalog = ({
     }, 300);
   };
 
-  /**
-   * The empty-state CTA needs to clear the search box too, not just the
-   * checkbox filters — otherwise a no-results search is a dead end, since
-   * `hasActiveFilters` (and the filter panel's own "Reset" link) only look
-   * at `filters`, not `searchQuery`.
-   */
-  const handleResetSearchAndFilters = () => {
-    handleResetFilters();
-    handleSearchChange("");
-  };
+  const handleClearSearch = () => handleSearchChange("");
 
   const toggleSearch = () => {
     if (searchOpen) {
@@ -638,10 +683,20 @@ export const ProductCatalog = ({
               onSearchChange={handleSearchChange}
             />
 
-            {pagination.items.length === 0 ? (
+            {pagination.items.length === 0 && (isRefreshing || isSearchTransitioning) ? (
+              <div
+                role="status"
+                className="flex min-h-52 items-center justify-center gap-2 rounded-2xl bg-white px-6 py-16 text-sm text-muted shadow-sm"
+              >
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                {t("common.loading")}
+              </div>
+            ) : pagination.items.length === 0 ? (
               <CatalogEmptyState
-                isCollectionEmpty={isCollectionEmpty}
-                onResetFilters={handleResetSearchAndFilters}
+                mode={emptyMode}
+                searchTerm={searchQuery.trim()}
+                onClearSearch={handleClearSearch}
+                onResetFilters={handleResetFilters}
               />
             ) : (
               <div

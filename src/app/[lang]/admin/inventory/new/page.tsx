@@ -313,7 +313,7 @@ const RegisterProductPage = () => {
   const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: collectionsData } = useApi(() => collectionsApi.list({ limit: 100 }));
+  const { data: collectionsData } = useApi(() => collectionsApi.listAll());
   const collections = collectionsData?.items ?? [];
   const requestedCollectionId = searchParams.get("collectionId");
 

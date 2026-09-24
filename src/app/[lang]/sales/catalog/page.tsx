@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
+import { useState } from "react";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { ProductCatalog } from "@/components/product-catalog";
 import { ProductsPageSkeleton } from "@/components/skeletons";
@@ -13,7 +14,14 @@ import { useLocale } from "@/lib/i18n";
 const CatalogPage = () => {
   const { t } = useTranslation();
   const { locale } = useLocale();
-  const { data, loading, error, reload } = useApi(() => productsApi.list({ limit: 100 }));
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<"newest" | "low" | "high">("newest");
+  const { data, loading, error, reload } = useApi(
+    () => productsApi.list({ page, limit: 20, search: search || undefined, sort: sort === "low" ? "price_asc" : sort === "high" ? "price_desc" : "newest" }),
+    [page, search, sort],
+    { keepPreviousData: true },
+  );
   const products = data?.items.map((product) => toProduct(product, undefined, locale)) ?? [];
 
   return (
@@ -27,10 +35,16 @@ const CatalogPage = () => {
           <ProductsPageSkeleton />
         ) : error ? (
           <ApiErrorState message={error} onRetry={reload} className="my-16" />
-        ) : products.length === 0 ? (
+        ) : products.length === 0 && !search && (data?.meta.total ?? 0) === 0 ? (
           <ApiEmptyState message={t("sales.catalog.empty")} className="my-16" />
         ) : (
-          <ProductCatalog products={products} showFavorites={false} showAddToCart={false} detailsBasePath="/sales/catalog" />
+          <ProductCatalog
+            products={products}
+            showFavorites={false}
+            showAddToCart={false}
+            detailsBasePath="/sales/catalog"
+            serverPagination={{ page: data?.meta.page ?? page, totalPages: data?.meta.totalPages ?? 1, totalItems: data?.meta.total ?? 0, pageSize: 20, onPageChange: setPage, onSearchChange: (value) => { setSearch(value); setPage(1); }, onSortChange: (value) => { setSort(value); setPage(1); } }}
+          />
         )}
       </div>
     </>

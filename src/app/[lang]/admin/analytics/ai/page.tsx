@@ -746,7 +746,7 @@ const AdminAnalyticsAiPage = () => {
   // Room type / suitable-for / description aren't part of the recommendation
   // row — fetched separately, purely to power the same catalog filters (and
   // the card description) the storefront uses.
-  const { data: productsData } = useApi(() => productsApi.list({ limit: 100 }));
+  const { data: productsData } = useApi(() => productsApi.listAll());
 
   const items = useMemo(() => recommendations?.table.items ?? [], [recommendations]);
   const filterableItems = useMemo<FilterableRecommendation[]>(() => {

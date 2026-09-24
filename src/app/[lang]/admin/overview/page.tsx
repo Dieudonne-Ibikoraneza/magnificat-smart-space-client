@@ -846,7 +846,7 @@ const AdminDashboardPage = () => {
     loading: productsLoading,
     error: productsError,
     reload: reloadProducts,
-  } = useApi(() => productsApi.list({ limit: 100 }));
+  } = useApi(() => productsApi.listAll());
   const {
     data: ordersData,
     loading: ordersLoading,

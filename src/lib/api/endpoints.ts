@@ -67,6 +67,21 @@ import type {
  * a URL or reads a token itself, so a route change is a one-line edit.
  */
 
+const collectAllPages = async <T>(
+  fetchPage: (page: number, limit: number) => Promise<Paginated<T>>,
+): Promise<Paginated<T>> => {
+  const limit = 20;
+  const first = await fetchPage(1, limit);
+  if (first.meta.totalPages <= 1) return first;
+  const remaining = await Promise.all(
+    Array.from({ length: first.meta.totalPages - 1 }, (_, index) => fetchPage(index + 2, limit)),
+  );
+  return {
+    items: [first, ...remaining].flatMap((page) => page.items),
+    meta: { page: 1, limit: first.meta.total, total: first.meta.total, totalPages: 1 },
+  };
+};
+
 // --- Auth -------------------------------------------------------------------
 
 export const authApi = {
@@ -147,6 +162,7 @@ export type ProductQuery = {
   roomType?: RoomType;
   size?: string;
   suitableFor?: SuitableFor;
+  compatibleWith?: SuitableFor;
   search?: string;
   sort?: "newest" | "price_asc" | "price_desc";
 };
@@ -192,8 +208,9 @@ export type CollectionInput = {
 };
 
 export const collectionsApi = {
-  list: (query: { page?: number; limit?: number } = {}) =>
+  list: (query: { page?: number; limit?: number; search?: string; size?: string; sort?: "newest" | "oldest" } = {}) =>
     api.get<Paginated<ApiCollection>>("/collections", { query }),
+  listAll: () => collectAllPages((page, limit) => api.get<Paginated<ApiCollection>>("/collections", { query: { page, limit } })),
   get: (id: string) => api.get<ApiCollection>(`/collections/${id}`),
   create: (body: CollectionInput) => api.post<ApiCollection>("/collections", body),
   update: (id: string, body: Partial<CollectionInput>) =>
@@ -211,6 +228,8 @@ export const collectionsApi = {
 
 export const productsApi = {
   list: (query: ProductQuery = {}) => api.get<Paginated<ApiProduct>>("/products", { query }),
+  listAll: (query: Omit<ProductQuery, "page" | "limit"> = {}) =>
+    collectAllPages((page, limit) => api.get<Paginated<ApiProduct>>("/products", { query: { ...query, page, limit } })),
   get: (id: string) => api.get<ApiProduct>(`/products/${id}`),
 
   /** Polled (debounced) as the user types a SKU on the registration/edit form, so a collision surfaces before submit instead of after. */
@@ -319,8 +338,24 @@ export const ordersApi = {
       quotationStatus?: QuotationStatus;
       createdByType?: "CUSTOMER" | "STAFF";
       customerId?: string;
+      search?: string;
+      createdFrom?: string;
+      createdTo?: string;
+      sort?: "newest" | "oldest" | "amount_high" | "amount_low";
     } = {},
   ) => api.get<Paginated<ApiOrder>>("/orders", { query }),
+
+  listAll: (query: {
+    status?: OrderStatus;
+    quotationStatus?: QuotationStatus;
+    createdByType?: "CUSTOMER" | "STAFF";
+    customerId?: string;
+    search?: string;
+    createdFrom?: string;
+    createdTo?: string;
+    sort?: "newest" | "oldest" | "amount_high" | "amount_low";
+  } = {}) =>
+    collectAllPages((page, limit) => ordersApi.list({ ...query, page, limit })),
 
   get: (id: string) => api.get<ApiOrder>(`/orders/${id}`),
 

@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { Bookmark, Check, Eye, Layers3, Search, ShoppingCart } from "lucide-react";
 import type { Product } from "@/components/product-card";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
+import { ListPagination } from "@/components/list-pagination";
 import {
   Accordion,
   AccordionContent,
@@ -307,6 +308,7 @@ const ConfigureSpacePanel = ({
   floorTile,
   wallTile,
   onAddTileToCart,
+  pagination,
 }: {
   activeSurface: Surface;
   onSurfaceChange: (surface: Surface) => void;
@@ -323,6 +325,7 @@ const ConfigureSpacePanel = ({
   floorTile?: Product;
   wallTile?: Product;
   onAddTileToCart?: (product: Product) => void;
+  pagination: { page: number; totalPages: number; totalItems: number; onPageChange: (page: number) => void };
 }) => {
   const { t } = useTranslation();
 
@@ -390,6 +393,7 @@ const ConfigureSpacePanel = ({
               </AccordionItem>
             ))}
           </Accordion>
+          <ListPagination page={pagination.page} totalPages={pagination.totalPages} totalItems={pagination.totalItems} pageSize={20} onPageChange={pagination.onPageChange} className="mt-3" />
         </div>
       )}
     </div>
@@ -574,6 +578,7 @@ const VisualizerPage = () => {
   );
   const [activeSurface, setActiveSurface] = useState<Surface>("floor");
   const [searchQuery, setSearchQuery] = useState("");
+  const [tilePage, setTilePage] = useState(1);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerClosing, setPickerClosing] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -601,7 +606,7 @@ const VisualizerPage = () => {
     loading: collectionsLoading,
     error: collectionsError,
     reload: reloadCollections,
-  } = useApi(() => collectionsApi.list({ limit: 100 }));
+  } = useApi(() => collectionsApi.list({ limit: 20 }));
 
   const roomsByType = useMemo(() => {
     const map = new Map<RoomType, ApiRoom>();
@@ -689,8 +694,8 @@ const VisualizerPage = () => {
     loading: productsLoading,
     error: productsError,
   } = useApi(
-    () => productsApi.list({ roomType: effectiveRoomType ?? undefined, limit: 100 }),
-    [effectiveRoomType],
+    () => productsApi.list({ roomType: effectiveRoomType ?? undefined, compatibleWith: activeSurface === "floor" ? "FLOOR" : "WALL", search: searchQuery.trim() || undefined, page: tilePage, limit: 20 }),
+    [effectiveRoomType, activeSurface, searchQuery, tilePage],
   );
 
   const collectionsList = useMemo(() => collectionsPage?.items ?? [], [collectionsPage]);
@@ -992,7 +997,7 @@ const VisualizerPage = () => {
     activeSurface,
     onSurfaceChange: setActiveSurface,
     searchQuery,
-    onSearchChange: setSearchQuery,
+    onSearchChange: (value: string) => { setSearchQuery(value); setTilePage(1); },
     openAccordionItems: effectiveAccordionItems,
     onOpenAccordionChange: setOpenAccordionItems,
     filteredCollections,
@@ -1003,6 +1008,7 @@ const VisualizerPage = () => {
     floorTile,
     wallTile,
     onAddTileToCart: isClient ? addTileToCart : undefined,
+    pagination: { page: productsPage?.meta.page ?? tilePage, totalPages: productsPage?.meta.totalPages ?? 1, totalItems: productsPage?.meta.total ?? 0, onPageChange: setTilePage },
   };
 
   if (roomsLoading || collectionsLoading) {

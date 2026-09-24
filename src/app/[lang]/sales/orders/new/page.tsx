@@ -911,7 +911,7 @@ const CreateOrderWizard = () => {
     loading: productsLoading,
     error: productsError,
     reload: reloadProducts,
-  } = useApi(() => productsApi.list({ limit: 100 }));
+  } = useApi(() => productsApi.listAll());
   const products = useMemo(() => productsData?.items ?? [], [productsData]);
 
   const [step, setStep] = useState(1);

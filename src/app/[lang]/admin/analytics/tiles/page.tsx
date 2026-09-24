@@ -946,7 +946,7 @@ const AnalyticsTilesPage = () => {
   // Room type / suitable-for / description aren't part of the analytics row —
   // fetched separately, purely to power the same catalog filters (and the
   // card description) the storefront uses.
-  const { data: productsData } = useApi(() => productsApi.list({ limit: 100 }));
+  const { data: productsData } = useApi(() => productsApi.listAll());
 
   const items = useMemo(() => tiles?.table.items ?? [], [tiles]);
   const filterableItems = useMemo<FilterableTile[]>(() => {

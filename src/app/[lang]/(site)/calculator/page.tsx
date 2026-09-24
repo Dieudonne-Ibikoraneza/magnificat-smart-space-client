@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { FilterOptionsCard } from "@/components/product-catalog";
+import { ListPagination } from "@/components/list-pagination";
 import { staffOrderHref } from "@/components/staff-toolbar";
 import { Switch } from "@/components/ui/switch";
 import { calculatorApi, eventsApi, productsApi, toProduct } from "@/lib/api";
@@ -60,12 +61,14 @@ export default function FloorPlanCalculatorPage() {
   const { locale } = useLocale();
   const { user } = useCurrentUser();
   const isClient = user?.role === "CLIENT";
+  const [tileSearch, setTileSearch] = useState("");
+  const [tilePage, setTilePage] = useState(1);
   const {
     data: productsPage,
     loading: productsLoading,
     error: productsError,
     reload: reloadProducts,
-  } = useApi(() => productsApi.list({ limit: 100 }));
+  } = useApi(() => productsApi.list({ page: tilePage, limit: 20, search: tileSearch.trim() || undefined }), [tilePage, tileSearch]);
   const products = useMemo(
     () => (productsPage?.items ?? []).map((item) => toProduct(item, undefined, locale)),
     [productsPage, locale],
@@ -87,7 +90,6 @@ export default function FloorPlanCalculatorPage() {
     if (!productId && products.length > 0) setProductId(products[0].id);
   }
 
-  const [tileSearch, setTileSearch] = useState("");
   const [tileFilters, setTileFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
   const [tileFiltersOpen, setTileFiltersOpen] = useState(false);
   const tileFilterGroups = useMemo(() => buildFilterGroups(products), [products]);
@@ -330,7 +332,7 @@ export default function FloorPlanCalculatorPage() {
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
               <Input
                 value={tileSearch}
-                onChange={(event) => setTileSearch(event.target.value)}
+                onChange={(event) => { setTileSearch(event.target.value); setTilePage(1); }}
                 placeholder={t("calculator.searchTilesPlaceholder")}
                 aria-label={t("calculator.searchTilesAria")}
                 className="h-10 rounded-xl bg-white py-0 pl-10 leading-10"
@@ -367,6 +369,7 @@ export default function FloorPlanCalculatorPage() {
                 ))
               )}
             </div>
+            <ListPagination page={productsPage?.meta.page ?? tilePage} totalPages={productsPage?.meta.totalPages ?? 1} totalItems={productsPage?.meta.total ?? 0} pageSize={20} onPageChange={setTilePage} className="mt-3" />
           </div>
         </section>
 

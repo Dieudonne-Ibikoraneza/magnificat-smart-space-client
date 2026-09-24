@@ -3,10 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { DashboardPageHeader as AdminPageHeader } from "@/components/dashboard-page-headers";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
+import { ListPagination } from "@/components/list-pagination";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { collectionsApi } from "@/lib/api";
@@ -99,14 +101,19 @@ const AdminCollectionCard = ({
 export default function AdminCollectionsPage() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { data, loading, error, reload } = useApi(() => collectionsApi.list({ limit: 100 }));
+  const [currentPage, setCurrentPage] = useState(1);
+  const { data, loading, error, reload } = useApi(
+    () => collectionsApi.list({ page: currentPage, limit: 20 }),
+    [currentPage],
+  );
   const collections = data?.items ?? [];
+  const totalCollections = data?.meta.total ?? 0;
 
   return (
     <>
       <AdminPageHeader
         title={t("stock.collections.title")}
-        subtitle={loading ? t("stock.collections.loading") : t("stock.collections.managed", { count: collections.length })}
+        subtitle={loading ? t("stock.collections.loading") : t("stock.collections.managed", { count: totalCollections })}
       >
         <Button
           type="button"
@@ -132,6 +139,13 @@ export default function AdminCollectionsPage() {
             ))}
           </section>
         )}
+        <ListPagination
+          page={data?.meta.page ?? currentPage}
+          totalPages={data?.meta.totalPages ?? 1}
+          totalItems={totalCollections}
+          pageSize={20}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </>
   );

@@ -292,7 +292,7 @@ const AnalyticsSalesPage = () => {
   const { data: sales, loading: salesLoading, error: salesError, reload: reloadSales } = useApi(() => analyticsApi.sales(range), [range]);
   const { data: customerAnalytics, loading: customerAnalyticsLoading } = useApi(() => analyticsApi.customers(range), [range]);
   const { data: tiles, loading: tilesLoading } = useApi(() => analyticsApi.tiles({ period: range }), [range]);
-  const { data: ordersData, loading: ordersLoading, error: ordersError, reload: reloadOrders } = useApi(() => ordersApi.list({ limit: 100 }));
+  const { data: ordersData, loading: ordersLoading, error: ordersError, reload: reloadOrders } = useApi(() => ordersApi.listAll());
 
   const kpis: SalesKpi[] = sales
     ? [

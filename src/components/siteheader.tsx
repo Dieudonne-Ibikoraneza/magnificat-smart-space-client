@@ -47,29 +47,22 @@ export const SiteHeader = () => {
   const isProductsRoute = routePath === "/" || routePath.startsWith("/products");
   const urlSearchValue = isProductsRoute ? (searchParams.get("search") ?? "") : "";
   const [searchValue, setSearchValue] = useState(urlSearchValue);
+  const [syncedSearchValue, setSyncedSearchValue] = useState(urlSearchValue);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // The URL's `?search=` can change from outside this component (browser
-  // back/forward, navigating away and back) — resync by adjusting state
-  // during render rather than in an effect (React docs' "adjusting state
-  // when a prop changes" pattern).
-  const [syncedSearchValue, setSyncedSearchValue] = useState(urlSearchValue);
   if (urlSearchValue !== syncedSearchValue) {
     setSyncedSearchValue(urlSearchValue);
     setSearchValue(urlSearchValue);
   }
 
-  useEffect(() => {
-    return () => {
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    };
+  useEffect(() => () => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
   }, []);
 
   const navigateToSearch = (value: string) => {
     const query = value.trim();
-    // The catalog is the root route, not `/products` — that path is only
-    // used for individual product detail pages (`/products/[id]`).
     router.push(query ? `/?search=${encodeURIComponent(query)}` : "/");
+    closeMenu();
   };
 
   const handleSearchChange = (value: string) => {

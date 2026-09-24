@@ -105,9 +105,12 @@
     },
     "empty": {
       "noCollectionTitle": "Nta bicuruzwa biri muri iri kusanyirizo",
+      "noSearchTitle": "Nta bicuruzwa bibonetse kuri “{{term}}”",
       "noMatchTitle": "Nta bicuruzwa bihuye na muyunguruzi yawe",
       "noCollectionBody": "Turacyongeramo amakaro muri iri kusanyirizo. Reba andi makusanyirizo cyangwa ugaruke vuba.",
+      "noSearchBody": "Gerageza irindi jambo ryo gushakisha, cyangwa usibe ishakisha kugira ngo urebe ibicuruzwa byose bihari.",
       "noMatchBody": "Gerageza gukuraho zimwe muri muyunguruzi cyangwa uzisubize kugira ngo ubone ibicuruzwa byose bihari.",
+      "clearSearch": "Siba ishakisha",
       "browseCollections": "Reba amakusanyirizo"
     },
     "noProducts": "Nta bicuruzwa bihari ubu — garuka vuba.",

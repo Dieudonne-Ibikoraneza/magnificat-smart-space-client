@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { ArrowDownWideNarrow, ArrowRight, Boxes, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { DashboardPageHeader as StockPageHeader } from "@/components/dashboard-page-headers";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
+import { ListPagination } from "@/components/list-pagination";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
-import { collectionsApi, productsApi } from "@/lib/api";
+import { collectionsApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { useApi } from "@/lib/api/use-api";
 import type { ApiCollection } from "@/lib/api/types";
@@ -136,51 +137,34 @@ export default function StockCollectionsPage() {
   const [query, setQuery] = useState("");
   const [size, setSize] = useState("all");
   const [sort, setSort] = useState<SortOption>("newest");
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const { data, loading, error, reload } = useApi(() => collectionsApi.list({ limit: 100 }));
-  const { data: productsData, reload: reloadProducts } = useApi(() => productsApi.list({ limit: 100 }));
+  const { data, loading, error, reload } = useApi(
+    () => collectionsApi.list({
+      page: currentPage,
+      limit: 20,
+      search: query.trim() || undefined,
+      size: size === "all" ? undefined : size,
+      sort,
+    }),
+    [currentPage, query, size, sort],
+  );
   const collections = useMemo(() => data?.items ?? [], [data]);
-  const products = useMemo(() => productsData?.items ?? [], [productsData]);
-
-  const productCountByCollection = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const product of products) {
-      counts.set(product.collectionId, (counts.get(product.collectionId) ?? 0) + 1);
-    }
-    return counts;
-  }, [products]);
 
   const sizeOptions = useMemo(
     () => Array.from(new Set(collections.map((collection) => collection.size))).sort(),
     [collections],
   );
 
-  const results = useMemo(
-    () =>
-      collections
-        .filter((collection) => {
-          const term = query.trim().toLowerCase();
-          const matchesQuery = term === "" || collection.title.toLowerCase().includes(term);
-          const matchesSize = size === "all" || collection.size === size;
-          return matchesQuery && matchesSize;
-        })
-        .sort((a, b) => {
-          const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-          return sort === "newest" ? -diff : diff;
-        }),
-    [collections, query, size, sort],
-  );
-
   const handleReload = () => {
     reload();
-    reloadProducts();
   };
 
   return (
     <>
       <StockPageHeader
         title={t("stock.collections.title")}
-        subtitle={loading ? t("stock.collections.loading") : t("stock.collections.managed", { count: collections.length })}
+        subtitle={loading ? t("stock.collections.loading") : t("stock.collections.managed", { count: data?.meta.total ?? 0 })}
       >
         <Button
           type="button"
@@ -198,14 +182,14 @@ export default function StockCollectionsPage() {
             <Search className="absolute top-1/2 left-4 size-5 -translate-y-1/2 text-[#71809a]" />
             <Input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => { setQuery(event.target.value); setCurrentPage(1); }}
               placeholder={t("stock.collections.searchPlaceholder")}
               aria-label={t("stock.collections.searchAria")}
               className="h-11 rounded-full bg-[#fafbfc] pl-11 text-sm"
             />
           </div>
           <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center">
-            <Select value={size} onValueChange={(value) => setSize(value ?? "all")}>
+            <Select value={size} onValueChange={(value) => { setSize(value ?? "all"); setCurrentPage(1); }}>
               <SelectTrigger className="h-11 min-w-0 bg-card sm:w-32">
                 <SelectValue>{(value) => (value === "all" ? t("stock.collections.sizeTrigger") : value)}</SelectValue>
               </SelectTrigger>
@@ -218,7 +202,7 @@ export default function StockCollectionsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={sort} onValueChange={(value) => setSort((value as SortOption) ?? "newest")}>
+            <Select value={sort} onValueChange={(value) => { setSort((value as SortOption) ?? "newest"); setCurrentPage(1); }}>
               <SelectTrigger className="h-11 min-w-0 gap-1.5 bg-card sm:w-44">
                 <ArrowDownWideNarrow className="size-4 shrink-0 text-[#71809a]" />
                 <SelectValue>
@@ -239,20 +223,27 @@ export default function StockCollectionsPage() {
           <ApiLoading label={t("stock.collections.loadingList")} className="py-24" />
         ) : error ? (
           <ApiErrorState message={error} onRetry={reload} className="my-16" />
-        ) : results.length === 0 ? (
+        ) : collections.length === 0 ? (
           <ApiEmptyState message={t("stock.collections.empty")} className="py-16" />
         ) : (
           <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-            {results.map((collection) => (
+            {collections.map((collection) => (
               <StockCollectionCard
                 key={collection.id}
                 collection={collection}
-                productCount={productCountByCollection.get(collection.id) ?? 0}
+                productCount={collection._count?.products ?? 0}
                 onDeleted={handleReload}
               />
             ))}
           </section>
         )}
+        <ListPagination
+          page={data?.meta.page ?? currentPage}
+          totalPages={data?.meta.totalPages ?? 1}
+          totalItems={data?.meta.total ?? 0}
+          pageSize={20}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </>
   );

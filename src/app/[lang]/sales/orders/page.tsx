@@ -41,7 +41,7 @@ import type { ApiOrderItem, OrderStatus } from "@/lib/api/types";
 import type { BadgeProps } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 20;
 
 type OrderSort = "newest" | "oldest" | "amount-high" | "amount-low";
 type DateFilter =
@@ -242,7 +242,10 @@ const OrdersPage = () => {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const { data, loading, error, reload } = useApi(() => ordersApi.list({ limit: 100 }), []);
+  const { data, loading, error, reload } = useApi(
+    () => ordersApi.list({ page: currentPage, limit: PAGE_SIZE, status: status === "all" ? undefined : status as OrderStatus }),
+    [currentPage, status],
+  );
   const orders = useMemo(() => data?.items ?? [], [data]);
 
   const results = useMemo(() => {
@@ -280,9 +283,9 @@ const OrdersPage = () => {
     setCurrentPage(1);
   }
 
-  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const totalPages = data?.meta.totalPages ?? 1;
   const safePage = Math.min(currentPage, totalPages);
-  const pageItems = results.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const pageItems = results;
 
   return (
     <>
@@ -598,7 +601,7 @@ const OrdersPage = () => {
         <ListPagination
           page={safePage}
           totalPages={totalPages}
-          totalItems={results.length}
+          totalItems={data?.meta.total ?? 0}
           pageSize={PAGE_SIZE}
           onPageChange={setCurrentPage}
         />

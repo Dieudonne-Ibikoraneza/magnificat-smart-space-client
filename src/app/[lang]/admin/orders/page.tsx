@@ -42,8 +42,6 @@ import type { ApiOrderItem, OrderStatus } from "@/lib/api/types";
 import type { BadgeProps } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-const PAGE_SIZE = 12;
-
 type OrderSort = "newest" | "oldest" | "amount-high" | "amount-low";
 type DateFilter =
   "all" | "today" | "yesterday" | "last7" | "last30" | "month" | "custom";
@@ -78,52 +76,20 @@ const statusVariant: Record<OrderStatus, NonNullable<BadgeProps["variant"]>> = {
   CANCELLED: "destructive",
 };
 
-const isSameDay = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth() === b.getMonth() &&
-  a.getDate() === b.getDate();
-
-const matchesDateFilter = (
-  orderDate: Date,
-  filter: DateFilter,
-  customDate: string,
-) => {
-  if (filter === "all") return true;
+const getDateRange = (filter: DateFilter, customDate: string) => {
+  if (filter === "all" || (filter === "custom" && !customDate)) return {};
   const now = new Date();
-
-  if (filter === "today") return isSameDay(orderDate, now);
-
-  if (filter === "yesterday") {
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    return isSameDay(orderDate, yesterday);
-  }
-
-  if (filter === "last7") {
-    const cutoff = new Date(now);
-    cutoff.setDate(cutoff.getDate() - 7);
-    return orderDate >= cutoff && orderDate <= now;
-  }
-
-  if (filter === "last30") {
-    const cutoff = new Date(now);
-    cutoff.setDate(cutoff.getDate() - 30);
-    return orderDate >= cutoff && orderDate <= now;
-  }
-
-  if (filter === "month") {
-    return (
-      orderDate.getFullYear() === now.getFullYear() &&
-      orderDate.getMonth() === now.getMonth()
-    );
-  }
-
-  if (filter === "custom" && customDate) {
-    const [year, month, day] = customDate.split("-").map(Number);
-    return isSameDay(orderDate, new Date(year, month - 1, day));
-  }
-
-  return true;
+  let from = new Date(now);
+  if (filter === "custom") from = new Date(`${customDate}T00:00:00`);
+  else if (filter === "yesterday") from.setDate(from.getDate() - 1);
+  else if (filter === "last7") from.setDate(from.getDate() - 7);
+  else if (filter === "last30") from.setDate(from.getDate() - 30);
+  else if (filter === "month") from = new Date(now.getFullYear(), now.getMonth(), 1);
+  from.setHours(0, 0, 0, 0);
+  const to = filter === "yesterday" || filter === "today" || filter === "custom"
+    ? new Date(from.getFullYear(), from.getMonth(), from.getDate() + 1, 0, 0, 0, 0)
+    : now;
+  return { createdFrom: from.toISOString(), createdTo: to.toISOString() };
 };
 
 const totalSqm = (items: ApiOrderItem[]) =>
@@ -275,32 +241,17 @@ const OrdersPage = () => {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const { data, loading, error, reload } = useApi(() => ordersApi.list({ limit: 100 }), []);
+  const dateRange = getDateRange(dateFilter, customDate);
+  const { data, loading, error, reload } = useApi(() => ordersApi.list({
+    page: currentPage,
+    limit: 20,
+    status: status === "all" ? undefined : status as OrderStatus,
+    search: query.trim() || undefined,
+    sort: sort === "amount-high" ? "amount_high" : sort === "amount-low" ? "amount_low" : sort,
+    ...dateRange,
+  }), [currentPage, query, status, dateFilter, customDate, sort]);
   const orders = useMemo(() => data?.items ?? [], [data]);
-
-  const results = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const filteredOrders = orders.filter(
-      (order) =>
-        (status === "all" || order.status === status) &&
-        matchesDateFilter(new Date(order.createdAt), dateFilter, customDate) &&
-        (normalizedQuery === "" ||
-          order.orderNumber.toLowerCase().includes(normalizedQuery) ||
-          (order.customer?.fullName ?? "").toLowerCase().includes(normalizedQuery)),
-    );
-
-    return [...filteredOrders].sort((first, second) => {
-      if (sort === "newest")
-        return new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime();
-      if (sort === "oldest")
-        return new Date(first.createdAt).getTime() - new Date(second.createdAt).getTime();
-      const firstAmount = Number(first.total);
-      const secondAmount = Number(second.total);
-      return sort === "amount-high"
-        ? secondAmount - firstAmount
-        : firstAmount - secondAmount;
-    });
-  }, [orders, query, sort, status, dateFilter, customDate]);
+  const results = orders;
 
   // Jump back to page 1 whenever a filter narrows/reorders the results —
   // computed during render (React's documented pattern for "adjusting state
@@ -313,9 +264,9 @@ const OrdersPage = () => {
     setCurrentPage(1);
   }
 
-  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const totalPages = data?.meta.totalPages ?? 1;
   const safePage = Math.min(currentPage, totalPages);
-  const pageItems = results.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const pageItems = results;
 
   return (
     <>
@@ -440,7 +391,7 @@ const OrdersPage = () => {
             </div>
             <div className="flex shrink-0 items-center gap-3">
               <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap">
-                {t("sales.orders.showingResults", { count: results.length })}
+                {t("sales.orders.showingResults", { count: data?.meta.total ?? 0 })}
               </p>
               <div className="flex items-center rounded-lg border border-border bg-background p-1">
                 <Button
@@ -628,8 +579,8 @@ const OrdersPage = () => {
         <ListPagination
           page={safePage}
           totalPages={totalPages}
-          totalItems={results.length}
-          pageSize={PAGE_SIZE}
+          totalItems={data?.meta.total ?? 0}
+          pageSize={20}
           onPageChange={setCurrentPage}
         />
       </div>

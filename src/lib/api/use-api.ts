@@ -60,7 +60,11 @@ const MIN_REFOCUS_INTERVAL_MS = 15_000;
  * `fetcher` may be an inline closure — it is read through a ref, and only
  * `deps` decide when to re-run.
  */
-export const useApi = <T>(fetcher: () => Promise<T>, deps: unknown[] = []): ApiState<T> => {
+export const useApi = <T>(
+  fetcher: () => Promise<T>,
+  deps: unknown[] = [],
+  options: { keepPreviousData?: boolean } = {},
+): ApiState<T> => {
   const [reloadToken, setReloadToken] = useState(0);
   const depsKey = JSON.stringify(deps);
   const key = `${reloadToken}:${depsKey}`;
@@ -71,7 +75,12 @@ export const useApi = <T>(fetcher: () => Promise<T>, deps: unknown[] = []): ApiS
   // an effect + extra paint. Only a genuinely different query clears `data`.
   if (state.key !== key) {
     const sameQuery = state.depsKey === depsKey;
-    setState({ key, depsKey, loading: true, data: sameQuery ? state.data : undefined });
+    setState({
+      key,
+      depsKey,
+      loading: true,
+      data: sameQuery || options.keepPreviousData ? state.data : undefined,
+    });
   }
 
   // Latest-value ref, updated in its own effect so nothing is written during render.

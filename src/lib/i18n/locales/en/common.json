@@ -105,9 +105,12 @@
     },
     "empty": {
       "noCollectionTitle": "No products in this collection yet",
+      "noSearchTitle": "No products found for “{{term}}”",
       "noMatchTitle": "No products match your filters",
       "noCollectionBody": "We're still adding tiles to this collection. Browse other collections or check back soon.",
+      "noSearchBody": "Try a different search term, or clear the search to browse all available products.",
       "noMatchBody": "Try removing some filters or reset them to see all available products.",
+      "clearSearch": "Clear search",
       "browseCollections": "Browse collections"
     },
     "noProducts": "No products are available yet — check back soon.",

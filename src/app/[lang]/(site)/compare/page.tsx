@@ -76,7 +76,7 @@ const ComparePageContent = () => {
     { label: t("compare.rows.availability"), value: (p) => t(STOCK_KEYS[p.stockStatus]) },
     { label: t("compare.rows.sku"), value: (p) => p.sku },
   ];
-  const { data, loading, error, reload } = useApi(() => productsApi.list({ limit: 100 }));
+  const { data, loading, error, reload } = useApi(() => productsApi.listAll());
   const products = useMemo(
     () => data?.items.map((product) => toProduct(product, undefined, locale)) ?? [],
     [data, locale],

@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { ApiErrorState } from "@/components/api-state";
@@ -33,11 +33,15 @@ const CollectionDetailsPage = ({ params }: { params: Promise<{ id: string }> }) 
   const { locale } = useLocale();
   const { user } = useCurrentUser();
   const { id } = use(params);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<"newest" | "low" | "high">("newest");
 
   const { data, loading, error, reload } = useApi(
     () =>
-      Promise.all([collectionsApi.get(id), productsApi.list({ collectionId: id, limit: 100 })]),
-    [id],
+      Promise.all([collectionsApi.get(id), productsApi.list({ collectionId: id, page, limit: 20, search: search || undefined, sort: sort === "low" ? "price_asc" : sort === "high" ? "price_desc" : "newest" })]),
+    [id, page, search, sort],
+    { keepPreviousData: true },
   );
 
   if (loading) {
@@ -83,6 +87,7 @@ const CollectionDetailsPage = ({ params }: { params: Promise<{ id: string }> }) 
         products={(products?.items ?? []).map((product) => toProduct(product, collectionTitle, locale))}
         showFavorites={isClient}
         showAddToCart={isClient}
+        serverPagination={{ page: products?.meta.page ?? page, totalPages: products?.meta.totalPages ?? 1, totalItems: products?.meta.total ?? 0, pageSize: 20, onPageChange: setPage, onSearchChange: (value) => { setSearch(value); setPage(1); }, onSortChange: (value) => { setSort(value); setPage(1); } }}
       />
     </>
   );

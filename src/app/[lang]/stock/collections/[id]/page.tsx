@@ -41,7 +41,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 
 const FILTER_STATUS_KEYS: Record<StockStatus, string> = {
   in_stock: "staff.stockStatus.in_stock",
@@ -88,7 +88,7 @@ export default function StockCollectionDetailsPage({
     loading: productsLoading,
     error: productsError,
     reload: reloadProducts,
-  } = useApi(() => productsApi.list({ collectionId: id, limit: 100 }), [id]);
+  } = useApi(() => productsApi.list({ collectionId: id, page: currentPage, limit: PAGE_SIZE, search: query || undefined, suitableFor: suitableFor === "all" ? undefined : suitableFor as "FLOOR" | "WALL" | "BOTH" }), [id, currentPage, query, suitableFor]);
   const products = useMemo(() => productsData?.items ?? [], [productsData]);
 
   const filtered = useMemo(
@@ -106,15 +106,15 @@ export default function StockCollectionDetailsPage({
     [products, query, suitableFor, status],
   );
 
-  const totalResults = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(totalResults / PAGE_SIZE));
+  const totalResults = productsData?.meta.total ?? 0;
+  const totalPages = productsData?.meta.totalPages ?? 1;
   const safePage = Math.min(Math.max(currentPage, 1), totalPages);
   const showingStart = totalResults === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const showingEnd = Math.min(safePage * PAGE_SIZE, totalResults);
 
   const pageItems = useMemo(
-    () => filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
-    [filtered, safePage],
+    () => filtered,
+    [filtered],
   );
 
   const visiblePages = useMemo(() => getVisiblePages(safePage, totalPages), [safePage, totalPages]);
@@ -311,7 +311,7 @@ export default function StockCollectionDetailsPage({
         )}
       </div>
 
-      {!productsLoading && !productsError && totalResults > 0 && (
+      {!productsLoading && !productsError && totalResults > 0 && totalPages > 1 && (
         <footer className="mt-8 flex flex-col gap-4 text-sm text-[#53604d] sm:flex-row sm:items-center sm:justify-between">
           <p>
             {t("stock.collectionDetail.showingRange", { start: showingStart, end: showingEnd, total: totalResults.toLocaleString() })}
