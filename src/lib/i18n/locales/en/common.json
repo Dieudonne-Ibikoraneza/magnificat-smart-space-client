@@ -411,6 +411,7 @@
     "renameFailed": "Couldn't rename this project",
     "introAria": "Assistant introduction",
     "typingAria": "Assistant is typing",
+    "generatingPreview": "Generating preview…",
     "whyPicks": "Why these picks",
     "followUpsTitle": "Follow-ups",
     "scrollToLatest": "Scroll to latest message",

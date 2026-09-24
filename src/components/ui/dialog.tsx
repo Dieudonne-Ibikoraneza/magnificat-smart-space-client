@@ -11,12 +11,18 @@ const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
 const DialogClose = DialogPrimitive.Close;
 
-function DialogBackdrop({ className, ...props }: DialogPrimitive.Backdrop.Props) {
+function DialogBackdrop({
+  className,
+  animate = true,
+  ...props
+}: DialogPrimitive.Backdrop.Props & { animate?: boolean }) {
   return (
     <DialogPrimitive.Backdrop
       data-slot="dialog-backdrop"
       className={cn(
-        "fixed inset-0 z-50 bg-ink/50 duration-150 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 z-50 bg-ink/50",
+        animate &&
+          "duration-150 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className,
       )}
       {...props}
@@ -28,12 +34,16 @@ function DialogContent({
   className,
   children,
   showClose = true,
+  animate = true,
   ...props
-}: DialogPrimitive.Popup.Props & { showClose?: boolean }) {
+}: DialogPrimitive.Popup.Props & {
+  showClose?: boolean;
+  animate?: boolean;
+}) {
   const { t } = useTranslation();
   return (
     <DialogPrimitive.Portal>
-      <DialogBackdrop />
+      <DialogBackdrop animate={animate} />
       {/*
         Centering a viewport-level flex container used to clip the top of any
         popup taller than the screen (a centered overflowing flex item scrolls
@@ -54,7 +64,9 @@ function DialogContent({
             // (`overflow-y-auto` here, not just on the outer Viewport) once
             // it hits that cap, which is the part that actually behaves
             // consistently on mobile Safari.
-            "relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-card p-4 shadow-2xl ring-1 ring-ink/10 duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 sm:max-h-[calc(100dvh-2rem)] sm:p-6",
+            "relative max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-card p-4 shadow-2xl ring-1 ring-ink/10 sm:max-h-[calc(100dvh-2rem)] sm:p-6",
+            animate &&
+              "duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
             className,
           )}
           {...props}

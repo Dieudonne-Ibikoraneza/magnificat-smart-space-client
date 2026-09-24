@@ -27,7 +27,12 @@ export type Paginated<T> = {
 
 // --- Enums ------------------------------------------------------------------
 
-export type Role = "CLIENT" | "SALES_PERSON" | "STOCK_MANAGER" | "DATA_ANALYST" | "ADMIN";
+export type Role =
+  | "CLIENT"
+  | "SALES_PERSON"
+  | "STOCK_MANAGER"
+  | "DATA_ANALYST"
+  | "ADMIN";
 export type Language = "EN" | "RW";
 export type UserStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED";
 export type HearAboutUs =
@@ -193,13 +198,23 @@ export type ApiProduct = {
    */
   reservedAreaSqm?: number;
   /** Same visibility as `quantityOnHandSqm` — the box/piece conversion of it. */
-  onHandBreakdown?: { totalPieces: number; completeBoxes: number; remainingPieces: number };
+  onHandBreakdown?: {
+    totalPieces: number;
+    completeBoxes: number;
+    remainingPieces: number;
+  };
   /** Same staff-only visibility — the moving weighted-average cost per m², for inventory valuation. Never shown to clients. */
   averageCostPrice?: number;
   /** `quantityOnHandSqm * averageCostPrice` — same visibility as both. */
   inventoryValue?: number;
   /** Present when the endpoint nests it (e.g. cart lines) — absent elsewhere, where `size` above already covers it. */
-  collection?: { id: string; title: string; titleRw: string | null; slug: string; size: string };
+  collection?: {
+    id: string;
+    title: string;
+    titleRw: string | null;
+    slug: string;
+    size: string;
+  };
 };
 
 export type TileQuantity = {
@@ -410,7 +425,12 @@ export type ApiCartNegotiation = {
   updatedAt: string;
   items: ApiCartNegotiationItem[];
   messages: ApiCartNegotiationMessage[];
-  customer?: { id: string; fullName: string; email: string | null; phone: string | null };
+  customer?: {
+    id: string;
+    fullName: string;
+    email: string | null;
+    phone: string | null;
+  };
 };
 
 /**
@@ -451,7 +471,12 @@ export type ApiRoomDesign = {
   updatedAt: string;
   room?: ApiRoom;
   user?: ApiUser;
-  tiles: { id: string; surface: string; productId: string; product?: ApiProduct }[];
+  tiles: {
+    id: string;
+    surface: string;
+    productId: string;
+    product?: ApiProduct;
+  }[];
 };
 
 // --- Chatbot ----------------------------------------------------------------
@@ -495,7 +520,12 @@ export type ChatRecommendation = {
  * later reload (see `ChatbotService.resolveMessageAttachment`).
  */
 export type ChatMessageAttachment =
-  | { kind: "room-photo"; url: string }
+  | {
+      kind: "room-photo";
+      url: string;
+      tileName?: string;
+      tileImageUrl?: string;
+    }
   | {
       kind: "room-tile-preview";
       productId: string;
@@ -507,7 +537,12 @@ export type ChatMessageAttachment =
 
 export type ChatSendResult = {
   conversation: { id: string; sessionId: string; language: Language };
-  message: { id: string; role: "ASSISTANT"; content: string; createdAt: string };
+  message: {
+    id: string;
+    role: "ASSISTANT";
+    content: string;
+    createdAt: string;
+  };
   products: ChatRecommendation[];
 };
 
@@ -524,7 +559,12 @@ export type ApiChatConversation = {
 
 /** One of the signed-in customer's conversations ("projects"), as listed by `GET /chatbot/conversations` — carries only its most recent message (`messages[0]`), enough for a list preview. */
 export type ChatConversationSummary = ApiChatConversation & {
-  messages: { id: string; role: "USER" | "ASSISTANT" | "SYSTEM"; content: string; createdAt: string }[];
+  messages: {
+    id: string;
+    role: "USER" | "ASSISTANT" | "SYSTEM";
+    content: string;
+    createdAt: string;
+  }[];
 };
 
 /** A customer question captured for the admin/marketing workspace — every message a customer sent after the assistant had already made a recommendation in that conversation. There's no stored "answer": this logs the question itself, not the assistant's reply to it. */
@@ -535,8 +575,18 @@ export type AskedQuestion = {
   messageId: string;
   question: string;
   createdAt: string;
-  user: { id: string; fullName: string; email: string | null; phone: string | null } | null;
-  conversation: { id: string; sessionId: string; language: Language; title: string | null } | null;
+  user: {
+    id: string;
+    fullName: string;
+    email: string | null;
+    phone: string | null;
+  } | null;
+  conversation: {
+    id: string;
+    sessionId: string;
+    language: Language;
+    title: string | null;
+  } | null;
 };
 
 /**
@@ -553,7 +603,13 @@ export type NegotiationInboxThread = {
   customer: { id: string; fullName: string; email: string | null };
   messageCount: number;
   lastMessageAt: string;
-  lastMessage: { id: string; author: OrderMessageAuthor; senderId: string | null; body: string; createdAt: string };
+  lastMessage: {
+    id: string;
+    author: OrderMessageAuthor;
+    senderId: string | null;
+    body: string;
+    createdAt: string;
+  };
   /** The newest message wasn't written by staff. */
   awaitingReply: boolean;
 };
@@ -626,7 +682,11 @@ export type ProfilingQuestion = {
 export type TrendPoint = { label: string; value: number };
 
 /** The "Orders by Creator" chart's shape — one point per period bucket, split customer- vs staff-placed. */
-export type CreatorTrendPoint = { label: string; customer: number; staff: number };
+export type CreatorTrendPoint = {
+  label: string;
+  customer: number;
+  staff: number;
+};
 
 export type StockMovement = {
   id: string;
@@ -688,7 +748,11 @@ export type AnalyticsOverview = {
   /** Paid, not yet shipped. */
   pendingFulfillments: number;
   averageOrderValue: number;
-  byCreator: { createdByType: OrderCreatorType; count: number; total: number }[];
+  byCreator: {
+    createdByType: OrderCreatorType;
+    count: number;
+    total: number;
+  }[];
   creatorTrend: CreatorTrendPoint[];
   totalCustomers: number;
   repeatCustomers: number;
@@ -745,7 +809,11 @@ export type SalesAnalytics = {
   totalCustomers: number;
   repeatPurchaseRate: number;
   byStatus: { status: OrderStatus; count: number; total: number }[];
-  byCreator: { createdByType: OrderCreatorType; count: number; total: number }[];
+  byCreator: {
+    createdByType: OrderCreatorType;
+    count: number;
+    total: number;
+  }[];
   creatorTrend: CreatorTrendPoint[];
   bestSellingTiles: {
     productId: string;
@@ -822,11 +890,36 @@ export type JourneyStageDetail = {
 export type TileAnalytics = {
   period: AnalyticsPeriod;
   leaderboards: {
-    mostViewed: { productId: string; name: string; image: string | null; count: number }[];
-    mostApplied: { productId: string; name: string; image: string | null; count: number }[];
-    mostCompared: { productId: string; name: string; image: string | null; count: number }[];
-    mostSaved: { productId: string; name: string; image: string | null; count: number }[];
-    mostPurchased: { productId: string; name: string; image: string | null; count: number }[];
+    mostViewed: {
+      productId: string;
+      name: string;
+      image: string | null;
+      count: number;
+    }[];
+    mostApplied: {
+      productId: string;
+      name: string;
+      image: string | null;
+      count: number;
+    }[];
+    mostCompared: {
+      productId: string;
+      name: string;
+      image: string | null;
+      count: number;
+    }[];
+    mostSaved: {
+      productId: string;
+      name: string;
+      image: string | null;
+      count: number;
+    }[];
+    mostPurchased: {
+      productId: string;
+      name: string;
+      image: string | null;
+      count: number;
+    }[];
   };
   summary: {
     averageSelectionRate: number;

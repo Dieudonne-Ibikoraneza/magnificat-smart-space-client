@@ -282,6 +282,9 @@ export default function ChatbotPage() {
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(true);
+  const [typedMessages, setTypedMessages] = useState<Record<string, string>>(
+    {},
+  );
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [pendingPhoto, setPendingPhoto] = useState<PendingRoomPhoto | null>(
     null,
@@ -289,6 +292,11 @@ export default function ChatbotPage() {
   const [selectedTile, setSelectedTile] = useState<TileOption | null>(null);
   const [tileSearch, setTileSearch] = useState("");
   const [isSendingPreview, setIsSendingPreview] = useState(false);
+  const [generatingPreview, setGeneratingPreview] = useState<{
+    roomUrl: string;
+    tileUrl: string;
+    tileName: string;
+  } | null>(null);
   /** The image currently opened full screen (uploaded room photo or generated preview), or `null`. */
   const [lightbox, setLightbox] = useState<{ url: string; alt: string } | null>(
     null,
@@ -330,6 +338,7 @@ export default function ChatbotPage() {
   const [pastConversationsLoading, setPastConversationsLoading] =
     useState(false);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [mobileProjectsOpen, setMobileProjectsOpen] = useState(false);
   const [renameTarget, setRenameTarget] =
     useState<ChatConversationSummary | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
@@ -353,6 +362,9 @@ export default function ChatbotPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   /** Every object URL handed out, so none leak when the page unmounts. */
   const objectUrlsRef = useRef<string[]>([]);
+  /** Timers for the typewriter effect live outside render state so a
+   * re-render cannot accidentally start the same animation again. */
+  const replyTimersRef = useRef<Record<string, number>>({});
   /** Reused across React Strict Mode's development-only effect replay so the
    * first visit creates exactly one empty project, not two. */
   const initialConversationPromiseRef =
@@ -361,6 +373,7 @@ export default function ChatbotPage() {
   useEffect(
     () => () => {
       objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      Object.values(replyTimersRef.current).forEach(window.clearInterval);
     },
     [],
   );
@@ -414,6 +427,27 @@ export default function ChatbotPage() {
     }
   };
 
+  // On laptops/desktops, keep the conversation keyboard-first: submitting a
+  // turn temporarily disables the textarea while the assistant responds,
+  // which makes browsers drop focus. Restore it as soon as the field becomes
+  // usable again. Avoid doing this on touch-first devices, where focusing
+  // would unexpectedly reopen the on-screen keyboard after every reply.
+  useEffect(() => {
+    if (
+      isTyping ||
+      isSendingPreview ||
+      phase === "room-select" ||
+      !window.matchMedia("(hover: hover) and (pointer: fine)").matches
+    ) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      textareaRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isTyping, isSendingPreview, phase]);
+
   const revealBotMessage = (text: string) => {
     setIsTyping(true);
     window.setTimeout(() => {
@@ -423,6 +457,46 @@ export default function ChatbotPage() {
         { id: makeId(), sender: "bot", text, isNew: true },
       ]);
     }, 500);
+  };
+
+  const animateReplyText = (messageId: string, finalText: string) => {
+    if (!finalText) {
+      setIsTyping(false);
+      return;
+    }
+
+    setIsTyping(true);
+    setTypedMessages((current) => ({ ...current, [messageId]: "" }));
+
+    let index = 0;
+    const interval = window.setInterval(() => {
+      // Short chunks look natural while avoiding a full render of product
+      // cards and images for every individual character.
+      index = Math.min(index + 3, finalText.length);
+      setTypedMessages((current) => ({
+        ...current,
+        [messageId]: finalText.slice(0, index),
+      }));
+
+      if (index >= finalText.length) {
+        window.clearInterval(interval);
+        delete replyTimersRef.current[messageId];
+        setMessages((current) =>
+          current.map((message) =>
+            message.id === messageId
+              ? { ...message, text: finalText }
+              : message,
+          ),
+        );
+        setTypedMessages((current) => {
+          const next = { ...current };
+          delete next[messageId];
+          return next;
+        });
+        setIsTyping(false);
+      }
+    }, 30);
+    replyTimersRef.current[messageId] = interval;
   };
 
   /**
@@ -766,16 +840,18 @@ export default function ChatbotPage() {
         // turn's send just superseded no longer needs its own save.
         clearSavedProfilingProgress(user.id);
       }
+      const botMessageId = result.message.id;
       setMessages((current) => [
         ...current,
         {
-          id: result.message.id,
+          id: botMessageId,
           sender: "bot",
-          text: result.message.content,
+          text: "",
           products: result.products.length ? result.products : undefined,
           isNew: true,
         },
       ]);
+      animateReplyText(botMessageId, result.message.content);
       // Keeps the always-visible sidebar list (title, last-message preview)
       // current — cheap and best-effort, so a failure here is silent.
       void loadPastConversations(true);
@@ -795,7 +871,6 @@ export default function ChatbotPage() {
           isNew: true,
         },
       ]);
-    } finally {
       setIsTyping(false);
     }
   };
@@ -861,13 +936,17 @@ export default function ChatbotPage() {
 
     setIsRenamingProject(true);
     try {
-      const renamed = await chatbotApi.renameConversation(renameTarget.id, title);
-      setPastConversations((current) =>
-        current?.map((conversation) =>
-          conversation.id === renamed.id
-            ? { ...conversation, title: renamed.title }
-            : conversation,
-        ) ?? null,
+      const renamed = await chatbotApi.renameConversation(
+        renameTarget.id,
+        title,
+      );
+      setPastConversations(
+        (current) =>
+          current?.map((conversation) =>
+            conversation.id === renamed.id
+              ? { ...conversation, title: renamed.title }
+              : conversation,
+          ) ?? null,
       );
       setRenameTarget(null);
       toast.success(t("chatbot.renameSuccess"));
@@ -912,7 +991,10 @@ export default function ChatbotPage() {
     void chatbotApi
       .setRecommendationDecisions([...new Set(recommendationIds)], next)
       .catch((cause) => {
-        setBatchDecisions((current) => ({ ...current, [message.id]: "PENDING" }));
+        setBatchDecisions((current) => ({
+          ...current,
+          [message.id]: "PENDING",
+        }));
         toast.error(t("chatbot.toast.feedbackFailedTitle"), {
           description:
             cause instanceof ApiError
@@ -931,9 +1013,7 @@ export default function ChatbotPage() {
    * several of them. Hands the whole brief to the real assistant in one
    * turn so it recommends with full context instead of guessing from one line.
    */
-  const finishProfiling = (
-    answers: { question: string; answer: string }[],
-  ) => {
+  const finishProfiling = (answers: { question: string; answer: string }[]) => {
     setPhase("chatting");
     const summary = answers
       .map(
@@ -970,7 +1050,10 @@ export default function ChatbotPage() {
     setProfilingAnswers(answers);
 
     const always = allQuestions
-      .filter((question) => question.roomTypes.length === 0 && !isRoomQuestion(question))
+      .filter(
+        (question) =>
+          question.roomTypes.length === 0 && !isRoomQuestion(question),
+      )
       .sort((a, b) => a.position - b.position);
     const conditionals = allQuestions
       .filter((question) => question.roomTypes.includes(roomType))
@@ -1071,7 +1154,34 @@ export default function ChatbotPage() {
    */
   const sendRoomTilePreview = async () => {
     if (!pendingPhoto || !selectedTile || isSendingPreview) return;
+    const submittedPhoto = pendingPhoto;
+    const submittedTile = selectedTile;
     const note = input.trim();
+    const optimisticMessageId = `pending-preview-${makeId()}`;
+
+    // Show the submitted photo and tile in the transcript immediately. The
+    // local object URL remains valid while upload and generation are running.
+    setMessages((current) => [
+      ...current,
+      {
+        id: optimisticMessageId,
+        sender: "user",
+        text: note || submittedTile.name,
+        attachment: {
+          kind: "room-photo",
+          url: submittedPhoto.previewUrl,
+          tileName: submittedTile.name,
+          tileImageUrl: submittedTile.image,
+        },
+        isNew: true,
+      },
+    ]);
+    clearPendingPhoto();
+    setGeneratingPreview({
+      roomUrl: submittedPhoto.previewUrl,
+      tileUrl: submittedTile.image,
+      tileName: submittedTile.name,
+    });
     setIsSendingPreview(true);
     resetInput();
 
@@ -1097,31 +1207,34 @@ export default function ChatbotPage() {
         }
       }
 
-      const uploaded = await chatbotApi.uploadRoomPhoto(pendingPhoto.file);
+      const uploaded = await chatbotApi.uploadRoomPhoto(submittedPhoto.file);
       const result = await chatbotApi.roomTilePreview({
         conversationId: convId,
         roomImagePath: uploaded.path,
-        productId: selectedTile.id,
+        productId: submittedTile.id,
         note: note || undefined,
       });
 
+      const botPreviewMessageId = result.assistantMessage.id;
       setMessages((current) => [
-        ...current,
+        ...current.map((message) =>
+          message.id === optimisticMessageId
+            ? {
+                ...message,
+                text: result.userMessage.content,
+                attachment: result.userMessage.attachment,
+              }
+            : message,
+        ),
         {
-          id: result.userMessage.id,
-          sender: "user",
-          text: result.userMessage.content,
-          attachment: result.userMessage.attachment,
-          isNew: true,
-        },
-        {
-          id: result.assistantMessage.id,
+          id: botPreviewMessageId,
           sender: "bot",
-          text: result.assistantMessage.content,
+          text: "",
           attachment: result.assistantMessage.attachment,
           isNew: true,
         },
       ]);
+      animateReplyText(botPreviewMessageId, result.assistantMessage.content);
 
       if (
         result.assistantMessage.attachment.kind === "room-tile-preview" &&
@@ -1132,7 +1245,6 @@ export default function ChatbotPage() {
         });
       }
 
-      clearPendingPhoto();
     } catch (cause) {
       toast.error(t("chatbot.toast.roomPreviewFailedTitle"), {
         description:
@@ -1140,8 +1252,16 @@ export default function ChatbotPage() {
             ? cause.message
             : t("chatbot.toast.connectionBody"),
       });
+      // Roll back the optimistic bubble and restore the same controls so the
+      // customer can retry without choosing the files again.
+      setMessages((current) =>
+        current.filter((message) => message.id !== optimisticMessageId),
+      );
+      setPendingPhoto(submittedPhoto);
+      setSelectedTile(submittedTile);
     } finally {
       setIsSendingPreview(false);
+      setGeneratingPreview(null);
     }
   };
 
@@ -1241,7 +1361,7 @@ export default function ChatbotPage() {
                 <div
                   key={conversation.id}
                   className={cn(
-                    "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-secondary",
+                    "group flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-secondary",
                     isCurrent && "bg-secondary",
                   )}
                 >
@@ -1264,10 +1384,9 @@ export default function ChatbotPage() {
                     type="button"
                     onClick={() => openRenameProject(conversation)}
                     aria-label={t("chatbot.renameProjectAria", {
-                      name:
-                        conversation.title ?? t("chatbot.untitledProject"),
+                      name: conversation.title ?? t("chatbot.untitledProject"),
                     })}
-                    className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-card hover:text-ink"
+                    className="shrink-0 rounded-md p-1 text-muted-foreground opacity-0 transition-[color,background-color,opacity] hover:bg-card hover:text-ink focus-visible:opacity-100 group-hover:opacity-100"
                   >
                     <Pencil className="size-3.5" />
                   </button>
@@ -1280,6 +1399,115 @@ export default function ChatbotPage() {
 
       <div className="grid h-full min-h-0 w-full min-w-0 flex-1 grid-rows-[minmax(0,1fr)_auto] overflow-hidden">
         <div className="relative min-h-0 overflow-hidden">
+          {user && (
+            <div className="absolute right-3 top-3 z-30 lg:hidden">
+              <DropdownMenu
+                open={mobileProjectsOpen}
+                onOpenChange={(open) => {
+                  setMobileProjectsOpen(open);
+                  if (open) void loadPastConversations();
+                }}
+              >
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      aria-label={t("chatbot.pastProjectsAria")}
+                      className="size-10 rounded-full bg-white shadow-md"
+                    />
+                  }
+                >
+                  <History className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  sideOffset={8}
+                  className="max-h-[65vh] w-64 overflow-y-auto rounded-xl p-2 duration-0 data-open:animate-none data-closed:animate-none"
+                  aria-label={t("chatbot.pastProjectsAria")}
+                >
+                  <DropdownMenuItem
+                    onClick={() => void startNewProject()}
+                    disabled={isCreatingProject}
+                    className="mb-1.5 gap-2 rounded-lg border border-primary/40 bg-primary/10 px-2.5 py-2 font-bold text-ink focus:bg-primary/15"
+                  >
+                    <span className="flex size-6 items-center justify-center rounded-full bg-primary">
+                      <RotateCcw className="size-3.5" />
+                    </span>
+                    {t("chatbot.newProject")}
+                  </DropdownMenuItem>
+                  {pastConversationsLoading && (
+                    <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+                      {t("chatbot.loading")}
+                    </div>
+                  )}
+                  {!pastConversationsLoading &&
+                    (pastConversations?.length ?? 0) === 0 && (
+                      <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+                        {t("chatbot.pastProjectsEmpty")}
+                      </div>
+                    )}
+                  {!pastConversationsLoading &&
+                    pastConversations?.map((conversation) => {
+                      const isCurrent = conversation.id === conversationId;
+                      return (
+                        <DropdownMenuItem
+                          key={conversation.id}
+                          onClick={(event) => {
+                            if (
+                              (event.target as HTMLElement).closest(
+                                "[data-rename-project]",
+                              )
+                            )
+                              return;
+                            void switchToPastConversation(conversation);
+                          }}
+                          className={cn(
+                            "flex items-center justify-between gap-2 rounded-lg px-2.5 py-2",
+                            isCurrent && "font-bold",
+                          )}
+                        >
+                          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
+                            {conversation.title || t("chatbot.untitledProject")}
+                          </span>
+                          {isCurrent && (
+                            <span
+                              className="size-2 shrink-0 rounded-full bg-primary"
+                              title={t("chatbot.currentProjectBadge")}
+                              aria-label={t("chatbot.currentProjectBadge")}
+                            >
+                              <span className="sr-only">
+                                {t("chatbot.currentProjectBadge")}
+                              </span>
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            data-rename-project
+                            onClick={() => {
+                              setMobileProjectsOpen(false);
+                              window.setTimeout(
+                                () => openRenameProject(conversation),
+                                0,
+                              );
+                            }}
+                            aria-label={t("chatbot.renameProjectAria", {
+                              name:
+                                conversation.title ??
+                                t("chatbot.untitledProject"),
+                            })}
+                            className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-card hover:text-ink"
+                          >
+                            <Pencil className="size-3.5" />
+                          </button>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
           {/* Spans the full width of the page (not just the centered column
             below) so a scroll/wheel gesture anywhere over this row — including
             the blank gutters beside the narrow chat column on a wide screen —
@@ -1306,7 +1534,7 @@ export default function ChatbotPage() {
                   {/* On large screens this same functionality lives in the
                     fixed left-hand sidebar instead — see the <aside> above —
                     so it isn't duplicated here. */}
-                  <div className="flex items-center gap-2 lg:hidden">
+                  <div className="hidden">
                     {user && (
                       <DropdownMenu
                         onOpenChange={(open) => {
@@ -1374,12 +1602,17 @@ export default function ChatbotPage() {
                                     <button
                                       type="button"
                                       data-rename-project
-                                      onClick={() => openRenameProject(conversation)}
-                                      aria-label={t("chatbot.renameProjectAria", {
-                                        name:
-                                          conversation.title ??
-                                          t("chatbot.untitledProject"),
-                                      })}
+                                      onClick={() =>
+                                        openRenameProject(conversation)
+                                      }
+                                      aria-label={t(
+                                        "chatbot.renameProjectAria",
+                                        {
+                                          name:
+                                            conversation.title ??
+                                            t("chatbot.untitledProject"),
+                                        },
+                                      )}
                                       className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-ink"
                                     >
                                       <Pencil className="size-3.5" />
@@ -1413,6 +1646,13 @@ export default function ChatbotPage() {
               <section className="space-y-7" aria-live="polite">
                 {messages.map((message) => {
                   const attachment = message.attachment;
+                  const isAnimating =
+                    message.sender === "bot" &&
+                    typedMessages[message.id] !== undefined;
+                  const displayText =
+                    isAnimating
+                      ? typedMessages[message.id]
+                      : message.text;
                   return (
                     <div
                       key={message.id}
@@ -1424,40 +1664,84 @@ export default function ChatbotPage() {
                         </span>
                       )}
                       <div
-                        className={`max-w-[calc(100%-3rem)] ${message.sender === "user" ? "flex flex-row-reverse items-center gap-3" : "w-full"}`}
+                        className={`max-w-[calc(100%-3rem)] ${message.sender === "user" ? "flex flex-col items-end gap-2" : "w-full"}`}
                       >
-                        <div
-                          className={`whitespace-pre-wrap rounded-xl px-5 py-3 text-xs leading-relaxed sm:text-sm ${message.sender === "user" ? "rounded-tr-sm bg-ink text-white" : "bg-white text-slate-700 shadow-sm"}`}
-                        >
-                          {message.text}
-                          {attachment?.kind === "room-photo" && (
-                            // The uploaded room photo rides along as a small chip —
-                            // it's context for the request, not the thing worth
-                            // looking at; tap it to see it full screen.
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setLightbox({
-                                  url: attachment.url,
-                                  alt: t("chatbot.yourRoom"),
-                                })
-                              }
-                              className="group mt-3 flex items-center gap-2 rounded-lg border border-white/15 bg-black/10 p-1.5 text-left transition-colors hover:bg-black/20"
-                            >
-                              {/* A signed Supabase Storage URL — next/image optimisation doesn't apply. */}
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={attachment.url}
-                                alt={t("chatbot.yourRoom")}
-                                className="size-12 shrink-0 rounded-md object-cover"
-                              />
-                              <span className="inline-flex items-center gap-1 pr-1 text-[11px] font-medium opacity-80 group-hover:opacity-100">
-                                <Maximize2 className="size-3" />{" "}
-                                {t("chatbot.viewFullScreen")}
-                              </span>
-                            </button>
+                        {message.sender === "user" &&
+                          attachment?.kind === "room-photo" && (
+                            <div className="flex items-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setLightbox({
+                                    url: attachment.url,
+                                    alt: t("chatbot.yourRoom"),
+                                  })
+                                }
+                                aria-label={t("chatbot.viewFullScreen")}
+                                title={t("chatbot.fullScreen")}
+                                className="group relative block aspect-square w-full max-w-60 overflow-hidden rounded-lg bg-slate-100 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/50"
+                              >
+                                {/* A signed Supabase Storage URL — next/image optimisation doesn't apply. */}
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={attachment.url}
+                                  alt={t("chatbot.yourRoom")}
+                                  className="size-full object-cover"
+                                />
+                                <span className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full bg-black/60 text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                                  <Maximize2 className="size-4" />
+                                </span>
+                              </button>
+                              {attachment.tileImageUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setLightbox({
+                                      url: attachment.tileImageUrl!,
+                                      alt:
+                                        attachment.tileName ??
+                                        t("chatbot.fullScreen"),
+                                    })
+                                  }
+                                  aria-label={
+                                    attachment.tileName ??
+                                    t("chatbot.fullScreen")
+                                  }
+                                  title={attachment.tileName}
+                                  className="group relative block aspect-square w-full max-w-32 overflow-hidden rounded-lg bg-slate-100 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/50"
+                                >
+                                  {/* A signed product image URL — next/image optimisation doesn't apply. */}
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={attachment.tileImageUrl}
+                                    alt={
+                                      attachment.tileName ??
+                                      t("chatbot.fullScreen")
+                                    }
+                                    className="size-full object-cover"
+                                  />
+                                  <span className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full bg-black/60 text-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                                    <Maximize2 className="size-4" />
+                                  </span>
+                                </button>
+                              )}
+                            </div>
                           )}
-                          {attachment?.kind === "room-tile-preview" &&
+                        <div
+                          className={
+                            message.sender === "user"
+                              ? "flex flex-row items-start gap-3"
+                              : "contents"
+                          }
+                        >
+                          <div
+                            className={`whitespace-pre-wrap rounded-xl px-5 py-3 text-xs leading-relaxed sm:text-sm ${message.sender === "user" ? "rounded-tr-sm bg-ink text-white" : "bg-white text-slate-700 shadow-sm"}`}
+                          >
+                            {displayText}
+                          </div>
+                          {message.sender === "bot" &&
+                            !isAnimating &&
+                            attachment?.kind === "room-tile-preview" &&
                             (() => {
                               const previewUrl =
                                 attachment.generatedImageUrl ??
@@ -1468,20 +1752,16 @@ export default function ChatbotPage() {
                                   })
                                 : t("chatbot.yourRoom");
                               return (
-                                <figure className="group relative mt-3 overflow-hidden rounded-lg bg-black/5">
-                                  {/* The generated result is the payload of this turn —
-                                shown large, natural aspect ratio, and openable
-                                full screen. A failed generation falls back to the
-                                room photo, dimmed. */}
+                                <figure className="group relative mt-2 w-fit max-w-full overflow-hidden rounded-lg bg-slate-100">
+                                  {/* Let each generated image keep its natural aspect ratio while staying within the chat column. */}
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img
                                     src={previewUrl}
                                     alt={previewAlt}
                                     className={cn(
-                                      "w-full rounded-lg object-contain",
-                                      attachment.generatedImageUrl
-                                        ? "max-h-[34rem]"
-                                        : "max-h-72 opacity-60",
+                                      "block h-auto max-h-136 max-w-full w-auto rounded-lg",
+                                      !attachment.generatedImageUrl &&
+                                        "opacity-60",
                                     )}
                                   />
                                   <button
@@ -1493,21 +1773,21 @@ export default function ChatbotPage() {
                                       })
                                     }
                                     aria-label={t("chatbot.viewFullScreen")}
-                                    className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md bg-black/55 px-2 py-1 text-[11px] font-semibold text-white opacity-0 transition-opacity hover:bg-black/75 focus-visible:opacity-100 group-hover:opacity-100"
+                                    title={t("chatbot.fullScreen")}
+                                    className="absolute right-3 top-3 flex size-9 items-center justify-center rounded-full bg-black/60 text-white opacity-0 shadow-sm transition-opacity hover:bg-black/80 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 group-hover:opacity-100"
                                   >
-                                    <Maximize2 className="size-3" />{" "}
-                                    {t("chatbot.fullScreen")}
+                                    <Maximize2 className="size-4" />
                                   </button>
                                 </figure>
                               );
                             })()}
+                          {message.sender === "user" && (
+                            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-white">
+                              <UserRound className="size-4" />
+                            </span>
+                          )}
                         </div>
-                        {message.sender === "user" && (
-                          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-white">
-                            <UserRound className="size-4" />
-                          </span>
-                        )}
-                        {message.products && (
+                        {message.products && !isAnimating && (
                           <>
                             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
                               {message.products.map((product) => (
@@ -1609,21 +1889,75 @@ export default function ChatbotPage() {
                   );
                 })}
 
-                {isTyping && (
-                  <div className="flex items-center gap-3">
+                {isSendingPreview && (
+                  <div className="flex items-start gap-3">
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-slate-100 bg-white text-amber shadow-sm">
                       <Bot className="size-4" />
                     </span>
                     <div
-                      className="flex items-center gap-1 px-2 py-3"
-                      aria-label={t("chatbot.typingAria")}
+                      className="w-full max-w-lg overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+                      aria-label={t("chatbot.generatingPreview")}
                     >
-                      <span className="size-1.5 animate-bounce rounded-full bg-slate-300" />
-                      <span className="size-1.5 animate-bounce rounded-full bg-slate-300 [animation-delay:150ms]" />
-                      <span className="size-1.5 animate-bounce rounded-full bg-slate-300 [animation-delay:300ms]" />
+                      <div className="flex items-center gap-4 p-3.5 sm:p-4">
+                        <div className="relative h-24 w-32 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                          {generatingPreview && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={generatingPreview.roomUrl}
+                              alt={t("chatbot.yourRoom")}
+                              className="size-full object-cover opacity-70"
+                            />
+                          )}
+                          <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-transparent via-white/45 to-transparent" />
+                          {generatingPreview && (
+                            <span className="absolute bottom-2 right-2 size-9 overflow-hidden rounded-md border-2 border-white bg-white shadow-md">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={generatingPreview.tileUrl}
+                                alt={generatingPreview.tileName}
+                                className="size-full object-cover"
+                              />
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber/10 text-amber">
+                              <Sparkles className="size-4 animate-pulse" />
+                            </span>
+                            <p className="text-sm font-bold text-ink">
+                              {t("chatbot.generatingPreview")}
+                            </p>
+                          </div>
+                          <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted">
+                            {generatingPreview?.tileName}
+                          </p>
+                          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                            <div className="h-full w-2/3 animate-pulse rounded-full bg-primary" />
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
+
+                {isTyping &&
+                  !isSendingPreview &&
+                  Object.keys(typedMessages).length === 0 && (
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-slate-100 bg-white text-amber shadow-sm">
+                        <Bot className="size-4" />
+                      </span>
+                      <div
+                        className="flex items-center gap-1 px-2 py-3"
+                        aria-label={t("chatbot.typingAria")}
+                      >
+                        <span className="size-1.5 animate-bounce rounded-full bg-slate-300" />
+                        <span className="size-1.5 animate-bounce rounded-full bg-slate-300 [animation-delay:150ms]" />
+                        <span className="size-1.5 animate-bounce rounded-full bg-slate-300 [animation-delay:300ms]" />
+                      </div>
+                    </div>
+                  )}
               </section>
 
               {phase === "room-select" && !isTyping && (
@@ -1900,7 +2234,7 @@ export default function ChatbotPage() {
             if (!open && !isRenamingProject) setRenameTarget(null);
           }}
         >
-          <DialogContent showClose>
+          <DialogContent showClose animate={false}>
             <form onSubmit={renameProject}>
               <DialogTitle>{t("chatbot.renameProject")}</DialogTitle>
               <DialogDescription>
