@@ -53,6 +53,7 @@ import type {
   StaffSummary,
   StockMovement,
   StockMovementType,
+  StockStatus,
   StockSummary,
   SuitableFor,
   TileAnalytics,
@@ -74,18 +75,26 @@ const collectAllPages = async <T>(
   const first = await fetchPage(1, limit);
   if (first.meta.totalPages <= 1) return first;
   const remaining = await Promise.all(
-    Array.from({ length: first.meta.totalPages - 1 }, (_, index) => fetchPage(index + 2, limit)),
+    Array.from({ length: first.meta.totalPages - 1 }, (_, index) =>
+      fetchPage(index + 2, limit),
+    ),
   );
   return {
     items: [first, ...remaining].flatMap((page) => page.items),
-    meta: { page: 1, limit: first.meta.total, total: first.meta.total, totalPages: 1 },
+    meta: {
+      page: 1,
+      limit: first.meta.total,
+      total: first.meta.total,
+      totalPages: 1,
+    },
   };
 };
 
 // --- Auth -------------------------------------------------------------------
 
 export const authApi = {
-  discoverySources: () => api.get<DiscoverySource[]>("/auth/discovery-sources", { anonymous: true }),
+  discoverySources: () =>
+    api.get<DiscoverySource[]>("/auth/discovery-sources", { anonymous: true }),
 
   register: (body: {
     fullName: string;
@@ -95,10 +104,19 @@ export const authApi = {
     language?: Language;
   }) => api.post<OtpSendResult>("/auth/register", body, { anonymous: true }),
 
-  login: (email: string) => api.post<OtpSendResult>("/auth/login", { email }, { anonymous: true }),
+  login: (email: string, language?: Language) =>
+    api.post<OtpSendResult>(
+      "/auth/login",
+      { email, language },
+      { anonymous: true },
+    ),
 
-  resendOtp: (email: string) =>
-    api.post<OtpSendResult>("/auth/otp/resend", { email }, { anonymous: true }),
+  resendOtp: (email: string, language?: Language) =>
+    api.post<OtpSendResult>(
+      "/auth/otp/resend",
+      { email, language },
+      { anonymous: true },
+    ),
 
   /**
    * Completes registration or logs in. The API answers with the access token
@@ -119,7 +137,13 @@ export const authApi = {
   /** Revokes the session server-side and clears its cookie; the local session is dropped either way. */
   logout: async () => {
     // A failed revoke must not strand the user in a signed-in UI.
-    await api.post<void>("/auth/logout", {}, { anonymous: true, credentials: "include" }).catch(() => undefined);
+    await api
+      .post<void>(
+        "/auth/logout",
+        {},
+        { anonymous: true, credentials: "include" },
+      )
+      .catch(() => undefined);
     tokenStore.clear();
   },
 };
@@ -136,19 +160,44 @@ export const usersApi = {
   closeMyAccount: () => api.delete<ApiUser>("/users/me"),
 
   listCustomers: (
-    query: { page?: number; limit?: number; search?: string; status?: UserStatus; sort?: "newest" | "spend" } = {},
+    query: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: UserStatus;
+      sort?: "newest" | "spend";
+    } = {},
   ) => api.get<Paginated<CustomerSummary>>("/users/customers", { query }),
+  createCustomer: (body: {
+    fullName: string;
+    email?: string;
+    phone?: string;
+    language?: Language;
+    heardAboutUs?: HearAboutUs;
+  }) => api.post<CustomerSummary>("/users/customers", body),
   getCustomer: (id: string, query: { page?: number; limit?: number } = {}) =>
     api.get<CustomerDetail>(`/users/customers/${id}`, { query }),
 
   staffSummary: () => api.get<StaffSummary>("/users/staff/summary"),
   listStaff: (
-    query: { page?: number; limit?: number; role?: Role; status?: UserStatus; search?: string } = {},
+    query: {
+      page?: number;
+      limit?: number;
+      role?: Role;
+      status?: UserStatus;
+      search?: string;
+    } = {},
   ) => api.get<Paginated<ApiUser>>("/users/staff", { query }),
-  createStaff: (body: { fullName: string; email: string; phone: string; role: Role }) =>
-    api.post<ApiUser>("/users/staff", body),
-  updateStaff: (id: string, body: { fullName?: string; phone?: string; role?: Role }) =>
-    api.patch<ApiUser>(`/users/staff/${id}`, body),
+  createStaff: (body: {
+    fullName: string;
+    email: string;
+    phone: string;
+    role: Role;
+  }) => api.post<ApiUser>("/users/staff", body),
+  updateStaff: (
+    id: string,
+    body: { fullName?: string; phone?: string; role?: Role },
+  ) => api.patch<ApiUser>(`/users/staff/${id}`, body),
   setStaffStatus: (id: string, status: "ACTIVE" | "INACTIVE") =>
     api.patch<ApiUser>(`/users/staff/${id}/status`, { status }),
 };
@@ -165,6 +214,11 @@ export type ProductQuery = {
   compatibleWith?: SuitableFor;
   search?: string;
   sort?: "newest" | "price_asc" | "price_desc";
+  stockStatus?: StockStatus;
+  sizes?: string;
+  roomTypes?: string;
+  suitableFors?: string;
+  stockStatuses?: string;
 };
 
 /** Body accepted by `POST /products`; `PATCH` takes any subset of it. */
@@ -208,37 +262,65 @@ export type CollectionInput = {
 };
 
 export const collectionsApi = {
-  list: (query: { page?: number; limit?: number; search?: string; size?: string; sort?: "newest" | "oldest" } = {}) =>
-    api.get<Paginated<ApiCollection>>("/collections", { query }),
-  listAll: () => collectAllPages((page, limit) => api.get<Paginated<ApiCollection>>("/collections", { query: { page, limit } })),
+  list: (
+    query: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      size?: string;
+      sort?: "newest" | "oldest";
+    } = {},
+  ) => api.get<Paginated<ApiCollection>>("/collections", { query }),
+  listAll: () =>
+    collectAllPages((page, limit) =>
+      api.get<Paginated<ApiCollection>>("/collections", {
+        query: { page, limit },
+      }),
+    ),
   get: (id: string) => api.get<ApiCollection>(`/collections/${id}`),
-  create: (body: CollectionInput) => api.post<ApiCollection>("/collections", body),
+  create: (body: CollectionInput) =>
+    api.post<ApiCollection>("/collections", body),
   update: (id: string, body: Partial<CollectionInput>) =>
     api.patch<ApiCollection>(`/collections/${id}`, body),
   remove: (id: string) => api.delete<void>(`/collections/${id}`),
   uploadImage: (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    return apiUpload<{ bucket: string; path: string; url: string; expiresIn: number; contentType: string; size: number }>(
-      "/collections/upload-image",
-      formData,
-    );
+    return apiUpload<{
+      bucket: string;
+      path: string;
+      url: string;
+      expiresIn: number;
+      contentType: string;
+      size: number;
+    }>("/collections/upload-image", formData);
   },
 };
 
 export const productsApi = {
-  list: (query: ProductQuery = {}) => api.get<Paginated<ApiProduct>>("/products", { query }),
+  filterOptions: () => api.get<{ sizes: string[] }>("/products/filter-options"),
+  list: (query: ProductQuery = {}) =>
+    api.get<Paginated<ApiProduct>>("/products", { query }),
   listAll: (query: Omit<ProductQuery, "page" | "limit"> = {}) =>
-    collectAllPages((page, limit) => api.get<Paginated<ApiProduct>>("/products", { query: { ...query, page, limit } })),
+    collectAllPages((page, limit) =>
+      api.get<Paginated<ApiProduct>>("/products", {
+        query: { ...query, page, limit },
+      }),
+    ),
   get: (id: string) => api.get<ApiProduct>(`/products/${id}`),
 
   /** Polled (debounced) as the user types a SKU on the registration/edit form, so a collision surfaces before submit instead of after. */
   checkSku: (sku: string, excludeId?: string) =>
-    api.get<{ available: boolean }>("/products/check-sku", { query: { sku, excludeId } }),
+    api.get<{ available: boolean }>("/products/check-sku", {
+      query: { sku, excludeId },
+    }),
 
   /** Doc 3.3: area in, boxes/pieces and total price out. */
   calculateQuantity: (productId: string, areaSqm: number) =>
-    api.post<QuantityCalculation>("/products/calculate-quantity", { productId, areaSqm }),
+    api.post<QuantityCalculation>("/products/calculate-quantity", {
+      productId,
+      areaSqm,
+    }),
 
   /**
    * Uploads to a private Supabase Storage blob (admin/stock manager only) —
@@ -250,14 +332,19 @@ export const productsApi = {
   uploadImage: (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    return apiUpload<{ bucket: string; path: string; url: string; expiresIn: number; contentType: string; size: number }>(
-      "/products/upload-image",
-      formData,
-    );
+    return apiUpload<{
+      bucket: string;
+      path: string;
+      url: string;
+      expiresIn: number;
+      contentType: string;
+      size: number;
+    }>("/products/upload-image", formData);
   },
 
   create: (body: ProductInput) => api.post<ApiProduct>("/products", body),
-  update: (id: string, body: Partial<ProductInput>) => api.patch<ApiProduct>(`/products/${id}`, body),
+  update: (id: string, body: Partial<ProductInput>) =>
+    api.patch<ApiProduct>(`/products/${id}`, body),
   remove: (id: string) => api.delete<void>(`/products/${id}`),
 
   /** `changeAreaSqm` is always square metres — boxes/pieces are a display conversion only, never sent here. */
@@ -291,14 +378,23 @@ export const cartApi = {
   /** Sets the line to exactly `areaSqm` (an upsert, not additive) — returns the raw row, not the computed cart. */
   upsertItem: (productId: string, areaSqm: number) =>
     api.put<ApiCartItemRow>("/cart/items", { productId, areaSqm }),
-  removeItem: (productId: string) => api.delete<void>(`/cart/items/${productId}`),
+  removeItem: (productId: string) =>
+    api.delete<void>(`/cart/items/${productId}`),
   clear: () => api.delete<void>("/cart"),
 };
 
 export const favoritesApi = {
   list: () =>
-    api.get<{ id: string; productId: string; createdAt: string; product: ApiProduct }[]>("/favorites"),
-  add: (productId: string) => api.post<{ id: string }>("/favorites", { productId }),
+    api.get<
+      {
+        id: string;
+        productId: string;
+        createdAt: string;
+        product: ApiProduct;
+      }[]
+    >("/favorites"),
+  add: (productId: string) =>
+    api.post<{ id: string }>("/favorites", { productId }),
   remove: (productId: string) => api.delete<void>(`/favorites/${productId}`),
 };
 
@@ -345,16 +441,18 @@ export const ordersApi = {
     } = {},
   ) => api.get<Paginated<ApiOrder>>("/orders", { query }),
 
-  listAll: (query: {
-    status?: OrderStatus;
-    quotationStatus?: QuotationStatus;
-    createdByType?: "CUSTOMER" | "STAFF";
-    customerId?: string;
-    search?: string;
-    createdFrom?: string;
-    createdTo?: string;
-    sort?: "newest" | "oldest" | "amount_high" | "amount_low";
-  } = {}) =>
+  listAll: (
+    query: {
+      status?: OrderStatus;
+      quotationStatus?: QuotationStatus;
+      createdByType?: "CUSTOMER" | "STAFF";
+      customerId?: string;
+      search?: string;
+      createdFrom?: string;
+      createdTo?: string;
+      sort?: "newest" | "oldest" | "amount_high" | "amount_low";
+    } = {},
+  ) =>
     collectAllPages((page, limit) => ordersApi.list({ ...query, page, limit })),
 
   get: (id: string) => api.get<ApiOrder>(`/orders/${id}`),
@@ -384,8 +482,15 @@ export const ordersApi = {
   ) => api.patch<ApiOrderDelivery>(`/orders/${id}/delivery-details`, body),
 
   /** Stock/admin: cost the transport and send the quotation. 0 means free delivery. */
-  sendQuotation: (id: string, transportFee: number, transportFeeNote?: string) =>
-    api.post<ApiOrder>(`/orders/${id}/quotation`, { transportFee, transportFeeNote }),
+  sendQuotation: (
+    id: string,
+    transportFee: number,
+    transportFeeNote?: string,
+  ) =>
+    api.post<ApiOrder>(`/orders/${id}/quotation`, {
+      transportFee,
+      transportFeeNote,
+    }),
 
   /**
    * Opens the quotation as a PDF (itemized breakdown + our MoMo/bank details —
@@ -395,15 +500,20 @@ export const ordersApi = {
    */
   viewQuotationPdf: (id: string) => fetchBlob(`/orders/${id}/quotation`),
 
-  markPaymentSubmitted: (id: string) => api.post<ApiOrder>(`/orders/${id}/quotation/payment-submitted`),
-  verifyPayment: (id: string) => api.post<ApiOrder>(`/orders/${id}/quotation/verify`),
+  /** Customer confirmation, or an in-person confirmation by staff for a staff-created order. */
+  markPaymentSubmitted: (id: string) =>
+    api.post<ApiOrder>(`/orders/${id}/quotation/payment-submitted`),
+  verifyPayment: (id: string) =>
+    api.post<ApiOrder>(`/orders/${id}/quotation/verify`),
 
   /** Stock/admin: the payment couldn't be confirmed — the customer is told `reason` and can pay again. */
   rejectPayment: (id: string, reason: string) =>
     api.post<ApiOrder>(`/orders/${id}/quotation/reject-payment`, { reason }),
 
-  listMessages: (id: string) => api.get<ApiOrderMessage[]>(`/orders/${id}/messages`),
-  postMessage: (id: string, body: string) => api.post<ApiOrderMessage>(`/orders/${id}/messages`, { body }),
+  listMessages: (id: string) =>
+    api.get<ApiOrderMessage[]>(`/orders/${id}/messages`),
+  postMessage: (id: string, body: string) =>
+    api.post<ApiOrderMessage>(`/orders/${id}/messages`, { body }),
 };
 
 /**
@@ -418,7 +528,9 @@ export const ordersApi = {
  */
 export const negotiationInboxApi = {
   list: (params: { cursor?: string; limit?: number; search?: string } = {}) =>
-    api.get<CursorPage<NegotiationInboxThread>>("/negotiations/inbox", { query: params }),
+    api.get<CursorPage<NegotiationInboxThread>>("/negotiations/inbox", {
+      query: params,
+    }),
 
   /** One thread's inbox row — refreshes a single line after a live update. */
   summary: (kind: "order" | "cart", id: string) =>
@@ -426,13 +538,32 @@ export const negotiationInboxApi = {
 };
 
 export const cartNegotiationsApi = {
+  /** Opens the persistent stock-team chat without requiring checkout details. */
+  open: (
+    items: {
+      productId: string;
+      productName: string;
+      requestedAreaSqm: number;
+      availabilityNote: string;
+    }[],
+  ) => api.post<ApiCartNegotiation>("/cart-negotiations/open", { items }),
   /** Opens (or continues) the calling customer's thread with a first/next message. */
   submit: (
-    items: { productId: string; productName: string; requestedAreaSqm: number; availabilityNote: string }[],
+    items: {
+      productId: string;
+      productName: string;
+      requestedAreaSqm: number;
+      availabilityNote: string;
+    }[],
     body: string,
     /** `true` when `items` is the whole cart ("share my cart") — products no longer in it leave the thread's item list. */
     snapshot?: boolean,
-  ) => api.post<ApiCartNegotiation>("/cart-negotiations", { items, body, snapshot }),
+  ) =>
+    api.post<ApiCartNegotiation>("/cart-negotiations", {
+      items,
+      body,
+      snapshot,
+    }),
 
   /** The calling customer's own thread, or `null` if they've never had one. */
   mine: () => api.get<ApiCartNegotiation | null>("/cart-negotiations/mine"),
@@ -441,7 +572,9 @@ export const cartNegotiationsApi = {
   clearMine: () => api.delete<{ cleared: boolean }>("/cart-negotiations/mine"),
 
   postMessage: (id: string, body: string) =>
-    api.post<ApiCartNegotiationMessage>(`/cart-negotiations/${id}/messages`, { body }),
+    api.post<ApiCartNegotiationMessage>(`/cart-negotiations/${id}/messages`, {
+      body,
+    }),
 
   /** Staff inbox: every customer's thread. */
   list: (query: { page?: number; limit?: number } = {}) =>
@@ -450,10 +583,16 @@ export const cartNegotiationsApi = {
 };
 
 export const quotesApi = {
-  create: (body: { items: { productId: string; areaSqm: number }[]; notes?: string }) =>
-    api.post<{ id: string }>("/quotes", body),
-  mine: () => api.get<{ id: string; status: string; createdAt: string }[]>("/quotes/mine"),
-  list: () => api.get<{ id: string; status: string; createdAt: string }[]>("/quotes"),
+  create: (body: {
+    items: { productId: string; areaSqm: number }[];
+    notes?: string;
+  }) => api.post<{ id: string }>("/quotes", body),
+  mine: () =>
+    api.get<{ id: string; status: string; createdAt: string }[]>(
+      "/quotes/mine",
+    ),
+  list: () =>
+    api.get<{ id: string; status: string; createdAt: string }[]>("/quotes"),
   updateStatus: (id: string, status: string, notes?: string) =>
     api.patch<{ id: string }>(`/quotes/${id}/status`, { status, notes }),
 };
@@ -495,8 +634,12 @@ export const roomsApi = {
 
   myDesigns: () => api.get<ApiRoomDesign[]>("/rooms/designs/mine"),
   /** Staff: designs customers shared with the sales team — newest first, cursor-paginated, `search` runs on the server. */
-  sharedDesigns: (params: { cursor?: string; limit?: number; search?: string } = {}) =>
-    api.get<CursorPage<ApiRoomDesign>>("/rooms/designs/shared", { query: params }),
+  sharedDesigns: (
+    params: { cursor?: string; limit?: number; search?: string } = {},
+  ) =>
+    api.get<CursorPage<ApiRoomDesign>>("/rooms/designs/shared", {
+      query: params,
+    }),
   getDesign: (id: string) => api.get<ApiRoomDesign>(`/rooms/designs/${id}`),
 };
 
@@ -530,33 +673,56 @@ export const chatbotApi = {
 
   /** Renames one of the signed-in customer's projects. */
   renameConversation: (conversationId: string, title: string) =>
-    api.patch<ApiChatConversation>(`/chatbot/conversations/${conversationId}`, { title }),
+    api.patch<ApiChatConversation>(`/chatbot/conversations/${conversationId}`, {
+      title,
+    }),
 
   /** The signed-in customer's own conversations, most recent first. */
-  myConversations: () => api.get<ChatConversationSummary[]>("/chatbot/conversations"),
+  myConversations: () =>
+    api.get<ChatConversationSummary[]>("/chatbot/conversations"),
 
   /** Admin/marketing: questions customers asked after already receiving a recommendation. Cursor-paginated for infinite scroll — pass the previous page's `nextCursor` back as `cursor` to continue. */
   askedQuestions: (params: { cursor?: string; limit?: number } = {}) =>
-    api.get<AskedQuestionsPage>("/chatbot/admin/asked-questions", { query: params }),
+    api.get<AskedQuestionsPage>("/chatbot/admin/asked-questions", {
+      query: params,
+    }),
 
   /** Doc 3.6: side-by-side comparison of the selected tiles. */
   compare: (sessionId: string, productIds: string[]) =>
-    api.post<{ products: ApiProduct[] }>("/chatbot/compare", { sessionId, productIds }),
+    api.post<{ products: ApiProduct[] }>("/chatbot/compare", {
+      sessionId,
+      productIds,
+    }),
 
   /** Uploads the customer's own room photo first — returns the bare `path` to submit as `roomImagePath` to `roomTilePreview` below, plus a short-lived `url` for an immediate local preview. */
   uploadRoomPhoto: (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    return apiUpload<{ bucket: string; path: string; url: string; expiresIn: number; contentType: string; size: number }>(
-      "/chatbot/preview/room-photo",
-      formData,
-    );
+    return apiUpload<{
+      bucket: string;
+      path: string;
+      url: string;
+      expiresIn: number;
+      contentType: string;
+      size: number;
+    }>("/chatbot/preview/room-photo", formData);
   },
 
   /** Doc 3.6: edits the uploaded room photo to show the picked tile on its floor, and saves both the photo and the result into the conversation. */
-  roomTilePreview: (body: { conversationId: string; roomImagePath: string; productId: string; note?: string }) =>
+  roomTilePreview: (body: {
+    conversationId: string;
+    roomImagePath: string;
+    productId: string;
+    note?: string;
+  }) =>
     api.post<{
-      userMessage: { id: string; role: "USER"; content: string; createdAt: string; attachment: ChatMessageAttachment };
+      userMessage: {
+        id: string;
+        role: "USER";
+        content: string;
+        createdAt: string;
+        attachment: ChatMessageAttachment;
+      };
       assistantMessage: {
         id: string;
         role: "ASSISTANT";
@@ -567,20 +733,34 @@ export const chatbotApi = {
     }>("/chatbot/preview/image", body),
 
   /** Customer feedback on one recommendation — liked, disliked, or cleared back to "no response". */
-  setRecommendationDecision: (recommendationId: string, decision: RecommendationDecision) =>
-    api.patch<{ id: string; decision: RecommendationDecision }>(`/chatbot/recommendations/${recommendationId}`, {
-      decision,
-    }),
+  setRecommendationDecision: (
+    recommendationId: string,
+    decision: RecommendationDecision,
+  ) =>
+    api.patch<{ id: string; decision: RecommendationDecision }>(
+      `/chatbot/recommendations/${recommendationId}`,
+      {
+        decision,
+      },
+    ),
 
   /** One reaction to a whole card, saved together or not at all. */
-  setRecommendationDecisions: (recommendationIds: string[], decision: RecommendationDecision) =>
-    api.patch<{ ids: string[]; decision: RecommendationDecision }>("/chatbot/recommendations", {
-      recommendationIds,
-      decision,
-    }),
+  setRecommendationDecisions: (
+    recommendationIds: string[],
+    decision: RecommendationDecision,
+  ) =>
+    api.patch<{ ids: string[]; decision: RecommendationDecision }>(
+      "/chatbot/recommendations",
+      {
+        recommendationIds,
+        decision,
+      },
+    ),
 
-  knowledgeBase: () => api.get<ApiKnowledgeBaseEntry[]>("/chatbot/knowledge-base"),
-  adminKnowledgeBase: () => api.get<ApiKnowledgeBaseEntry[]>("/chatbot/admin/knowledge-base"),
+  knowledgeBase: () =>
+    api.get<ApiKnowledgeBaseEntry[]>("/chatbot/knowledge-base"),
+  adminKnowledgeBase: () =>
+    api.get<ApiKnowledgeBaseEntry[]>("/chatbot/admin/knowledge-base"),
   createKnowledgeBaseEntry: (body: {
     question: string;
     answer: string;
@@ -589,9 +769,15 @@ export const chatbotApi = {
   }) => api.post<ApiKnowledgeBaseEntry>("/chatbot/knowledge-base", body),
   updateKnowledgeBaseEntry: (
     id: string,
-    body: Partial<Pick<ApiKnowledgeBaseEntry, "question" | "answer" | "tags" | "language" | "isActive">>,
+    body: Partial<
+      Pick<
+        ApiKnowledgeBaseEntry,
+        "question" | "answer" | "tags" | "language" | "isActive"
+      >
+    >,
   ) => api.patch<ApiKnowledgeBaseEntry>(`/chatbot/knowledge-base/${id}`, body),
-  deleteKnowledgeBaseEntry: (id: string) => api.delete<void>(`/chatbot/knowledge-base/${id}`),
+  deleteKnowledgeBaseEntry: (id: string) =>
+    api.delete<void>(`/chatbot/knowledge-base/${id}`),
 };
 
 // --- Interaction events (feed the analytics dashboards) ---------------------
@@ -621,11 +807,17 @@ export const eventsApi = {
 export const settingsApi = {
   get: () => api.get<PublicPlatformSettings>("/settings", { anonymous: true }),
   getAdmin: () => api.get<PlatformSettings>("/settings/admin"),
-  update: (settings: Record<string, unknown>) => api.patch<PlatformSettings>("/settings", { settings }),
+  update: (settings: Record<string, unknown>) =>
+    api.patch<PlatformSettings>("/settings", { settings }),
 
   /** `roomType` here is the single room the customer picked — matches questions that are either always-asked or list that room among their own `roomTypes`. */
-  profilingQuestions: (query: { language?: Language; roomType?: RoomType } = {}) =>
-    api.get<ProfilingQuestion[]>("/settings/profiling-questions", { query, anonymous: true }),
+  profilingQuestions: (
+    query: { language?: Language; roomType?: RoomType } = {},
+  ) =>
+    api.get<ProfilingQuestion[]>("/settings/profiling-questions", {
+      query,
+      anonymous: true,
+    }),
   createProfilingQuestion: (body: {
     text: string;
     isRequired?: boolean;
@@ -635,11 +827,21 @@ export const settingsApi = {
   }) => api.post<ProfilingQuestion>("/settings/profiling-questions", body),
   updateProfilingQuestion: (
     id: string,
-    body: Partial<{ text: string; isRequired: boolean; roomTypes: RoomType[]; position: number; isActive: boolean }>,
-  ) => api.patch<ProfilingQuestion>(`/settings/profiling-questions/${id}`, body),
+    body: Partial<{
+      text: string;
+      isRequired: boolean;
+      roomTypes: RoomType[];
+      position: number;
+      isActive: boolean;
+    }>,
+  ) =>
+    api.patch<ProfilingQuestion>(`/settings/profiling-questions/${id}`, body),
   reorderProfilingQuestions: (questions: { id: string; position: number }[]) =>
-    api.patch<ProfilingQuestion[]>("/settings/profiling-questions/reorder", { questions }),
-  deleteProfilingQuestion: (id: string) => api.delete<void>(`/settings/profiling-questions/${id}`),
+    api.patch<ProfilingQuestion[]>("/settings/profiling-questions/reorder", {
+      questions,
+    }),
+  deleteProfilingQuestion: (id: string) =>
+    api.delete<void>(`/settings/profiling-questions/${id}`),
 };
 
 // --- Stock reports ----------------------------------------------------------
@@ -659,7 +861,8 @@ export const reportsApi = {
   ) => api.get<Paginated<StockMovement>>("/reports/stock/movements", { query }),
 
   lowStock: () => api.get<LowStockRow[]>("/reports/stock/low-stock"),
-  fulfillmentQueue: () => api.get<FulfillmentQueue>("/reports/stock/fulfillment-queue"),
+  fulfillmentQueue: () =>
+    api.get<FulfillmentQueue>("/reports/stock/fulfillment-queue"),
 };
 
 // --- Analytics dashboards ---------------------------------------------------
@@ -682,17 +885,51 @@ export const analyticsApi = {
   sales: (period: AnalyticsPeriod = "MONTHLY") =>
     api.get<SalesAnalytics>("/analytics/sales", { query: { period } }),
 
-  tiles: (query: { period?: AnalyticsPeriod; page?: number; limit?: number; search?: string } = {}) =>
-    api.get<TileAnalytics>("/analytics/tiles", { query }),
-  tileRates: (productId: string) => api.get<TileRates>(`/analytics/tiles/${productId}`),
+  tiles: (
+    query: {
+      period?: AnalyticsPeriod;
+      page?: number;
+      limit?: number;
+      search?: string;
+      sort?: "applied_asc" | "applied_desc";
+    } = {},
+  ) => api.get<TileAnalytics>("/analytics/tiles", { query }),
+  tileRates: (productId: string) =>
+    api.get<TileRates>(`/analytics/tiles/${productId}`),
   tileRecommendations: (
-    query: { period?: AnalyticsPeriod; page?: number; limit?: number; search?: string } = {},
-  ) => api.get<TileRecommendations>("/analytics/tiles/recommendations", { query }),
+    query: {
+      period?: AnalyticsPeriod;
+      page?: number;
+      limit?: number;
+      search?: string;
+      sort?:
+        | "displayed_desc"
+        | "displayed_asc"
+        | "accepted_desc"
+        | "accepted_asc"
+        | "acceptanceRate_desc"
+        | "acceptanceRate_asc"
+        | "averageMatchScore_desc"
+        | "averageMatchScore_asc"
+        | "name_asc"
+        | "name_desc";
+      roomTypes?: string;
+      suitableFor?: string;
+      sizes?: string;
+      stockStatuses?: string;
+    } = {},
+  ) =>
+    api.get<TileRecommendations>("/analytics/tiles/recommendations", { query }),
 
   journey: (period: AnalyticsPeriod = "MONTHLY") =>
     api.get<JourneyAnalytics>("/analytics/journey", { query: { period } }),
-  journeyStageDetail: (stage: JourneyStage, period: AnalyticsPeriod = "MONTHLY") =>
-    api.get<JourneyStageDetail>(`/analytics/journey/${stage}`, { query: { period } }),
+  journeyStageDetail: (
+    stage: JourneyStage,
+    period: AnalyticsPeriod = "MONTHLY",
+  ) =>
+    api.get<JourneyStageDetail>(`/analytics/journey/${stage}`, {
+      query: { period },
+    }),
 };
 
 export const healthApi = {

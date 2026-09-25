@@ -28,19 +28,11 @@ export type Paginated<T> = {
 // --- Enums ------------------------------------------------------------------
 
 export type Role =
-  | "CLIENT"
-  | "SALES_PERSON"
-  | "STOCK_MANAGER"
-  | "DATA_ANALYST"
-  | "ADMIN";
+  "CLIENT" | "SALES_PERSON" | "STOCK_MANAGER" | "DATA_ANALYST" | "ADMIN";
 export type Language = "EN" | "RW";
 export type UserStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED";
 export type HearAboutUs =
-  | "SOCIAL_MEDIA"
-  | "REFERRAL"
-  | "ADVERTISEMENT"
-  | "SEARCH_ENGINE"
-  | "OTHER";
+  "SOCIAL_MEDIA" | "REFERRAL" | "ADVERTISEMENT" | "SEARCH_ENGINE" | "OTHER";
 export type SuitableFor = "FLOOR" | "WALL" | "BOTH";
 /** The rooms the whole app supports — living room, bedroom, bathroom, kitchen. */
 export type RoomType = "LIVING_ROOM" | "BEDROOM" | "BATHROOM" | "KITCHEN";
@@ -510,7 +502,7 @@ export type ChatRecommendation = {
   matchScore: number;
   /** One concise sentence explaining why the assistant picked this product. */
   reason: string;
-  /** Present only for a bathroom recommendation: the wall tile paired with this floor tile in the same generated scene — one card represents the whole floor+wall combo, not two separate recommendations. */
+  /** Present for bathroom/kitchen recommendations: the wall or backsplash tile paired with this floor tile — one card represents the whole floor+wall combo. */
   wallProduct?: ChatRecommendationWallProduct;
 };
 
@@ -722,6 +714,9 @@ export type LowStockRow = {
   name: string;
   sku: string;
   image: string;
+  size: string;
+  price: number;
+  updatedAt: string;
   quantityOnHandSqm: number;
   lowStockThreshold: number;
   stockStatus: StockStatus;
@@ -927,6 +922,7 @@ export type TileAnalytics = {
     averagePurchaseConversion: number;
     totalViews: number;
   };
+  filters: { sizes: string[] };
   table: Paginated<TilePerformanceRow>;
 };
 
@@ -937,6 +933,9 @@ export type TilePerformanceRow = {
   image: string;
   collection: string;
   size: string;
+  roomTypes: RoomType[];
+  suitableFor: SuitableFor;
+  description: string;
   quantityOnHandSqm: number;
   stockStatus: StockStatus;
   viewed: number;
@@ -965,6 +964,7 @@ export type TileRates = {
 /** The whole AI Analytics page in one call: acceptance/purchase-rate summary + per-product table. */
 export type TileRecommendations = {
   period: AnalyticsPeriod;
+  filters: { sizes: string[] };
   summary: {
     displayed: number;
     accepted: number;
@@ -989,6 +989,9 @@ export type RecommendationRow = {
   image: string;
   collection: string;
   size: string;
+  roomTypes: RoomType[];
+  suitableFor: SuitableFor;
+  description: string;
   quantityOnHandSqm: number;
   stockStatus: StockStatus;
   displayed: number;

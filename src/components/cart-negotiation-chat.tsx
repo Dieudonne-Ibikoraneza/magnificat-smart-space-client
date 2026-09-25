@@ -2,7 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, ChevronDown, MessageCircle, Send, Share2, Trash2, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronDown,
+  MessageCircle,
+  Send,
+  Share2,
+  Trash2,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { toast } from "@/components/ui/toast";
@@ -11,8 +19,17 @@ import { localizeSystemText } from "@/lib/system-text";
 import { cartNegotiationsApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { useCurrentUser } from "@/lib/current-user";
-import type { ApiCartNegotiation, ApiCartNegotiationMessage, StockShortage } from "@/lib/api/types";
-import { appendMessageOnce, useNegotiationThread } from "@/lib/negotiations-socket";
+import type {
+  ApiCartNegotiation,
+  ApiCartNegotiationMessage,
+  StockShortage,
+} from "@/lib/api/types";
+import {
+  appendMessageOnce,
+  useNegotiationThread,
+} from "@/lib/negotiations-socket";
+
+export const CART_NEGOTIATION_OPENED_EVENT = "cart-negotiation-opened";
 
 /** Exact on-hand quantity, in the note staff see. */
 /** The whole cart, one line per product — what "Share my cart" sends, unlike a shortage message which only ever covers the short lines. */
@@ -29,28 +46,29 @@ export type CartLineSummary = {
  * the customer via `cartNegotiationsApi` and reaches the stock manager's
  * negotiations inbox — see `CartNegotiation` in the server schema for why.
  *
- * Shown while the cart currently has a shortage, and for as long as a
- * conversation exists — lowering a quantity or a restock ends the shortage, not
- * the conversation, so the customer can still read and answer a later staff
- * reply (a new one shows as an unread count on the bubble). It leaves only
- * when the customer clears the chat — which clears their own view, never the
- * thread: the stock manager keeps it in their inbox as a permanent record.
+ * Shown for a persisted conversation. A cart shortage by itself is not enough:
+ * the backend may correctly accept that cart as WAITLISTED when another
+ * reservation is the only thing blocking it. The chat is opened only when the
+ * backend creates/continues an actual negotiation, and remains available after
+ * the cart shortage disappears so staff replies are never hidden.
  */
 export const CartNegotiationChat = ({
-  shortages,
-  cartItems,
+  shortages = [],
+  cartItems = [],
   refreshToken,
 }: {
-  shortages: StockShortage[];
+  shortages?: StockShortage[];
   /** The customer's whole cart, one line per product — see "Share my cart" below. */
-  cartItems: CartLineSummary[];
+  cartItems?: CartLineSummary[];
   /** Bump this when a negotiation may have been opened server-side (see account/cart/page.tsx) to force a refetch. */
   refreshToken?: number;
 }) => {
   const { t } = useTranslation();
   const { user } = useCurrentUser();
   const [open, setOpen] = useState(false);
-  const [negotiation, setNegotiation] = useState<ApiCartNegotiation | null>(null);
+  const [negotiation, setNegotiation] = useState<ApiCartNegotiation | null>(
+    null,
+  );
   const [hydrated, setHydrated] = useState(false);
   /** Staff replies that arrived while the chat was minimized. */
   const [unread, setUnread] = useState(0);
@@ -64,12 +82,9 @@ export const CartNegotiationChat = ({
   // customer has scrolled up to read earlier ones, so an incoming message
   // never yanks them away from what they're reading.
   const stickToBottomRef = useRef(true);
-  // Tracks whether the *previous* render had a shortage, so the chat auto-opens
-  // exactly on a 0 -> >0 transition — once, not on every re-render while a
-  // shortage persists (which would fight a customer who deliberately closed it).
-  const hadShortageRef = useRef(false);
   // Read from the socket callback and the refetch below without re-running them.
   const openRef = useRef(false);
+  const openedNegotiationIdRef = useRef<string | null>(null);
   useEffect(() => {
     openRef.current = open;
   }, [open]);
@@ -92,7 +107,7 @@ export const CartNegotiationChat = ({
   };
 
   // Rehydrate any existing thread on mount so a reload doesn't lose history —
-  // "always there" for the customer as long as the underlying shortage is.
+  // the thread remains available independently of the cart's current stock.
   // Also re-runs whenever `refreshToken` bumps: a blocked "Place Order"
   // attempt opens/continues this thread server-side, invisibly to this
   // component's own state, so that's the signal to go fetch it.
@@ -102,13 +117,17 @@ export const CartNegotiationChat = ({
       .mine()
       .then((found) => {
         if (!active) return;
+        // An older request can finish after the cart has just opened a new
+        // thread. Never let that stale null response hide the live thread.
+        if (!found && openedNegotiationIdRef.current) return;
         setNegotiation(found);
         // A refetch triggered by a blocked "Place Order" opened this thread
         // server-side — show it, even though the cart itself may not (yet)
         // flag a shortage locally.
         const triggeredByPlaceOrder = refreshTokenRef.current !== refreshToken;
         refreshTokenRef.current = refreshToken;
-        if (triggeredByPlaceOrder && found && found.messages.length > 0) setOpen(true);
+        if (triggeredByPlaceOrder && found && found.messages.length > 0)
+          setOpen(true);
       })
       .catch(() => undefined)
       .finally(() => {
@@ -119,13 +138,23 @@ export const CartNegotiationChat = ({
     };
   }, [refreshToken]);
 
-  // Auto-open the moment a shortage first appears, so the customer isn't
-  // left to notice the floating bubble themselves.
+  // The cart page can open the thread before this global account-level chat
+  // has fetched it. Accept that result immediately so the chat follows the
+  // customer across account pages without another checkout or page refresh.
   useEffect(() => {
-    const hasShortage = shortages.length > 0;
-    if (hasShortage && !hadShortageRef.current) setOpen(true);
-    hadShortageRef.current = hasShortage;
-  }, [shortages.length]);
+    const onOpened = (event: Event) => {
+      const negotiation = (event as CustomEvent<ApiCartNegotiation>).detail;
+      if (!negotiation) return;
+      openedNegotiationIdRef.current = negotiation.id;
+      setNegotiation(negotiation);
+      setHydrated(true);
+      setUnread(0);
+      setOpen(true);
+    };
+    window.addEventListener(CART_NEGOTIATION_OPENED_EVENT, onOpened);
+    return () =>
+      window.removeEventListener(CART_NEGOTIATION_OPENED_EVENT, onOpened);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -137,15 +166,24 @@ export const CartNegotiationChat = ({
   useNegotiationThread<ApiCartNegotiationMessage>(
     negotiation ? { kind: "cart", id: negotiation.id } : null,
     (message) => {
-      setNegotiation((current) => current && { ...current, messages: appendMessageOnce(current.messages, message) });
-      if (message.author === "STAFF" && !openRef.current) setUnread((count) => count + 1);
+      setNegotiation(
+        (current) =>
+          current && {
+            ...current,
+            messages: appendMessageOnce(current.messages, message),
+          },
+      );
+      if (message.author === "STAFF" && !openRef.current)
+        setUnread((count) => count + 1);
     },
   );
 
   const messages = negotiation?.messages ?? [];
 
-  // A shortage, or a conversation still on record — see the component doc.
-  if (!hydrated || (shortages.length === 0 && messages.length === 0)) return null;
+  // A shortage can be waitlist-able and therefore must not itself show a
+  // negotiation trigger. Once a thread exists, keep it visible even when the
+  // cart is no longer short; staff replies must not disappear with stock.
+  if (!hydrated || !negotiation) return null;
 
   // Appears the instant the customer hits send — the API call and the socket
   // echo of it both happen in the background afterwards, never blocking the
@@ -161,7 +199,9 @@ export const CartNegotiationChat = ({
       negotiationId: negotiation?.id ?? "",
       author: "CUSTOMER",
       senderId: user?.id ?? null,
-      sender: user ? { id: user.id, fullName: user.fullName, role: user.role } : null,
+      sender: user
+        ? { id: user.id, fullName: user.fullName, role: user.role }
+        : null,
       body,
       createdAt: new Date().toISOString(),
     };
@@ -183,20 +223,31 @@ export const CartNegotiationChat = ({
     try {
       const alreadyKnown = (item: StockShortage) =>
         negotiation?.items.some(
-          (row) => row.productId === item.productId && Number(row.requestedAreaSqm) === item.requestedAreaSqm,
+          (row) =>
+            row.productId === item.productId &&
+            Number(row.requestedAreaSqm) === item.requestedAreaSqm,
         ) ?? false;
       const newShortages = shortages.filter((item) => !alreadyKnown(item));
 
       if (!negotiation || newShortages.length > 0) {
-        const newProductIds = new Set((negotiation ? newShortages : shortages).map((item) => item.productId));
+        const newProductIds = new Set(
+          (negotiation ? newShortages : shortages).map(
+            (item) => item.productId,
+          ),
+        );
         // Sourced from `cartItems` (already carrying the safe stockLabels
         // note, not the exact figure) rather than rebuilding one from
         // `StockShortage.availableAreaSqm` here.
-        const source = cartItems.filter((item) => newProductIds.has(item.productId));
+        const source = cartItems.filter((item) =>
+          newProductIds.has(item.productId),
+        );
         const updated = await cartNegotiationsApi.submit(source, body);
         setNegotiation(updated);
       } else {
-        const message = await cartNegotiationsApi.postMessage(negotiation.id, body);
+        const message = await cartNegotiationsApi.postMessage(
+          negotiation.id,
+          body,
+        );
         setNegotiation(
           (current) =>
             current && {
@@ -209,10 +260,17 @@ export const CartNegotiationChat = ({
         );
       }
     } catch (cause) {
-      setNegotiation((current) => current && { ...current, messages: current.messages.filter((m) => m.id !== tempId) });
+      setNegotiation(
+        (current) =>
+          current && {
+            ...current,
+            messages: current.messages.filter((m) => m.id !== tempId),
+          },
+      );
       setDraft(body);
       toast.error(t("dash.cartNegotiation.toastNotSent"), {
-        description: cause instanceof Error ? cause.message : t("dash.tryAgain"),
+        description:
+          cause instanceof Error ? cause.message : t("dash.tryAgain"),
       });
     } finally {
       setPendingIds((current) => current.filter((id) => id !== tempId));
@@ -225,11 +283,16 @@ export const CartNegotiationChat = ({
     setSharing(true);
     stickToBottomRef.current = true;
     try {
-      const updated = await cartNegotiationsApi.submit(cartItems, "Here's my current cart.", true);
+      const updated = await cartNegotiationsApi.submit(
+        cartItems,
+        "Here's my current cart.",
+        true,
+      );
       setNegotiation(updated);
     } catch (cause) {
       toast.error(t("dash.cartNegotiation.toastShareFailed"), {
-        description: cause instanceof ApiError ? cause.message : t("dash.tryAgain"),
+        description:
+          cause instanceof ApiError ? cause.message : t("dash.tryAgain"),
       });
     } finally {
       setSharing(false);
@@ -245,7 +308,8 @@ export const CartNegotiationChat = ({
       toast.success(t("dash.cartNegotiation.toastCleared"));
     } catch (cause) {
       toast.error(t("dash.cartNegotiation.toastClearFailed"), {
-        description: cause instanceof ApiError ? cause.message : t("dash.tryAgain"),
+        description:
+          cause instanceof ApiError ? cause.message : t("dash.tryAgain"),
       });
     } finally {
       setClearing(false);
@@ -253,10 +317,17 @@ export const CartNegotiationChat = ({
   };
 
   const bubbleFrom = (message: ApiCartNegotiationMessage) =>
-    message.author === "SYSTEM" ? "system" : message.author === "STAFF" ? "staff" : "user";
+    message.author === "SYSTEM"
+      ? "system"
+      : message.author === "STAFF"
+        ? "staff"
+        : "user";
 
   return (
-    <div className="fixed right-4 bottom-4 z-40 sm:right-6 sm:bottom-6">
+    <div
+      data-cart-negotiation-widget
+      className="fixed right-4 bottom-4 z-40 sm:right-6 sm:bottom-6"
+    >
       {open ? (
         <div className="relative flex h-[min(28rem,calc(100dvh-6rem))] w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl bg-card shadow-2xl ring-1 ring-ink/10 duration-200 animate-in fade-in-0 slide-in-from-bottom-4">
           <div className="flex items-center justify-between gap-3 bg-ink px-4 py-3 text-primary-foreground">
@@ -265,21 +336,27 @@ export const CartNegotiationChat = ({
                 <AlertTriangle className="size-4" />
               </span>
               <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-white">{t("dash.cartNegotiation.title")}</p>
-                <p className="truncate text-[11px] text-muted">{t("dash.cartNegotiation.subtitle")}</p>
+                <p className="truncate text-sm font-bold text-white">
+                  {t("dash.cartNegotiation.title")}
+                </p>
+                <p className="truncate text-[11px] text-muted">
+                  {t("dash.cartNegotiation.subtitle")}
+                </p>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              <button
-                type="button"
-                onClick={() => void shareCart()}
-                disabled={sharing || cartItems.length === 0}
-                aria-label={t("dash.cartNegotiation.shareCartAria")}
-                title={t("dash.cartNegotiation.shareCartAria")}
-                className="rounded-md p-1 text-white transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
-              >
-                <Share2 className="size-4" />
-              </button>
+              {cartItems.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => void shareCart()}
+                  disabled={sharing}
+                  aria-label={t("dash.cartNegotiation.shareCartAria")}
+                  title={t("dash.cartNegotiation.shareCartAria")}
+                  className="rounded-md p-1 text-white transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
+                >
+                  <Share2 className="size-4" />
+                </button>
+              )}
               <ConfirmDialog
                 trigger={
                   <button
@@ -312,12 +389,21 @@ export const CartNegotiationChat = ({
             </div>
           </div>
 
-          <div ref={listRef} onScroll={handleScroll} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+          <div
+            ref={listRef}
+            onScroll={handleScroll}
+            className="flex-1 space-y-3 overflow-y-auto px-4 py-4"
+          >
             {messages.length === 0 ? (
               <p className="mx-auto w-fit max-w-[85%] rounded-lg bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-800 break-words">
                 {shortages.length === 1
-                  ? t("dash.cartNegotiation.emptyOne", { name: shortages[0].productName, area: shortages[0].requestedAreaSqm })
-                  : t("dash.cartNegotiation.emptyMany", { count: shortages.length })}
+                  ? t("dash.cartNegotiation.emptyOne", {
+                      name: shortages[0].productName,
+                      area: shortages[0].requestedAreaSqm,
+                    })
+                  : t("dash.cartNegotiation.emptyMany", {
+                      count: shortages.length,
+                    })}
               </p>
             ) : (
               messages.map((message) => {
@@ -390,11 +476,11 @@ export const CartNegotiationChat = ({
           className="relative size-14 shrink-0 rounded-full bg-ink text-primary shadow-lg hover:bg-ink/90"
         >
           <MessageCircle className="size-6" />
-          {(unread > 0 || shortages.length > 0) && (
+          {unread > 0 && (
             <span className="absolute -top-1 -right-1 flex size-4">
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-destructive/60" />
               <span className="relative flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground ring-2 ring-card">
-                {unread > 0 ? unread : shortages.length}
+                {unread}
               </span>
             </span>
           )}

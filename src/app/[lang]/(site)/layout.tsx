@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/siteheader";
 import { ALL_ROLES } from "@/lib/auth-routes";
 import { useRequireRole } from "@/lib/require-role";
 import { CurrentUserProvider } from "@/lib/current-user";
+import { CartNegotiationChat } from "@/components/cart-negotiation-chat";
 
 /**
  * The storefront used to be reachable anonymously (doc's access model §2 —
@@ -33,6 +34,7 @@ const SiteLayoutContent = ({ children }: { children: React.ReactNode }) => {
       <main className="mx-auto flex w-full max-w-360 min-h-0 flex-1 flex-col px-4 py-2 sm:px-6 sm:pt-8 lg:px-8">
         {children}
       </main>
+      <CartNegotiationChat />
     </div>
   );
 };
