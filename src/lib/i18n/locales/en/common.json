@@ -314,7 +314,7 @@
       "none": "This would be sourced in for your order. Our stock team will confirm lead times with you before you pay."
     },
     "viewThisTile": "View this tile",
-    "addToOrder": "Add to an order"
+    "addToOrder": "Add to cart"
   },
   "visualizer": {
     "loading": "Loading the visualizer…",
@@ -446,6 +446,14 @@
     "inputPlaceholder": "Type your message here...",
     "notePlaceholder": "Add a note about your room (optional)…",
     "inputHint": "Press Enter to submit · Shift + Enter for a new line · Attach a room photo to preview a tile on its floor",
+    "previewActions": {
+      "viewDetails": "View tile details",
+      "addToCart": "Add to cart",
+      "adding": "Adding…",
+      "addedTitle": "Added to cart",
+      "addedBody": "{{name}} was added to your cart.",
+      "addFailed": "Could not add tile to cart."
+    },
     "charCount": "{{current}} / {{max}} characters",
     "followUps": {
       "livingRoom": "I need premium large-format slabs for a grand living room.",
@@ -679,19 +687,19 @@
       "coverageValue": "{{value}} m²/box",
       "boxesLine": "{{boxes}} boxes + {{pieces}} pcs · {{total}} pcs total",
       "shortageBold": "The full {{area}} m² requested isn't available right now.",
-      "shortageBody": "Placing the order may waitlist this part until more stock frees up — or, if it's more than we have at all, we'll open a chat with our stock team below. You can also lower the quantity instead.",
+      "shortageBody": "We'll check this when you place the order. If reserved stock is the only thing blocking it, we'll accept it and waitlist it. If total stock cannot cover it, we'll reject the checkout and open the negotiation box immediately. You can also lower the quantity.",
       "perSqm": "/ sqm",
       "orderOverview": "ORDER OVERVIEW",
       "subtotalLine": "Subtotal ({{count}} items)",
       "totalCost": "Total Cost",
       "placeOrder": "Place Order",
       "placingOrder": "Placing order…",
-      "shortagesOne": "One item exceeds what's currently available — if it can still be covered from stock on hand, we'll accept it and waitlist that part; otherwise we'll open a chat with our stock team below.",
-      "shortagesMany": "{{count}} items exceed what's currently available — if it can still be covered from stock on hand, we'll accept it and waitlist that part; otherwise we'll open a chat with our stock team below.",
+      "shortagesOne": "One item exceeds what's currently available. We'll waitlist it only if total stock can cover it after reservations are released; otherwise checkout is rejected and the negotiation box opens immediately.",
+      "shortagesMany": "{{count}} items exceed what's currently available. We'll waitlist them only if total stock can cover them after reservations are released; otherwise checkout is rejected and the negotiation box opens immediately.",
       "or": "OR",
       "generateQuotation": "Generate Quotation",
-      "toastCantPlaceTitle": "Couldn't place that order",
-      "toastCantPlaceBody": "Part of your cart is more than we have in stock — we've started a chat with our stock team below.",
+      "toastCantPlaceTitle": "Checkout rejected — negotiation opened",
+      "toastCantPlaceBody": "This cart exceeds our total stock, so we've opened a negotiation with our stock team. You can continue the conversation below.",
       "toastSubmittedTitle": "Order submitted",
       "toastWaitlistedTitle": "Order accepted — waitlisted for stock",
       "toastSubmittedBody": "Sent to our stock team for review. You'll find it under My Orders once it's confirmed.",
@@ -770,13 +778,13 @@
       "toastPaidFailedTitle": "Couldn't record your payment"
     },
     "orderNegotiation": {
-      "shortageTitle": "Part of this order needs a chat with our stock team",
+      "shortageTitle": "Part of this order needs a chat with the stock team",
       "shortageOne": "{{name}}: the full {{area}} m² requested isn't available right now.",
       "shortageMany": "{{count}} items exceed what's currently on hand.",
-      "heading": "Chat with our stock team",
+      "heading": "Chat with stock team",
       "loading": "Loading…",
       "placeholder": "Type a message…",
-      "messageAria": "Message the stock team",
+      "messageAria": "Message stock team",
       "sendAria": "Send message",
       "toastNotSent": "Message not sent"
     },
@@ -810,7 +818,12 @@
       "toastNotSent": "Message not sent",
       "toastShareFailed": "Couldn't share your cart",
       "toastCleared": "Chat cleared",
-      "toastClearFailed": "Couldn't clear the chat"
+      "toastClearFailed": "Couldn't clear the chat",
+      "openNow": "Chat with the stock team now",
+      "opening": "Opening chat…",
+      "openedTitle": "Stock-team chat opened",
+      "openedBody": "A stock-team member will review your request and assist you here.",
+      "openFailedTitle": "Couldn't open the stock-team chat"
     }
   },
   "chatCard": {
@@ -982,6 +995,12 @@
       "sending": "Sending…",
       "sendQuotation": "Send quotation",
       "quotationSentWaiting": "Quotation sent — waiting for payment",
+      "recordCustomerPayment": "Record customer payment",
+      "recordPaymentConfirmTitle": "Record this payment?",
+      "recordPaymentConfirmDescription": "Confirm that the customer has paid the full quotation. Stock team will verify it next.",
+      "confirmRecordPayment": "Yes, record payment",
+      "recordingPayment": "Recording payment…",
+      "recordCustomerPaymentHint": "Use this when the customer paid in person or through an offline method. You will verify it in the next step.",
       "rejectPayment": "Reject payment",
       "rejectTitle": "Reject this payment?",
       "rejectDescription": "The customer is told why and can pay again. Their order stays reserved and their payment window restarts.",
@@ -1001,6 +1020,9 @@
       "toastQuotationSentTitle": "Quotation sent to customer",
       "toastQuotationSentBody": "Transport fee: {{fee}} · Total: {{total}}",
       "toastQuotationFailedTitle": "Couldn't send quotation",
+      "toastPaymentRecordedTitle": "Customer payment recorded",
+      "toastPaymentRecordedBody": "Verify the received amount to release this order for processing.",
+      "toastRecordPaymentFailedTitle": "Couldn't record the payment",
       "toastPaymentVerifiedTitle": "Payment verified",
       "toastPaymentVerifiedBody": "This order can now move to processing.",
       "toastVerifyFailedTitle": "Couldn't verify payment"
@@ -1140,6 +1162,18 @@
     }
   },
   "sales": {
+    "createCustomer": {
+      "trigger": "New customer",
+      "title": "Create customer",
+      "description": "Create a customer profile for a walk-in or assisted order.",
+      "name": "Full name",
+      "email": "Email (optional)",
+      "phone": "Phone (optional)",
+      "cancel": "Cancel",
+      "save": "Create customer",
+      "saving": "Creating…",
+      "failed": "Could not create the customer."
+    },
     "nav": {
       "dashboard": "Dashboard",
       "customers": "Customers",
@@ -2118,6 +2152,8 @@
       "sort": {
         "viewed_desc": "Most Viewed",
         "viewed_asc": "Least Viewed",
+        "applied_desc": "Most Applications",
+        "applied_asc": "Fewest Applications",
         "saved_desc": "Most Liked",
         "saved_asc": "Least Liked",
         "purchased_desc": "Best Selling",
@@ -2825,7 +2861,7 @@
     "orderUpdatedStillShort": "The order was updated, but part of the revised quantity is still waiting on stock.",
     "orderUpdatedWaitlisted": "The order was updated and remains on the waitlist — it will be promoted, in order, as soon as stock is available.",
     "orderUpdatedRequote": "The order quantities were updated by the stock team. The quotation will be prepared again for the revised order.",
-    "triedToOrder": "I tried to place an order for {{names}}, but it's more than you have in stock. Can you help?",
+    "triedToOrder": "The requested amount for {{names}} exceeds our total stock, so we've opened a negotiation with our stock team. Can you help us agree the next step?",
     "exceedsStock": "Exceeds what we currently have in stock",
     "onlyOnHand": "Only {{area}} m² on hand right now."
   },

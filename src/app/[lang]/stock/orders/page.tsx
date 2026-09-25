@@ -11,11 +11,14 @@ import {
   LayoutList,
   ListFilter,
   Search,
-  UserPlus,
   X,
 } from "lucide-react";
 import { DashboardPageHeader as StockPageHeader } from "@/components/dashboard-page-headers";
-import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
+import {
+  ApiEmptyState,
+  ApiErrorState,
+  ApiLoading,
+} from "@/components/api-state";
 import { ListPagination } from "@/components/list-pagination";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
 import { Badge } from "@/components/ui/badge";
@@ -128,10 +131,15 @@ const matchesDateFilter = (
 const totalSqm = (items: ApiOrderItem[]) =>
   items.reduce((total, item) => total + billedAreaOf(item), 0);
 
-const formatPrice = (value: string | number) => `RWF ${Math.round(Number(value)).toLocaleString("en-US")}`;
+const formatPrice = (value: string | number) =>
+  `RWF ${Math.round(Number(value)).toLocaleString("en-US")}`;
 
 const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  new Date(iso).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 
 const SEARCH_MENU_ANIMATION_MS = 200;
 
@@ -197,7 +205,11 @@ const OrderSearchMenu = ({
         size="icon-xs"
         className={cn(open && "bg-secondary text-ink")}
         onClick={() => setOpen((value) => !value)}
-        aria-label={open ? t("sales.orders.closeOrderSearch") : t("sales.orders.searchOrders")}
+        aria-label={
+          open
+            ? t("sales.orders.closeOrderSearch")
+            : t("sales.orders.searchOrders")
+        }
         aria-expanded={open}
       >
         {open ? <X className="size-4" /> : <Search className="size-4" />}
@@ -243,7 +255,12 @@ const OrdersPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   const { data, loading, error, reload } = useApi(
-    () => ordersApi.list({ page: currentPage, limit: PAGE_SIZE, status: status === "all" ? undefined : status as OrderStatus }),
+    () =>
+      ordersApi.list({
+        page: currentPage,
+        limit: PAGE_SIZE,
+        status: status === "all" ? undefined : (status as OrderStatus),
+      }),
     [currentPage, status],
   );
   const orders = useMemo(() => data?.items ?? [], [data]);
@@ -256,14 +273,22 @@ const OrdersPage = () => {
         matchesDateFilter(new Date(order.createdAt), dateFilter, customDate) &&
         (normalizedQuery === "" ||
           order.orderNumber.toLowerCase().includes(normalizedQuery) ||
-          (order.customer?.fullName ?? "").toLowerCase().includes(normalizedQuery)),
+          (order.customer?.fullName ?? "")
+            .toLowerCase()
+            .includes(normalizedQuery)),
     );
 
     return [...filteredOrders].sort((first, second) => {
       if (sort === "newest")
-        return new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime();
+        return (
+          new Date(second.createdAt).getTime() -
+          new Date(first.createdAt).getTime()
+        );
       if (sort === "oldest")
-        return new Date(first.createdAt).getTime() - new Date(second.createdAt).getTime();
+        return (
+          new Date(first.createdAt).getTime() -
+          new Date(second.createdAt).getTime()
+        );
       const firstAmount = Number(first.total);
       const secondAmount = Number(second.total);
       return sort === "amount-high"
@@ -292,16 +317,7 @@ const OrdersPage = () => {
       <StockPageHeader
         title={t("sales.orders.title")}
         subtitle={t("sales.orders.subtitle")}
-      >
-        <Button
-          type="button"
-          onClick={() => router.push("/stock/orders/new")}
-          className="h-11 gap-2 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
-        >
-          <UserPlus className="size-4" />
-          {t("sales.orders.newOrder")}
-        </Button>
-      </StockPageHeader>
+      />
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
         <section className="rounded-2xl bg-card p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -319,15 +335,23 @@ const OrdersPage = () => {
                     {(value) =>
                       value === "all"
                         ? t("sales.orders.statusAll")
-                        : t("sales.orders.statusValue", { status: t(`staff.orderStatus.${value as OrderStatus}`) })
+                        : t("sales.orders.statusValue", {
+                            status: t(
+                              `staff.orderStatus.${value as OrderStatus}`,
+                            ),
+                          })
                     }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t("sales.orders.statusAll")}</SelectItem>
+                  <SelectItem value="all">
+                    {t("sales.orders.statusAll")}
+                  </SelectItem>
                   {ORDER_STATUSES.map((value) => (
                     <SelectItem key={value} value={value}>
-                      {t("sales.orders.statusValue", { status: t(`staff.orderStatus.${value}`) })}
+                      {t("sales.orders.statusValue", {
+                        status: t(`staff.orderStatus.${value}`),
+                      })}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -346,13 +370,27 @@ const OrdersPage = () => {
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t("sales.orders.date.all")}</SelectItem>
-                  <SelectItem value="today">{t("sales.orders.date.today")}</SelectItem>
-                  <SelectItem value="yesterday">{t("sales.orders.date.yesterday")}</SelectItem>
-                  <SelectItem value="last7">{t("sales.orders.date.last7")}</SelectItem>
-                  <SelectItem value="last30">{t("sales.orders.date.last30")}</SelectItem>
-                  <SelectItem value="month">{t("sales.orders.date.month")}</SelectItem>
-                  <SelectItem value="custom">{t("sales.orders.date.customOption")}</SelectItem>
+                  <SelectItem value="all">
+                    {t("sales.orders.date.all")}
+                  </SelectItem>
+                  <SelectItem value="today">
+                    {t("sales.orders.date.today")}
+                  </SelectItem>
+                  <SelectItem value="yesterday">
+                    {t("sales.orders.date.yesterday")}
+                  </SelectItem>
+                  <SelectItem value="last7">
+                    {t("sales.orders.date.last7")}
+                  </SelectItem>
+                  <SelectItem value="last30">
+                    {t("sales.orders.date.last30")}
+                  </SelectItem>
+                  <SelectItem value="month">
+                    {t("sales.orders.date.month")}
+                  </SelectItem>
+                  <SelectItem value="custom">
+                    {t("sales.orders.date.customOption")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
               {dateFilter === "custom" && (
@@ -397,8 +435,12 @@ const OrdersPage = () => {
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="newest">{t("sales.orders.sort.newest")}</SelectItem>
-                  <SelectItem value="oldest">{t("sales.orders.sort.oldest")}</SelectItem>
+                  <SelectItem value="newest">
+                    {t("sales.orders.sort.newest")}
+                  </SelectItem>
+                  <SelectItem value="oldest">
+                    {t("sales.orders.sort.oldest")}
+                  </SelectItem>
                   <SelectItem value="amount-high">
                     {t("sales.orders.sort.amountHigh")}
                   </SelectItem>
@@ -444,7 +486,10 @@ const OrdersPage = () => {
         ) : error ? (
           <ApiErrorState message={error} onRetry={reload} className="my-16" />
         ) : results.length === 0 ? (
-          <ApiEmptyState message={t("sales.orders.noResults")} className="py-16" />
+          <ApiEmptyState
+            message={t("sales.orders.noResults")}
+            className="py-16"
+          />
         ) : view === "grid" ? (
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {pageItems.map((order) => {
@@ -458,7 +503,8 @@ const OrdersPage = () => {
                           #{order.orderNumber}
                         </p>
                         <h2 className="mt-1 truncate text-base font-bold text-ink">
-                          {order.customer?.fullName ?? t("sales.orders.unknownCustomer")}
+                          {order.customer?.fullName ??
+                            t("sales.orders.unknownCustomer")}
                         </h2>
                       </div>
                       <div className="flex items-center gap-2">
@@ -475,21 +521,35 @@ const OrdersPage = () => {
                     <div className="my-4 h-px bg-[#E5E7EB]" />
                     <dl className="space-y-3 font-data text-sm">
                       <div className="flex items-center justify-between gap-3">
-                        <dt className="text-muted-foreground">{t("sales.orders.summary")}</dt>
+                        <dt className="text-muted-foreground">
+                          {t("sales.orders.summary")}
+                        </dt>
                         <dd className="text-right font-semibold text-ink">
-                          {t("sales.orders.productsCount", { count: items.length })}
+                          {t("sales.orders.productsCount", {
+                            count: items.length,
+                          })}
                           <span className="block text-xs font-normal text-muted-foreground">
-                            {t("sales.orders.sqmTotal", { value: totalSqm(items).toLocaleString("en-US") })}
+                            {t("sales.orders.sqmTotal", {
+                              value: totalSqm(items).toLocaleString("en-US"),
+                            })}
                           </span>
                         </dd>
                       </div>
                       <div className="flex items-center justify-between gap-3">
-                        <dt className="text-muted-foreground">{t("sales.orders.orderDate")}</dt>
-                        <dd className="font-semibold text-ink">{formatDate(order.createdAt)}</dd>
+                        <dt className="text-muted-foreground">
+                          {t("sales.orders.orderDate")}
+                        </dt>
+                        <dd className="font-semibold text-ink">
+                          {formatDate(order.createdAt)}
+                        </dd>
                       </div>
                       <div className="flex items-center justify-between gap-3">
-                        <dt className="text-muted-foreground">{t("sales.orders.totalSpend")}</dt>
-                        <dd className="font-semibold text-ink">{formatPrice(order.total)}</dd>
+                        <dt className="text-muted-foreground">
+                          {t("sales.orders.totalSpend")}
+                        </dt>
+                        <dd className="font-semibold text-ink">
+                          {formatPrice(order.total)}
+                        </dd>
                       </div>
                     </dl>
                     <Button
@@ -519,7 +579,10 @@ const OrdersPage = () => {
                       <p className="text-sm font-semibold text-ink">
                         {order.orderNumber}
                       </p>
-                      <p className="text-sm text-ink">{order.customer?.fullName ?? t("sales.orders.unknownCustomer")}</p>
+                      <p className="text-sm text-ink">
+                        {order.customer?.fullName ??
+                          t("sales.orders.unknownCustomer")}
+                      </p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {formatDate(order.createdAt)}
                       </p>
@@ -572,7 +635,10 @@ const OrdersPage = () => {
                       <TableCell className="font-semibold">
                         {order.orderNumber}
                       </TableCell>
-                      <TableCell>{order.customer?.fullName ?? t("sales.orders.unknownCustomer")}</TableCell>
+                      <TableCell>
+                        {order.customer?.fullName ??
+                          t("sales.orders.unknownCustomer")}
+                      </TableCell>
                       <TableCell className="whitespace-nowrap">
                         {formatDate(order.createdAt)}
                       </TableCell>

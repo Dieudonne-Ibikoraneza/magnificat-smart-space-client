@@ -446,6 +446,14 @@
     "inputPlaceholder": "Andika ubutumwa bwawe hano...",
     "notePlaceholder": "Ongeraho inyandiko ku cyumba cyawe (si itegeko)…",
     "inputHint": "Kanda Enter wohereze · Shift + Enter kugira ngo utangire umurongo mushya · Omeka ifoto y'icyumba kugira ngo urebe ikaro ku butaka bwacyo",
+    "previewActions": {
+      "viewDetails": "Reba ibisobanuro by'ikaro",
+      "addToCart": "Ongeraho ku itumizo",
+      "adding": "Birongerwa…",
+      "addedTitle": "Byongewe ku itumizo",
+      "addedBody": "{{name}} yongewe ku itumizo ryawe.",
+      "addFailed": "Ntibyashobotse kongera ikaro ku itumizo."
+    },
     "charCount": "inyuguti {{current}} kuri {{max}}",
     "followUps": {
       "livingRoom": "Nkeneye amabuye manini y'icyiciro cyo hejuru ku cyumba kinini cyo kwakiriramo.",
@@ -679,19 +687,19 @@
       "coverageValue": "{{value}} m²/ikarito",
       "boxesLine": "amakarito {{boxes}} + piece {{pieces}} · piece {{total}} byose",
       "shortageBold": "{{area}} m² yose yasabwe ntiboneka ubu.",
-      "shortageBody": "Gushyira itumizo bishobora gushyira iki gice ku rutonde rw'ategereje kugeza ububiko bwiyongereye — cyangwa, niba biruta ibyo dufite byose, tuzafungura ikiganiro n'itsinda ryacu ry'ububiko hepfo. Ushobora kandi kugabanya ingano.",
+      "shortageBody": "Tuzabigenzura nushyira itumizo. Niba ububiko bwabitswe ari bwo bwonyine bubangamiye itumizo, tuzaryemera turishyire ku rutonde rw'ategereje. Niba ububiko bwose budahagije, tuzahita twanga itumizo kandi dufungure imishyikirano. Ushobora kandi kugabanya ingano.",
       "perSqm": "/ m²",
       "orderOverview": "INCAMAKE Y'ITUMIZO",
       "subtotalLine": "Igiteranyo gito (ibintu {{count}})",
       "totalCost": "Igiciro Cyose",
       "placeOrder": "Tumiza",
       "placingOrder": "Gutumiza…",
-      "shortagesOne": "Ikintu kimwe kirenga ibiboneka ubu — niba bishobora gukurwa mu bubiko buriho, tuzabyemera maze dushyire icyo gice ku rutonde rw'ategereje; bitaba ibyo tuzafungura ikiganiro n'itsinda ryacu ry'ububiko hepfo.",
-      "shortagesMany": "Ibintu {{count}} birenga ibiboneka ubu — niba bishobora gukurwa mu bubiko buriho, tuzabyemera maze dushyire icyo gice ku rutonde rw'ategereje; bitaba ibyo tuzafungura ikiganiro n'itsinda ryacu ry'ububiko hepfo.",
+      "shortagesOne": "Ikintu kimwe kirenga ibiboneka ubu. Tuzagishyira ku rutonde rw'ategereje gusa niba ububiko bwose buzaba buhagije ububiko bwabitswe niburekurwa; bitaba ibyo itumizo rizangwa kandi imishyikirano ifunguke ako kanya.",
+      "shortagesMany": "Ibintu {{count}} birenga ibiboneka ubu. Tuzabishyira ku rutonde rw'ategereje gusa niba ububiko bwose buzaba buhagije ububiko bwabitswe niburekurwa; bitaba ibyo itumizo rizangwa kandi imishyikirano ifunguke ako kanya.",
       "or": "CYANGWA",
       "generateQuotation": "Kora Ifatabuguzi",
-      "toastCantPlaceTitle": "Ntitwashoboye gushyira iryo tumizo",
-      "toastCantPlaceBody": "Igice cy'agatebo kawe kirenga ibyo dufite mu bubiko — twatangiye ikiganiro n'itsinda ryacu ry'ububiko hepfo.",
+      "toastCantPlaceTitle": "Itumizo ryanze — imishyikirano yafunguwe",
+      "toastCantPlaceBody": "Agatebo kawe karenze ububiko bwose dufite, ni yo mpamvu twafunguye imishyikirano n'itsinda ryacu ry'ububiko. Ushobora gukomeza ikiganiro hepfo.",
       "toastSubmittedTitle": "Itumizo ryoherejwe",
       "toastWaitlistedTitle": "Itumizo ryemewe — riri ku rutonde rw'ategereje ububiko",
       "toastSubmittedBody": "Ryoherejwe ku itsinda ryacu ry'ububiko kugira ngo barirebe. Uzarisanga mubyatumijwe rimaze kwemezwa.",
@@ -770,10 +778,10 @@
       "toastPaidFailedTitle": "Ntitwashoboye kwandika ubwishyu bwawe"
     },
     "orderNegotiation": {
-      "shortageTitle": "Igice cy'iri tumizo gikeneye ikiganiro n'itsinda ryacu ry'ububiko",
+      "shortageTitle": "Igice cy'iri tumizo gikeneye ikiganiro n'itsinda ry'ububiko",
       "shortageOne": "{{name}}: {{area}} m² yose yasabwe ntiboneka ubu.",
       "shortageMany": "Ibintu {{count}} birenga ibiboneka mu bubiko ubu.",
-      "heading": "Ganira n'itsinda ryacu ry'ububiko",
+      "heading": "Ganira n'itsinda ry'ububiko",
       "loading": "Biratunganywa…",
       "placeholder": "Andika ubutumwa…",
       "messageAria": "Andikira itsinda ry'ububiko",
@@ -810,7 +818,12 @@
       "toastNotSent": "Ubutumwa ntibwoherejwe",
       "toastShareFailed": "Ntitwashoboye gusangiza agatebo kawe",
       "toastCleared": "Ikiganiro cyasibwe",
-      "toastClearFailed": "Ntitwashoboye gusiba ikiganiro"
+      "toastClearFailed": "Ntitwashoboye gusiba ikiganiro",
+      "openNow": "Ganira n'itsinda ry'ububiko ubu",
+      "opening": "Turafungura ikiganiro…",
+      "openedTitle": "Ikiganiro n'itsinda ry'ububiko cyafunguwe",
+      "openedBody": "Umukozi w'itsinda ry'ububiko azasuzuma ibyo wasabye kandi agufashe hano.",
+      "openFailedTitle": "Ntitwashoboye gufungura ikiganiro n'itsinda ry'ububiko"
     }
   },
   "chatCard": {
@@ -982,6 +995,12 @@
       "sending": "Kohereza…",
       "sendQuotation": "Ohereza ifatabuguzi",
       "quotationSentWaiting": "Ifatabuguzi ryoherejwe — bitegereje ubwishyu",
+      "recordCustomerPayment": "Andika ubwishyu bw'umukiriya",
+      "recordPaymentConfirmTitle": "Andika ubu bwishyu?",
+      "recordPaymentConfirmDescription": "Emeza ko umukiriya yishyuye ifatabuguzi ryose. Itsinda ry'ububiko rizabigenzura nyuma.",
+      "confirmRecordPayment": "Yego, andika ubwishyu",
+      "recordingPayment": "Kwandika ubwishyu…",
+      "recordCustomerPaymentHint": "Koresha ibi igihe umukiriya yishyuye imbonankubone cyangwa akoresheje uburyo butari kuri sisitemu. Urahita ubwemereza ku ntambwe ikurikira.",
       "rejectPayment": "Anga ubwishyu",
       "rejectTitle": "Guhakana ubu bwishyu?",
       "rejectDescription": "Umukiriya ahabwa impamvu kandi ashobora kongera kwishyura. Itumizo rye rikomeza kubikwa kandi igihe cyo kwishyura gitangira bundi bushya.",
@@ -1001,6 +1020,9 @@
       "toastQuotationSentTitle": "Ifatabuguzi ryoherejwe ku mukiriya",
       "toastQuotationSentBody": "Amafaranga y'ubwikorezi: {{fee}} · Igiteranyo: {{total}}",
       "toastQuotationFailedTitle": "Ntibyashobotse kohereza ifatabuguzi",
+      "toastPaymentRecordedTitle": "Ubwishyu bw'umukiriya bwanditswe",
+      "toastPaymentRecordedBody": "Emeza amafaranga yakiriwe kugira ngo iri tumizo ritangire gutunganywa.",
+      "toastRecordPaymentFailedTitle": "Ntibyashobotse kwandika ubwishyu",
       "toastPaymentVerifiedTitle": "Ubwishyu bwemejwe",
       "toastPaymentVerifiedBody": "Iri tumizo ubu rishobora kwimukira mu gutunganywa.",
       "toastVerifyFailedTitle": "Ntibyashobotse kwemeza ubwishyu"
@@ -1140,6 +1162,18 @@
     }
   },
   "sales": {
+    "createCustomer": {
+      "trigger": "Ongeraho umukiriya",
+      "title": "Kurema umukiriya",
+      "description": "Kora umwirondoro w'umukiriya waje ku iduka cyangwa ukeneye ubufasha.",
+      "name": "Amazina yose",
+      "email": "Imeyili (si ngombwa)",
+      "phone": "Telefoni (si ngombwa)",
+      "cancel": "Reka",
+      "save": "Kora umukiriya",
+      "saving": "Birakorwa…",
+      "failed": "Umukiriya ntiyakozwe."
+    },
     "nav": {
       "dashboard": "Imbonerahamwe",
       "customers": "Abakiriya",
@@ -2118,6 +2152,8 @@
       "sort": {
         "viewed_desc": "Arebwa Cyane",
         "viewed_asc": "Arebwa Bike",
+        "applied_desc": "Byakoreshejwe Cyane",
+        "applied_asc": "Byakoreshejwe Bike",
         "saved_desc": "Akunzwe Cyane",
         "saved_asc": "Akunzwe Bike",
         "purchased_desc": "Agurwa Cyane",
@@ -2825,7 +2861,7 @@
     "orderUpdatedStillShort": "Itumizo ryavuguruwe, ariko igice cy'ingano nshya kiracyategereje ububiko.",
     "orderUpdatedWaitlisted": "Itumizo ryavuguruwe kandi riracyari ku rutonde rw'abategereje — rizimurwa hakurikijwe uko ryaje, ububiko bugihagije.",
     "orderUpdatedRequote": "Ingano y'itumizo yavuguruwe n'itsinda ry'ububiko. Igiciro kizongera gutegurwa ku itumizo ryavuguruwe.",
-    "triedToOrder": "Nagerageje gutumiza {{names}}, ariko birenze ibyo mufite mu bubiko. Mwamfasha?",
+    "triedToOrder": "Ingano yasabwe ya {{names}} irenze ububiko bwose dufite, ni yo mpamvu twafunguye imishyikirano n'itsinda ryacu ry'ububiko. Twafashanya gute mu ntambwe ikurikira?",
     "exceedsStock": "Birenze ibyo dufite mu bubiko ubu",
     "onlyOnHand": "Hasigaye {{area}} m² gusa mu bubiko ubu."
   },

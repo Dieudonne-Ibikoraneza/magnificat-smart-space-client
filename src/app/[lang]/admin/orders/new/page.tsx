@@ -25,11 +25,13 @@ import {
 } from "lucide-react";
 import { DashboardDetailHeader as AdminDetailHeader } from "@/components/dashboard-page-headers";
 import { AdjustStockDialog } from "@/components/adjust-stock-dialog";
-import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
-import { SelectableProductCard } from "@/components/selectable-product-card";
 import {
-  Badge,
-} from "@/components/ui/badge";
+  ApiEmptyState,
+  ApiErrorState,
+  ApiLoading,
+} from "@/components/api-state";
+import { SelectableProductCard } from "@/components/selectable-product-card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -41,7 +43,13 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -54,10 +62,20 @@ import { toast } from "@/components/ui/toast";
 import { ordersApi, productsApi, usersApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { useApi } from "@/lib/api/use-api";
-import type { ApiProduct, CustomerSummary, StockStatus, SuitableFor, UserStatus } from "@/lib/api/types";
+import type {
+  ApiProduct,
+  CustomerSummary,
+  StockStatus,
+  SuitableFor,
+  UserStatus,
+} from "@/lib/api/types";
 import { calculateTileQuantity } from "@/lib/tile-calculator";
 import { getVisiblePages, type SortOption } from "@/lib/catalog-utils";
-import { clearOrderDraft, readOrderDraft, writeOrderDraft } from "@/lib/order-draft-storage";
+import {
+  clearOrderDraft,
+  readOrderDraft,
+  writeOrderDraft,
+} from "@/lib/order-draft-storage";
 import { formatCompactCurrency, formatRelativeTime, cn } from "@/lib/utils";
 
 const PRODUCT_PAGE_SIZE = 6;
@@ -68,8 +86,10 @@ const ORDER_DRAFT_KEY = "mss.order-draft.admin";
 /** Stock managers and admins can adjust stock themselves; sales people can't — see `products.controller.ts` roles. */
 const CAN_ADJUST_STOCK = true;
 
-const isPositiveNumber = (value: string) => value.trim() !== "" && Number(value) > 0;
-const formatRWF = (value: number) => `RWF ${Math.round(value).toLocaleString("en-US")}`;
+const isPositiveNumber = (value: string) =>
+  value.trim() !== "" && Number(value) > 0;
+const formatRWF = (value: number) =>
+  `RWF ${Math.round(value).toLocaleString("en-US")}`;
 
 const tilePackagingOf = (product: ApiProduct) => ({
   tileArea: product.tileAreaSqm,
@@ -77,11 +97,15 @@ const tilePackagingOf = (product: ApiProduct) => ({
   piecesPerBox: product.piecesPerBox,
 });
 
-const availableStockOf = (product: ApiProduct) => product.quantityOnHandSqm ?? 0;
+const availableStockOf = (product: ApiProduct) =>
+  product.quantityOnHandSqm ?? 0;
 
 type CustomerSort = "newest" | "name";
 
-const customerStatusBadge: Record<UserStatus, "primary" | "muted" | "destructive"> = {
+const customerStatusBadge: Record<
+  UserStatus,
+  "primary" | "muted" | "destructive"
+> = {
   ACTIVE: "primary",
   INACTIVE: "muted",
   SUSPENDED: "destructive",
@@ -96,7 +120,11 @@ const steps = [
 const stepAccent = {
   1: { bg: "bg-blue-500", ring: "ring-blue-200", text: "text-blue-600" },
   2: { bg: "bg-violet-500", ring: "ring-violet-200", text: "text-violet-600" },
-  3: { bg: "bg-emerald-500", ring: "ring-emerald-200", text: "text-emerald-600" },
+  3: {
+    bg: "bg-emerald-500",
+    ring: "ring-emerald-200",
+    text: "text-emerald-600",
+  },
 } as const;
 
 const segmentGradient = [
@@ -116,57 +144,71 @@ const OrderStepper = ({
   const { t } = useTranslation();
 
   return (
-  <div className="rounded-2xl bg-card p-5 sm:p-6">
-    <div className="flex items-center">
-      {steps.map((item, index) => {
-        const accent = stepAccent[item.id];
-        const isDone = item.id < step;
-        const isCurrent = item.id === step;
-        const isReachable = item.id <= maxReachedStep;
-        const Icon = item.icon;
+    <div className="rounded-2xl bg-card p-5 sm:p-6">
+      <div className="flex items-center">
+        {steps.map((item, index) => {
+          const accent = stepAccent[item.id];
+          const isDone = item.id < step;
+          const isCurrent = item.id === step;
+          const isReachable = item.id <= maxReachedStep;
+          const Icon = item.icon;
 
-        return (
-          <Fragment key={item.id}>
-            {index > 0 && (
-              <div
-                className={cn(
-                  "mx-2 h-1 flex-1 rounded-full transition-colors sm:mx-4",
-                  item.id <= maxReachedStep ? segmentGradient[index - 1] : "bg-border",
-                )}
-              />
-            )}
-            <button
-              type="button"
-              disabled={!isReachable}
-              onClick={() => onStepClick(item.id)}
-              className={cn(
-                "group flex shrink-0 flex-col items-center gap-2",
-                isReachable ? "cursor-pointer" : "cursor-not-allowed opacity-50",
+          return (
+            <Fragment key={item.id}>
+              {index > 0 && (
+                <div
+                  className={cn(
+                    "mx-2 h-1 flex-1 rounded-full transition-colors sm:mx-4",
+                    item.id <= maxReachedStep
+                      ? segmentGradient[index - 1]
+                      : "bg-border",
+                  )}
+                />
               )}
-            >
-              <span
+              <button
+                type="button"
+                disabled={!isReachable}
+                onClick={() => onStepClick(item.id)}
                 className={cn(
-                  "flex size-11 items-center justify-center rounded-full text-white shadow-sm ring-4 transition-all sm:size-12",
-                  isDone || isCurrent ? accent.bg : "bg-secondary text-muted-foreground",
-                  isCurrent ? accent.ring : "ring-transparent",
+                  "group flex shrink-0 flex-col items-center gap-2",
+                  isReachable
+                    ? "cursor-pointer"
+                    : "cursor-not-allowed opacity-50",
                 )}
               >
-                {isDone ? <Check className="size-5" strokeWidth={3} /> : <Icon className="size-5" strokeWidth={2} />}
-              </span>
-              <span
-                className={cn(
-                  "hidden text-xs font-bold tracking-wide uppercase sm:block",
-                  isCurrent ? accent.text : isDone ? "text-ink" : "text-muted-foreground",
-                )}
-              >
-                {t(item.labelKey)}
-              </span>
-            </button>
-          </Fragment>
-        );
-      })}
+                <span
+                  className={cn(
+                    "flex size-11 items-center justify-center rounded-full text-white shadow-sm ring-4 transition-all sm:size-12",
+                    isDone || isCurrent
+                      ? accent.bg
+                      : "bg-secondary text-muted-foreground",
+                    isCurrent ? accent.ring : "ring-transparent",
+                  )}
+                >
+                  {isDone ? (
+                    <Check className="size-5" strokeWidth={3} />
+                  ) : (
+                    <Icon className="size-5" strokeWidth={2} />
+                  )}
+                </span>
+                <span
+                  className={cn(
+                    "hidden text-xs font-bold tracking-wide uppercase sm:block",
+                    isCurrent
+                      ? accent.text
+                      : isDone
+                        ? "text-ink"
+                        : "text-muted-foreground",
+                  )}
+                >
+                  {t(item.labelKey)}
+                </span>
+              </button>
+            </Fragment>
+          );
+        })}
+      </div>
     </div>
-  </div>
   );
 };
 
@@ -201,63 +243,94 @@ const StepToolbar = ({
   const { t } = useTranslation();
 
   return (
-  <div className="relative mb-5 flex flex-col gap-3 rounded-xl bg-card px-5 py-3 shadow-sm">
-    <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-muted-foreground">
-        {totalCount === 0 ? (
-          t("sales.newOrder.toolbar.noResults")
-        ) : (
-          <>
-            {t("sales.newOrder.toolbar.showing")} <strong className="text-ink">{showingCount}</strong> {t("sales.newOrder.toolbar.of")} <strong className="text-ink">{totalCount}</strong> {resultsNoun}
-          </>
-        )}
-      </p>
-      <div className="flex w-full items-center justify-between gap-4 sm:w-auto">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="hidden sm:inline">{t("sales.newOrder.toolbar.sortBy")}</span>
-          <Select value={sortValue} onValueChange={(value) => onSortChange(value ?? sortOptions[0].value)}>
-            <SelectTrigger className="h-9 w-auto min-w-0 rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold hover:bg-secondary data-[state=open]:border-border data-[state=open]:bg-card">
-              <SelectValue>{(value) => sortOptions.find((option) => option.value === value)?.label ?? sortOptions[0].label}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {sortOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            size="icon-xs"
-            variant="ghost"
-            className={searchOpen ? "bg-secondary text-ink" : "text-muted-foreground"}
-            onClick={onToggleSearch}
-            aria-label={searchOpen ? t("sales.newOrder.toolbar.closeSearch") : t("sales.newOrder.toolbar.search")}
-            aria-expanded={searchOpen}
-          >
-            {searchOpen ? <X className="size-5" /> : <Search className="size-5" />}
-          </Button>
+    <div className="relative mb-5 flex flex-col gap-3 rounded-xl bg-card px-5 py-3 shadow-sm">
+      <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          {totalCount === 0 ? (
+            t("sales.newOrder.toolbar.noResults")
+          ) : (
+            <>
+              {t("sales.newOrder.toolbar.showing")}{" "}
+              <strong className="text-ink">{showingCount}</strong>{" "}
+              {t("sales.newOrder.toolbar.of")}{" "}
+              <strong className="text-ink">{totalCount}</strong> {resultsNoun}
+            </>
+          )}
+        </p>
+        <div className="flex w-full items-center justify-between gap-4 sm:w-auto">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="hidden sm:inline">
+              {t("sales.newOrder.toolbar.sortBy")}
+            </span>
+            <Select
+              value={sortValue}
+              onValueChange={(value) =>
+                onSortChange(value ?? sortOptions[0].value)
+              }
+            >
+              <SelectTrigger className="h-9 w-auto min-w-0 rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold hover:bg-secondary data-[state=open]:border-border data-[state=open]:bg-card">
+                <SelectValue>
+                  {(value) =>
+                    sortOptions.find((option) => option.value === value)
+                      ?.label ?? sortOptions[0].label
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {sortOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="icon-xs"
+              variant="ghost"
+              className={
+                searchOpen ? "bg-secondary text-ink" : "text-muted-foreground"
+              }
+              onClick={onToggleSearch}
+              aria-label={
+                searchOpen
+                  ? t("sales.newOrder.toolbar.closeSearch")
+                  : t("sales.newOrder.toolbar.search")
+              }
+              aria-expanded={searchOpen}
+            >
+              {searchOpen ? (
+                <X className="size-5" />
+              ) : (
+                <Search className="size-5" />
+              )}
+            </Button>
+          </div>
         </div>
       </div>
+      {searchVisible ? (
+        <div
+          className={
+            searchOpen
+              ? "animate-in slide-in-from-top-2 fade-in duration-200"
+              : "animate-out slide-out-to-top-2 fade-out duration-200"
+          }
+        >
+          <div className="relative ml-auto w-full max-w-md">
+            <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              autoFocus
+              value={searchQuery}
+              onChange={(event) => onSearchChange(event.target.value)}
+              placeholder={searchPlaceholder}
+              className="h-11 w-full rounded-full border-slate-200 bg-[#F9FAFB] pr-4 pl-11 text-sm focus-visible:ring-primary/40"
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
-    {searchVisible ? (
-      <div className={searchOpen ? "animate-in slide-in-from-top-2 fade-in duration-200" : "animate-out slide-out-to-top-2 fade-out duration-200"}>
-        <div className="relative ml-auto w-full max-w-md">
-          <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            autoFocus
-            value={searchQuery}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder={searchPlaceholder}
-            className="h-11 w-full rounded-full border-slate-200 bg-[#F9FAFB] pr-4 pl-11 text-sm focus-visible:ring-primary/40"
-          />
-        </div>
-      </div>
-    ) : null}
-  </div>
   );
 };
 
@@ -314,11 +387,22 @@ const CustomerStep = ({
           customer.fullName.toLowerCase().includes(normalizedQuery) ||
           (customer.email ?? "").toLowerCase().includes(normalizedQuery)),
     );
-    return sort === "name" ? [...results].sort((a, b) => a.fullName.localeCompare(b.fullName)) : results;
+    return sort === "name"
+      ? [...results].sort((a, b) => a.fullName.localeCompare(b.fullName))
+      : results;
   }, [customers, query, status, sort]);
 
-  if (loading) return <ApiLoading label={t("sales.newOrder.customerStep.loading")} className="py-24" />;
-  if (error) return <ApiErrorState message={error} onRetry={onRetry} className="my-16" />;
+  if (loading)
+    return (
+      <ApiLoading
+        label={t("sales.newOrder.customerStep.loading")}
+        className="py-24"
+      />
+    );
+  if (error)
+    return (
+      <ApiErrorState message={error} onRetry={onRetry} className="my-16" />
+    );
 
   return (
     <>
@@ -345,7 +429,9 @@ const CustomerStep = ({
             onClick={() => setStatus(option)}
             className={cn(
               "rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide transition-colors",
-              status === option ? "bg-primary text-ink" : "bg-card text-muted-foreground hover:bg-secondary",
+              status === option
+                ? "bg-primary text-ink"
+                : "bg-card text-muted-foreground hover:bg-secondary",
             )}
           >
             {option === "all"
@@ -358,7 +444,10 @@ const CustomerStep = ({
       </div>
 
       {filtered.length === 0 ? (
-        <ApiEmptyState message={t("sales.newOrder.customerStep.noResults")} className="py-16" />
+        <ApiEmptyState
+          message={t("sales.newOrder.customerStep.noResults")}
+          className="py-16"
+        />
       ) : (
         <ul className="grid gap-4 sm:gap-5 md:grid-cols-2 2xl:grid-cols-3">
           {filtered.map((customer) => {
@@ -370,13 +459,19 @@ const CustomerStep = ({
                   onClick={() => onSelect(customer.id)}
                   className={cn(
                     "group flex w-full flex-col rounded-2xl border-2 bg-card p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-6",
-                    selected ? "border-primary shadow-md" : "border-transparent",
+                    selected
+                      ? "border-primary shadow-md"
+                      : "border-transparent",
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <h2 className="min-w-0 truncate text-xl font-bold text-ink">{customer.fullName}</h2>
+                    <h2 className="min-w-0 truncate text-xl font-bold text-ink">
+                      {customer.fullName}
+                    </h2>
                     <div className="flex shrink-0 items-center gap-2">
-                      <Badge variant={customerStatusBadge[customer.status]}>{t(`staff.userStatus.${customer.status}`)}</Badge>
+                      <Badge variant={customerStatusBadge[customer.status]}>
+                        {t(`staff.userStatus.${customer.status}`)}
+                      </Badge>
                       {selected && (
                         <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-ink">
                           <Check className="size-3.5" strokeWidth={3} />
@@ -386,20 +481,32 @@ const CustomerStep = ({
                   </div>
                   <dl className="mt-5 space-y-3 border-t border-[#E5E7EB] pt-4 font-data text-sm">
                     <div className="flex items-start justify-between gap-3">
-                      <dt className="shrink-0 text-muted-foreground">{t("sales.newOrder.customerStep.contact")}</dt>
+                      <dt className="shrink-0 text-muted-foreground">
+                        {t("sales.newOrder.customerStep.contact")}
+                      </dt>
                       <dd className="min-w-0 text-right text-ink">
-                        <span className="block truncate">{customer.email ?? "—"}</span>
-                        <span className="block whitespace-nowrap">{customer.phone ?? "—"}</span>
+                        <span className="block truncate">
+                          {customer.email ?? "—"}
+                        </span>
+                        <span className="block whitespace-nowrap">
+                          {customer.phone ?? "—"}
+                        </span>
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">{t("sales.newOrder.customerStep.lastOrder")}</dt>
+                      <dt className="text-muted-foreground">
+                        {t("sales.newOrder.customerStep.lastOrder")}
+                      </dt>
                       <dd className="whitespace-nowrap text-ink">
-                        {customer.lastOrderAt ? formatRelativeTime(customer.lastOrderAt, t) : t("sales.newOrder.customerStep.noOrdersYet")}
+                        {customer.lastOrderAt
+                          ? formatRelativeTime(customer.lastOrderAt, t)
+                          : t("sales.newOrder.customerStep.noOrdersYet")}
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-3 border-t border-[#E5E7EB] pt-3">
-                      <dt className="text-muted-foreground">{t("sales.newOrder.customerStep.totalSpend")}</dt>
+                      <dt className="text-muted-foreground">
+                        {t("sales.newOrder.customerStep.totalSpend")}
+                      </dt>
                       <dd className="text-xl font-semibold whitespace-nowrap text-ink">
                         {formatCompactCurrency(customer.lifetimeSpend)}
                       </dd>
@@ -432,7 +539,10 @@ const AreaCalculatorCard = ({
   const valid = isPositiveNumber(value);
   const requested = valid ? Number(value) : 0;
   const exceedsStock = valid && requested > available;
-  const calc = valid && !exceedsStock ? calculateTileQuantity(requested, tilePackagingOf(product)) : null;
+  const calc =
+    valid && !exceedsStock
+      ? calculateTileQuantity(requested, tilePackagingOf(product))
+      : null;
 
   return (
     <div
@@ -442,10 +552,21 @@ const AreaCalculatorCard = ({
       )}
       onClick={(event) => event.stopPropagation()}
     >
-      <div className={cn("flex items-center gap-2 border-b px-4 py-2.5", exceedsStock ? "border-red-200" : "border-primary/20")}>
+      <div
+        className={cn(
+          "flex items-center gap-2 border-b px-4 py-2.5",
+          exceedsStock ? "border-red-200" : "border-primary/20",
+        )}
+      >
         <Calculator className="size-4 text-ink" strokeWidth={2} />
-        <span className="text-xs font-bold tracking-wide text-ink uppercase">{t("sales.newOrder.calculator.requiredArea")}</span>
-        <span className="ml-auto text-xs font-semibold text-muted-foreground">{t("sales.newOrder.calculator.inStock", { value: available.toLocaleString() })}</span>
+        <span className="text-xs font-bold tracking-wide text-ink uppercase">
+          {t("sales.newOrder.calculator.requiredArea")}
+        </span>
+        <span className="ml-auto text-xs font-semibold text-muted-foreground">
+          {t("sales.newOrder.calculator.inStock", {
+            value: available.toLocaleString(),
+          })}
+        </span>
       </div>
       <div className="p-4">
         <div className="relative">
@@ -461,23 +582,36 @@ const AreaCalculatorCard = ({
               exceedsStock && "ring-2 ring-red-400",
             )}
           />
-          <span className="absolute top-1/2 right-4 -translate-y-1/2 text-sm font-semibold text-muted-foreground">m²</span>
+          <span className="absolute top-1/2 right-4 -translate-y-1/2 text-sm font-semibold text-muted-foreground">
+            m²
+          </span>
         </div>
         {calc ? (
           <div className="mt-3 flex items-center gap-4 text-xs font-semibold text-ink">
             <span className="flex items-center gap-1.5">
               <Boxes className="size-3.5" strokeWidth={2.25} />
-              {t("sales.newOrder.calculator.boxes", { count: calc.completeBoxes })}
+              {t("sales.newOrder.calculator.boxes", {
+                count: calc.completeBoxes,
+              })}
             </span>
             {calc.remainingPieces > 0 && (
               <span className="flex items-center gap-1.5">
-                <Layers3 className="size-3.5" strokeWidth={2.25} />{t("sales.newOrder.calculator.extraPieces", { count: calc.remainingPieces })}
+                <Layers3 className="size-3.5" strokeWidth={2.25} />
+                {t("sales.newOrder.calculator.extraPieces", {
+                  count: calc.remainingPieces,
+                })}
               </span>
             )}
-            <span className="ml-auto text-muted-foreground">{t("sales.newOrder.calculator.totalPieces", { count: calc.totalPieces })}</span>
+            <span className="ml-auto text-muted-foreground">
+              {t("sales.newOrder.calculator.totalPieces", {
+                count: calc.totalPieces,
+              })}
+            </span>
           </div>
         ) : !exceedsStock ? (
-          <p className="mt-3 text-xs text-muted-foreground">{t("sales.newOrder.calculator.prompt")}</p>
+          <p className="mt-3 text-xs text-muted-foreground">
+            {t("sales.newOrder.calculator.prompt")}
+          </p>
         ) : null}
         {exceedsStock && (
           <div className="mt-3 space-y-2.5">
@@ -485,13 +619,21 @@ const AreaCalculatorCard = ({
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
               {available > 0
                 ? t("sales.newOrder.calculator.exceedsSome", {
-                    available: t("sales.newOrder.calculator.availableSqm", { value: available.toLocaleString() }),
+                    available: t("sales.newOrder.calculator.availableSqm", {
+                      value: available.toLocaleString(),
+                    }),
                   })
                 : t("sales.newOrder.calculator.exceedsNone")}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               {available > 0 && (
-                <Button type="button" variant="outline" size="sm" onClick={() => onChange(String(available))} className="h-8 text-xs font-bold">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onChange(String(available))}
+                  className="h-8 text-xs font-bold"
+                >
                   {t("sales.newOrder.calculator.useMax")}
                 </Button>
               )}
@@ -501,7 +643,14 @@ const AreaCalculatorCard = ({
                   productName={product.name}
                   currentStockSqm={available}
                   onAdjusted={onStockAdjusted}
-                  renderTrigger={<Button type="button" variant="outline" size="sm" className="h-8 text-xs font-bold" />}
+                  renderTrigger={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs font-bold"
+                    />
+                  }
                   triggerContent={t("sales.newOrder.calculator.adjustStock")}
                 />
               )}
@@ -533,27 +682,27 @@ const STOCK_STATUS_OPTION_KEYS: Record<"all" | StockStatus, string> = {
   out_of_stock: "staff.stockStatus.out_of_stock",
 };
 
-const SUITABLE_FOR_VALUES: ("all" | SuitableFor)[] = ["all", "FLOOR", "WALL", "BOTH"];
-const STOCK_STATUS_VALUES: ("all" | StockStatus)[] = ["all", "in_stock", "low_stock", "out_of_stock"];
+const SUITABLE_FOR_VALUES: ("all" | SuitableFor)[] = [
+  "all",
+  "FLOOR",
+  "WALL",
+  "BOTH",
+];
+const STOCK_STATUS_VALUES: ("all" | StockStatus)[] = [
+  "all",
+  "in_stock",
+  "low_stock",
+  "out_of_stock",
+];
 
 const ProductStep = ({
-  products,
-  loading,
-  error,
-  onRetry,
   selectedProducts,
   onToggle,
   onAreaChange,
-  onStockAdjusted,
 }: {
-  products: ApiProduct[];
-  loading: boolean;
-  error: string | undefined;
-  onRetry: () => void;
   selectedProducts: Record<string, string>;
-  onToggle: (id: string) => void;
+  onToggle: (product: ApiProduct) => void;
   onAreaChange: (id: string, value: string) => void;
-  onStockAdjusted: () => void;
 }) => {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
@@ -563,44 +712,58 @@ const ProductStep = ({
   const [currentPage, setCurrentPage] = useState(1);
   const { searchOpen, searchVisible, toggleSearch } = useSearchToggle();
 
-  const productSortOptions = (["newest", "low", "high"] as SortOption[]).map((value) => ({
-    value,
-    label: t(PRODUCT_SORT_KEYS[value]),
-  }));
-
-  const processed = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const filtered = products.filter(
-      (product) =>
-        (q === "" || product.name.toLowerCase().includes(q) || product.sku.toLowerCase().includes(q)) &&
-        (suitableFor === "all" || product.suitableFor === suitableFor) &&
-        (status === "all" || product.stockStatus === status),
-    );
-    return [...filtered].sort((a, b) => {
-      if (sort === "low") return Number(a.price) - Number(b.price);
-      if (sort === "high") return Number(b.price) - Number(a.price);
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-  }, [products, query, suitableFor, status, sort]);
-
-  const totalPages = Math.max(1, Math.ceil(processed.length / PRODUCT_PAGE_SIZE));
-  const safePage = Math.min(Math.max(currentPage, 1), totalPages);
-  const pageItems = useMemo(
-    () => processed.slice((safePage - 1) * PRODUCT_PAGE_SIZE, safePage * PRODUCT_PAGE_SIZE),
-    [processed, safePage],
+  const { data, loading, error, reload } = useApi(
+    () =>
+      productsApi.list({
+        page: currentPage,
+        limit: PRODUCT_PAGE_SIZE,
+        search: query.trim() || undefined,
+        suitableFor: suitableFor === "all" ? undefined : suitableFor,
+        stockStatus: status === "all" ? undefined : status,
+        sort:
+          sort === "low"
+            ? "price_asc"
+            : sort === "high"
+              ? "price_desc"
+              : "newest",
+      }),
+    [currentPage, query, suitableFor, status, sort],
   );
-  const visiblePages = useMemo(() => getVisiblePages(safePage, totalPages), [safePage, totalPages]);
 
-  const goToPage = (page: number) => setCurrentPage(Math.min(Math.max(page, 1), totalPages));
+  const productSortOptions = (["newest", "low", "high"] as SortOption[]).map(
+    (value) => ({
+      value,
+      label: t(PRODUCT_SORT_KEYS[value]),
+    }),
+  );
 
-  if (loading) return <ApiLoading label={t("sales.newOrder.productStep.loading")} className="py-24" />;
-  if (error) return <ApiErrorState message={error} onRetry={onRetry} className="my-16" />;
+  const pageItems = data?.items ?? [];
+  const totalResults = data?.meta.total ?? 0;
+  const totalPages = data?.meta.totalPages ?? 1;
+  const safePage = Math.min(Math.max(currentPage, 1), totalPages);
+  const visiblePages = useMemo(
+    () => getVisiblePages(safePage, totalPages),
+    [safePage, totalPages],
+  );
+
+  const goToPage = (page: number) =>
+    setCurrentPage(Math.min(Math.max(page, 1), totalPages));
+
+  if (loading)
+    return (
+      <ApiLoading
+        label={t("sales.newOrder.productStep.loading")}
+        className="py-24"
+      />
+    );
+  if (error)
+    return <ApiErrorState message={error} onRetry={reload} className="my-16" />;
 
   return (
     <>
       <StepToolbar
         showingCount={pageItems.length}
-        totalCount={processed.length}
+        totalCount={totalResults}
         resultsNoun={t("sales.newOrder.resultsNoun.results")}
         sortValue={sort}
         sortOptions={productSortOptions}
@@ -628,7 +791,9 @@ const ProductStep = ({
           }}
         >
           <SelectTrigger className="h-10 min-w-0 bg-card sm:w-40">
-            <SelectValue>{(value) => t(SUITABLE_FOR_KEYS[value as "all" | SuitableFor])}</SelectValue>
+            <SelectValue>
+              {(value) => t(SUITABLE_FOR_KEYS[value as "all" | SuitableFor])}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {SUITABLE_FOR_VALUES.map((value) => (
@@ -646,7 +811,11 @@ const ProductStep = ({
           }}
         >
           <SelectTrigger className="h-10 min-w-0 bg-card sm:w-36">
-            <SelectValue>{(value) => t(STOCK_STATUS_OPTION_KEYS[value as "all" | StockStatus])}</SelectValue>
+            <SelectValue>
+              {(value) =>
+                t(STOCK_STATUS_OPTION_KEYS[value as "all" | StockStatus])
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {STOCK_STATUS_VALUES.map((value) => (
@@ -659,20 +828,27 @@ const ProductStep = ({
       </div>
 
       {pageItems.length === 0 ? (
-        <ApiEmptyState message={t("sales.newOrder.productStep.noResults")} className="py-16" />
+        <ApiEmptyState
+          message={t("sales.newOrder.productStep.noResults")}
+          className="py-16"
+        />
       ) : (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {pageItems.map((product) => {
             const selected = product.id in selectedProducts;
             return (
               <div key={product.id}>
-                <SelectableProductCard product={product} selected={selected} onToggle={() => onToggle(product.id)} />
+                <SelectableProductCard
+                  product={product}
+                  selected={selected}
+                  onToggle={() => onToggle(product)}
+                />
                 {selected && (
                   <AreaCalculatorCard
                     product={product}
                     value={selectedProducts[product.id] ?? ""}
                     onChange={(value) => onAreaChange(product.id, value)}
-                    onStockAdjusted={onStockAdjusted}
+                    onStockAdjusted={reload}
                   />
                 )}
               </div>
@@ -696,7 +872,9 @@ const ProductStep = ({
                 }}
               >
                 <ChevronsLeft className="size-4" />
-                <span className="hidden sm:inline">{t("sales.newOrder.productStep.first")}</span>
+                <span className="hidden sm:inline">
+                  {t("sales.newOrder.productStep.first")}
+                </span>
               </PaginationLink>
             </PaginationItem>
             <PaginationItem>
@@ -758,7 +936,9 @@ const ProductStep = ({
                   goToPage(totalPages);
                 }}
               >
-                <span className="hidden sm:inline">{t("sales.newOrder.productStep.last")}</span>
+                <span className="hidden sm:inline">
+                  {t("sales.newOrder.productStep.last")}
+                </span>
                 <ChevronsRight className="size-4" />
               </PaginationLink>
             </PaginationItem>
@@ -769,124 +949,203 @@ const ProductStep = ({
   );
 };
 
-type OrderLine = { product: ApiProduct; area: number; boxes: number; additionalPieces: number; pieces: number; lineTotal: number };
+type OrderLine = {
+  product: ApiProduct;
+  area: number;
+  boxes: number;
+  additionalPieces: number;
+  pieces: number;
+  lineTotal: number;
+};
 
-const ReviewStep = ({ customer, items, grandTotal }: { customer: CustomerSummary; items: OrderLine[]; grandTotal: number }) => {
+const ReviewStep = ({
+  customer,
+  items,
+  grandTotal,
+}: {
+  customer: CustomerSummary;
+  items: OrderLine[];
+  grandTotal: number;
+}) => {
   const { t } = useTranslation();
   const qtyLine = (boxes: number, additionalPieces: number, pieces: number) =>
     t("sales.newOrder.review.quantityLine", {
       boxes,
-      extra: additionalPieces > 0 ? t("sales.newOrder.review.quantityExtra", { count: additionalPieces }) : "",
+      extra:
+        additionalPieces > 0
+          ? t("sales.newOrder.review.quantityExtra", {
+              count: additionalPieces,
+            })
+          : "",
       pieces,
     });
 
   return (
-  <div className="grid items-start gap-5 sm:gap-6 xl:grid-cols-[1.7fr_1fr]">
-    <section className="overflow-hidden rounded-2xl bg-card">
-      <div className="flex items-center justify-between gap-3 px-5 py-5 sm:px-6">
-        <div>
-          <h2 className="text-lg font-bold text-ink sm:text-2xl">{t("sales.newOrder.review.orderItems")}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{t("sales.newOrder.review.intro")}</p>
+    <div className="grid items-start gap-5 sm:gap-6 xl:grid-cols-[1.7fr_1fr]">
+      <section className="overflow-hidden rounded-2xl bg-card">
+        <div className="flex items-center justify-between gap-3 px-5 py-5 sm:px-6">
+          <div>
+            <h2 className="text-lg font-bold text-ink sm:text-2xl">
+              {t("sales.newOrder.review.orderItems")}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t("sales.newOrder.review.intro")}
+            </p>
+          </div>
+          <Badge variant="secondary">
+            {t("sales.newOrder.review.itemsCount", { count: items.length })}
+          </Badge>
         </div>
-        <Badge variant="secondary">{t("sales.newOrder.review.itemsCount", { count: items.length })}</Badge>
-      </div>
 
-      <div className="md:hidden">
-        <ul className="divide-y divide-[#E8E8E8]">
-          {items.map(({ product, area, boxes, additionalPieces, pieces, lineTotal }) => (
-            <li key={product.id} className="px-5 py-4 font-data">
-              <div className="flex items-center gap-3 font-semibold text-ink uppercase">
-                <div className="relative size-12 shrink-0 overflow-hidden rounded-sm bg-muted-background">
-                  <Image src={product.image} alt="" fill unoptimized className="object-cover" />
-                </div>
-                <span>{product.name}</span>
-              </div>
-              <div className="mt-2 flex items-center justify-between gap-3 text-sm">
-                <span className="text-muted-foreground">
-                  {area} sqm • {qtyLine(boxes, additionalPieces, pieces)} • {formatRWF(Number(product.price))}
-                </span>
-                <span className="font-semibold text-ink">{formatRWF(lineTotal)}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="hidden md:block">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("sales.newOrder.review.colProduct")}</TableHead>
-              <TableHead>{t("sales.newOrder.review.colQuantity")}</TableHead>
-              <TableHead>{t("sales.newOrder.review.colUnitPrice")}</TableHead>
-              <TableHead>{t("sales.newOrder.review.colTotal")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.map(({ product, area, boxes, additionalPieces, pieces, lineTotal }) => (
-              <TableRow key={product.id}>
-                <TableCell className="font-medium text-ink uppercase">
-                  <div className="flex items-center gap-3">
-                    <div className="relative size-16 shrink-0 overflow-hidden rounded-sm bg-muted-background">
-                      <Image src={product.image} alt="" fill unoptimized className="object-cover" />
+        <div className="md:hidden">
+          <ul className="divide-y divide-[#E8E8E8]">
+            {items.map(
+              ({
+                product,
+                area,
+                boxes,
+                additionalPieces,
+                pieces,
+                lineTotal,
+              }) => (
+                <li key={product.id} className="px-5 py-4 font-data">
+                  <div className="flex items-center gap-3 font-semibold text-ink uppercase">
+                    <div className="relative size-12 shrink-0 overflow-hidden rounded-sm bg-muted-background">
+                      <Image
+                        src={product.image}
+                        alt=""
+                        fill
+                        unoptimized
+                        className="object-cover"
+                      />
                     </div>
                     <span>{product.name}</span>
                   </div>
-                </TableCell>
-                <TableCell className="whitespace-nowrap text-ink">
-                  <span className="block">{area} sqm</span>
-                  <span className="mt-1 block text-xs text-muted-foreground">
-                    {qtyLine(boxes, additionalPieces, pieces)}
-                  </span>
-                </TableCell>
-                <TableCell className="whitespace-nowrap text-muted-foreground">{formatRWF(Number(product.price))}</TableCell>
-                <TableCell className="whitespace-nowrap font-semibold text-ink">{formatRWF(lineTotal)}</TableCell>
+                  <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+                    <span className="text-muted-foreground">
+                      {area} sqm • {qtyLine(boxes, additionalPieces, pieces)} •{" "}
+                      {formatRWF(Number(product.price))}
+                    </span>
+                    <span className="font-semibold text-ink">
+                      {formatRWF(lineTotal)}
+                    </span>
+                  </div>
+                </li>
+              ),
+            )}
+          </ul>
+        </div>
+
+        <div className="hidden md:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("sales.newOrder.review.colProduct")}</TableHead>
+                <TableHead>{t("sales.newOrder.review.colQuantity")}</TableHead>
+                <TableHead>{t("sales.newOrder.review.colUnitPrice")}</TableHead>
+                <TableHead>{t("sales.newOrder.review.colTotal")}</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-center gap-3 bg-primary px-5 py-6 sm:justify-end sm:px-10">
-        <span className="font-data text-lg font-semibold text-primary-foreground sm:text-2xl">{t("sales.newOrder.review.total")}</span>
-        <span className="font-data text-xl font-bold text-primary-foreground sm:text-3xl">{formatRWF(grandTotal)}</span>
-      </div>
-    </section>
-
-    <section className="rounded-2xl bg-card p-5 sm:p-6">
-      <div className="flex items-center gap-3">
-        <span className="flex size-9 items-center justify-center rounded-lg bg-secondary text-ink">
-          <Contact className="size-5" />
-        </span>
-        <h2 className="text-lg font-bold text-ink sm:text-xl">{t("sales.newOrder.review.customerInfo")}</h2>
-      </div>
-      <dl className="mt-5 space-y-5 text-sm">
-        <div>
-          <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">{t("sales.newOrder.review.customer")}</dt>
-          <dd className="mt-2 flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-full bg-ink text-xs font-semibold text-card">
-              {customer.fullName.split(" ").map((part) => part[0]).join("").slice(0, 2)}
-            </span>
-            <span className="text-ink">{customer.fullName}</span>
-          </dd>
+            </TableHeader>
+            <TableBody>
+              {items.map(
+                ({
+                  product,
+                  area,
+                  boxes,
+                  additionalPieces,
+                  pieces,
+                  lineTotal,
+                }) => (
+                  <TableRow key={product.id}>
+                    <TableCell className="font-medium text-ink uppercase">
+                      <div className="flex items-center gap-3">
+                        <div className="relative size-16 shrink-0 overflow-hidden rounded-sm bg-muted-background">
+                          <Image
+                            src={product.image}
+                            alt=""
+                            fill
+                            unoptimized
+                            className="object-cover"
+                          />
+                        </div>
+                        <span>{product.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-ink">
+                      <span className="block">{area} sqm</span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {qtyLine(boxes, additionalPieces, pieces)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                      {formatRWF(Number(product.price))}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap font-semibold text-ink">
+                      {formatRWF(lineTotal)}
+                    </TableCell>
+                  </TableRow>
+                ),
+              )}
+            </TableBody>
+          </Table>
         </div>
-        <div className="flex items-start gap-3">
-          <Mail className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-          <div className="min-w-0">
-            <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">{t("sales.newOrder.review.email")}</dt>
-            <dd className="truncate text-ink">{customer.email ?? "—"}</dd>
-          </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-3 bg-primary px-5 py-6 sm:justify-end sm:px-10">
+          <span className="font-data text-lg font-semibold text-primary-foreground sm:text-2xl">
+            {t("sales.newOrder.review.total")}
+          </span>
+          <span className="font-data text-xl font-bold text-primary-foreground sm:text-3xl">
+            {formatRWF(grandTotal)}
+          </span>
         </div>
-        <div className="flex items-start gap-3">
-          <Phone className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+      </section>
+
+      <section className="rounded-2xl bg-card p-5 sm:p-6">
+        <div className="flex items-center gap-3">
+          <span className="flex size-9 items-center justify-center rounded-lg bg-secondary text-ink">
+            <Contact className="size-5" />
+          </span>
+          <h2 className="text-lg font-bold text-ink sm:text-xl">
+            {t("sales.newOrder.review.customerInfo")}
+          </h2>
+        </div>
+        <dl className="mt-5 space-y-5 text-sm">
           <div>
-            <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">{t("sales.newOrder.review.phone")}</dt>
-            <dd className="text-ink">{customer.phone ?? "—"}</dd>
+            <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
+              {t("sales.newOrder.review.customer")}
+            </dt>
+            <dd className="mt-2 flex items-center gap-3">
+              <span className="flex size-9 items-center justify-center rounded-full bg-ink text-xs font-semibold text-card">
+                {customer.fullName
+                  .split(" ")
+                  .map((part) => part[0])
+                  .join("")
+                  .slice(0, 2)}
+              </span>
+              <span className="text-ink">{customer.fullName}</span>
+            </dd>
           </div>
-        </div>
-      </dl>
-    </section>
-  </div>
+          <div className="flex items-start gap-3">
+            <Mail className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
+                {t("sales.newOrder.review.email")}
+              </dt>
+              <dd className="truncate text-ink">{customer.email ?? "—"}</dd>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <Phone className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <div>
+              <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
+                {t("sales.newOrder.review.phone")}
+              </dt>
+              <dd className="text-ink">{customer.phone ?? "—"}</dd>
+            </div>
+          </div>
+        </dl>
+      </section>
+    </div>
   );
 };
 
@@ -905,18 +1164,17 @@ const CreateOrderWizard = () => {
   } = useApi(() => usersApi.listCustomers({ limit: 100 }));
   const customers = useMemo(() => customersData?.items ?? [], [customersData]);
 
-  const {
-    data: productsData,
-    loading: productsLoading,
-    error: productsError,
-    reload: reloadProducts,
-  } = useApi(() => productsApi.listAll());
-  const products = useMemo(() => productsData?.items ?? [], [productsData]);
-
   const [step, setStep] = useState(1);
   const [maxReachedStep, setMaxReachedStep] = useState(1);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const [selectedProducts, setSelectedProducts] = useState<Record<string, string>>({});
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
+    null,
+  );
+  const [selectedProducts, setSelectedProducts] = useState<
+    Record<string, string>
+  >({});
+  const [productsById, setProductsById] = useState<Record<string, ApiProduct>>(
+    {},
+  );
   const [submitting, setSubmitting] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
@@ -924,10 +1182,12 @@ const CreateOrderWizard = () => {
   // a `?customer=` id) — restores a saved draft, unless the URL explicitly
   // points at a *different* customer, in which case that link wins and
   // starts a fresh draft for them instead of resuming stale product picks.
-  if (!hydrated && !customersLoading && !productsLoading) {
+  if (!hydrated && !customersLoading) {
     setHydrated(true);
     const draft = readOrderDraft(ORDER_DRAFT_KEY);
-    const validPreselect = preselectedId !== null && customers.some((customer) => customer.id === preselectedId);
+    const validPreselect =
+      preselectedId !== null &&
+      customers.some((customer) => customer.id === preselectedId);
 
     if (validPreselect && (!draft || draft.customerId !== preselectedId)) {
       setSelectedCustomerId(preselectedId);
@@ -943,10 +1203,35 @@ const CreateOrderWizard = () => {
     // A product deep-linked from the storefront (staff toolbar) — added on
     // top of whatever the draft/URL already picked, same as clicking its
     // card would, rather than replacing the selection.
-    if (preselectedProductId && products.some((item) => item.id === preselectedProductId)) {
-      setSelectedProducts((current) =>
-        preselectedProductId in current ? current : { ...current, [preselectedProductId]: "" },
-      );
+    const rememberedIds = [
+      ...new Set([
+        ...Object.keys(draft?.selectedProducts ?? {}),
+        ...(preselectedProductId ? [preselectedProductId] : []),
+      ]),
+    ];
+    if (rememberedIds.length > 0) {
+      void Promise.all(
+        rememberedIds.map((productId) =>
+          productsApi.get(productId).catch(() => null),
+        ),
+      ).then((loaded) => {
+        const valid = loaded.filter(
+          (product): product is ApiProduct => product !== null,
+        );
+        setProductsById(
+          Object.fromEntries(valid.map((product) => [product.id, product])),
+        );
+        if (
+          preselectedProductId &&
+          valid.some((product) => product.id === preselectedProductId)
+        ) {
+          setSelectedProducts((current) =>
+            preselectedProductId in current
+              ? current
+              : { ...current, [preselectedProductId]: "" },
+          );
+        }
+      });
     }
   }
 
@@ -964,8 +1249,10 @@ const CreateOrderWizard = () => {
     });
   }, [hydrated, selectedCustomerId, selectedProducts, step, maxReachedStep]);
 
-  const selectedCustomer = customers.find((customer) => customer.id === selectedCustomerId) ?? null;
+  const selectedCustomer =
+    customers.find((customer) => customer.id === selectedCustomerId) ?? null;
   const selectedProductIds = Object.keys(selectedProducts);
+  const products = useMemo(() => Object.values(productsById), [productsById]);
 
   const isWithinStock = (id: string) => {
     const product = products.find((item) => item.id === id);
@@ -974,7 +1261,8 @@ const CreateOrderWizard = () => {
     return Number(value) <= availableStockOf(product);
   };
 
-  const allAreasValid = selectedProductIds.length > 0 && selectedProductIds.every(isWithinStock);
+  const allAreasValid =
+    selectedProductIds.length > 0 && selectedProductIds.every(isWithinStock);
 
   const orderItems: OrderLine[] = useMemo(() => {
     if (step !== 3 || !allAreasValid) return [];
@@ -1003,7 +1291,9 @@ const CreateOrderWizard = () => {
 
   const goBack = () => setStep((current) => Math.max(1, current - 1));
 
-  const toggleProduct = (id: string) => {
+  const toggleProduct = (product: ApiProduct) => {
+    const id = product.id;
+    setProductsById((current) => ({ ...current, [id]: product }));
     setSelectedProducts((current) => {
       if (id in current) {
         const next = { ...current };
@@ -1025,7 +1315,10 @@ const CreateOrderWizard = () => {
       const result = await ordersApi.create({
         type: "PURCHASE",
         customerId: selectedCustomer.id,
-        items: selectedProductIds.map((id) => ({ productId: id, areaSqm: Number(selectedProducts[id]) })),
+        items: selectedProductIds.map((id) => ({
+          productId: id,
+          areaSqm: Number(selectedProducts[id]),
+        })),
       });
       if (!result.orderCreated) {
         // Shouldn't happen — every line was validated against on-hand stock
@@ -1052,14 +1345,22 @@ const CreateOrderWizard = () => {
       router.push(`/admin/orders/${result.order.id}?addDelivery=1`);
     } catch (cause) {
       toast.error(t("sales.newOrder.toast.failedTitle"), {
-        description: cause instanceof ApiError ? cause.message : t("sales.newOrder.toast.failedBody"),
+        description:
+          cause instanceof ApiError
+            ? cause.message
+            : t("sales.newOrder.toast.failedBody"),
       });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const canGoNext = step === 1 ? selectedCustomerId !== null : step === 2 ? allAreasValid : false;
+  const canGoNext =
+    step === 1
+      ? selectedCustomerId !== null
+      : step === 2
+        ? allAreasValid
+        : false;
 
   return (
     <>
@@ -1071,14 +1372,23 @@ const CreateOrderWizard = () => {
         ]}
         title={t("sales.newOrder.title")}
         actions={
-          <Button type="button" variant="outline" onClick={() => router.push("/admin/orders")} className="h-11 px-5 text-sm font-bold">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push("/admin/orders")}
+            className="h-11 px-5 text-sm font-bold"
+          >
             {t("sales.newOrder.cancel")}
           </Button>
         }
       />
 
       <div className="space-y-5 sm:space-y-6">
-        <OrderStepper step={step} maxReachedStep={maxReachedStep} onStepClick={setStep} />
+        <OrderStepper
+          step={step}
+          maxReachedStep={maxReachedStep}
+          onStepClick={setStep}
+        />
 
         {step === 1 && (
           <CustomerStep
@@ -1092,17 +1402,18 @@ const CreateOrderWizard = () => {
         )}
         {step === 2 && (
           <ProductStep
-            products={products}
-            loading={productsLoading}
-            error={productsError}
-            onRetry={reloadProducts}
             selectedProducts={selectedProducts}
             onToggle={toggleProduct}
             onAreaChange={setProductArea}
-            onStockAdjusted={reloadProducts}
           />
         )}
-        {step === 3 && selectedCustomer && <ReviewStep customer={selectedCustomer} items={orderItems} grandTotal={grandTotal} />}
+        {step === 3 && selectedCustomer && (
+          <ReviewStep
+            customer={selectedCustomer}
+            items={orderItems}
+            grandTotal={grandTotal}
+          />
+        )}
 
         <div className="flex items-center justify-between gap-3 pb-2">
           <Button
@@ -1117,7 +1428,12 @@ const CreateOrderWizard = () => {
           </Button>
 
           {step < 3 ? (
-            <Button type="button" disabled={!canGoNext} onClick={goNext} className="h-12 px-6 text-sm font-bold disabled:opacity-60">
+            <Button
+              type="button"
+              disabled={!canGoNext}
+              onClick={goNext}
+              className="h-12 px-6 text-sm font-bold disabled:opacity-60"
+            >
               {t("sales.newOrder.next")}
             </Button>
           ) : (
@@ -1128,7 +1444,9 @@ const CreateOrderWizard = () => {
               className="h-12 gap-2 px-6 text-sm font-bold disabled:opacity-60"
             >
               <Save className="size-4" />
-              {submitting ? t("sales.newOrder.creating") : t("sales.newOrder.createOrder")}
+              {submitting
+                ? t("sales.newOrder.creating")
+                : t("sales.newOrder.createOrder")}
             </Button>
           )}
         </div>

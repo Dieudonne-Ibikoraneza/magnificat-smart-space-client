@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CircleDollarSign, MapPin, Pencil, ShieldCheck, ShieldX, Truck } from "lucide-react";
+import {
+  CircleDollarSign,
+  MapPin,
+  Pencil,
+  ShieldCheck,
+  ShieldX,
+  Truck,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +20,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { DeliveryDetailsDialog, type DeliverySubmitResult } from "@/components/delivery-details-dialog";
+import {
+  DeliveryDetailsDialog,
+  type DeliverySubmitResult,
+} from "@/components/delivery-details-dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,7 +34,8 @@ import type { ApiOrderDelivery, QuotationStatus } from "@/lib/api/types";
 import type { DeliveryDetails } from "@/lib/domain-types";
 import { cn } from "@/lib/utils";
 
-const formatRWF = (value: number) => `RWF ${Math.round(value).toLocaleString("en-US")}`;
+const formatRWF = (value: number) =>
+  `RWF ${Math.round(value).toLocaleString("en-US")}`;
 
 const quotationStatusTone: Record<QuotationStatus, string> = {
   AWAITING_REVIEW: "bg-amber-50 text-amber-700",
@@ -60,6 +71,8 @@ export const OrderQuotationPanel = ({
   transportFee,
   transportFeeNote,
   canManage,
+  canRecordPayment = false,
+  staffCreated = false,
   canEditDelivery = true,
   autoOpenDelivery,
   onUpdated,
@@ -78,6 +91,10 @@ export const OrderQuotationPanel = ({
   transportFee: number | null;
   transportFeeNote?: string | null;
   canManage: boolean;
+  /** Sales may record an offline/customer payment; stock verifies it afterward. */
+  canRecordPayment?: boolean;
+  /** Staff-created orders can be completed at the counter without asking the customer to use the app. */
+  staffCreated?: boolean;
   /** Off for a pure view-only surface (e.g. analytics) — every other role can add/edit delivery details regardless of `canManage`. */
   canEditDelivery?: boolean;
   /** Opens the "Add delivery details" dialog immediately — right after a staff member creates this order, so they add it as one continuous flow instead of a separate click later. */
@@ -87,13 +104,19 @@ export const OrderQuotationPanel = ({
 }) => {
   const { t } = useTranslation();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [transportFeeInput, setTransportFeeInput] = useState(transportFee?.toString() ?? "0");
+  const [paymentConfirmOpen, setPaymentConfirmOpen] = useState(false);
+  const [transportFeeInput, setTransportFeeInput] = useState(
+    transportFee?.toString() ?? "0",
+  );
   const [transportNote, setTransportNote] = useState(transportFeeNote ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [savingDelivery, setSavingDelivery] = useState(false);
 
   const feeValue = Number(transportFeeInput);
-  const feeValid = transportFeeInput.trim() !== "" && Number.isFinite(feeValue) && feeValue >= 0;
+  const feeValid =
+    transportFeeInput.trim() !== "" &&
+    Number.isFinite(feeValue) &&
+    feeValue >= 0;
   const grandTotal = subtotalValue + (transportFee ?? 0);
 
   // The server enforces both of these same rules (`orders.service.ts`):
@@ -109,9 +132,12 @@ export const OrderQuotationPanel = ({
       ? t("staff.quotationPanel.quotationNeedsDelivery")
       : null;
 
-  const deliveryEditable = canEditDelivery && quotationStatus === "AWAITING_REVIEW" && !orderCancelled;
+  const deliveryEditable =
+    canEditDelivery && quotationStatus === "AWAITING_REVIEW" && !orderCancelled;
 
-  const handleSaveDelivery = async (values: DeliveryDetails): Promise<DeliverySubmitResult> => {
+  const handleSaveDelivery = async (
+    values: DeliveryDetails,
+  ): Promise<DeliverySubmitResult> => {
     setSavingDelivery(true);
     try {
       await ordersApi.saveDeliveryDetails(orderId, {
@@ -126,7 +152,10 @@ export const OrderQuotationPanel = ({
       return "saved";
     } catch (cause) {
       toast.error(t("staff.quotationPanel.toastSaveDeliveryFailedTitle"), {
-        description: cause instanceof ApiError ? cause.message : t("staff.quotationPanel.toastTryAgain"),
+        description:
+          cause instanceof ApiError
+            ? cause.message
+            : t("staff.quotationPanel.toastTryAgain"),
       });
       return "retry";
     } finally {
@@ -138,7 +167,11 @@ export const OrderQuotationPanel = ({
     if (!feeValid) return;
     setSubmitting(true);
     try {
-      await ordersApi.sendQuotation(orderId, feeValue, transportNote.trim() || undefined);
+      await ordersApi.sendQuotation(
+        orderId,
+        feeValue,
+        transportNote.trim() || undefined,
+      );
       setDialogOpen(false);
       onUpdated();
       toast.success(t("staff.quotationPanel.toastQuotationSentTitle"), {
@@ -149,7 +182,10 @@ export const OrderQuotationPanel = ({
       });
     } catch (cause) {
       toast.error(t("staff.quotationPanel.toastQuotationFailedTitle"), {
-        description: cause instanceof ApiError ? cause.message : t("staff.quotationPanel.toastTryAgain"),
+        description:
+          cause instanceof ApiError
+            ? cause.message
+            : t("staff.quotationPanel.toastTryAgain"),
       });
     } finally {
       setSubmitting(false);
@@ -173,7 +209,10 @@ export const OrderQuotationPanel = ({
       });
     } catch (cause) {
       toast.error(t("staff.quotationPanel.toastRejectFailedTitle"), {
-        description: cause instanceof ApiError ? cause.message : t("staff.quotationPanel.toastTryAgain"),
+        description:
+          cause instanceof ApiError
+            ? cause.message
+            : t("staff.quotationPanel.toastTryAgain"),
       });
     } finally {
       setSubmitting(false);
@@ -190,7 +229,31 @@ export const OrderQuotationPanel = ({
       });
     } catch (cause) {
       toast.error(t("staff.quotationPanel.toastVerifyFailedTitle"), {
-        description: cause instanceof ApiError ? cause.message : t("staff.quotationPanel.toastTryAgain"),
+        description:
+          cause instanceof ApiError
+            ? cause.message
+            : t("staff.quotationPanel.toastTryAgain"),
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRecordCustomerPayment = async () => {
+    setSubmitting(true);
+    try {
+      await ordersApi.markPaymentSubmitted(orderId);
+      setPaymentConfirmOpen(false);
+      onUpdated();
+      toast.success(t("staff.quotationPanel.toastPaymentRecordedTitle"), {
+        description: t("staff.quotationPanel.toastPaymentRecordedBody"),
+      });
+    } catch (cause) {
+      toast.error(t("staff.quotationPanel.toastRecordPaymentFailedTitle"), {
+        description:
+          cause instanceof ApiError
+            ? cause.message
+            : t("staff.quotationPanel.toastTryAgain"),
       });
     } finally {
       setSubmitting(false);
@@ -204,9 +267,16 @@ export const OrderQuotationPanel = ({
           <span className="flex size-9 items-center justify-center rounded-lg bg-secondary text-ink">
             <CircleDollarSign className="size-5" />
           </span>
-          <h2 className="text-lg font-bold text-ink sm:text-xl">{t("staff.quotationPanel.heading")}</h2>
+          <h2 className="text-lg font-bold text-ink sm:text-xl">
+            {t("staff.quotationPanel.heading")}
+          </h2>
         </div>
-        <span className={cn("shrink-0 rounded-md px-2.5 py-1 text-[11px] font-bold tracking-wide uppercase", quotationStatusTone[quotationStatus])}>
+        <span
+          className={cn(
+            "shrink-0 rounded-md px-2.5 py-1 text-[11px] font-bold tracking-wide uppercase",
+            quotationStatusTone[quotationStatus],
+          )}
+        >
           {t(`staff.quotationPanel.quotationStatus.${quotationStatus}`)}
         </span>
       </div>
@@ -214,34 +284,72 @@ export const OrderQuotationPanel = ({
       <div className="mt-5 rounded-xl border border-border p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
-            <MapPin className="size-3.5" /> {t("staff.quotationPanel.deliveryDetails")}
+            <MapPin className="size-3.5" />{" "}
+            {t("staff.quotationPanel.deliveryDetails")}
           </div>
           {deliveryEditable ? (
             <DeliveryDetailsDialog
               initialValue={
                 deliveryDetails
                   ? toDeliveryDetails(deliveryDetails)
-                  : { contactName: customerName ?? "", phone: customerPhone ?? "", address: "", city: "", preferredDate: "", notes: "" }
+                  : {
+                      contactName: customerName ?? "",
+                      phone: customerPhone ?? "",
+                      address: "",
+                      city: "",
+                      preferredDate: "",
+                      notes: "",
+                    }
               }
               onSubmit={handleSaveDelivery}
               successDescription={t("staff.quotationPanel.deliverySaved")}
               defaultOpen={autoOpenDelivery && !deliveryDetails}
               trigger={
-                <Button type="button" variant="outline" size="sm" disabled={savingDelivery} className="h-7 gap-1.5 text-[11px] font-bold">
-                  <Pencil className="size-3.5" /> {deliveryDetails ? t("staff.quotationPanel.edit") : t("staff.quotationPanel.add")}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={savingDelivery}
+                  className="h-7 gap-1.5 text-[11px] font-bold"
+                >
+                  <Pencil className="size-3.5" />{" "}
+                  {deliveryDetails
+                    ? t("staff.quotationPanel.edit")
+                    : t("staff.quotationPanel.add")}
                 </Button>
               }
             />
           ) : (
-            canEditDelivery && !deliveryDetails && <span className="text-[11px] font-medium text-muted-foreground">{t("staff.quotationPanel.locked")}</span>
+            canEditDelivery &&
+            !deliveryDetails && (
+              <span className="text-[11px] font-medium text-muted-foreground">
+                {t("staff.quotationPanel.locked")}
+              </span>
+            )
           )}
         </div>
         {deliveryDetails ? (
           <div className="mt-2 space-y-1 text-sm">
-            <p className="font-semibold text-ink">{deliveryDetails.contactName} · {deliveryDetails.phone}</p>
-            <p className="text-muted-foreground">{deliveryDetails.address}, {deliveryDetails.city}</p>
-            {deliveryDetails.preferredDate && <p className="text-muted-foreground">{t("staff.quotationPanel.preferred", { date: deliveryDetails.preferredDate })}</p>}
-            {deliveryDetails.notes && <p className="text-muted-foreground">{t("staff.quotationPanel.note", { note: deliveryDetails.notes })}</p>}
+            <p className="font-semibold text-ink">
+              {deliveryDetails.contactName} · {deliveryDetails.phone}
+            </p>
+            <p className="text-muted-foreground">
+              {deliveryDetails.address}, {deliveryDetails.city}
+            </p>
+            {deliveryDetails.preferredDate && (
+              <p className="text-muted-foreground">
+                {t("staff.quotationPanel.preferred", {
+                  date: deliveryDetails.preferredDate,
+                })}
+              </p>
+            )}
+            {deliveryDetails.notes && (
+              <p className="text-muted-foreground">
+                {t("staff.quotationPanel.note", {
+                  note: deliveryDetails.notes,
+                })}
+              </p>
+            )}
           </div>
         ) : (
           <p className="mt-2 text-sm text-muted-foreground">
@@ -258,18 +366,30 @@ export const OrderQuotationPanel = ({
 
       <dl className="mt-5 space-y-2 text-sm">
         <div className="flex items-center justify-between">
-          <dt className="text-muted-foreground">{t("staff.quotationPanel.itemsSubtotal")}</dt>
-          <dd className="font-data font-semibold text-ink">{formatRWF(subtotalValue)}</dd>
+          <dt className="text-muted-foreground">
+            {t("staff.quotationPanel.itemsSubtotal")}
+          </dt>
+          <dd className="font-data font-semibold text-ink">
+            {formatRWF(subtotalValue)}
+          </dd>
         </div>
         <div className="flex items-center justify-between">
-          <dt className="text-muted-foreground">{t("staff.quotationPanel.transportFee")}</dt>
+          <dt className="text-muted-foreground">
+            {t("staff.quotationPanel.transportFee")}
+          </dt>
           <dd className="font-data font-semibold text-ink">
-            {transportFee !== null ? formatRWF(transportFee) : t("staff.quotationPanel.transportFeeNotSet")}
+            {transportFee !== null
+              ? formatRWF(transportFee)
+              : t("staff.quotationPanel.transportFeeNotSet")}
           </dd>
         </div>
         <div className="flex items-center justify-between border-t border-border pt-2 text-base">
-          <dt className="font-bold text-ink">{t("staff.quotationPanel.total")}</dt>
-          <dd className="font-data font-bold text-ink">{formatRWF(grandTotal)}</dd>
+          <dt className="font-bold text-ink">
+            {t("staff.quotationPanel.total")}
+          </dt>
+          <dd className="font-data font-bold text-ink">
+            {formatRWF(grandTotal)}
+          </dd>
         </div>
       </dl>
 
@@ -277,43 +397,61 @@ export const OrderQuotationPanel = ({
         <p className="mt-5 rounded-lg bg-red-50 py-2.5 text-center text-sm font-medium text-red-700">
           {t("staff.quotationPanel.orderCancelledNote")}
         </p>
-      ) : canManage ? (
+      ) : canManage || canRecordPayment ? (
         <div className="mt-5 space-y-2.5">
           {/* Once sent, the transport fee is final — no edit/delete path, on
               purpose: the customer's quotation (and whatever they've already
               paid against it) shouldn't shift under them after the fact. */}
-          {quotationStatus === "AWAITING_REVIEW" && quotationBlockedReason && (
-            <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-center text-xs font-medium text-amber-700">{quotationBlockedReason}</p>
-          )}
-          {quotationStatus === "AWAITING_REVIEW" && (
+          {canManage &&
+            quotationStatus === "AWAITING_REVIEW" &&
+            quotationBlockedReason && (
+              <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-center text-xs font-medium text-amber-700">
+                {quotationBlockedReason}
+              </p>
+            )}
+          {canManage && quotationStatus === "AWAITING_REVIEW" && (
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger
-                render={<Button type="button" disabled={quotationBlockedReason !== null} className="h-11 w-full gap-2 text-sm font-bold" />}
+                render={
+                  <Button
+                    type="button"
+                    disabled={quotationBlockedReason !== null}
+                    className="h-11 w-full gap-2 text-sm font-bold"
+                  />
+                }
               >
                 <Truck className="size-4" />
                 {t("staff.quotationPanel.addFeeSendQuotation")}
               </DialogTrigger>
               <DialogContent className="max-w-sm">
                 <DialogHeader>
-                  <DialogTitle>{t("staff.quotationPanel.transportFeeTitle")}</DialogTitle>
+                  <DialogTitle>
+                    {t("staff.quotationPanel.transportFeeTitle")}
+                  </DialogTitle>
                   <DialogDescription>
                     {t("staff.quotationPanel.transportFeeDescription")}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="mt-5 space-y-4">
                   <Field>
-                    <FieldLabel htmlFor="transport-fee">{t("staff.quotationPanel.transportFeeLabel")}</FieldLabel>
+                    <FieldLabel htmlFor="transport-fee">
+                      {t("staff.quotationPanel.transportFeeLabel")}
+                    </FieldLabel>
                     <Input
                       id="transport-fee"
                       type="number"
                       min={0}
                       value={transportFeeInput}
-                      onChange={(event) => setTransportFeeInput(event.target.value)}
+                      onChange={(event) =>
+                        setTransportFeeInput(event.target.value)
+                      }
                       placeholder="0"
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="transport-note">{t("staff.quotationPanel.noteLabel")}</FieldLabel>
+                    <FieldLabel htmlFor="transport-note">
+                      {t("staff.quotationPanel.noteLabel")}
+                    </FieldLabel>
                     <Textarea
                       id="transport-note"
                       rows={2}
@@ -324,27 +462,108 @@ export const OrderQuotationPanel = ({
                   </Field>
                 </div>
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setDialogOpen(false)}
+                    disabled={submitting}
+                    className="h-10 px-5 text-sm font-bold"
+                  >
                     {t("staff.quotationPanel.cancel")}
                   </Button>
-                  <Button type="button" disabled={!feeValid || submitting} onClick={() => void handleSendQuotation()} className="h-10 px-5 text-sm font-bold disabled:opacity-60">
-                    {submitting ? t("staff.quotationPanel.sending") : t("staff.quotationPanel.sendQuotation")}
+                  <Button
+                    type="button"
+                    disabled={!feeValid || submitting}
+                    onClick={() => void handleSendQuotation()}
+                    className="h-10 px-5 text-sm font-bold disabled:opacity-60"
+                  >
+                    {submitting
+                      ? t("staff.quotationPanel.sending")
+                      : t("staff.quotationPanel.sendQuotation")}
                   </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
           )}
 
-          {quotationStatus === "QUOTATION_SENT" && (
-            <p className="flex items-center justify-center gap-2 rounded-lg bg-blue-50 py-2.5 text-sm font-semibold text-blue-700">
-              <Truck className="size-4" /> {t("staff.quotationPanel.quotationSentWaiting")}
-            </p>
-          )}
+          {quotationStatus === "QUOTATION_SENT" &&
+            (canRecordPayment ? (
+              <div className="space-y-2.5">
+                <p className="flex items-center justify-center gap-2 rounded-lg bg-blue-50 py-2.5 text-sm font-semibold text-blue-700">
+                  <Truck className="size-4" />{" "}
+                  {t("staff.quotationPanel.quotationSentWaiting")}
+                </p>
+                <Dialog
+                  open={paymentConfirmOpen}
+                  onOpenChange={setPaymentConfirmOpen}
+                >
+                  <DialogTrigger
+                    render={
+                      <Button
+                        type="button"
+                        disabled={submitting}
+                        className="h-11 w-full gap-2 text-sm font-bold"
+                      />
+                    }
+                  >
+                    <CircleDollarSign className="size-4" />
+                    {t("staff.quotationPanel.recordCustomerPayment")}
+                  </DialogTrigger>
+                  <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                      <DialogTitle>
+                        {t("staff.quotationPanel.recordPaymentConfirmTitle")}
+                      </DialogTitle>
+                      <DialogDescription>
+                        {t(
+                          "staff.quotationPanel.recordPaymentConfirmDescription",
+                        )}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setPaymentConfirmOpen(false)}
+                        disabled={submitting}
+                      >
+                        {t("staff.quotationPanel.cancel")}
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => void handleRecordCustomerPayment()}
+                        disabled={submitting}
+                      >
+                        {submitting
+                          ? t("staff.quotationPanel.recordingPayment")
+                          : t("staff.quotationPanel.confirmRecordPayment")}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                <p className="text-center text-xs text-muted-foreground">
+                  {t("staff.quotationPanel.recordCustomerPaymentHint")}
+                </p>
+              </div>
+            ) : (
+              <p className="flex items-center justify-center gap-2 rounded-lg bg-blue-50 py-2.5 text-sm font-semibold text-blue-700">
+                <Truck className="size-4" />{" "}
+                {t("staff.quotationPanel.quotationSentWaiting")}
+              </p>
+            ))}
 
-          {quotationStatus === "PAYMENT_SUBMITTED" && (
+          {canManage && quotationStatus === "PAYMENT_SUBMITTED" && (
             <div className="space-y-2.5">
-              <Button type="button" onClick={() => void handleVerifyPayment()} disabled={submitting} className="h-11 w-full gap-2 text-sm font-bold">
-                <ShieldCheck className="size-4" /> {submitting ? t("staff.quotationPanel.verifying") : t("staff.quotationPanel.verifyPayment")}
+              <Button
+                type="button"
+                onClick={() => void handleVerifyPayment()}
+                disabled={submitting}
+                className="h-11 w-full gap-2 text-sm font-bold"
+              >
+                <ShieldCheck className="size-4" />{" "}
+                {submitting
+                  ? t("staff.quotationPanel.verifying")
+                  : t("staff.quotationPanel.verifyPayment")}
               </Button>
               <Dialog
                 open={rejectOpen}
@@ -356,30 +575,54 @@ export const OrderQuotationPanel = ({
                 }}
               >
                 <DialogTrigger
-                  render={<Button type="button" variant="outline" disabled={submitting} className="h-11 w-full gap-2 text-sm font-bold text-red-600 hover:text-red-700" />}
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={submitting}
+                      className="h-11 w-full gap-2 text-sm font-bold text-red-600 hover:text-red-700"
+                    />
+                  }
                 >
-                  <ShieldX className="size-4" /> {t("staff.quotationPanel.rejectPayment")}
+                  <ShieldX className="size-4" />{" "}
+                  {t("staff.quotationPanel.rejectPayment")}
                 </DialogTrigger>
                 <DialogContent className="max-w-sm">
                   <DialogHeader>
-                    <DialogTitle>{t("staff.quotationPanel.rejectTitle")}</DialogTitle>
-                    <DialogDescription>{t("staff.quotationPanel.rejectDescription")}</DialogDescription>
+                    <DialogTitle>
+                      {t("staff.quotationPanel.rejectTitle")}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {t("staff.quotationPanel.rejectDescription")}
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="mt-5">
                     <Field>
-                      <FieldLabel htmlFor="reject-reason">{t("staff.quotationPanel.rejectReasonLabel")}</FieldLabel>
+                      <FieldLabel htmlFor="reject-reason">
+                        {t("staff.quotationPanel.rejectReasonLabel")}
+                      </FieldLabel>
                       <Textarea
                         id="reject-reason"
                         rows={3}
                         maxLength={500}
                         value={rejectReason}
-                        onChange={(event) => setRejectReason(event.target.value)}
-                        placeholder={t("staff.quotationPanel.rejectReasonPlaceholder")}
+                        onChange={(event) =>
+                          setRejectReason(event.target.value)
+                        }
+                        placeholder={t(
+                          "staff.quotationPanel.rejectReasonPlaceholder",
+                        )}
                       />
                     </Field>
                   </div>
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setRejectOpen(false)} disabled={submitting} className="h-10 px-5 text-sm font-bold">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setRejectOpen(false)}
+                      disabled={submitting}
+                      className="h-10 px-5 text-sm font-bold"
+                    >
                       {t("staff.quotationPanel.cancel")}
                     </Button>
                     <Button
@@ -389,7 +632,9 @@ export const OrderQuotationPanel = ({
                       onClick={() => void handleRejectPayment()}
                       className="h-10 px-5 text-sm font-bold"
                     >
-                      {submitting ? t("staff.quotationPanel.rejecting") : t("staff.quotationPanel.rejectConfirm")}
+                      {submitting
+                        ? t("staff.quotationPanel.rejecting")
+                        : t("staff.quotationPanel.rejectConfirm")}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -399,7 +644,8 @@ export const OrderQuotationPanel = ({
 
           {quotationStatus === "PAYMENT_VERIFIED" && (
             <p className="flex items-center justify-center gap-2 rounded-lg bg-green-50 py-2.5 text-sm font-semibold text-green-700">
-              <ShieldCheck className="size-4" /> {t("staff.quotationPanel.paymentVerified")}
+              <ShieldCheck className="size-4" />{" "}
+              {t("staff.quotationPanel.paymentVerified")}
             </p>
           )}
         </div>
