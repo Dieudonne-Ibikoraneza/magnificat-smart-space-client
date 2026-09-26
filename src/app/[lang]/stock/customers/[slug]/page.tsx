@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, Plus, Wallet } from "lucide-react";
+import { CalendarDays, Wallet } from "lucide-react";
 import { DashboardDetailHeader as StockDetailHeader } from "@/components/dashboard-page-headers";
 import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";
@@ -34,8 +34,14 @@ const statusBadge: Record<UserStatus, "primary" | "muted" | "destructive"> = {
   SUSPENDED: "destructive",
 };
 
-const formatDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-const formatRWF = (value: string | number) => `RWF ${Math.round(Number(value)).toLocaleString("en-US")}`;
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+const formatRWF = (value: string | number) =>
+  `RWF ${Math.round(Number(value)).toLocaleString("en-US")}`;
 
 const ORDERS_PAGE_SIZE = 10;
 
@@ -53,12 +59,21 @@ const CustomerDetailPage = ({ params }: CustomerDetailPageProps) => {
   // `ordersPage` deliberately isn't in `deps`: paging reloads the same query
   // (`goToOrdersPage`) instead of triggering a "genuinely different query"
   // blank-out of the whole profile.
-  const { data: customer, loading, error, reload } = useApi(
-    () => usersApi.getCustomer(id, { page: ordersPage, limit: ORDERS_PAGE_SIZE }),
+  const {
+    data: customer,
+    loading,
+    error,
+    reload,
+  } = useApi(
+    () =>
+      usersApi.getCustomer(id, { page: ordersPage, limit: ORDERS_PAGE_SIZE }),
     [id],
   );
 
-  if (loading && !customer) return <ApiLoading label={t("stock.customerDetail.loading")} className="py-32" />;
+  if (loading && !customer)
+    return (
+      <ApiLoading label={t("stock.customerDetail.loading")} className="py-32" />
+    );
 
   if (error) {
     if (error.toLowerCase().includes("not found")) notFound();
@@ -68,7 +83,10 @@ const CustomerDetailPage = ({ params }: CustomerDetailPageProps) => {
   if (!customer) return null;
 
   const orders = customer.orders ?? [];
-  const ordersTotalPages = Math.max(1, Math.ceil(customer.ordersTotal / ORDERS_PAGE_SIZE));
+  const ordersTotalPages = Math.max(
+    1,
+    Math.ceil(customer.ordersTotal / ORDERS_PAGE_SIZE),
+  );
   const goToOrdersPage = (next: number) => {
     setOrdersPage(next);
     reload();
@@ -78,25 +96,27 @@ const CustomerDetailPage = ({ params }: CustomerDetailPageProps) => {
     <>
       <StockDetailHeader
         breadcrumbs={[
-          { label: t("stock.customerDetail.crumbOverview"), href: "/stock/overview" },
-          { label: t("stock.customerDetail.crumbCustomers"), href: "/stock/customers" },
+          {
+            label: t("stock.customerDetail.crumbOverview"),
+            href: "/stock/overview",
+          },
+          {
+            label: t("stock.customerDetail.crumbCustomers"),
+            href: "/stock/customers",
+          },
           { label: customer.fullName },
         ]}
         title={customer.fullName}
-        actions={
-          <Button
-            nativeButton={false}
-            render={<Link href={`/stock/orders/new?customer=${customer.id}`} />}
-            className="h-auto rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95 sm:px-5"
-          >
-            <Plus className="size-4" strokeWidth={2.2} />
-            {t("stock.customerDetail.newOrder")}
-          </Button>
-        }
         meta={
           <>
-            <Badge variant={statusBadge[customer.status]}>{t(`staff.userStatus.${customer.status}`)}</Badge>
-            <span className="text-xs text-muted-foreground">{t("stock.customerDetail.joined", { date: formatDate(customer.createdAt) })}</span>
+            <Badge variant={statusBadge[customer.status]}>
+              {t(`staff.userStatus.${customer.status}`)}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {t("stock.customerDetail.joined", {
+                date: formatDate(customer.createdAt),
+              })}
+            </span>
           </>
         }
       />
@@ -104,34 +124,51 @@ const CustomerDetailPage = ({ params }: CustomerDetailPageProps) => {
       <div className="mt-1 space-y-5 sm:space-y-6">
         <div className="grid gap-4 sm:grid-cols-2 xl:max-w-3xl">
           {[
-            { icon: Wallet, label: t("stock.customerDetail.totalLifetimeSpend"), value: formatCompactCurrency(customer.lifetimeSpend) },
+            {
+              icon: Wallet,
+              label: t("stock.customerDetail.totalLifetimeSpend"),
+              value: formatCompactCurrency(customer.lifetimeSpend),
+            },
             {
               icon: CalendarDays,
               label: t("stock.customerDetail.lastOrderDate"),
-              value: customer.lastOrderAt ? formatDate(customer.lastOrderAt) : t("stock.customerDetail.noOrdersYet"),
+              value: customer.lastOrderAt
+                ? formatDate(customer.lastOrderAt)
+                : t("stock.customerDetail.noOrdersYet"),
             },
           ].map(({ icon: Icon, label, value }) => (
-            <article key={label} className="rounded-2xl bg-card p-5 shadow-sm transition-transform duration-200 active:scale-95 sm:p-6">
+            <article
+              key={label}
+              className="rounded-2xl bg-card p-5 shadow-sm transition-transform duration-200 active:scale-95 sm:p-6"
+            >
               <div className="flex items-center gap-2 text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
                 <Icon className="size-4 shrink-0" strokeWidth={1.9} />
                 <span className="truncate">{label}</span>
               </div>
-              <p className="mt-4 truncate font-data text-2xl font-bold text-ink sm:text-3xl">{value}</p>
+              <p className="mt-4 truncate font-data text-2xl font-bold text-ink sm:text-3xl">
+                {value}
+              </p>
             </article>
           ))}
         </div>
 
         <div className="grid gap-5 sm:gap-6 xl:grid-cols-[1fr_1.7fr]">
           <section className="overflow-hidden rounded-2xl bg-card">
-            <h2 className="px-5 py-5 text-lg font-bold text-ink sm:px-6">{t("stock.customerDetail.profileDetails")}</h2>
+            <h2 className="px-5 py-5 text-lg font-bold text-ink sm:px-6">
+              {t("stock.customerDetail.profileDetails")}
+            </h2>
             <Separator className="bg-[#E5E7EB]" />
             <dl className="space-y-5 px-5 py-5 sm:px-6">
               <div>
-                <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">{t("stock.customerDetail.fullNames")}</dt>
+                <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
+                  {t("stock.customerDetail.fullNames")}
+                </dt>
                 <dd className="mt-1 text-sm text-ink">{customer.fullName}</dd>
               </div>
               <div>
-                <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">{t("stock.customerDetail.contactInfo")}</dt>
+                <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
+                  {t("stock.customerDetail.contactInfo")}
+                </dt>
                 <dd className="mt-1 text-sm">
                   {customer.email && (
                     <Link
@@ -142,24 +179,39 @@ const CustomerDetailPage = ({ params }: CustomerDetailPageProps) => {
                     </Link>
                   )}
                   {customer.phone && (
-                    <Link href={"tel:" + customer.phone.replace(/\s/g, "")} className="mt-1 block text-ink hover:opacity-70">
+                    <Link
+                      href={"tel:" + customer.phone.replace(/\s/g, "")}
+                      className="mt-1 block text-ink hover:opacity-70"
+                    >
                       {customer.phone}
                     </Link>
                   )}
-                  {!customer.email && !customer.phone && <span className="text-muted-foreground">—</span>}
+                  {!customer.email && !customer.phone && (
+                    <span className="text-muted-foreground">—</span>
+                  )}
                 </dd>
               </div>
               <div>
-                <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">{t("stock.customerDetail.orders")}</dt>
-                <dd className="mt-1 text-sm text-ink">{t("stock.customerDetail.ordersTotal", { count: customer.orderCount })}</dd>
+                <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
+                  {t("stock.customerDetail.orders")}
+                </dt>
+                <dd className="mt-1 text-sm text-ink">
+                  {t("stock.customerDetail.ordersTotal", {
+                    count: customer.orderCount,
+                  })}
+                </dd>
               </div>
             </dl>
           </section>
 
           <section className="overflow-hidden rounded-2xl bg-card">
-            <h2 className="px-5 py-5 text-lg font-bold text-ink sm:px-6">{t("stock.customerDetail.recentOrders")}</h2>
+            <h2 className="px-5 py-5 text-lg font-bold text-ink sm:px-6">
+              {t("stock.customerDetail.recentOrders")}
+            </h2>
             {orders.length === 0 ? (
-              <p className="px-5 pb-6 text-sm text-muted-foreground sm:px-6">{t("stock.customerDetail.noOrders")}</p>
+              <p className="px-5 pb-6 text-sm text-muted-foreground sm:px-6">
+                {t("stock.customerDetail.noOrders")}
+              </p>
             ) : (
               <>
                 <div className="hidden overflow-x-auto md:block">
@@ -181,15 +233,29 @@ const CustomerDetailPage = ({ params }: CustomerDetailPageProps) => {
                       {orders.map((order) => (
                         <TableRow key={order.id}>
                           <TableCell className="font-semibold text-ink">
-                            <Link href={"/stock/orders/" + order.id} className="hover:underline">
+                            <Link
+                              href={"/stock/orders/" + order.id}
+                              className="hover:underline"
+                            >
                               {order.orderNumber}
                             </Link>
                           </TableCell>
-                          <TableCell className="whitespace-nowrap text-ink">{formatDate(order.createdAt)}</TableCell>
-                          <TableCell className="font-semibold whitespace-nowrap text-ink">{formatRWF(order.total)}</TableCell>
+                          <TableCell className="whitespace-nowrap text-ink">
+                            {formatDate(order.createdAt)}
+                          </TableCell>
+                          <TableCell className="font-semibold whitespace-nowrap text-ink">
+                            {formatRWF(order.total)}
+                          </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap items-center gap-2">
-                              {order.createdByType === "STAFF" && <StaffCreatedIndicator createdByName={order.createdBy?.fullName ?? t("stock.customerDetail.staffFallback")} />}
+                              {order.createdByType === "STAFF" && (
+                                <StaffCreatedIndicator
+                                  createdByName={
+                                    order.createdBy?.fullName ??
+                                    t("stock.customerDetail.staffFallback")
+                                  }
+                                />
+                              )}
                               <OrderStatusBadge status={order.status} />
                             </div>
                           </TableCell>
@@ -209,15 +275,31 @@ const CustomerDetailPage = ({ params }: CustomerDetailPageProps) => {
                 <ul className="divide-y divide-[#E5E7EB] md:hidden">
                   {orders.map((order) => (
                     <li key={order.id}>
-                      <Link href={"/stock/orders/" + order.id} className="flex items-start justify-between gap-3 px-5 py-4 font-data transition-colors hover:bg-secondary/50">
+                      <Link
+                        href={"/stock/orders/" + order.id}
+                        className="flex items-start justify-between gap-3 px-5 py-4 font-data transition-colors hover:bg-secondary/50"
+                      >
                         <div>
-                          <p className="text-sm font-semibold text-ink">{order.orderNumber}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">{formatDate(order.createdAt)}</p>
+                          <p className="text-sm font-semibold text-ink">
+                            {order.orderNumber}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {formatDate(order.createdAt)}
+                          </p>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                          <p className="text-sm font-semibold text-ink">{formatRWF(order.total)}</p>
+                          <p className="text-sm font-semibold text-ink">
+                            {formatRWF(order.total)}
+                          </p>
                           <div className="flex items-center gap-2">
-                            {order.createdByType === "STAFF" && <StaffCreatedIndicator createdByName={order.createdBy?.fullName ?? t("stock.customerDetail.staffFallback")} />}
+                            {order.createdByType === "STAFF" && (
+                              <StaffCreatedIndicator
+                                createdByName={
+                                  order.createdBy?.fullName ??
+                                  t("stock.customerDetail.staffFallback")
+                                }
+                              />
+                            )}
                             <OrderStatusBadge status={order.status} />
                           </div>
                         </div>
