@@ -44,7 +44,11 @@ import {
   Coins,
 } from "lucide-react";
 import { DashboardPageHeader as AdminPageHeader } from "@/components/dashboard-page-headers";
-import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
+import {
+  AnalyticsPeriodSwitcher,
+  periodToRange,
+  type AnalyticsPeriodDays,
+} from "@/components/analytics-period-switcher";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { OrderStatusBadge } from "@/components/order-status-control";
 import { OrdersByCreatorChart } from "@/components/orders-by-creator-chart";
@@ -53,9 +57,14 @@ import { ChartAxisTick } from "@/components/chart-axis-tick";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JOURNEY_STAGE_TITLE_KEYS } from "@/components/conversion-funnel";
 import { cn, formatCompactCurrency, formatCompactNumber } from "@/lib/utils";
-import { analyticsApi, ordersApi, productsApi } from "@/lib/api";
+import { analyticsApi, ordersApi, reportsApi } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
-import type { AnalyticsPeriod, ApiProduct, OrderStatus, TilePerformanceRow } from "@/lib/api/types";
+import type {
+  AnalyticsPeriod,
+  LowStockRow,
+  OrderStatus,
+  TilePerformanceRow,
+} from "@/lib/api/types";
 
 const pct = (numerator: number, denominator: number) =>
   denominator > 0 ? (numerator / denominator) * 100 : 0;
@@ -68,7 +77,10 @@ const rangeToPeriod: Record<"7D" | "30D" | "3M" | "12M", AnalyticsPeriod> = {
   "12M": "YEARLY",
 };
 
-const orderStatusMeta: Record<OrderStatus, { icon: typeof Clock3; tone: string }> = {
+const orderStatusMeta: Record<
+  OrderStatus,
+  { icon: typeof Clock3; tone: string }
+> = {
   WAITLISTED: { icon: Hourglass, tone: "bg-amber-50 text-amber-600" },
   PENDING: { icon: Clock3, tone: "bg-slate-100 text-ink" },
   PROCESSING: { icon: Clock3, tone: "bg-amber-50 text-amber-600" },
@@ -78,8 +90,14 @@ const orderStatusMeta: Record<OrderStatus, { icon: typeof Clock3; tone: string }
   CANCELLED: { icon: XCircle, tone: "bg-red-50 text-red-600" },
 };
 
-const stockDot = { low_stock: "bg-amber-500", out_of_stock: "bg-red-500" } as const;
-const stockText = { low_stock: "text-amber-600", out_of_stock: "text-red-600" } as const;
+const stockDot = {
+  low_stock: "bg-amber-500",
+  out_of_stock: "bg-red-500",
+} as const;
+const stockText = {
+  low_stock: "text-amber-600",
+  out_of_stock: "text-red-600",
+} as const;
 
 const HeaderActions = ({
   period,
@@ -105,7 +123,13 @@ const KpiSkeleton = () => (
   </article>
 );
 
-const KpiCards = ({ overview, loading }: { overview: AnalyticsOverviewLike | undefined; loading: boolean }) => {
+const KpiCards = ({
+  overview,
+  loading,
+}: {
+  overview: AnalyticsOverviewLike | undefined;
+  loading: boolean;
+}) => {
   const { t } = useTranslation();
   if (loading && !overview) {
     return (
@@ -119,23 +143,58 @@ const KpiCards = ({ overview, loading }: { overview: AnalyticsOverviewLike | und
 
   if (!overview) return null;
 
-  const opened = overview.funnel.find((row) => row.stage === "OPENED_SYSTEM")?.customers ?? 0;
-  const purchased = overview.funnel.find((row) => row.stage === "PURCHASED")?.customers ?? 0;
+  const opened =
+    overview.funnel.find((row) => row.stage === "OPENED_SYSTEM")?.customers ??
+    0;
+  const purchased =
+    overview.funnel.find((row) => row.stage === "PURCHASED")?.customers ?? 0;
   const avgConversion = pct(purchased, opened);
 
   const kpis = [
-    { key: "sales", label: t("admin.overview.kpiTotalSales"), value: formatCompactNumber(overview.totalSales), icon: Wallet },
-    { key: "orders", label: t("admin.overview.kpiTotalOrders"), value: overview.totalOrders.toLocaleString(), icon: ShoppingBasket },
-    { key: "customers", label: t("admin.overview.kpiTotalCustomers"), value: overview.totalCustomers.toLocaleString(), icon: UsersRound },
-    { key: "repeat", label: t("admin.overview.kpiRepeatCustomers"), value: overview.repeatCustomers.toLocaleString(), icon: Repeat },
+    {
+      key: "sales",
+      label: t("admin.overview.kpiTotalSales"),
+      value: formatCompactNumber(overview.totalSales),
+      icon: Wallet,
+    },
+    {
+      key: "orders",
+      label: t("admin.overview.kpiTotalOrders"),
+      value: overview.totalOrders.toLocaleString(),
+      icon: ShoppingBasket,
+    },
+    {
+      key: "customers",
+      label: t("admin.overview.kpiTotalCustomers"),
+      value: overview.totalCustomers.toLocaleString(),
+      icon: UsersRound,
+    },
+    {
+      key: "repeat",
+      label: t("admin.overview.kpiRepeatCustomers"),
+      value: overview.repeatCustomers.toLocaleString(),
+      icon: Repeat,
+    },
     {
       key: "inventory",
       label: t("admin.overview.kpiInventory"),
-      value: t("admin.overview.kpiInventoryValue", { count: overview.activeProducts.toLocaleString() }),
-      warning: overview.lowStockItems > 0 ? t("admin.overview.kpiInventoryWarning", { count: overview.lowStockItems }) : undefined,
+      value: t("admin.overview.kpiInventoryValue", {
+        count: overview.activeProducts.toLocaleString(),
+      }),
+      warning:
+        overview.lowStockItems > 0
+          ? t("admin.overview.kpiInventoryWarning", {
+              count: overview.lowStockItems,
+            })
+          : undefined,
       icon: ShoppingBag,
     },
-    { key: "conversion", label: t("admin.overview.kpiAvgConversion"), value: `${avgConversion.toFixed(1)}%`, icon: Coins },
+    {
+      key: "conversion",
+      label: t("admin.overview.kpiAvgConversion"),
+      value: `${avgConversion.toFixed(1)}%`,
+      icon: Coins,
+    },
   ];
 
   return (
@@ -144,7 +203,10 @@ const KpiCards = ({ overview, loading }: { overview: AnalyticsOverviewLike | und
         const Icon = kpi.icon;
 
         return (
-          <article key={kpi.key} className="flex h-full flex-col rounded-2xl bg-card p-4 sm:p-5">
+          <article
+            key={kpi.key}
+            className="flex h-full flex-col rounded-2xl bg-card p-4 sm:p-5"
+          >
             <div className="flex items-start justify-between gap-2">
               <Icon className="size-5 stroke-2 text-ink" />
               {kpi.warning ? (
@@ -182,8 +244,12 @@ const SalesOverviewTooltip = ({
 
   return (
     <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
-      <p className="font-data text-xs font-semibold tracking-widest text-data-ink">{label}</p>
-      <p className="mt-1 font-data text-sm text-ink">RWF {payload[0].value.toLocaleString()}</p>
+      <p className="font-data text-xs font-semibold tracking-widest text-data-ink">
+        {label}
+      </p>
+      <p className="mt-1 font-data text-sm text-ink">
+        RWF {payload[0].value.toLocaleString()}
+      </p>
     </div>
   );
 };
@@ -196,13 +262,18 @@ const SalesOverview = () => {
     [range],
   );
 
-  const data = (overview?.revenueTrend ?? []).map((point) => ({ day: point.label, value: point.value }));
+  const data = (overview?.revenueTrend ?? []).map((point) => ({
+    day: point.label,
+    value: point.value,
+  }));
 
   return (
     <section className="grid gap-5 rounded-2xl bg-card p-5 sm:gap-6 sm:p-6 xl:grid-cols-[1fr_260px]">
       <div className="min-w-0">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <h2 className="text-lg font-bold text-ink">{t("admin.overview.salesOverview")}</h2>
+          <h2 className="text-lg font-bold text-ink">
+            {t("admin.overview.salesOverview")}
+          </h2>
           <div className="flex h-9 items-center rounded-lg border border-border bg-background p-1">
             {(["7D", "30D", "3M", "12M"] as const).map((item) => (
               <button
@@ -212,7 +283,9 @@ const SalesOverview = () => {
                 aria-pressed={range === item}
                 className={cn(
                   "h-7 rounded-md px-3 text-[10px] font-bold tracking-wide transition-colors",
-                  range === item ? "bg-ink text-primary" : "text-muted-foreground hover:bg-secondary",
+                  range === item
+                    ? "bg-ink text-primary"
+                    : "text-muted-foreground hover:bg-secondary",
                 )}
               >
                 {item}
@@ -224,23 +297,54 @@ const SalesOverview = () => {
           {loading && !overview ? (
             <Skeleton className="size-full" />
           ) : data.length === 0 ? (
-            <ApiEmptyState message={t("admin.overview.noRevenueYet")} className="h-full" />
+            <ApiEmptyState
+              message={t("admin.overview.noRevenueYet")}
+              className="h-full"
+            />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+              <AreaChart
+                data={data}
+                margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
+              >
                 <defs>
-                  <linearGradient id="admin-sales-gradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--ink)" stopOpacity={0.18} />
-                    <stop offset="100%" stopColor="var(--ink)" stopOpacity={0} />
+                  <linearGradient
+                    id="admin-sales-gradient"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop
+                      offset="0%"
+                      stopColor="var(--ink)"
+                      stopOpacity={0.18}
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor="var(--ink)"
+                      stopOpacity={0}
+                    />
                   </linearGradient>
                 </defs>
-                <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
-                <XAxis dataKey="day" tickLine={false} axisLine={false} tick={ChartAxisTick} />
+                <CartesianGrid
+                  vertical={false}
+                  strokeDasharray="4 4"
+                  stroke="var(--border)"
+                />
+                <XAxis
+                  dataKey="day"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={ChartAxisTick}
+                />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
                   width={40}
-                  tickFormatter={(value: number) => (value === 0 ? "0" : `${value / 1_000_000}M`)}
+                  tickFormatter={(value: number) =>
+                    value === 0 ? "0" : `${value / 1_000_000}M`
+                  }
                   tick={ChartAxisTick}
                 />
                 <Tooltip content={<SalesOverviewTooltip />} />
@@ -259,46 +363,89 @@ const SalesOverview = () => {
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
         <div className="rounded-xl border border-border p-4">
-          <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">{t("admin.overview.totalSales")}</p>
+          <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
+            {t("admin.overview.totalSales")}
+          </p>
           <p className="mt-1 text-xl font-black text-ink">
             {overview ? formatCompactCurrency(overview.totalSales) : "—"}
           </p>
         </div>
         <div className="rounded-xl border border-border p-4">
           <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
-            {t("admin.overview.transportFees")} <span className="normal-case">{t("admin.overview.transportFeesNote")}</span>
+            {t("admin.overview.transportFees")}{" "}
+            <span className="normal-case">
+              {t("admin.overview.transportFeesNote")}
+            </span>
           </p>
           <p className="mt-1 text-xl font-black text-ink">
-            {overview ? formatCompactCurrency(overview.totalTransportFees) : "—"}
+            {overview
+              ? formatCompactCurrency(overview.totalTransportFees)
+              : "—"}
           </p>
         </div>
         <div className="rounded-xl border border-border p-4">
-          <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">{t("admin.overview.averageOrder")}</p>
+          <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
+            {t("admin.overview.averageOrder")}
+          </p>
           <p className="mt-1 text-xl font-black text-ink">
             {overview ? formatCompactCurrency(overview.averageOrderValue) : "—"}
           </p>
         </div>
         <div className="rounded-xl border border-border p-4">
-          <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">{t("admin.overview.kpiTotalOrders")}</p>
-          <p className="mt-1 text-xl font-black text-ink">{overview ? overview.totalOrders.toLocaleString() : "—"}</p>
+          <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
+            {t("admin.overview.kpiTotalOrders")}
+          </p>
+          <p className="mt-1 text-xl font-black text-ink">
+            {overview ? overview.totalOrders.toLocaleString() : "—"}
+          </p>
         </div>
       </div>
       {loading && !overview ? (
         <Skeleton className="h-90 w-full xl:col-span-2" />
-      ) : overview && !overview.creatorTrend.every((point) => point.customer === 0 && point.staff === 0) ? (
-        <OrdersByCreatorChart data={overview.creatorTrend} className="border-t border-border pt-6 xl:col-span-2" />
+      ) : overview &&
+        !overview.creatorTrend.every(
+          (point) => point.customer === 0 && point.staff === 0,
+        ) ? (
+        <OrdersByCreatorChart
+          data={overview.creatorTrend}
+          className="border-t border-border pt-6 xl:col-span-2"
+        />
       ) : null}
     </section>
   );
 };
 
-const NeedsAttention = ({ overview, loading }: { overview: AnalyticsOverviewLike | undefined; loading: boolean }) => {
+const NeedsAttention = ({
+  overview,
+  loading,
+}: {
+  overview: AnalyticsOverviewLike | undefined;
+  loading: boolean;
+}) => {
   const { t } = useTranslation();
   const items = overview
     ? [
-        { key: "outOfStock", label: t("admin.overview.outOfStock"), count: overview.outOfStockItems, icon: Box, tone: "bg-red-50 text-red-600" },
-        { key: "lowStock", label: t("admin.overview.lowStock"), count: overview.lowStockItems, icon: AlertTriangle, tone: "bg-amber-50 text-amber-600" },
-        { key: "pendingOrders", label: t("admin.overview.pendingOrders"), count: overview.pendingOrders, icon: Clock3, tone: "bg-slate-100 text-ink" },
+        {
+          key: "outOfStock",
+          label: t("admin.overview.outOfStock"),
+          count: overview.outOfStockItems,
+          icon: Box,
+          tone: "bg-red-50 text-red-600",
+        },
+        {
+          key: "lowStock",
+          label: t("admin.overview.lowStock"),
+          count: overview.lowStockItems,
+          icon: AlertTriangle,
+          tone: "bg-amber-50 text-amber-600",
+        },
+        {
+          key: "pendingOrders",
+          label: t("admin.overview.pendingOrders"),
+          count: overview.pendingOrders,
+          icon: Clock3,
+          tone: "bg-slate-100 text-ink",
+        },
       ]
     : [];
 
@@ -306,12 +453,17 @@ const NeedsAttention = ({ overview, loading }: { overview: AnalyticsOverviewLike
     <section className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
       <div className="flex items-center gap-2">
         <AlertTriangle className="size-4 text-amber-500" />
-        <h2 className="text-base font-bold text-ink">{t("admin.overview.needsAttention")}</h2>
+        <h2 className="text-base font-bold text-ink">
+          {t("admin.overview.needsAttention")}
+        </h2>
       </div>
       <ul className="mt-4 flex-1 space-y-2">
         {loading && !overview
           ? Array.from({ length: 3 }).map((_, index) => (
-              <li key={index} className="flex items-center gap-3 rounded-xl border border-border p-3">
+              <li
+                key={index}
+                className="flex items-center gap-3 rounded-xl border border-border p-3"
+              >
                 <Skeleton className="size-9 rounded-full" />
                 <Skeleton className="h-4 flex-1" />
               </li>
@@ -319,11 +471,21 @@ const NeedsAttention = ({ overview, loading }: { overview: AnalyticsOverviewLike
           : items.map((item) => {
               const Icon = item.icon;
               return (
-                <li key={item.key} className="flex items-center gap-3 rounded-xl border border-border p-3">
-                  <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", item.tone)}>
+                <li
+                  key={item.key}
+                  className="flex items-center gap-3 rounded-xl border border-border p-3"
+                >
+                  <span
+                    className={cn(
+                      "flex size-9 shrink-0 items-center justify-center rounded-full",
+                      item.tone,
+                    )}
+                  >
                     <Icon className="size-4" />
                   </span>
-                  <p className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{item.label}</p>
+                  <p className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
+                    {item.label}
+                  </p>
                   <span className="shrink-0 rounded-md bg-background px-2 py-1 text-sm font-bold text-ink">
                     {item.count}
                   </span>
@@ -347,77 +509,97 @@ const CustomerJourneyFunnel = ({
   stages,
   loading,
 }: {
-  stages: { stage: string; customers: number; conversionFromPrevious: number }[];
+  stages: {
+    stage: string;
+    customers: number;
+    conversionFromPrevious: number;
+  }[];
   loading: boolean;
 }) => {
   const { t } = useTranslation();
   return (
-  <section className="rounded-2xl bg-card p-5 sm:p-6">
-    <h2 className="text-lg font-bold text-ink">{t("admin.overview.journeyFunnelTitle")}</h2>
-    <p className="mt-1 text-sm text-muted-foreground">{t("admin.overview.journeyFunnelSubtitle")}</p>
-    <div className="scrollbar-hide mt-6 flex gap-6 overflow-x-auto px-2 pb-2">
-      {loading && stages.length === 0
-        ? Array.from({ length: 6 }).map((_, index) => <FunnelCardSkeleton key={index} />)
-        : stages.map((step, index) => {
-            const isFirst = index === 0;
-            const isLast = index === stages.length - 1;
-            const titleKey = JOURNEY_STAGE_TITLE_KEYS[step.stage as keyof typeof JOURNEY_STAGE_TITLE_KEYS];
+    <section className="rounded-2xl bg-card p-5 sm:p-6">
+      <h2 className="text-lg font-bold text-ink">
+        {t("admin.overview.journeyFunnelTitle")}
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {t("admin.overview.journeyFunnelSubtitle")}
+      </p>
+      <div className="scrollbar-hide mt-6 flex gap-6 overflow-x-auto px-2 pb-2">
+        {loading && stages.length === 0
+          ? Array.from({ length: 6 }).map((_, index) => (
+              <FunnelCardSkeleton key={index} />
+            ))
+          : stages.map((step, index) => {
+              const isFirst = index === 0;
+              const isLast = index === stages.length - 1;
+              const titleKey =
+                JOURNEY_STAGE_TITLE_KEYS[
+                  step.stage as keyof typeof JOURNEY_STAGE_TITLE_KEYS
+                ];
 
-            // Every step but the first opens Journey Analytics pre-selected
-            // on that exact stage — the first has no drill-down of its own
-            // (arriving at the system isn't an action a customer takes),
-            // same as the funnel on the Journey Analytics page itself.
-            const card = (
-              <div
-                className={cn(
-                  "flex h-40 w-[168px] shrink-0 flex-col justify-between rounded-2xl border bg-card p-5 text-left transition-all duration-200",
-                  isLast ? "border-primary bg-primary/5" : "border-border",
-                  !isFirst && "group-hover:border-primary group-hover:shadow-md",
-                )}
-              >
-                <p className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
-                  {t(titleKey)}
-                </p>
-                <div>
-                  <p className="text-3xl font-black text-ink">{formatCompactNumber(step.customers)}</p>
-                  {isFirst ? (
-                    <p className="mt-1 text-xs font-medium text-ink/60">{t("admin.overview.volume100")}</p>
-                  ) : (
-                    <p className="mt-1 text-xs font-medium text-ink/60">
-                      {t("admin.overview.conversionPct", { value: step.conversionFromPrevious.toFixed(0) })}
+              // Every step but the first opens Journey Analytics pre-selected
+              // on that exact stage — the first has no drill-down of its own
+              // (arriving at the system isn't an action a customer takes),
+              // same as the funnel on the Journey Analytics page itself.
+              const card = (
+                <div
+                  className={cn(
+                    "flex h-40 w-[168px] shrink-0 flex-col justify-between rounded-2xl border bg-card p-5 text-left transition-all duration-200",
+                    isLast ? "border-primary bg-primary/5" : "border-border",
+                    !isFirst &&
+                      "group-hover:border-primary group-hover:shadow-md",
+                  )}
+                >
+                  <p className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
+                    {t(titleKey)}
+                  </p>
+                  <div>
+                    <p className="text-3xl font-black text-ink">
+                      {formatCompactNumber(step.customers)}
                     </p>
+                    {isFirst ? (
+                      <p className="mt-1 text-xs font-medium text-ink/60">
+                        {t("admin.overview.volume100")}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs font-medium text-ink/60">
+                        {t("admin.overview.conversionPct", {
+                          value: step.conversionFromPrevious.toFixed(0),
+                        })}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+
+              return (
+                <div key={step.stage} className="relative flex shrink-0">
+                  {isFirst ? (
+                    card
+                  ) : (
+                    <Link
+                      href={`/admin/analytics/journey?stage=${step.stage}`}
+                      className="group block shrink-0 transition-transform duration-200"
+                    >
+                      {card}
+                    </Link>
+                  )}
+                  {!isLast && (
+                    <span
+                      className={cn(
+                        "absolute top-1/2 right-0 z-10 inline-flex size-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm",
+                        isLast ? "border-primary" : "border-border",
+                      )}
+                    >
+                      <ArrowRight className="size-4" />
+                    </span>
                   )}
                 </div>
-              </div>
-            );
-
-            return (
-              <div key={step.stage} className="relative flex shrink-0">
-                {isFirst ? (
-                  card
-                ) : (
-                  <Link
-                    href={`/admin/analytics/journey?stage=${step.stage}`}
-                    className="group block shrink-0 transition-transform duration-200"
-                  >
-                    {card}
-                  </Link>
-                )}
-                {!isLast && (
-                  <span
-                    className={cn(
-                      "absolute top-1/2 right-0 z-10 inline-flex size-8 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm",
-                      isLast ? "border-primary" : "border-border",
-                    )}
-                  >
-                    <ArrowRight className="size-4" />
-                  </span>
-                )}
-              </div>
-            );
-          })}
-    </div>
-  </section>
+              );
+            })}
+      </div>
+    </section>
   );
 };
 
@@ -427,14 +609,18 @@ const TilePerformance = ({
   loading,
 }: {
   leaderboards: TileLeaderboardsLike | undefined;
-  summary: { averageSelectionRate: number; averagePurchaseConversion: number } | undefined;
+  summary:
+    | { averageSelectionRate: number; averagePurchaseConversion: number }
+    | undefined;
   loading: boolean;
 }) => {
   const { t } = useTranslation();
   if (loading && !leaderboards) {
     return (
       <section>
-        <h2 className="text-lg font-bold text-ink">{t("admin.overview.tilePerformance")}</h2>
+        <h2 className="text-lg font-bold text-ink">
+          {t("admin.overview.tilePerformance")}
+        </h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {Array.from({ length: 5 }).map((_, index) => (
             <KpiSkeleton key={index} />
@@ -449,29 +635,74 @@ const TilePerformance = ({
   const topPurchased = leaderboards?.mostPurchased[0];
 
   const items = [
-    { key: "mostViewed", label: t("admin.overview.mostViewed"), value: topViewed?.name ?? t("admin.overview.noDataYet"), sub: t("admin.overview.viewsCount", { value: topViewed ? formatCompactNumber(topViewed.count) : "0" }), icon: Eye },
-    { key: "mostApplied", label: t("admin.overview.mostApplied"), value: topApplied?.name ?? t("admin.overview.noDataYet"), sub: t("admin.overview.applicationsCount", { value: topApplied ? formatCompactNumber(topApplied.count) : "0" }), icon: MousePointerSquareDashed },
-    { key: "mostPurchased", label: t("admin.overview.mostPurchased"), value: topPurchased?.name ?? t("admin.overview.noDataYet"), sub: t("admin.overview.salesCount", { value: topPurchased ? formatCompactNumber(topPurchased.count) : "0" }), icon: ShoppingBasket },
-    { key: "avgSelectionRate", label: t("admin.overview.avgSelectionRate"), value: `${(summary?.averageSelectionRate ?? 0).toFixed(1)}%`, sub: null, icon: MousePointerClick },
-    { key: "avgConversion", label: t("admin.overview.kpiAvgConversion"), value: `${(summary?.averagePurchaseConversion ?? 0).toFixed(1)}%`, sub: null, icon: Wallet },
+    {
+      key: "mostViewed",
+      label: t("admin.overview.mostViewed"),
+      value: topViewed?.name ?? t("admin.overview.noDataYet"),
+      sub: t("admin.overview.viewsCount", {
+        value: topViewed ? formatCompactNumber(topViewed.count) : "0",
+      }),
+      icon: Eye,
+    },
+    {
+      key: "mostApplied",
+      label: t("admin.overview.mostApplied"),
+      value: topApplied?.name ?? t("admin.overview.noDataYet"),
+      sub: t("admin.overview.applicationsCount", {
+        value: topApplied ? formatCompactNumber(topApplied.count) : "0",
+      }),
+      icon: MousePointerSquareDashed,
+    },
+    {
+      key: "mostPurchased",
+      label: t("admin.overview.mostPurchased"),
+      value: topPurchased?.name ?? t("admin.overview.noDataYet"),
+      sub: t("admin.overview.salesCount", {
+        value: topPurchased ? formatCompactNumber(topPurchased.count) : "0",
+      }),
+      icon: ShoppingBasket,
+    },
+    {
+      key: "avgSelectionRate",
+      label: t("admin.overview.avgSelectionRate"),
+      value: `${(summary?.averageSelectionRate ?? 0).toFixed(1)}%`,
+      sub: null,
+      icon: MousePointerClick,
+    },
+    {
+      key: "avgConversion",
+      label: t("admin.overview.kpiAvgConversion"),
+      value: `${(summary?.averagePurchaseConversion ?? 0).toFixed(1)}%`,
+      sub: null,
+      icon: Wallet,
+    },
   ];
 
   return (
     <section>
-      <h2 className="text-lg font-bold text-ink">{t("admin.overview.tilePerformance")}</h2>
+      <h2 className="text-lg font-bold text-ink">
+        {t("admin.overview.tilePerformance")}
+      </h2>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {items.map((item) => {
           const Icon = item.icon;
           return (
-            <article key={item.key} className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
+            <article
+              key={item.key}
+              className="flex flex-col rounded-2xl bg-card p-5 sm:p-6"
+            >
               <div className="flex items-start justify-between gap-3">
                 <Icon className="size-5 stroke-2 text-ink" />
               </div>
               <p className="mt-4 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
                 {item.label}
               </p>
-              <p className="mt-1 truncate text-xl font-black text-ink">{item.value}</p>
-              {item.sub ? <p className="mt-1 text-xs text-muted-foreground">{item.sub}</p> : null}
+              <p className="mt-1 truncate text-xl font-black text-ink">
+                {item.value}
+              </p>
+              {item.sub ? (
+                <p className="mt-1 text-xs text-muted-foreground">{item.sub}</p>
+              ) : null}
             </article>
           );
         })}
@@ -489,7 +720,7 @@ const InventoryOverview = ({
   onRetry,
 }: {
   overview: AnalyticsOverviewLike | undefined;
-  urgentItems: ApiProduct[];
+  urgentItems: LowStockRow[];
   viewsByProductId: Map<string, TilePerformanceRow>;
   loading: boolean;
   error: string | undefined;
@@ -498,31 +729,69 @@ const InventoryOverview = ({
   const { t } = useTranslation();
   const inventoryOverview = overview
     ? [
-        { key: "value", label: t("admin.overview.totalInventoryValue"), value: formatCompactCurrency(overview.totalInventoryValue), icon: Wallet },
-        { key: "active", label: t("admin.overview.activeProducts"), value: overview.activeProducts.toLocaleString(), icon: PackageCheck },
-        { key: "pending", label: t("admin.overview.pendingFulfillments"), value: overview.pendingFulfillments.toLocaleString(), icon: Clock3 },
-        { key: "lowStock", label: t("admin.overview.lowStockItems"), value: overview.lowStockItems.toLocaleString(), icon: AlertTriangle, warn: true },
+        {
+          key: "value",
+          label: t("admin.overview.totalInventoryValue"),
+          value: formatCompactCurrency(overview.totalInventoryValue),
+          icon: Wallet,
+        },
+        {
+          key: "active",
+          label: t("admin.overview.activeProducts"),
+          value: overview.activeProducts.toLocaleString(),
+          icon: PackageCheck,
+        },
+        {
+          key: "pending",
+          label: t("admin.overview.pendingFulfillments"),
+          value: overview.pendingFulfillments.toLocaleString(),
+          icon: Clock3,
+        },
+        {
+          key: "lowStock",
+          label: t("admin.overview.lowStockItems"),
+          value: overview.lowStockItems.toLocaleString(),
+          icon: AlertTriangle,
+          warn: true,
+        },
       ]
     : [];
 
   return (
     <section>
-      <h2 className="text-lg font-bold text-ink">{t("admin.overview.inventoryOverview")}</h2>
+      <h2 className="text-lg font-bold text-ink">
+        {t("admin.overview.inventoryOverview")}
+      </h2>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {loading && !overview
-          ? Array.from({ length: 4 }).map((_, index) => <KpiSkeleton key={index} />)
+          ? Array.from({ length: 4 }).map((_, index) => (
+              <KpiSkeleton key={index} />
+            ))
           : inventoryOverview.map((item) => {
               const Icon = item.icon;
               return (
-                <article key={item.key} className="flex h-full flex-col rounded-2xl bg-card p-5 sm:p-6">
+                <article
+                  key={item.key}
+                  className="flex h-full flex-col rounded-2xl bg-card p-5 sm:p-6"
+                >
                   <div className="flex items-start justify-between gap-3">
-                    <Icon className={cn("size-5 stroke-2", item.warn ? "text-amber-500" : "text-ink")} />
+                    <Icon
+                      className={cn(
+                        "size-5 stroke-2",
+                        item.warn ? "text-amber-500" : "text-ink",
+                      )}
+                    />
                   </div>
                   <div className="mt-4 flex flex-1 flex-col justify-end">
                     <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
                       {item.label}
                     </p>
-                    <p className={cn("mt-1 text-3xl font-black", item.warn ? "text-amber-600" : "text-ink")}>
+                    <p
+                      className={cn(
+                        "mt-1 text-3xl font-black",
+                        item.warn ? "text-amber-600" : "text-ink",
+                      )}
+                    >
                       {item.value}
                     </p>
                   </div>
@@ -532,78 +801,166 @@ const InventoryOverview = ({
       </div>
 
       <div className="mt-5 rounded-2xl bg-card p-5 sm:p-6">
-        <h3 className="text-base font-bold text-ink">{t("admin.overview.urgentItems")}</h3>
+        <h3 className="text-base font-bold text-ink">
+          {t("admin.overview.urgentItems")}
+        </h3>
         {error ? (
           <ApiErrorState message={error} onRetry={onRetry} className="mt-4" />
         ) : !loading && urgentItems.length === 0 ? (
-          <ApiEmptyState message={t("admin.overview.noUrgentItems")} className="mt-4" />
+          <ApiEmptyState
+            message={t("admin.overview.noUrgentItems")}
+            className="mt-4"
+          />
         ) : (
           <div className="mt-4 -mx-5 overflow-x-auto px-5 sm:-mx-6 sm:px-6">
             <table className="w-full min-w-[820px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-                  <th className="pb-3 pr-4 font-bold">{t("stock.inventory.colProduct")}</th>
-                  <th className="pb-3 pr-4 font-bold">{t("stock.inventory.colSku")}</th>
-                  <th className="pb-3 pr-4 font-bold">{t("stock.inventory.colSize")}</th>
-                  <th className="pb-3 pr-4 font-bold">{t("stock.inventory.colStock")}</th>
-                  <th className="pb-3 pr-4 font-bold">{t("stock.inventory.colPrice")}</th>
-                  <th className="pb-3 pr-4 font-bold">{t("admin.overview.colLastUpdated")}</th>
-                  <th className="pb-3 pr-4 font-bold">{t("admin.overview.colAnalytics")}</th>
-                  <th className="pb-3 font-bold">{t("stock.inventory.colActions")}</th>
+                  <th className="pb-3 pr-4 font-bold">
+                    {t("stock.inventory.colProduct")}
+                  </th>
+                  <th className="pb-3 pr-4 font-bold">
+                    {t("stock.inventory.colSku")}
+                  </th>
+                  <th className="pb-3 pr-4 font-bold">
+                    {t("stock.inventory.colSize")}
+                  </th>
+                  <th className="pb-3 pr-4 font-bold">
+                    {t("stock.inventory.colStock")}
+                  </th>
+                  <th className="pb-3 pr-4 font-bold">
+                    {t("stock.inventory.colPrice")}
+                  </th>
+                  <th className="pb-3 pr-4 font-bold">
+                    {t("admin.overview.colLastUpdated")}
+                  </th>
+                  <th className="pb-3 pr-4 font-bold">
+                    {t("admin.overview.colAnalytics")}
+                  </th>
+                  <th className="pb-3 font-bold">
+                    {t("stock.inventory.colActions")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {loading && urgentItems.length === 0
                   ? Array.from({ length: 2 }).map((_, index) => (
-                      <tr key={index} className="border-b border-border last:border-0">
+                      <tr
+                        key={index}
+                        className="border-b border-border last:border-0"
+                      >
                         <td colSpan={8} className="py-3">
                           <Skeleton className="h-11 w-full" />
                         </td>
                       </tr>
                     ))
                   : urgentItems.map((item) => {
-                      const level = item.stockStatus === "out_of_stock" ? "out_of_stock" : "low_stock";
-                      const tile = viewsByProductId.get(item.id);
+                      const level =
+                        item.stockStatus === "out_of_stock"
+                          ? "out_of_stock"
+                          : "low_stock";
+                      const tile = viewsByProductId.get(item.productId);
                       return (
-                        <tr key={item.id} className="border-b border-border last:border-0">
+                        <tr
+                          key={item.productId}
+                          className="border-b border-border last:border-0"
+                        >
                           <td className="py-3 pr-4">
                             <div className="flex items-center gap-3">
                               <div className="relative size-11 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-                                <Image src={item.image} alt={item.name} fill unoptimized className="object-cover" sizes="44px" />
+                                <Image
+                                  src={item.image}
+                                  alt={item.name}
+                                  fill
+                                  unoptimized
+                                  className="object-cover"
+                                  sizes="44px"
+                                />
                               </div>
                               <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold text-ink">{item.name}</p>
-                                <p className="truncate text-xs text-muted-foreground">{item.size}</p>
+                                <p className="truncate text-sm font-semibold text-ink">
+                                  {item.name}
+                                </p>
+                                <p className="truncate text-xs text-muted-foreground">
+                                  {item.size}
+                                </p>
                               </div>
                             </div>
                           </td>
-                          <td className="py-3 pr-4 font-data whitespace-nowrap text-ink">{item.sku}</td>
-                          <td className="py-3 pr-4 whitespace-nowrap text-ink">{item.size}</td>
-                          <td className="py-3 pr-4 whitespace-nowrap">
-                            <span className={cn("inline-flex items-center gap-1.5 font-data", stockText[level])}>
-                              <span className={cn("size-2 rounded-full", stockDot[level])} />
-                              {(item.quantityOnHandSqm ?? 0).toLocaleString()} {t("stock.inventory.sqm")}
-                            </span>
-                          </td>
-                          <td className="py-3 pr-4 font-data whitespace-nowrap text-ink">{Number(item.price).toLocaleString()}</td>
-                          <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">
-                            {new Date(item.updatedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                          <td className="py-3 pr-4 font-data whitespace-nowrap text-ink">
+                            {item.sku}
                           </td>
                           <td className="py-3 pr-4 whitespace-nowrap text-ink">
-                            {t("admin.overview.viewsShort", { count: formatCompactNumber(tile?.viewed ?? 0) })}
+                            {item.size}
+                          </td>
+                          <td className="py-3 pr-4 whitespace-nowrap">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1.5 font-data",
+                                stockText[level],
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "size-2 rounded-full",
+                                  stockDot[level],
+                                )}
+                              />
+                              {(item.quantityOnHandSqm ?? 0).toLocaleString()}{" "}
+                              {t("stock.inventory.sqm")}
+                            </span>
+                          </td>
+                          <td className="py-3 pr-4 font-data whitespace-nowrap text-ink">
+                            {Number(item.price).toLocaleString()}
+                          </td>
+                          <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">
+                            {new Date(item.updatedAt).toLocaleDateString(
+                              "en-GB",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )}
+                          </td>
+                          <td className="py-3 pr-4 whitespace-nowrap text-ink">
+                            {t("admin.overview.viewsShort", {
+                              count: formatCompactNumber(tile?.viewed ?? 0),
+                            })}
                             <span className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-green-600">
-                              <TrendingUp className="size-3.5 stroke-2" /> {t("admin.overview.ratePct", { value: (tile?.selectionRate ?? 0).toFixed(1) })}
+                              <TrendingUp className="size-3.5 stroke-2" />{" "}
+                              {t("admin.overview.ratePct", {
+                                value: (tile?.selectionRate ?? 0).toFixed(1),
+                              })}
                             </span>
                           </td>
                           <td className="py-3">
                             <div className="flex items-center gap-1">
-                              <Link href={`/admin/inventory/${item.id}`} aria-label={t("admin.overview.viewAria", { name: item.name })} className="rounded-md p-1.5 text-ink hover:bg-secondary">
+                              <Link
+                                href={`/admin/inventory/${item.productId}`}
+                                aria-label={t("admin.overview.viewAria", {
+                                  name: item.name,
+                                })}
+                                className="rounded-md p-1.5 text-ink hover:bg-secondary"
+                              >
                                 <Eye className="size-4" />
                               </Link>
-                              <Link href={`/admin/inventory/${item.id}`} aria-label={t("admin.overview.editAria", { name: item.name })} className="rounded-md p-1.5 text-ink hover:bg-secondary">
+                              <Link
+                                href={`/admin/inventory/${item.productId}`}
+                                aria-label={t("admin.overview.editAria", {
+                                  name: item.name,
+                                })}
+                                className="rounded-md p-1.5 text-ink hover:bg-secondary"
+                              >
                                 <Pencil className="size-4" />
                               </Link>
-                              <button type="button" aria-label={t("admin.overview.deleteAria", { name: item.name })} className="rounded-md p-1.5 text-red-600 hover:bg-red-50">
+                              <button
+                                type="button"
+                                aria-label={t("admin.overview.deleteAria", {
+                                  name: item.name,
+                                })}
+                                className="rounded-md p-1.5 text-red-600 hover:bg-red-50"
+                              >
                                 <Trash2 className="size-4" />
                               </button>
                             </div>
@@ -633,98 +990,168 @@ const RecentOrders = ({
 }) => {
   const { t } = useTranslation();
   return (
-  <section className="rounded-2xl bg-card p-5 sm:p-6">
-    <div className="flex items-center justify-between gap-3">
-      <div>
-        <h2 className="text-lg font-bold text-ink">{t("admin.overview.recentOrders")}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{t("admin.overview.recentOrdersSub")}</p>
+    <section className="rounded-2xl bg-card p-5 sm:p-6">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-ink">
+            {t("admin.overview.recentOrders")}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("admin.overview.recentOrdersSub")}
+          </p>
+        </div>
+        <Link
+          href="/admin/orders"
+          className="group flex shrink-0 items-center gap-1 text-xs font-semibold tracking-wider text-ink"
+        >
+          {t("admin.overview.viewAll")}
+          <ChevronRight className="size-4 transition-transform group-hover:translate-x-1" />
+        </Link>
       </div>
-      <Link
-        href="/admin/orders"
-        className="group flex shrink-0 items-center gap-1 text-xs font-semibold tracking-wider text-ink"
-      >
-        {t("admin.overview.viewAll")}
-        <ChevronRight className="size-4 transition-transform group-hover:translate-x-1" />
-      </Link>
-    </div>
-    {error ? (
-      <ApiErrorState message={error} onRetry={onRetry} className="mt-4" />
-    ) : !loading && orders.length === 0 ? (
-      <ApiEmptyState message={t("admin.overview.noOrders")} className="mt-4" />
-    ) : (
-      <ul className="mt-4 divide-y divide-border">
-        {loading && orders.length === 0
-          ? Array.from({ length: 3 }).map((_, index) => (
-              <li key={index} className="py-4 first:pt-0 last:pb-0">
-                <div className="flex items-start gap-3">
-                  <Skeleton className="size-10 rounded-lg" />
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <Skeleton className="h-4 w-2/3" />
-                    <Skeleton className="h-3 w-1/2" />
-                  </div>
-                </div>
-              </li>
-            ))
-          : orders.map((order) => {
-              const { icon: StatusIcon, tone } = orderStatusMeta[order.status];
-              return (
-                <li key={order.id} className="py-4 first:pt-0 last:pb-0">
+      {error ? (
+        <ApiErrorState message={error} onRetry={onRetry} className="mt-4" />
+      ) : !loading && orders.length === 0 ? (
+        <ApiEmptyState
+          message={t("admin.overview.noOrders")}
+          className="mt-4"
+        />
+      ) : (
+        <ul className="mt-4 divide-y divide-border">
+          {loading && orders.length === 0
+            ? Array.from({ length: 3 }).map((_, index) => (
+                <li key={index} className="py-4 first:pt-0 last:pb-0">
                   <div className="flex items-start gap-3">
-                    <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-lg", tone)}>
-                      <StatusIcon className="size-4" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="truncate text-sm font-semibold text-ink">{order.orderNumber}</p>
-                        <div className="flex shrink-0 items-center gap-2">
-                          {order.createdByType === "STAFF" && (
-                            <StaffCreatedIndicator createdByName={order.createdBy?.fullName ?? ""} />
-                          )}
-                          <OrderStatusBadge status={order.status} />
-                        </div>
-                      </div>
-                      <p className="truncate text-sm text-muted-foreground">
-                        {order.customer?.fullName ?? t("analytics.common.unknownCustomer")} • {t("admin.overview.itemsCount", { count: order.items?.length ?? 0 })}
-                      </p>
-                      <div className="mt-2 flex items-center justify-between gap-3">
-                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Clock3 className="size-3.5" />
-                          {new Date(order.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                        </span>
-                        <Link
-                          href={`/admin/orders/${order.id}`}
-                          className="text-xs font-semibold text-ink hover:underline"
-                        >
-                          {t("admin.overview.viewDetailsArrow")}
-                        </Link>
-                      </div>
+                    <Skeleton className="size-10 rounded-lg" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-3 w-1/2" />
                     </div>
                   </div>
                 </li>
-              );
-            })}
-      </ul>
-    )}
-  </section>
+              ))
+            : orders.map((order) => {
+                const { icon: StatusIcon, tone } =
+                  orderStatusMeta[order.status];
+                return (
+                  <li key={order.id} className="py-4 first:pt-0 last:pb-0">
+                    <div className="flex items-start gap-3">
+                      <span
+                        className={cn(
+                          "flex size-10 shrink-0 items-center justify-center rounded-lg",
+                          tone,
+                        )}
+                      >
+                        <StatusIcon className="size-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="truncate text-sm font-semibold text-ink">
+                            {order.orderNumber}
+                          </p>
+                          <div className="flex shrink-0 items-center gap-2">
+                            {order.createdByType === "STAFF" && (
+                              <StaffCreatedIndicator
+                                createdByName={order.createdBy?.fullName ?? ""}
+                              />
+                            )}
+                            <OrderStatusBadge status={order.status} />
+                          </div>
+                        </div>
+                        <p className="truncate text-sm text-muted-foreground">
+                          {order.customer?.fullName ??
+                            t("analytics.common.unknownCustomer")}{" "}
+                          •{" "}
+                          {t("admin.overview.itemsCount", {
+                            count: order.items?.length ?? 0,
+                          })}
+                        </p>
+                        <div className="mt-2 flex items-center justify-between gap-3">
+                          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Clock3 className="size-3.5" />
+                            {new Date(order.createdAt).toLocaleDateString(
+                              "en-GB",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )}
+                          </span>
+                          <Link
+                            href={`/admin/orders/${order.id}`}
+                            className="text-xs font-semibold text-ink hover:underline"
+                          >
+                            {t("admin.overview.viewDetailsArrow")}
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+        </ul>
+      )}
+    </section>
   );
 };
 
-const AiRecommendations = ({ summary, loading }: { summary: AiSummaryLike | undefined; loading: boolean }) => {
+const AiRecommendations = ({
+  summary,
+  loading,
+}: {
+  summary: AiSummaryLike | undefined;
+  loading: boolean;
+}) => {
   const { t } = useTranslation();
-  const pending = summary ? Math.max(summary.displayed - summary.accepted - summary.rejected, 0) : 0;
+  const pending = summary
+    ? Math.max(summary.displayed - summary.accepted - summary.rejected, 0)
+    : 0;
   const sentiments = summary
     ? [
-        { label: `${Math.round(pct(summary.accepted, summary.displayed))}%`, value: pct(summary.accepted, summary.displayed), icon: ThumbsUp, bar: "bg-blue-500", chip: "bg-blue-100 text-blue-600" },
-        { label: `${Math.round(pct(pending, summary.displayed))}%`, value: pct(pending, summary.displayed), icon: Minus, bar: "bg-muted-foreground/40", chip: "bg-muted-background text-muted-foreground" },
-        { label: `${Math.round(pct(summary.rejected, summary.displayed))}%`, value: pct(summary.rejected, summary.displayed), icon: ThumbsDown, bar: "bg-red-500", chip: "bg-red-100 text-red-600" },
+        {
+          label: `${Math.round(pct(summary.accepted, summary.displayed))}%`,
+          value: pct(summary.accepted, summary.displayed),
+          icon: ThumbsUp,
+          bar: "bg-blue-500",
+          chip: "bg-blue-100 text-blue-600",
+        },
+        {
+          label: `${Math.round(pct(pending, summary.displayed))}%`,
+          value: pct(pending, summary.displayed),
+          icon: Minus,
+          bar: "bg-muted-foreground/40",
+          chip: "bg-muted-background text-muted-foreground",
+        },
+        {
+          label: `${Math.round(pct(summary.rejected, summary.displayed))}%`,
+          value: pct(summary.rejected, summary.displayed),
+          icon: ThumbsDown,
+          bar: "bg-red-500",
+          chip: "bg-red-100 text-red-600",
+        },
       ]
     : [];
 
   const aiKpis = summary
     ? [
-        { key: "total", label: t("admin.overview.totalRecommendations"), value: formatCompactNumber(summary.displayed), icon: Sparkles },
-        { key: "acceptance", label: t("admin.overview.acceptanceRate"), value: `${summary.acceptanceRate.toFixed(1)}%`, icon: ShieldCheck },
-        { key: "match", label: t("admin.overview.avgMatchScore"), value: `${summary.averageMatchScore.toFixed(1)}%`, icon: TrendingUp },
+        {
+          key: "total",
+          label: t("admin.overview.totalRecommendations"),
+          value: formatCompactNumber(summary.displayed),
+          icon: Sparkles,
+        },
+        {
+          key: "acceptance",
+          label: t("admin.overview.acceptanceRate"),
+          value: `${summary.acceptanceRate.toFixed(1)}%`,
+          icon: ShieldCheck,
+        },
+        {
+          key: "match",
+          label: t("admin.overview.avgMatchScore"),
+          value: `${summary.averageMatchScore.toFixed(1)}%`,
+          icon: TrendingUp,
+        },
       ]
     : [];
 
@@ -732,7 +1159,9 @@ const AiRecommendations = ({ summary, loading }: { summary: AiSummaryLike | unde
     <section className="rounded-2xl bg-card p-5 sm:p-6">
       <div className="flex items-center gap-2">
         <Bot className="size-5 text-ink" />
-        <h2 className="text-lg font-bold text-ink">{t("admin.overview.aiRecommendations")}</h2>
+        <h2 className="text-lg font-bold text-ink">
+          {t("admin.overview.aiRecommendations")}
+        </h2>
       </div>
 
       <div className="mt-5 rounded-xl border border-border p-4">
@@ -744,18 +1173,30 @@ const AiRecommendations = ({ summary, loading }: { summary: AiSummaryLike | unde
         </div>
         <div className="mt-4 space-y-2.5">
           {loading && !summary
-            ? Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-6 w-full" />)
+            ? Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} className="h-6 w-full" />
+              ))
             : sentiments.map((sentiment, index) => {
                 const Icon = sentiment.icon;
                 return (
                   <div key={index} className="flex items-center gap-2.5">
-                    <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full", sentiment.chip)}>
+                    <span
+                      className={cn(
+                        "flex size-6 shrink-0 items-center justify-center rounded-full",
+                        sentiment.chip,
+                      )}
+                    >
                       <Icon className="size-3.5" />
                     </span>
                     <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted-background">
-                      <div className={cn("h-full rounded-full", sentiment.bar)} style={{ width: `${sentiment.value}%` }} />
+                      <div
+                        className={cn("h-full rounded-full", sentiment.bar)}
+                        style={{ width: `${sentiment.value}%` }}
+                      />
                     </div>
-                    <span className="w-9 shrink-0 text-right text-xs font-bold text-ink">{sentiment.label}</span>
+                    <span className="w-9 shrink-0 text-right text-xs font-bold text-ink">
+                      {sentiment.label}
+                    </span>
                   </div>
                 );
               })}
@@ -765,7 +1206,10 @@ const AiRecommendations = ({ summary, loading }: { summary: AiSummaryLike | unde
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         {loading && !summary
           ? Array.from({ length: 3 }).map((_, index) => (
-              <article key={index} className="flex h-full flex-col rounded-xl border border-border p-4">
+              <article
+                key={index}
+                className="flex h-full flex-col rounded-xl border border-border p-4"
+              >
                 <Skeleton className="size-5" />
                 <div className="mt-3 space-y-2">
                   <Skeleton className="h-3 w-20" />
@@ -776,13 +1220,20 @@ const AiRecommendations = ({ summary, loading }: { summary: AiSummaryLike | unde
           : aiKpis.map((kpi) => {
               const Icon = kpi.icon;
               return (
-                <article key={kpi.key} className="flex h-full flex-col rounded-xl border border-border p-4">
+                <article
+                  key={kpi.key}
+                  className="flex h-full flex-col rounded-xl border border-border p-4"
+                >
                   <div className="flex items-start justify-between gap-2">
                     <Icon className="size-5 stroke-2 text-ink" />
                   </div>
                   <div className="mt-3 flex flex-1 flex-col justify-end">
-                    <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">{kpi.label}</p>
-                    <p className="mt-1 text-xl font-black text-ink">{kpi.value}</p>
+                    <p className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
+                      {kpi.label}
+                    </p>
+                    <p className="mt-1 text-xl font-black text-ink">
+                      {kpi.value}
+                    </p>
                   </div>
                 </article>
               );
@@ -808,11 +1259,32 @@ type AnalyticsOverviewLike = {
   funnel: { stage: string; customers: number }[];
 };
 type TileLeaderboardsLike = {
-  mostViewed: { productId: string; name: string; image: string | null; count: number }[];
-  mostApplied: { productId: string; name: string; image: string | null; count: number }[];
-  mostPurchased: { productId: string; name: string; image: string | null; count: number }[];
+  mostViewed: {
+    productId: string;
+    name: string;
+    image: string | null;
+    count: number;
+  }[];
+  mostApplied: {
+    productId: string;
+    name: string;
+    image: string | null;
+    count: number;
+  }[];
+  mostPurchased: {
+    productId: string;
+    name: string;
+    image: string | null;
+    count: number;
+  }[];
 };
-type AiSummaryLike = { displayed: number; accepted: number; rejected: number; acceptanceRate: number; averageMatchScore: number };
+type AiSummaryLike = {
+  displayed: number;
+  accepted: number;
+  rejected: number;
+  acceptanceRate: number;
+  averageMatchScore: number;
+};
 type RecentOrderLike = {
   id: string;
   orderNumber: string;
@@ -828,11 +1300,16 @@ const AdminDashboardPage = () => {
   const { t } = useTranslation();
   const [period, setPeriod] = useState<AnalyticsPeriodDays>(30);
   const range = periodToRange[period];
-  const { data: overview, loading: overviewLoading, error: overviewError, reload: reloadOverview } = useApi(
-    () => analyticsApi.overview(range),
+  const {
+    data: overview,
+    loading: overviewLoading,
+    error: overviewError,
+    reload: reloadOverview,
+  } = useApi(() => analyticsApi.overview(range), [range]);
+  const { data: journey, loading: journeyLoading } = useApi(
+    () => analyticsApi.journey(range),
     [range],
   );
-  const { data: journey, loading: journeyLoading } = useApi(() => analyticsApi.journey(range), [range]);
   const { data: tiles, loading: tilesLoading } = useApi(
     () => analyticsApi.tiles({ period: range, limit: 100 }),
     [range],
@@ -842,11 +1319,11 @@ const AdminDashboardPage = () => {
     [range],
   );
   const {
-    data: productsData,
+    data: urgentItems,
     loading: productsLoading,
     error: productsError,
     reload: reloadProducts,
-  } = useApi(() => productsApi.listAll());
+  } = useApi(() => reportsApi.lowStock());
   const {
     data: ordersData,
     loading: ordersLoading,
@@ -855,19 +1332,10 @@ const AdminDashboardPage = () => {
   } = useApi(() => ordersApi.list({ limit: 3 }));
 
   const viewsByProductId = useMemo(
-    () => new Map((tiles?.table.items ?? []).map((row) => [row.productId, row])),
+    () =>
+      new Map((tiles?.table.items ?? []).map((row) => [row.productId, row])),
     [tiles],
   );
-
-  const urgentItems = useMemo(() => {
-    const items = (productsData?.items ?? []).filter((product) => product.stockStatus !== "in_stock");
-    return [...items]
-      .sort((a, b) => {
-        if (a.stockStatus !== b.stockStatus) return a.stockStatus === "out_of_stock" ? -1 : 1;
-        return (a.quantityOnHandSqm ?? 0) - (b.quantityOnHandSqm ?? 0);
-      })
-      .slice(0, 5);
-  }, [productsData]);
 
   if (overviewError) {
     return (
@@ -878,7 +1346,11 @@ const AdminDashboardPage = () => {
         >
           <HeaderActions period={period} onPeriodChange={setPeriod} />
         </AdminPageHeader>
-        <ApiErrorState message={overviewError} onRetry={reloadOverview} className="mt-8" />
+        <ApiErrorState
+          message={overviewError}
+          onRetry={reloadOverview}
+          className="mt-8"
+        />
       </>
     );
   }
@@ -897,11 +1369,18 @@ const AdminDashboardPage = () => {
           <SalesOverview />
           <NeedsAttention overview={overview} loading={overviewLoading} />
         </div>
-        <CustomerJourneyFunnel stages={journey?.stages ?? []} loading={journeyLoading} />
-        <TilePerformance leaderboards={tiles?.leaderboards} summary={tiles?.summary} loading={tilesLoading} />
+        <CustomerJourneyFunnel
+          stages={journey?.stages ?? []}
+          loading={journeyLoading}
+        />
+        <TilePerformance
+          leaderboards={tiles?.leaderboards}
+          summary={tiles?.summary}
+          loading={tilesLoading}
+        />
         <InventoryOverview
           overview={overview}
-          urgentItems={urgentItems}
+          urgentItems={(urgentItems ?? []).slice(0, 5)}
           viewsByProductId={viewsByProductId}
           loading={overviewLoading || productsLoading}
           error={productsError}
@@ -914,7 +1393,10 @@ const AdminDashboardPage = () => {
             error={ordersError}
             onRetry={reloadOrders}
           />
-          <AiRecommendations summary={recommendations?.summary} loading={recommendationsLoading} />
+          <AiRecommendations
+            summary={recommendations?.summary}
+            loading={recommendationsLoading}
+          />
         </div>
       </div>
     </>
