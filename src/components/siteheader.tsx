@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LanguageMenu } from "@/components/language-menu";
-import { roleAccountSettingsPath, roleHomePath } from "@/lib/auth-routes";
+import { roleHomePath } from "@/lib/auth-routes";
 import { useCart } from "@/lib/cart-store";
 import { useCurrentUser } from "@/lib/current-user";
 import { stripLocale } from "@/lib/i18n";
@@ -144,7 +144,7 @@ export const SiteHeader = () => {
             </Link>
           )}
           <Link
-            href={user ? roleAccountSettingsPath(user.role) : "/auth"}
+            href={user ? (user.role === "CLIENT" ? "/account/settings" : roleHomePath(user.role)) : "/auth"}
             className="transition-colors hover:text-ink"
             aria-label={user ? t("header.accountAria", { name: user.fullName }) : t("header.signIn")}
           >

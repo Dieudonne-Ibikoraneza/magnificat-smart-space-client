@@ -2,13 +2,21 @@
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { History, Menu, Settings, ShoppingCart, Sparkles, Star } from "lucide-react";
+import {
+  History,
+  Menu,
+  Settings,
+  ShoppingCart,
+  Sparkles,
+  Star,
+} from "lucide-react";
 import { SessionPending } from "@/components/api-state";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { SiteHeader } from "@/components/siteheader";
 import { ACCOUNT_ROLES } from "@/lib/auth-routes";
 import { useRequireRole } from "@/lib/require-role";
 import { getInitials } from "@/lib/utils";
+import { CartNegotiationChat } from "@/components/cart-negotiation-chat";
 
 const accountNavigation = [
   { href: "/account/cart", labelKey: "dash.nav.cart", icon: ShoppingCart },
@@ -19,7 +27,8 @@ const accountNavigation = [
     href: "/account/settings",
     labelKey: "dash.nav.settings",
     icon: Settings,
-    active: (pathname: string) => pathname === "/account" || pathname.startsWith("/account/settings"),
+    active: (pathname: string) =>
+      pathname === "/account" || pathname.startsWith("/account/settings"),
   },
 ] as const;
 
@@ -27,7 +36,10 @@ const AccountLayout = ({ children }: { children: React.ReactNode }) => {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, authorized } = useRequireRole(ACCOUNT_ROLES);
-  const navLinks = accountNavigation.map((link) => ({ ...link, label: t(link.labelKey) }));
+  const navLinks = accountNavigation.map((link) => ({
+    ...link,
+    label: t(link.labelKey),
+  }));
 
   // Holds the whole area — sidebar included — until we know who this is: a
   // signed-out visitor or the wrong role would otherwise see a flash of a
@@ -40,7 +52,11 @@ const AccountLayout = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  const sidebarUser = { initials: getInitials(user.fullName), name: user.fullName, email: user.email ?? "" };
+  const sidebarUser = {
+    initials: getInitials(user.fullName),
+    name: user.fullName,
+    email: user.email ?? "",
+  };
 
   return (
     <div className="min-h-screen bg-background text-ink">
@@ -80,10 +96,13 @@ const AccountLayout = ({ children }: { children: React.ReactNode }) => {
           >
             <Menu className="size-5" />
           </button>
-          <span className="ml-3 text-sm font-semibold text-ink">{t("dash.nav.menuLabel")}</span>
+          <span className="ml-3 text-sm font-semibold text-ink">
+            {t("dash.nav.menuLabel")}
+          </span>
         </div>
         {children}
       </main>
+      <CartNegotiationChat />
     </div>
   );
 };

@@ -8,7 +8,6 @@ import {
   MessagesSquare,
   ShelvingUnit,
   Sparkles,
-  Settings,
   ShoppingCart,
   Boxes,
   User,
@@ -34,7 +33,6 @@ const navigation = [
   { labelKey: "stock.nav.negotiations", href: "/stock/negotiations", icon: MessagesSquare },
   { labelKey: "stock.nav.collections", href: "/stock/collections", icon: Boxes },
   { labelKey: "stock.nav.reports", href: "/stock/reports", icon: FileText },
-  { labelKey: "stock.nav.settings", href: "/stock/settings", icon: Settings },
 ] as const;
 
 const StockLayout = ({ children }: { children: React.ReactNode }) => {

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  BarChart3,
   BriefcaseBusiness,
   LayoutGrid,
   ShoppingCart,
@@ -28,7 +27,6 @@ const navigation = [
   { labelKey: "sales.nav.orders", href: "/sales/orders", icon: ShoppingCart },
   { labelKey: "sales.nav.catalog", href: "/sales/catalog", icon: BriefcaseBusiness },
   { labelKey: "sales.nav.designs", href: "/sales/designs", icon: Sparkles },
-  { labelKey: "sales.nav.settings", href: "/sales/settings", icon: BarChart3 },
 ] as const;
 
 const SalesLayout = ({ children }: { children: React.ReactNode }) => {

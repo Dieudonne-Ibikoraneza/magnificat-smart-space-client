@@ -50,6 +50,7 @@ import {
 } from "@/lib/validation";
 import type { Role } from "@/lib/api/types";
 import { getSessionId } from "@/lib/session-id";
+import { resolveLocale } from "@/lib/i18n/config";
 import { PhoneField, RWANDA_PREFIX } from "@/components/phone-field";
 
 /** Matches the server's default `OTP_RESEND_COOLDOWN_SECONDS` — see server/.env. */
@@ -255,7 +256,7 @@ const OtpFields = ({
 };
 
 const AuthPage = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [view, setView] = useState<ViewState>("login");
   const [discoverySource, setDiscoverySource] = useState("");
   // The list of options is public, so it loads without a session.
@@ -331,7 +332,8 @@ const AuthPage = () => {
       }
       setSubmitting(true);
       try {
-        await authApi.login(loginEmail.trim());
+        const language = resolveLocale(i18n.language) === "rw" ? "RW" : "EN";
+        await authApi.login(loginEmail.trim(), language);
         toast.success(t("auth.toast.codeSentTitle"), {
           description: t("auth.toast.codeSentBody", {
             email: loginEmail.trim(),
@@ -368,6 +370,9 @@ const AuthPage = () => {
           email: signupEmail.trim(),
           phone: `${RWANDA_PREFIX}${signupPhone}`,
           heardAboutUs: discoverySource as HearAboutUs,
+          // Persist the language chosen on the first visit with the account.
+          // The server uses this same preference for all future emails.
+          language: resolveLocale(i18n.language) === "rw" ? "RW" : "EN",
         });
         toast.success(t("auth.toast.codeSentTitle"), {
           description: t("auth.toast.codeSentBody", {
@@ -431,7 +436,8 @@ const AuthPage = () => {
   const resendOtp = async () => {
     if (resendCooldown > 0) return;
     try {
-      await authApi.resendOtp(verifiedEmail.trim());
+      const language = resolveLocale(i18n.language) === "rw" ? "RW" : "EN";
+      await authApi.resendOtp(verifiedEmail.trim(), language);
       setOtpCode(["", "", "", ""]);
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
       toast.info(t("auth.toast.codeResentTitle"), {

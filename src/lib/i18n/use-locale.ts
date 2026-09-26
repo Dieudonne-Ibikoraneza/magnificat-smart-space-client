@@ -3,8 +3,17 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
-import { LOCALES, LOCALE_LABELS, localeFromPathname, resolveLocale, withLocale, type Locale } from "./config";
+import {
+  LOCALES,
+  LOCALE_LABELS,
+  localeFromPathname,
+  resolveLocale,
+  withLocale,
+  type Locale,
+} from "./config";
 import { persistLocaleChoice } from "./persist";
+import { tokenStore, usersApi } from "@/lib/api";
+import { useCurrentUser } from "@/lib/current-user";
 
 type UseLocale = {
   /** The active locale (always one of `LOCALES`). */
@@ -37,12 +46,21 @@ export const useLocale = (): UseLocale => {
   const router = useRouter();
   const pathname = usePathname() ?? "/";
   const { i18n } = useTranslation();
+  const { user } = useCurrentUser();
   const locale = resolveLocale(i18n.language);
 
   const setLocale = (next: Locale) => {
     if (next === locale) return;
     persistLocaleChoice(next);
     void i18n.changeLanguage(next);
+    // Keep the account preference aligned with the language the customer is
+    // actively using. This is deliberately fire-and-forget: switching the UI
+    // must never wait for, or fail because of, a background profile update.
+    if (tokenStore.getAccessToken() && user?.role === "CLIENT") {
+      void usersApi
+        .updateMe({ language: next === "rw" ? "RW" : "EN" })
+        .catch(() => undefined);
+    }
     if (localeFromPathname(pathname)) router.push(withLocale(pathname, next));
   };
 

@@ -9,7 +9,6 @@ import {
   FileText,
   LayoutGrid,
   MessageSquareText,
-  Settings,
   Users,
   Workflow,
 } from "lucide-react";
@@ -34,7 +33,6 @@ const navigation = [
   { labelKey: "analytics.nav.ai", href: "/analytics/ai", icon: Bot },
   { labelKey: "analytics.nav.stockReport", href: "/analytics/stock", icon: FileText },
   { labelKey: "analytics.nav.askedQuestions", href: "/analytics/asked-questions", icon: MessageSquareText },
-  { labelKey: "analytics.nav.settings", href: "/analytics/settings", icon: Settings },
 ] as const;
 
 const AnalyticsLayout = ({ children }: { children: React.ReactNode }) => {

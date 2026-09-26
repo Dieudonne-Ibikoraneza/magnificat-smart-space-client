@@ -19,25 +19,6 @@ export const roleHomePath = (role: Role): string => ROLE_HOME_PATH[role];
 export const ALL_ROLES = Object.keys(ROLE_HOME_PATH) as Role[];
 
 /**
- * Where each role's own *personal* profile settings live — name/email/phone,
- * password, delete account (`AccountProfileForm`/`DeleteAccountDialog`). Not
- * the same as a dashboard's platform settings: `admin/settings` configures
- * the whole platform (low-stock alerts, profiling questions, doc §3.10), so
- * admin's personal profile lives at the separate `admin/account-settings`
- * instead — every other role's own `.../settings` page already doubles as
- * both, so it's the right target there.
- */
-const ROLE_ACCOUNT_SETTINGS_PATH: Record<Role, string> = {
-  CLIENT: "/account/settings",
-  SALES_PERSON: "/sales/settings",
-  STOCK_MANAGER: "/stock/settings",
-  DATA_ANALYST: "/analytics/settings",
-  ADMIN: "/admin/account-settings",
-};
-
-export const roleAccountSettingsPath = (role: Role): string => ROLE_ACCOUNT_SETTINGS_PATH[role];
-
-/**
  * Which roles may sit inside each dashboard area — the single source of
  * truth for both `useRequireRole` (each layout's own gate) and the auth
  * page's post-login "send them back where they were going" check, so the
