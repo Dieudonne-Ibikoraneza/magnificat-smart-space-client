@@ -6,10 +6,20 @@ import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Bookmark, Check, Eye, Layers3, Search, ShoppingCart } from "lucide-react";
+import {
+  Bookmark,
+  Check,
+  Eye,
+  Layers3,
+  Search,
+  ShoppingCart,
+} from "lucide-react";
 import type { Product } from "@/components/product-card";
-import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
-import { ListPagination } from "@/components/list-pagination";
+import {
+  ApiEmptyState,
+  ApiErrorState,
+  ApiLoading,
+} from "@/components/api-state";
 import {
   Accordion,
   AccordionContent,
@@ -26,12 +36,27 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api/client";
-import { collectionsApi, eventsApi, productsApi, roomsApi, toProduct, tokenStore } from "@/lib/api";
+import {
+  collectionsApi,
+  eventsApi,
+  productsApi,
+  roomsApi,
+  toProduct,
+  tokenStore,
+} from "@/lib/api";
 import { localizedText } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
+import {
+  InfiniteScrollTrigger,
+  useInfiniteApi,
+} from "@/lib/api/use-infinite-api";
 import { useLocale } from "@/lib/i18n";
 import type { ApiCollection, ApiRoom, RoomType } from "@/lib/api/types";
 import { useCart } from "@/lib/cart-store";
@@ -74,7 +99,9 @@ const RoomLoadingFallback = () => {
   const { t } = useTranslation();
   return (
     <div className="flex size-full items-center justify-center">
-      <p className="text-sm font-semibold text-muted">{t("visualizer.loadingRoom")}</p>
+      <p className="text-sm font-semibold text-muted">
+        {t("visualizer.loadingRoom")}
+      </p>
     </div>
   );
 };
@@ -83,10 +110,13 @@ const Kitchen = dynamic(() => import("@/components/visualizer/kitchen"), {
   ssr: false,
   loading: RoomLoadingFallback,
 });
-const LivingRoom = dynamic(() => import("@/components/visualizer/living-room"), {
-  ssr: false,
-  loading: RoomLoadingFallback,
-});
+const LivingRoom = dynamic(
+  () => import("@/components/visualizer/living-room"),
+  {
+    ssr: false,
+    loading: RoomLoadingFallback,
+  },
+);
 const Bathroom = dynamic(() => import("@/components/visualizer/bathroom"), {
   ssr: false,
   loading: RoomLoadingFallback,
@@ -96,8 +126,7 @@ const Bedroom = dynamic(() => import("@/components/visualizer/bedroom"), {
   loading: RoomLoadingFallback,
 });
 
-const panelHeight =
-  "h-[calc(100dvh-7rem)] sm:h-[calc(100dvh-8rem)]";
+const panelHeight = "h-[calc(100dvh-7rem)] sm:h-[calc(100dvh-8rem)]";
 
 /**
  * The 3D viewport specifically (not the tile-picker sidebar, which is a plain
@@ -125,43 +154,45 @@ const TilePickerCard = ({
   const { t } = useTranslation();
 
   return (
-  <button
-    type="button"
-    onClick={onSelect}
-    className={cn(
-      "relative w-24 shrink-0 text-left transition-opacity hover:opacity-90",
-      selected && "opacity-100",
-    )}
-    aria-pressed={selected}
-    aria-label={t("visualizer.selectTileAria", { name: product.name })}
-  >
-    <div
+    <button
+      type="button"
+      onClick={onSelect}
       className={cn(
-        "relative aspect-square overflow-hidden rounded-xl border-2 bg-white",
-        selected ? "border-primary" : "border-transparent",
+        "relative w-24 shrink-0 text-left transition-opacity hover:opacity-90",
+        selected && "opacity-100",
       )}
+      aria-pressed={selected}
+      aria-label={t("visualizer.selectTileAria", { name: product.name })}
     >
-      <Image
-        src={product.image}
-        alt={product.name}
-        fill
-        unoptimized
-        className="object-cover"
-        sizes="96px"
-      />
-      {selected && (
-        <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-ink shadow-sm">
-          <Check className="size-3" strokeWidth={3} />
-        </span>
-      )}
-    </div>
-    <Tooltip>
-      <TooltipTrigger render={<p className="mt-2 truncate text-xs font-medium text-ink" />}>
-        {product.name}
-      </TooltipTrigger>
-      <TooltipContent side="top">{product.name}</TooltipContent>
-    </Tooltip>
-  </button>
+      <div
+        className={cn(
+          "relative aspect-square overflow-hidden rounded-xl border-2 bg-white",
+          selected ? "border-primary" : "border-transparent",
+        )}
+      >
+        <Image
+          src={product.image}
+          alt={product.name}
+          fill
+          unoptimized
+          className="object-cover"
+          sizes="96px"
+        />
+        {selected && (
+          <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-ink shadow-sm">
+            <Check className="size-3" strokeWidth={3} />
+          </span>
+        )}
+      </div>
+      <Tooltip>
+        <TooltipTrigger
+          render={<p className="mt-2 truncate text-xs font-medium text-ink" />}
+        >
+          {product.name}
+        </TooltipTrigger>
+        <TooltipContent side="top">{product.name}</TooltipContent>
+      </Tooltip>
+    </button>
   );
 };
 
@@ -175,36 +206,38 @@ const SurfaceToggle = ({
   const { t } = useTranslation();
 
   return (
-  <div
-    className="relative grid grid-cols-2 rounded-full bg-muted-background p-1"
-    role="tablist"
-    aria-label={t("visualizer.surfaceTypeAria")}
-  >
-    <span
-      aria-hidden="true"
-      className={cn(
-        "absolute top-1 bottom-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-ink shadow-sm transition-transform duration-300 ease-out",
-        activeSurface === "walls" && "translate-x-[calc(100%+0.5rem)]",
-      )}
-    />
-    {(["floor", "walls"] as const).map((surface) => (
-      <button
-        key={surface}
-        type="button"
-        role="tab"
-        aria-selected={activeSurface === surface}
-        onClick={() => onChange(surface)}
+    <div
+      className="relative grid grid-cols-2 rounded-full bg-muted-background p-1"
+      role="tablist"
+      aria-label={t("visualizer.surfaceTypeAria")}
+    >
+      <span
+        aria-hidden="true"
         className={cn(
-          "relative z-10 rounded-full py-2.5 text-sm font-semibold transition-colors duration-300",
-          activeSurface === surface
-            ? "text-white"
-            : "text-muted hover:text-ink",
+          "absolute top-1 bottom-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-ink shadow-sm transition-transform duration-300 ease-out",
+          activeSurface === "walls" && "translate-x-[calc(100%+0.5rem)]",
         )}
-      >
-        {surface === "floor" ? t("visualizer.surface.floor") : t("visualizer.surface.walls")}
-      </button>
-    ))}
-  </div>
+      />
+      {(["floor", "walls"] as const).map((surface) => (
+        <button
+          key={surface}
+          type="button"
+          role="tab"
+          aria-selected={activeSurface === surface}
+          onClick={() => onChange(surface)}
+          className={cn(
+            "relative z-10 rounded-full py-2.5 text-sm font-semibold transition-colors duration-300",
+            activeSurface === surface
+              ? "text-white"
+              : "text-muted hover:text-ink",
+          )}
+        >
+          {surface === "floor"
+            ? t("visualizer.surface.floor")
+            : t("visualizer.surface.walls")}
+        </button>
+      ))}
+    </div>
   );
 };
 
@@ -235,32 +268,56 @@ const AppliedTilesCart = ({
 }) => {
   const { t } = useTranslation();
   const sameTile = !!floorTile && floorTile.id === wallTile?.id;
-  const rows: { product: Product; labelKey: (typeof SURFACE_LABEL_KEYS)[keyof typeof SURFACE_LABEL_KEYS] }[] = [];
-  if (floorTile) rows.push({ product: floorTile, labelKey: sameTile ? SURFACE_LABEL_KEYS.floorAndWall : SURFACE_LABEL_KEYS.floor });
-  if (wallTile && !sameTile) rows.push({ product: wallTile, labelKey: SURFACE_LABEL_KEYS.wall });
+  const rows: {
+    product: Product;
+    labelKey: (typeof SURFACE_LABEL_KEYS)[keyof typeof SURFACE_LABEL_KEYS];
+  }[] = [];
+  if (floorTile)
+    rows.push({
+      product: floorTile,
+      labelKey: sameTile
+        ? SURFACE_LABEL_KEYS.floorAndWall
+        : SURFACE_LABEL_KEYS.floor,
+    });
+  if (wallTile && !sameTile)
+    rows.push({ product: wallTile, labelKey: SURFACE_LABEL_KEYS.wall });
 
   if (rows.length === 0) return null;
 
   return (
     <div className="mt-4 shrink-0 space-y-2 border-t border-slate-100 pt-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted">{t("visualizer.inThisDesign")}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted">
+        {t("visualizer.inThisDesign")}
+      </p>
       {rows.map(({ product, labelKey }) => (
         <div
           key={labelKey}
           className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-2"
         >
           <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-            <Image src={product.image} alt={product.name} fill unoptimized className="object-cover" sizes="48px" />
+            <Image
+              src={product.image}
+              alt={product.name}
+              fill
+              unoptimized
+              className="object-cover"
+              sizes="48px"
+            />
           </div>
           <div className="min-w-0 flex-1">
             <Tooltip>
-              <TooltipTrigger render={<p className="truncate text-sm font-semibold text-ink" />}>
+              <TooltipTrigger
+                render={
+                  <p className="truncate text-sm font-semibold text-ink" />
+                }
+              >
                 {product.name}
               </TooltipTrigger>
               <TooltipContent side="top">{product.name}</TooltipContent>
             </Tooltip>
             <p className="text-xs text-muted">
-              {t(labelKey)} · {formatPrice(product.price)} {t("visualizer.pricePerSqm")}
+              {t(labelKey)} · {formatPrice(product.price)}{" "}
+              {t("visualizer.pricePerSqm")}
             </p>
           </div>
           {/* Every signed-in role can open a tile's page, so unlike the cart
@@ -283,7 +340,9 @@ const AppliedTilesCart = ({
               className="h-9 shrink-0 gap-1.5 px-3 text-xs font-bold text-ink bg-primary hover:bg-primary/90 disabled:opacity-60"
             >
               <ShoppingCart className="size-3.5" strokeWidth={2} />
-              {product.stockStatus === "out_of_stock" ? t("visualizer.soldOut") : t("visualizer.add")}
+              {product.stockStatus === "out_of_stock"
+                ? t("visualizer.soldOut")
+                : t("visualizer.add")}
             </Button>
           )}
         </div>
@@ -308,7 +367,7 @@ const ConfigureSpacePanel = ({
   floorTile,
   wallTile,
   onAddTileToCart,
-  pagination,
+  infiniteScroll,
 }: {
   activeSurface: Surface;
   onSurfaceChange: (surface: Surface) => void;
@@ -316,7 +375,10 @@ const ConfigureSpacePanel = ({
   onSearchChange: (value: string) => void;
   openAccordionItems: string[];
   onOpenAccordionChange: (value: string[]) => void;
-  filteredCollections: Array<{ collection: ApiCollection; products: Product[] }>;
+  filteredCollections: Array<{
+    collection: ApiCollection;
+    products: Product[];
+  }>;
   productsLoading: boolean;
   selectedProductId: string | null;
   onSelectTile: (product: Product) => void;
@@ -325,94 +387,113 @@ const ConfigureSpacePanel = ({
   floorTile?: Product;
   wallTile?: Product;
   onAddTileToCart?: (product: Product) => void;
-  pagination: { page: number; totalPages: number; totalItems: number; onPageChange: (page: number) => void };
+  infiniteScroll: {
+    hasMore: boolean;
+    loading: boolean;
+    onLoadMore: () => void;
+  };
 }) => {
   const { t } = useTranslation();
 
   return (
-  <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-    <div className="relative z-10 shrink-0 space-y-3 bg-background pb-3">
-      <div className="flex items-center gap-2">
-        <Layers3 className="size-5 text-ink" strokeWidth={2} />
-        <h2 className="text-lg font-bold text-ink">{t("visualizer.configureSpace")}</h2>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="relative z-10 shrink-0 space-y-3 bg-background pb-3">
+        <div className="flex items-center gap-2">
+          <Layers3 className="size-5 text-ink" strokeWidth={2} />
+          <h2 className="text-lg font-bold text-ink">
+            {t("visualizer.configureSpace")}
+          </h2>
+        </div>
+
+        <SurfaceToggle
+          activeSurface={activeSurface}
+          onChange={onSurfaceChange}
+        />
+
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
+            aria-hidden="true"
+          />
+          <Input
+            value={searchQuery}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder={t("visualizer.searchPlaceholder")}
+            className="h-10 rounded-xl bg-white py-0 pl-10 leading-10"
+          />
+        </div>
       </div>
 
-      <SurfaceToggle activeSurface={activeSurface} onChange={onSurfaceChange} />
-
-      <div className="relative">
-        <Search
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
-          aria-hidden="true"
-        />
-        <Input
-          value={searchQuery}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder={t("visualizer.searchPlaceholder")}
-          className="h-10 rounded-xl bg-white py-0 pl-10 leading-10"
-        />
+      <div className="scrollbar-fine min-h-0 flex-1 overflow-y-auto overscroll-y-contain border-t border-slate-100 pt-2">
+        {productsLoading ? (
+          <ApiLoading label={t("visualizer.loadingTiles")} className="py-8" />
+        ) : filteredCollections.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted">
+            {t("visualizer.noSearchResults")}
+          </p>
+        ) : (
+          <div className="pb-8">
+            <Accordion
+              multiple
+              value={openAccordionItems}
+              onValueChange={onOpenAccordionChange}
+            >
+              {filteredCollections.map(
+                ({ collection, products: collectionProducts }) => (
+                  <AccordionItem key={collection.id} value={collection.id}>
+                    <AccordionTrigger className="cursor-pointer py-3 text-sm font-semibold text-ink hover:no-underline focus:outline-none focus-visible:outline-none focus-visible:ring-0">
+                      {collection.title}
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-4">
+                      {collectionProducts.length === 0 ? (
+                        <p className="text-sm text-muted">
+                          {t("visualizer.noTilesInCollection")}
+                        </p>
+                      ) : (
+                        <div className="scrollbar-fine-x flex gap-3 overflow-x-auto pb-2">
+                          {collectionProducts.map((product) => (
+                            <TilePickerCard
+                              key={product.id}
+                              product={product}
+                              selected={selectedProductId === product.id}
+                              onSelect={() => onSelectTile(product)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+                ),
+              )}
+            </Accordion>
+            <InfiniteScrollTrigger
+              hasMore={infiniteScroll.hasMore}
+              loading={infiniteScroll.loading}
+              onLoadMore={infiniteScroll.onLoadMore}
+            />
+          </div>
+        )}
       </div>
-    </div>
 
-    <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-y-contain border-t border-slate-100 pt-2">
-      {productsLoading ? (
-        <ApiLoading label={t("visualizer.loadingTiles")} className="py-8" />
-      ) : filteredCollections.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted">
-          {t("visualizer.noSearchResults")}
-        </p>
-      ) : (
-        <div className="pb-8">
-          <Accordion
-            multiple
-            value={openAccordionItems}
-            onValueChange={onOpenAccordionChange}
+      <AppliedTilesCart
+        floorTile={floorTile}
+        wallTile={wallTile}
+        onAddToCart={onAddTileToCart}
+      />
+
+      {showActions && (
+        <div className="mt-4 shrink-0">
+          <Button
+            type="button"
+            onClick={onOpenSaveDialog}
+            className="h-11 w-full gap-2 px-4 text-sm font-bold text-ink bg-primary hover:bg-primary/90"
           >
-            {filteredCollections.map(({ collection, products: collectionProducts }) => (
-              <AccordionItem key={collection.id} value={collection.id}>
-                <AccordionTrigger className="cursor-pointer py-3 text-sm font-semibold text-ink hover:no-underline focus:outline-none focus-visible:outline-none focus-visible:ring-0">
-                  {collection.title}
-                </AccordionTrigger>
-                <AccordionContent className="pb-4">
-                  {collectionProducts.length === 0 ? (
-                    <p className="text-sm text-muted">
-                      {t("visualizer.noTilesInCollection")}
-                    </p>
-                  ) : (
-                    <div className="scrollbar-hide flex gap-3 overflow-x-auto pb-1">
-                      {collectionProducts.map((product) => (
-                        <TilePickerCard
-                          key={product.id}
-                          product={product}
-                          selected={selectedProductId === product.id}
-                          onSelect={() => onSelectTile(product)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-          <ListPagination page={pagination.page} totalPages={pagination.totalPages} totalItems={pagination.totalItems} pageSize={20} onPageChange={pagination.onPageChange} className="mt-3" />
+            <Bookmark className="size-4" strokeWidth={2} />
+            {t("visualizer.saveDesign")}
+          </Button>
         </div>
       )}
     </div>
-
-    <AppliedTilesCart floorTile={floorTile} wallTile={wallTile} onAddToCart={onAddTileToCart} />
-
-    {showActions && (
-      <div className="mt-4 shrink-0">
-        <Button
-          type="button"
-          onClick={onOpenSaveDialog}
-          className="h-11 w-full gap-2 px-4 text-sm font-bold text-ink bg-primary hover:bg-primary/90"
-        >
-          <Bookmark className="size-4" strokeWidth={2} />
-          {t("visualizer.saveDesign")}
-        </Button>
-      </div>
-    )}
-  </div>
   );
 };
 
@@ -435,7 +516,9 @@ const MobileTilePickerSheet = ({
     <div
       className={cn(
         "fixed inset-0 z-50 bg-ink/30 backdrop-blur-sm lg:hidden",
-        closing ? "animate-out fade-out duration-300" : "animate-in fade-in duration-200",
+        closing
+          ? "animate-out fade-out duration-300"
+          : "animate-in fade-in duration-200",
       )}
       role="dialog"
       aria-modal="true"
@@ -513,7 +596,9 @@ const SaveDesignDialog = ({
 
         <div className="mt-4 space-y-4">
           <Field>
-            <FieldLabel htmlFor="design-name">{t("visualizer.saveDialog.nameLabel")}</FieldLabel>
+            <FieldLabel htmlFor="design-name">
+              {t("visualizer.saveDialog.nameLabel")}
+            </FieldLabel>
             <Input
               id="design-name"
               value={name}
@@ -524,7 +609,9 @@ const SaveDesignDialog = ({
 
           <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-100 bg-[#F9FAFB] px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-ink">{t("visualizer.saveDialog.shareTitle")}</p>
+              <p className="text-sm font-semibold text-ink">
+                {t("visualizer.saveDialog.shareTitle")}
+              </p>
               <p className="mt-0.5 text-xs text-muted">
                 {t("visualizer.saveDialog.shareHint")}
               </p>
@@ -538,7 +625,12 @@ const SaveDesignDialog = ({
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="h-10 px-5 text-sm font-bold">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="h-10 px-5 text-sm font-bold"
+          >
             {t("visualizer.saveDialog.cancel")}
           </Button>
           <Button
@@ -547,7 +639,9 @@ const SaveDesignDialog = ({
             onClick={() => onSave(name.trim(), shared)}
             className="h-10 px-5 text-sm font-bold bg-primary text-ink hover:bg-primary/90 disabled:opacity-60"
           >
-            {saving ? t("visualizer.saveDialog.saving") : t("visualizer.saveDialog.save")}
+            {saving
+              ? t("visualizer.saveDialog.saving")
+              : t("visualizer.saveDialog.save")}
           </Button>
         </div>
       </DialogContent>
@@ -578,13 +672,14 @@ const VisualizerPage = () => {
   );
   const [activeSurface, setActiveSurface] = useState<Surface>("floor");
   const [searchQuery, setSearchQuery] = useState("");
-  const [tilePage, setTilePage] = useState(1);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerClosing, setPickerClosing] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const tabBarRef = useRef<HTMLDivElement>(null);
-  const tabButtonRefs = useRef<Partial<Record<RoomType, HTMLButtonElement>>>({});
+  const tabButtonRefs = useRef<Partial<Record<RoomType, HTMLButtonElement>>>(
+    {},
+  );
   const [activeTabPill, setActiveTabPill] = useState({ left: 0, width: 0 });
   // Keyed by room type — a tile picked while designing the bathroom must
   // never bleed onto the bedroom (or any other room) just because they share
@@ -625,7 +720,9 @@ const VisualizerPage = () => {
   // picked one or a saved design (below) claims a specific one — a plain
   // derived value, not state, so there's nothing to synchronize via effect.
   const effectiveRoomType = activeRoomType ?? visibleTabs[0]?.type ?? null;
-  const activeRoomRow = effectiveRoomType ? roomsByType.get(effectiveRoomType) : undefined;
+  const activeRoomRow = effectiveRoomType
+    ? roomsByType.get(effectiveRoomType)
+    : undefined;
 
   const switchRoom = (nextRoom: RoomType) => {
     if (nextRoom === effectiveRoomType) return;
@@ -637,11 +734,15 @@ const VisualizerPage = () => {
   // URL being updated), and a measurement of a replaced, detached button is 0 wide — which leaves
   // the active tab's white label on the white bar, invisible.
   const measureActiveTab = () => {
-    const button = effectiveRoomType ? tabButtonRefs.current[effectiveRoomType] : undefined;
+    const button = effectiveRoomType
+      ? tabButtonRefs.current[effectiveRoomType]
+      : undefined;
     if (!button?.isConnected) return;
     const next = { left: button.offsetLeft, width: button.offsetWidth };
     setActiveTabPill((current) =>
-      current.left === next.left && current.width === next.width ? current : next,
+      current.left === next.left && current.width === next.width
+        ? current
+        : next,
     );
   };
   // After every commit, since any render can change which buttons exist or how wide they are ...
@@ -656,7 +757,8 @@ const VisualizerPage = () => {
   });
 
   const { data: existingDesign } = useApi(
-    () => (designIdParam ? roomsApi.getDesign(designIdParam) : Promise.resolve(null)),
+    () =>
+      designIdParam ? roomsApi.getDesign(designIdParam) : Promise.resolve(null),
     [designIdParam],
   );
 
@@ -685,20 +787,36 @@ const VisualizerPage = () => {
     // would still resolve to whatever room was active *before* this design
     // loaded, silently misfiling these tiles under the wrong room.
     if (roomType) {
-      setSelectionsByRoom((current) => ({ ...current, [roomType]: nextSelections }));
+      setSelectionsByRoom((current) => ({
+        ...current,
+        [roomType]: nextSelections,
+      }));
     }
   }
 
   const {
-    data: productsPage,
+    items: productItems,
     loading: productsLoading,
+    loadingMore: productsLoadingMore,
     error: productsError,
-  } = useApi(
-    () => productsApi.list({ roomType: effectiveRoomType ?? undefined, compatibleWith: activeSurface === "floor" ? "FLOOR" : "WALL", search: searchQuery.trim() || undefined, page: tilePage, limit: 20 }),
-    [effectiveRoomType, activeSurface, searchQuery, tilePage],
+    hasMore: hasMoreProducts,
+    loadMore: loadMoreProducts,
+  } = useInfiniteApi(
+    (page) =>
+      productsApi.list({
+        roomType: effectiveRoomType ?? undefined,
+        compatibleWith: activeSurface === "floor" ? "FLOOR" : "WALL",
+        search: searchQuery.trim() || undefined,
+        page,
+        limit: 20,
+      }),
+    [effectiveRoomType, activeSurface, searchQuery],
   );
 
-  const collectionsList = useMemo(() => collectionsPage?.items ?? [], [collectionsPage]);
+  const collectionsList = useMemo(
+    () => collectionsPage?.items ?? [],
+    [collectionsPage],
+  );
   const collectionTitleById = useMemo(
     () =>
       new Map(
@@ -711,10 +829,14 @@ const VisualizerPage = () => {
   );
   const mappedProducts = useMemo(
     () =>
-      (productsPage?.items ?? []).map((product) =>
-        toProduct(product, collectionTitleById.get(product.collectionId), locale),
+      productItems.map((product) =>
+        toProduct(
+          product,
+          collectionTitleById.get(product.collectionId),
+          locale,
+        ),
       ),
-    [productsPage, collectionTitleById, locale],
+    [productItems, collectionTitleById, locale],
   );
 
   // Every room used to always open pre-tiled rather than bare — replicate
@@ -747,7 +869,8 @@ const VisualizerPage = () => {
         ? mappedProducts.find(
             (product) =>
               product.id === initialFloorParam &&
-              (product.suitableFor === "floor" || product.suitableFor === "both"),
+              (product.suitableFor === "floor" ||
+                product.suitableFor === "both"),
           )
         : undefined;
     const wallFromUrl =
@@ -755,38 +878,52 @@ const VisualizerPage = () => {
         ? mappedProducts.find(
             (product) =>
               product.id === initialWallParam &&
-              (product.suitableFor === "wall" || product.suitableFor === "both"),
+              (product.suitableFor === "wall" ||
+                product.suitableFor === "both"),
           )
         : undefined;
     const firstFloorTile = mappedProducts.find(
-      (product) => product.suitableFor === "floor" || product.suitableFor === "both",
+      (product) =>
+        product.suitableFor === "floor" || product.suitableFor === "both",
     );
     const firstWallTile = mappedProducts.find(
-      (product) => product.suitableFor === "wall" || product.suitableFor === "both",
+      (product) =>
+        product.suitableFor === "wall" || product.suitableFor === "both",
     );
     setSelectionsByRoom((current) => {
       const currentForRoom = current[roomType] ?? EMPTY_SELECTIONS;
       return {
         ...current,
         [roomType]: {
-          floor: currentForRoom.floor ?? floorFromUrl ?? firstFloorTile ?? mappedProducts[0],
-          walls: currentForRoom.walls ?? wallFromUrl ?? firstWallTile ?? mappedProducts[0],
+          floor:
+            currentForRoom.floor ??
+            floorFromUrl ??
+            firstFloorTile ??
+            mappedProducts[0],
+          walls:
+            currentForRoom.walls ??
+            wallFromUrl ??
+            firstWallTile ??
+            mappedProducts[0],
         },
       };
     });
   }
 
   const selections: SurfaceSelections =
-    (effectiveRoomType && selectionsByRoom[effectiveRoomType]) || EMPTY_SELECTIONS;
+    (effectiveRoomType && selectionsByRoom[effectiveRoomType]) ||
+    EMPTY_SELECTIONS;
 
   const setSelections = (
-    updater: SurfaceSelections | ((current: SurfaceSelections) => SurfaceSelections),
+    updater:
+      SurfaceSelections | ((current: SurfaceSelections) => SurfaceSelections),
   ) => {
     if (!effectiveRoomType) return;
     const roomType = effectiveRoomType;
     setSelectionsByRoom((current) => {
       const currentForRoom = current[roomType] ?? EMPTY_SELECTIONS;
-      const next = typeof updater === "function" ? updater(currentForRoom) : updater;
+      const next =
+        typeof updater === "function" ? updater(currentForRoom) : updater;
       return { ...current, [roomType]: next };
     });
   };
@@ -830,7 +967,9 @@ const VisualizerPage = () => {
     // customer could actually apply to the surface they're configuring.
     const suitableForActiveSurface = (product: Product) =>
       product.suitableFor === "both" ||
-      (activeSurface === "floor" ? product.suitableFor === "floor" : product.suitableFor === "wall");
+      (activeSurface === "floor"
+        ? product.suitableFor === "floor"
+        : product.suitableFor === "wall");
 
     return collectionsList
       .map((collection) => ({
@@ -848,16 +987,23 @@ const VisualizerPage = () => {
       }))
       .filter(
         ({ collection, products: collectionProducts }) =>
-          collectionProducts.length > 0 || collection.title.toLowerCase().includes(query),
+          collectionProducts.length > 0 ||
+          collection.title.toLowerCase().includes(query),
       );
   }, [collectionsList, mappedProducts, searchQuery, activeSurface]);
 
   const [openAccordionItems, setOpenAccordionItems] = useState<string[]>(() =>
-    filteredCollections.length > 0 ? [filteredCollections[0].collection.id] : [],
+    filteredCollections.length > 0
+      ? [filteredCollections[0].collection.id]
+      : [],
   );
 
-  const validAccordionIds = new Set(filteredCollections.map(({ collection }) => collection.id));
-  const visibleAccordionItems = openAccordionItems.filter((id) => validAccordionIds.has(id));
+  const validAccordionIds = new Set(
+    filteredCollections.map(({ collection }) => collection.id),
+  );
+  const visibleAccordionItems = openAccordionItems.filter((id) =>
+    validAccordionIds.has(id),
+  );
   const effectiveAccordionItems =
     visibleAccordionItems.length > 0
       ? visibleAccordionItems
@@ -893,7 +1039,9 @@ const VisualizerPage = () => {
       .catch(() => undefined);
     if (!appliedTileEventFiredRef.current) {
       appliedTileEventFiredRef.current = true;
-      void eventsApi.journey({ sessionId, stage: "APPLIED_TILE" }).catch(() => undefined);
+      void eventsApi
+        .journey({ sessionId, stage: "APPLIED_TILE" })
+        .catch(() => undefined);
     }
 
     if (pickerOpen) closePicker();
@@ -911,7 +1059,11 @@ const VisualizerPage = () => {
     // (name, type, thumbnail) instead of falling back to a generic "Started
     // a new room design" — see `journeyStageActions`'s CREATED_ROOM case.
     void eventsApi
-      .journey({ sessionId: getSessionId(), stage: "CREATED_ROOM", metadata: { roomId: activeRoomRow.id } })
+      .journey({
+        sessionId: getSessionId(),
+        stage: "CREATED_ROOM",
+        metadata: { roomId: activeRoomRow.id },
+      })
       .catch(() => undefined);
   }, [activeRoomRow]);
 
@@ -957,7 +1109,12 @@ const VisualizerPage = () => {
 
     setSaving(true);
     try {
-      await roomsApi.saveDesign({ roomId: activeRoomRow.id, name, tiles, sharedWithSales });
+      await roomsApi.saveDesign({
+        roomId: activeRoomRow.id,
+        name,
+        tiles,
+        sharedWithSales,
+      });
       toast.success(t("visualizer.toast.savedTitle"), {
         description: sharedWithSales
           ? t("visualizer.toast.savedShared")
@@ -966,7 +1123,10 @@ const VisualizerPage = () => {
       setSaveDialogOpen(false);
     } catch (cause) {
       toast.error(t("visualizer.toast.saveFailedTitle"), {
-        description: cause instanceof ApiError ? cause.message : t("visualizer.toast.tryAgain"),
+        description:
+          cause instanceof ApiError
+            ? cause.message
+            : t("visualizer.toast.tryAgain"),
       });
     } finally {
       setSaving(false);
@@ -986,10 +1146,14 @@ const VisualizerPage = () => {
       return;
     }
     const existing = cart.lines.find((line) => line.productId === product.id);
-    const nextArea = Math.round(((existing?.areaSqm ?? 0) + product.boxCoverage) * 100) / 100;
+    const nextArea =
+      Math.round(((existing?.areaSqm ?? 0) + product.boxCoverage) * 100) / 100;
     cart.setQuantity(product, nextArea);
     toast.success(t("visualizer.toast.addedTitle"), {
-      description: t("visualizer.toast.addedBody", { name: product.name, area: nextArea }),
+      description: t("visualizer.toast.addedBody", {
+        name: product.name,
+        area: nextArea,
+      }),
     });
   };
 
@@ -997,7 +1161,7 @@ const VisualizerPage = () => {
     activeSurface,
     onSurfaceChange: setActiveSurface,
     searchQuery,
-    onSearchChange: (value: string) => { setSearchQuery(value); setTilePage(1); },
+    onSearchChange: setSearchQuery,
     openAccordionItems: effectiveAccordionItems,
     onOpenAccordionChange: setOpenAccordionItems,
     filteredCollections,
@@ -1008,7 +1172,11 @@ const VisualizerPage = () => {
     floorTile,
     wallTile,
     onAddTileToCart: isClient ? addTileToCart : undefined,
-    pagination: { page: productsPage?.meta.page ?? tilePage, totalPages: productsPage?.meta.totalPages ?? 1, totalItems: productsPage?.meta.total ?? 0, onPageChange: setTilePage },
+    infiniteScroll: {
+      hasMore: hasMoreProducts,
+      loading: productsLoadingMore,
+      onLoadMore: loadMoreProducts,
+    },
   };
 
   if (roomsLoading || collectionsLoading) {
@@ -1016,26 +1184,35 @@ const VisualizerPage = () => {
   }
 
   if (roomsError) {
-    return <ApiErrorState message={roomsError} onRetry={reloadRooms} className="my-16" />;
-  }
-
-  if (collectionsError) {
-    return <ApiErrorState message={collectionsError} onRetry={reloadCollections} className="my-16" />;
-  }
-
-  if (visibleTabs.length === 0) {
     return (
-      <ApiEmptyState
-        message={t("visualizer.empty")}
+      <ApiErrorState
+        message={roomsError}
+        onRetry={reloadRooms}
         className="my-16"
       />
     );
   }
 
+  if (collectionsError) {
+    return (
+      <ApiErrorState
+        message={collectionsError}
+        onRetry={reloadCollections}
+        className="my-16"
+      />
+    );
+  }
+
+  if (visibleTabs.length === 0) {
+    return <ApiEmptyState message={t("visualizer.empty")} className="my-16" />;
+  }
+
   return (
     <>
       <div className={cn("flex flex-col lg:flex-row lg:gap-8", panelHeight)}>
-        <div className={cn("relative min-h-0 min-w-0 flex-1", viewportPanelHeight)}>
+        <div
+          className={cn("relative min-h-0 min-w-0 flex-1", viewportPanelHeight)}
+        >
           <div className="relative flex size-full flex-col overflow-hidden rounded-2xl bg-muted-background shadow-inner">
             {/* Above the room's own loading overlay (`RoomLoadingOverlay`,
                 `room-scene.tsx`) — both are absolutely positioned over this
@@ -1049,7 +1226,10 @@ const VisualizerPage = () => {
                 <span
                   aria-hidden="true"
                   className="pointer-events-none absolute bottom-1 left-0 top-1 z-0 rounded-full bg-ink transition-[left,width] duration-300 ease-out"
-                  style={{ left: activeTabPill.left, width: activeTabPill.width }}
+                  style={{
+                    left: activeTabPill.left,
+                    width: activeTabPill.width,
+                  }}
                 />
                 {visibleTabs.map((tab) => (
                   <Button
@@ -1076,16 +1256,26 @@ const VisualizerPage = () => {
 
             {productsError ? (
               <div className="flex flex-1 items-center justify-center p-6">
-                <p className="max-w-sm text-center text-sm text-muted">{productsError}</p>
+                <p className="max-w-sm text-center text-sm text-muted">
+                  {productsError}
+                </p>
               </div>
             ) : effectiveRoomType === "LIVING_ROOM" ? (
-              <LivingRoom floorTile={floorTile} wallTile={wallTile} className="relative flex-1" />
+              <LivingRoom floorTile={floorTile} className="relative flex-1" />
             ) : effectiveRoomType === "BATHROOM" ? (
-              <Bathroom floorTile={floorTile} wallTile={wallTile} className="relative flex-1" />
+              <Bathroom
+                floorTile={floorTile}
+                wallTile={wallTile}
+                className="relative flex-1"
+              />
             ) : effectiveRoomType === "BEDROOM" ? (
-              <Bedroom floorTile={floorTile} wallTile={wallTile} className="relative flex-1" />
+              <Bedroom floorTile={floorTile} className="relative flex-1" />
             ) : effectiveRoomType === "KITCHEN" ? (
-              <Kitchen floorTile={floorTile} wallTile={wallTile} className="relative flex-1" />
+              <Kitchen
+                floorTile={floorTile}
+                wallTile={wallTile}
+                className="relative flex-1"
+              />
             ) : null}
 
             {/* Same reasoning as the tabs above — kept above the room's own loading overlay. */}
@@ -1096,7 +1286,9 @@ const VisualizerPage = () => {
                 className="h-11 flex-1 gap-2 bg-primary text-sm font-bold text-ink hover:bg-primary/90"
               >
                 <Layers3 className="size-4" strokeWidth={2} />
-                {selectedProduct ? t("visualizer.changeTile") : t("visualizer.chooseTiles")}
+                {selectedProduct
+                  ? t("visualizer.changeTile")
+                  : t("visualizer.chooseTiles")}
               </Button>
               {isClient && (
                 <Button
@@ -1118,7 +1310,10 @@ const VisualizerPage = () => {
             panelHeight,
           )}
         >
-          <ConfigureSpacePanel {...configurePanelProps} showActions={isClient} />
+          <ConfigureSpacePanel
+            {...configurePanelProps}
+            showActions={isClient}
+          />
         </aside>
       </div>
 
@@ -1133,9 +1328,13 @@ const VisualizerPage = () => {
       <SaveDesignDialog
         open={saveDialogOpen}
         onOpenChange={setSaveDialogOpen}
-        roomLabel={activeTab ? t(activeTab.labelKey) : t("visualizer.roomFallback")}
+        roomLabel={
+          activeTab ? t(activeTab.labelKey) : t("visualizer.roomFallback")
+        }
         saving={saving}
-        onSave={(name, sharedWithSales) => void handleSaveDesign(name, sharedWithSales)}
+        onSave={(name, sharedWithSales) =>
+          void handleSaveDesign(name, sharedWithSales)
+        }
       />
     </>
   );

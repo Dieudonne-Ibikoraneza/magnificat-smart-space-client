@@ -1,9 +1,21 @@
 "use client";
 
-import { Box3, BufferGeometry, Mesh, MeshStandardMaterial, PlaneGeometry, Vector3, type Object3D } from "three";
+import {
+  Box3,
+  BufferGeometry,
+  Mesh,
+  MeshStandardMaterial,
+  PlaneGeometry,
+  Vector3,
+  type Object3D,
+} from "three";
 import type { SurfaceOverride } from "@/components/room-scene";
 import type { Product } from "@/components/product-card";
-import { fixtureZones, RoomWithCamera, type RoomCameraRig } from "@/components/visualizer/room-camera";
+import {
+  fixtureZones,
+  RoomWithCamera,
+  type RoomCameraRig,
+} from "@/components/visualizer/room-camera";
 import { addSkirting } from "@/components/visualizer/room-trim";
 
 /**
@@ -22,7 +34,14 @@ const MODEL_URL = "/models/rooms/modern_bedroom.glb";
  * out. Nothing closes the room at z 3.00; the old camera stood out there at
  * z 4.9 and looked in.
  */
-const SHELL = { minX: -2.57, maxX: 2.57, minY: -1.71, maxY: 1.71, minZ: -3.09, maxZ: 3.0 };
+const SHELL = {
+  minX: -2.57,
+  maxX: 2.57,
+  minY: -1.71,
+  maxY: 1.71,
+  minZ: -3.09,
+  maxZ: 3.0,
+};
 const SHELL_MESH = "Bedroom_Bedroom_0";
 const FRONT_WALL_NAME = "Bedroom_FrontWall";
 const BACKDROP_NAME = "Bedroom_Backdrop";
@@ -30,7 +49,14 @@ const WINDOW_FEATURE_NAME = "Bedroom_WindowFeature";
 /** Everything this far behind the window wall is the backdrop, not the room. */
 const BACKDROP_MAX_Z = -4.5;
 /** The nine decorative panels inside the centre window keep their baked design. */
-const WINDOW_FEATURE = { minX: -0.9, maxX: 0.9, minY: -1.3, maxY: 1.3, minZ: -2.985, maxZ: -2.97 };
+const WINDOW_FEATURE = {
+  minX: -0.9,
+  maxX: 0.9,
+  minY: -1.3,
+  maxY: 1.3,
+  minZ: -2.985,
+  maxZ: -2.97,
+};
 
 /**
  * `Bedroom_Bedroom_0` welds the room shell together with the bed, TV stand,
@@ -49,10 +75,10 @@ const SURFACE_OVERRIDE: SurfaceOverride = {
   wall: [FRONT_WALL_NAME],
 };
 
-/** Clean plaster for the added fourth wall, matched to the bedroom's default grey. */
+/** Clean plaster for the added fourth wall, matched to the bedroom's darker wall tone. */
 const PLASTER = new MeshStandardMaterial({
   name: "BedroomPlaster",
-  color: 0xaaa9a3,
+  color: 0x565550,
   roughness: 0.95,
   metalness: 0,
 });
@@ -84,20 +110,28 @@ const prepareBedroom = (room: Object3D) => {
       const corners = [0, 1, 2].map((corner) => vertexOf(triangle, corner));
       const outside = corners.every(
         (vertex) =>
-          worldVertex.fromBufferAttribute(position, vertex).applyMatrix4(object.matrixWorld).z < BACKDROP_MAX_Z,
+          worldVertex
+            .fromBufferAttribute(position, vertex)
+            .applyMatrix4(object.matrixWorld).z < BACKDROP_MAX_Z,
       );
-      const onWindowFeature = !outside && corners.every((vertex) => {
-        worldVertex.fromBufferAttribute(position, vertex).applyMatrix4(object.matrixWorld);
-        return (
-          worldVertex.x >= WINDOW_FEATURE.minX &&
-          worldVertex.x <= WINDOW_FEATURE.maxX &&
-          worldVertex.y >= WINDOW_FEATURE.minY &&
-          worldVertex.y <= WINDOW_FEATURE.maxY &&
-          worldVertex.z >= WINDOW_FEATURE.minZ &&
-          worldVertex.z <= WINDOW_FEATURE.maxZ
-        );
-      });
-      (outside ? backdrop : onWindowFeature ? windowFeature : keep).push(...corners);
+      const onWindowFeature =
+        !outside &&
+        corners.every((vertex) => {
+          worldVertex
+            .fromBufferAttribute(position, vertex)
+            .applyMatrix4(object.matrixWorld);
+          return (
+            worldVertex.x >= WINDOW_FEATURE.minX &&
+            worldVertex.x <= WINDOW_FEATURE.maxX &&
+            worldVertex.y >= WINDOW_FEATURE.minY &&
+            worldVertex.y <= WINDOW_FEATURE.maxY &&
+            worldVertex.z >= WINDOW_FEATURE.minZ &&
+            worldVertex.z <= WINDOW_FEATURE.maxZ
+          );
+        });
+      (outside ? backdrop : onWindowFeature ? windowFeature : keep).push(
+        ...corners,
+      );
     }
     if (backdrop.length === 0) return;
 
@@ -127,7 +161,11 @@ const prepareBedroom = (room: Object3D) => {
   frontWall.name = FRONT_WALL_NAME;
   // A plane faces +z; turned to face -z, into the room.
   frontWall.rotation.y = Math.PI;
-  frontWall.position.set((SHELL.minX + SHELL.maxX) / 2, (SHELL.minY + SHELL.maxY) / 2, SHELL.maxZ);
+  frontWall.position.set(
+    (SHELL.minX + SHELL.maxX) / 2,
+    (SHELL.minY + SHELL.maxY) / 2,
+    SHELL.maxZ,
+  );
   room.add(frontWall);
 
   // Skirting round the floor. The side walls start at the window bay
@@ -138,7 +176,13 @@ const prepareBedroom = (room: Object3D) => {
     walls: [
       { axis: "x", at: SHELL.minX, from: -2.1, to: SHELL.maxZ, inward: 1 },
       { axis: "x", at: SHELL.maxX, from: -2.1, to: SHELL.maxZ, inward: -1 },
-      { axis: "z", at: SHELL.maxZ, from: SHELL.minX, to: SHELL.maxX, inward: -1 },
+      {
+        axis: "z",
+        at: SHELL.maxZ,
+        from: SHELL.minX,
+        to: SHELL.maxX,
+        inward: -1,
+      },
     ],
   });
 };
@@ -172,7 +216,10 @@ const RIG: RoomCameraRig = {
     floor: { position: [0.6, 1.0, 1.9], target: [0.6, SHELL.minY + 0.02, 0.9] },
     // The side wall opposite the TV unit — the room's clearest stretch of wall.
     wall: { position: [0.9, 0, -0.8], target: [SHELL.maxX - 0.12, 0, -0.8] },
-    ceiling: { position: [-0.8, 0.2, 1.6], target: [0.2, SHELL.maxY - 0.06, -0.6] },
+    ceiling: {
+      position: [-0.8, 0.2, 1.6],
+      target: [0.2, SHELL.maxY - 0.06, -0.6],
+    },
   },
   cameraRoom: new Box3(
     // The window wall is the one side the camera stays well back from: a
@@ -182,16 +229,26 @@ const RIG: RoomCameraRig = {
     // tiled on that wall — it is glass — so there is nothing to come closer
     // for.
     new Vector3(SHELL.minX + WALL_CLEARANCE, SHELL.minY + 0.35, -1.9),
-    new Vector3(SHELL.maxX - WALL_CLEARANCE, SHELL.maxY - 0.3, SHELL.maxZ - WALL_CLEARANCE),
+    new Vector3(
+      SHELL.maxX - WALL_CLEARANCE,
+      SHELL.maxY - 0.3,
+      SHELL.maxZ - WALL_CLEARANCE,
+    ),
   ),
   fixtureZones: fixtureZones(
     [
       // Bed, headboard and duvet. (The cupboards and nightstands against the
       // window wall sit beyond `cameraRoom`'s own limit there, so they need
       // no zone of their own.)
-      [[-1.15, -1.71, -3.09], [0.95, -0.4, -0.35]],
+      [
+        [-1.15, -1.71, -3.09],
+        [0.95, -0.4, -0.35],
+      ],
       // The long TV unit along the left wall.
-      [[-2.57, -1.71, -1.3], [-2.0, -0.45, 1.1]],
+      [
+        [-2.57, -1.71, -1.3],
+        [-2.0, -0.45, 1.1],
+      ],
     ],
     0.2,
   ),
@@ -199,17 +256,14 @@ const RIG: RoomCameraRig = {
 
 export const Bedroom = ({
   floorTile,
-  wallTile,
   className,
 }: {
   floorTile?: Product;
-  wallTile?: Product;
   className?: string;
 }) => (
   <RoomWithCamera
     modelUrl={MODEL_URL}
     floorTile={floorTile}
-    wallTile={wallTile}
     className={className}
     rig={RIG}
     surfaceOverride={SURFACE_OVERRIDE}

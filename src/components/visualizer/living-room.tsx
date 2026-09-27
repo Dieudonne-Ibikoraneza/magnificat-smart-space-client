@@ -1,9 +1,21 @@
 "use client";
 
-import { Box3, BufferGeometry, Mesh, MeshStandardMaterial, PlaneGeometry, Vector3, type Object3D } from "three";
+import {
+  Box3,
+  BufferGeometry,
+  Mesh,
+  MeshStandardMaterial,
+  PlaneGeometry,
+  Vector3,
+  type Object3D,
+} from "three";
 import type { SurfaceOverride } from "@/components/room-scene";
 import type { Product } from "@/components/product-card";
-import { fixtureZones, RoomWithCamera, type RoomCameraRig } from "@/components/visualizer/room-camera";
+import {
+  fixtureZones,
+  RoomWithCamera,
+  type RoomCameraRig,
+} from "@/components/visualizer/room-camera";
 import { addSkirting } from "@/components/visualizer/room-trim";
 
 /**
@@ -23,7 +35,14 @@ const MODEL_URL = "/models/rooms/white_modern_living_room.glb";
  * and looked in through the gap — and behind the glass, at z 3.26, a large
  * sky backdrop fills the view out.
  */
-const SHELL = { minX: -2.68, maxX: 2.68, minY: -0.21, maxY: 2.85, minZ: -2.46, maxZ: 2.46 };
+const SHELL = {
+  minX: -2.68,
+  maxX: 2.68,
+  minY: -0.21,
+  maxY: 2.85,
+  minZ: -2.46,
+  maxZ: 2.46,
+};
 const SHELL_MESH = "Structure_Structure_0";
 const RIGHT_WALL_NAME = "LivingRoom_RightWall";
 const BACKDROP_NAME = "LivingRoom_Backdrop";
@@ -48,7 +67,7 @@ const SURFACE_OVERRIDE: SurfaceOverride = {
  */
 const PLASTER = new MeshStandardMaterial({
   name: "LivingRoomPlaster",
-  color: 0xb1b4b5,
+  color: 0x848782,
   emissive: 0xb1b4b5,
   emissiveIntensity: 1,
   roughness: 0.82,
@@ -74,10 +93,14 @@ const prepareLivingRoom = (room: Object3D) => {
       const keep: number[] = [];
       const backdrop: number[] = [];
       for (let triangle = 0; triangle < index.count / 3; triangle += 1) {
-        const corners = [0, 1, 2].map((corner) => index.getX(triangle * 3 + corner));
+        const corners = [0, 1, 2].map((corner) =>
+          index.getX(triangle * 3 + corner),
+        );
         const outside = corners.every(
           (vertex) =>
-            worldVertex.fromBufferAttribute(position, vertex).applyMatrix4(shell.matrixWorld).z > BACKDROP_MIN_Z,
+            worldVertex
+              .fromBufferAttribute(position, vertex)
+              .applyMatrix4(shell.matrixWorld).z > BACKDROP_MIN_Z,
         );
         (outside ? backdrop : keep).push(...corners);
       }
@@ -104,7 +127,11 @@ const prepareLivingRoom = (room: Object3D) => {
   rightWall.name = RIGHT_WALL_NAME;
   // A plane faces +z; turned to face -x, into the room.
   rightWall.rotation.y = -Math.PI / 2;
-  rightWall.position.set(SHELL.maxX, (SHELL.minY + SHELL.maxY) / 2, (SHELL.minZ + SHELL.maxZ) / 2);
+  rightWall.position.set(
+    SHELL.maxX,
+    (SHELL.minY + SHELL.maxY) / 2,
+    (SHELL.minZ + SHELL.maxZ) / 2,
+  );
   room.add(rightWall);
 
   // Skirting round the floor. The glass-door wall's run is split either side
@@ -112,9 +139,27 @@ const prepareLivingRoom = (room: Object3D) => {
   addSkirting(room, {
     floorY: SHELL.minY,
     walls: [
-      { axis: "x", at: SHELL.minX, from: SHELL.minZ, to: SHELL.maxZ, inward: 1 },
-      { axis: "x", at: SHELL.maxX, from: SHELL.minZ, to: SHELL.maxZ, inward: -1 },
-      { axis: "z", at: SHELL.minZ, from: SHELL.minX, to: SHELL.maxX, inward: 1 },
+      {
+        axis: "x",
+        at: SHELL.minX,
+        from: SHELL.minZ,
+        to: SHELL.maxZ,
+        inward: 1,
+      },
+      {
+        axis: "x",
+        at: SHELL.maxX,
+        from: SHELL.minZ,
+        to: SHELL.maxZ,
+        inward: -1,
+      },
+      {
+        axis: "z",
+        at: SHELL.minZ,
+        from: SHELL.minX,
+        to: SHELL.maxX,
+        inward: 1,
+      },
       { axis: "z", at: SHELL.maxZ, from: SHELL.minX, to: -2.15, inward: -1 },
       { axis: "z", at: SHELL.maxZ, from: 2.15, to: SHELL.maxX, inward: -1 },
     ],
@@ -154,19 +199,39 @@ const RIG: RoomCameraRig = {
     ceiling: { position: [1.9, 1.2, 1.4], target: [0.6, 2.72, 0] },
   },
   cameraRoom: new Box3(
-    new Vector3(SHELL.minX + WALL_CLEARANCE, SHELL.minY + 0.33, SHELL.minZ + WALL_CLEARANCE),
-    new Vector3(SHELL.maxX - WALL_CLEARANCE, SHELL.maxY - 0.3, SHELL.maxZ - WALL_CLEARANCE),
+    new Vector3(
+      SHELL.minX + WALL_CLEARANCE,
+      SHELL.minY + 0.33,
+      SHELL.minZ + WALL_CLEARANCE,
+    ),
+    new Vector3(
+      SHELL.maxX - WALL_CLEARANCE,
+      SHELL.maxY - 0.3,
+      SHELL.maxZ - WALL_CLEARANCE,
+    ),
   ),
   fixtureZones: fixtureZones(
     [
       // L-shaped sofa and its cushions (the coffee table sits inside it).
-      [[-2.39, -0.21, -1.6], [1.48, 0.64, 2.28]],
+      [
+        [-2.39, -0.21, -1.6],
+        [1.48, 0.64, 2.28],
+      ],
       // Floor lamp, including its head.
-      [[-2.28, -0.21, -2.28], [-1.39, 1.72, -1.68]],
+      [
+        [-2.28, -0.21, -2.28],
+        [-1.39, 1.72, -1.68],
+      ],
       // TV stand.
-      [[-0.62, -0.21, -2.46], [1.53, 0.61, -2.21]],
+      [
+        [-0.62, -0.21, -2.46],
+        [1.53, 0.61, -2.21],
+      ],
       // Wall shelf, its plant and the picture frame above it.
-      [[-2.69, 1.33, 0.83], [-2.46, 1.99, 1.83]],
+      [
+        [-2.69, 1.33, 0.83],
+        [-2.46, 1.99, 1.83],
+      ],
     ],
     0.2,
   ),
@@ -174,17 +239,14 @@ const RIG: RoomCameraRig = {
 
 export const LivingRoom = ({
   floorTile,
-  wallTile,
   className,
 }: {
   floorTile?: Product;
-  wallTile?: Product;
   className?: string;
 }) => (
   <RoomWithCamera
     modelUrl={MODEL_URL}
     floorTile={floorTile}
-    wallTile={wallTile}
     className={className}
     rig={RIG}
     surfaceOverride={SURFACE_OVERRIDE}
