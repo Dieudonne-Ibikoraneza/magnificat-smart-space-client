@@ -2,16 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, Check, Minus, Plus, Scale, Search, X } from "lucide-react";
+import { ArrowRight, Check, Loader2, Minus, Plus, Scale, Search, X } from "lucide-react";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { CompareSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { productsApi, toProduct } from "@/lib/api";
-import { useApi } from "@/lib/api/use-api";
+import { InfiniteScrollTrigger, useInfiniteApi } from "@/lib/api/use-infinite-api";
 import { useLocale } from "@/lib/i18n";
 import type { Product } from "@/components/product-card";
 import { cn } from "@/lib/utils";
@@ -53,6 +53,13 @@ const ComparePageContent = () => {
   const { t } = useTranslation();
   const { locale } = useLocale();
   const searchParams = useSearchParams();
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   const roomLabel = (room: string): string => {
     const key = ROOM_LABEL_KEYS[room as keyof typeof ROOM_LABEL_KEYS];
@@ -76,15 +83,25 @@ const ComparePageContent = () => {
     { label: t("compare.rows.availability"), value: (p) => t(STOCK_KEYS[p.stockStatus]) },
     { label: t("compare.rows.sku"), value: (p) => p.sku },
   ];
-  const { data, loading, error, reload } = useApi(() => productsApi.listAll());
+  const {
+    items: productItems,
+    loading,
+    loadingMore,
+    error,
+    hasMore,
+    loadMore,
+    reload,
+  } = useInfiniteApi(
+    (page) => productsApi.list({ page, limit: 20, search: debouncedSearch || undefined }),
+    [debouncedSearch],
+  );
   const products = useMemo(
-    () => data?.items.map((product) => toProduct(product, undefined, locale)) ?? [],
-    [data, locale],
+    () => productItems.map((product) => toProduct(product, undefined, locale)),
+    [productItems, locale],
   );
 
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selected, setSelected] = useState<Product[]>([]);
   const [seeded, setSeeded] = useState(false);
-  const [search, setSearch] = useState("");
 
   // Products arrive asynchronously, so the `?ids=` seed (or the default
   // first-two) can only be applied once they're in — and only once, so it
@@ -97,43 +114,35 @@ const ComparePageContent = () => {
       .map((id) => id.trim())
       .filter((id) => products.some((product) => product.id === id))
       .slice(0, MAX_COMPARED);
-    setSelectedIds(requestedIds.length > 0 ? requestedIds : products.slice(0, 2).map((product) => product.id));
+    setSelected(
+      requestedIds.length > 0
+        ? requestedIds
+            .map((id) => products.find((product) => product.id === id))
+            .filter((product): product is Product => product !== undefined)
+        : products.slice(0, 2),
+    );
     setSeeded(true);
   }
 
-  const selected = useMemo(
-    () =>
-      selectedIds
-        .map((id) => products.find((product) => product.id === id))
-        .filter((product): product is Product => product !== undefined),
-    [selectedIds, products],
-  );
+  const selectedIds = useMemo(() => selected.map((product) => product.id), [selected]);
+  const pickerLoading = loading || search.trim() !== debouncedSearch;
 
-  const pickerResults = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return products;
-    return products.filter(
-      (product) =>
-        product.name.toLowerCase().includes(term) ||
-        product.sku.toLowerCase().includes(term) ||
-        product.size.toLowerCase().includes(term),
-    );
-  }, [search, products]);
-
-  const toggle = (id: string) =>
-    setSelectedIds((current) => {
-      if (current.includes(id)) return current.filter((value) => value !== id);
+  const toggle = (product: Product) =>
+    setSelected((current) => {
+      if (current.some((item) => item.id === product.id)) {
+        return current.filter((item) => item.id !== product.id);
+      }
       if (current.length >= MAX_COMPARED) return current;
-      return [...current, id];
+      return [...current, product];
     });
 
   /** A row is worth highlighting only when the products actually differ on it. */
   const differs = (row: (typeof comparisonRows)[number]) =>
     selected.length > 1 && new Set(selected.map((product) => row.value(product))).size > 1;
 
-  if (loading) return <CompareSkeleton />;
-  if (error) return <ApiErrorState message={error} onRetry={reload} className="my-16" />;
-  if (products.length === 0) {
+  if (!seeded && loading) return <CompareSkeleton />;
+  if (!seeded && error) return <ApiErrorState message={error} onRetry={reload} className="my-16" />;
+  if (!seeded && products.length === 0) {
     return <ApiEmptyState message={t("compare.empty")} className="my-16" />;
   }
 
@@ -179,7 +188,7 @@ const ComparePageContent = () => {
                             type="button"
                             variant="ghost"
                             size="icon-xs"
-                            onClick={() => toggle(product.id)}
+                            onClick={() => toggle(product)}
                             aria-label={t("compare.removeAria", { name: product.name })}
                             className="absolute -right-1 -top-1 z-10 rounded-full bg-white text-muted shadow-sm hover:text-ink"
                           >
@@ -283,7 +292,12 @@ const ComparePageContent = () => {
           </div>
 
           <ul className="mt-4 max-h-[32rem] space-y-2 overflow-y-auto pr-1">
-            {pickerResults.map((product) => {
+            {pickerLoading ? (
+              <li className="flex items-center justify-center gap-2 py-10 text-sm text-muted" role="status">
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                {t("compare.loading")}
+              </li>
+            ) : products.map((product) => {
               const isSelected = selectedIds.includes(product.id);
               const atLimit = !isSelected && selectedIds.length >= MAX_COMPARED;
 
@@ -291,7 +305,7 @@ const ComparePageContent = () => {
                 <li key={product.id}>
                   <button
                     type="button"
-                    onClick={() => toggle(product.id)}
+                    onClick={() => toggle(product)}
                     disabled={atLimit}
                     aria-pressed={isSelected}
                     className={cn(
@@ -322,9 +336,24 @@ const ComparePageContent = () => {
                 </li>
               );
             })}
-            {pickerResults.length === 0 && (
+            {!pickerLoading && products.length === 0 && !error && (
               <li className="py-8 text-center text-sm text-muted">{t("compare.noSearchResults")}</li>
             )}
+            {!pickerLoading && error && (
+              <li className="py-6 text-center text-sm text-muted">
+                <p>{error}</p>
+                <Button type="button" variant="outline" onClick={reload} className="mt-3 h-9 px-4 text-xs">
+                  {t("common.retry")}
+                </Button>
+              </li>
+            )}
+            {!pickerLoading && !error && <li>
+              <InfiniteScrollTrigger
+                hasMore={hasMore}
+                loading={loadingMore}
+                onLoadMore={loadMore}
+              />
+            </li>}
           </ul>
         </aside>
       </div>

@@ -4,9 +4,22 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, Layers3, Loader2, Mail, Phone, Search, Sparkles, Users } from "lucide-react";
+import {
+  ArrowRight,
+  Layers3,
+  Loader2,
+  Mail,
+  Phone,
+  Search,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import { DashboardPageHeader } from "@/components/dashboard-page-headers";
-import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
+import {
+  ApiEmptyState,
+  ApiErrorState,
+  ApiLoading,
+} from "@/components/api-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { roomsApi, toProduct } from "@/lib/api";
@@ -27,7 +40,11 @@ export type SharedDesignsArea = "sales" | "admin" | "stock";
 
 const AREA_ROUTES: Record<
   SharedDesignsArea,
-  { customer: (id: string) => string; product: (id: string) => string; newOrder: string }
+  {
+    customer: (id: string) => string;
+    product: (id: string) => string;
+    newOrder?: string;
+  }
 > = {
   sales: {
     customer: (id) => `/sales/customers/${id}`,
@@ -42,25 +59,48 @@ const AREA_ROUTES: Record<
   stock: {
     customer: (id) => `/stock/customers/${id}`,
     product: (id) => `/stock/inventory/${id}`,
-    newOrder: "/stock/orders/new",
   },
 };
 
 const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  new Date(iso).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 
-const DesignCard = ({ design, area }: { design: ApiRoomDesign; area: SharedDesignsArea }) => {
+const DesignCard = ({
+  design,
+  area,
+}: {
+  design: ApiRoomDesign;
+  area: SharedDesignsArea;
+}) => {
   const { t } = useTranslation();
   const { locale } = useLocale();
   const routes = AREA_ROUTES[area];
   const k = (key: string) => `${area}.designs.${key}`;
-  const preview = design.previewImageUrl || design.room?.thumbnail || "/showroom.jpg";
+  const preview =
+    design.previewImageUrl || design.room?.thumbnail || "/showroom.jpg";
   const tiles = design.tiles.flatMap((tile) =>
-    tile.product ? [{ surface: tile.surface, product: toProduct(tile.product, undefined, locale) }] : [],
+    tile.product
+      ? [
+          {
+            surface: tile.surface,
+            product: toProduct(tile.product, undefined, locale),
+          },
+        ]
+      : [],
   );
-  const roomName = design.room ? localizedText(design.room.name, design.room.nameRw, locale) : null;
+  const roomName = design.room
+    ? localizedText(design.room.name, design.room.nameRw, locale)
+    : null;
   const surfaceLabel = (surface: string) =>
-    surface === "FLOOR" ? t(k("surfaceFloor")) : surface === "WALL" ? t(k("surfaceWalls")) : surface;
+    surface === "FLOOR"
+      ? t(k("surfaceFloor"))
+      : surface === "WALL"
+        ? t(k("surfaceWalls"))
+        : surface;
 
   return (
     <article className="overflow-hidden rounded-2xl bg-card">
@@ -102,14 +142,18 @@ const DesignCard = ({ design, area }: { design: ApiRoomDesign; area: SharedDesig
           </p>
         )}
 
-        <p className="mt-2 text-xs text-muted-foreground">{t(k("shared"), { date: formatDate(design.createdAt) })}</p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {t(k("shared"), { date: formatDate(design.createdAt) })}
+        </p>
 
         <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <div>
             <dt className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
               <Layers3 className="size-3" /> {t(k("surfaces"))}
             </dt>
-            <dd className="mt-1 font-data font-semibold text-ink">{design.tiles.length}</dd>
+            <dd className="mt-1 font-data font-semibold text-ink">
+              {design.tiles.length}
+            </dd>
           </div>
         </dl>
 
@@ -118,7 +162,14 @@ const DesignCard = ({ design, area }: { design: ApiRoomDesign; area: SharedDesig
             {tiles.map((tile) => (
               <li key={tile.surface} className="flex items-center gap-3">
                 <span className="relative size-9 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-                  <Image src={tile.product.image} alt="" fill unoptimized className="object-cover" sizes="36px" />
+                  <Image
+                    src={tile.product.image}
+                    alt=""
+                    fill
+                    unoptimized
+                    className="object-cover"
+                    sizes="36px"
+                  />
                 </span>
                 <span className="min-w-0 flex-1">
                   <Link
@@ -137,14 +188,24 @@ const DesignCard = ({ design, area }: { design: ApiRoomDesign; area: SharedDesig
           </ul>
         )}
 
-        <Button
-          nativeButton={false}
-          render={<Link href={design.user ? `${routes.newOrder}?customer=${design.user.id}` : routes.newOrder} />}
-          className="group mt-5 h-10 w-full gap-2 text-xs font-bold"
-        >
-          {t(k("startOrder"))}
-          <ArrowRight className="size-3.5 transition-transform duration-300 group-hover:translate-x-1" />
-        </Button>
+        {routes.newOrder && (
+          <Button
+            nativeButton={false}
+            render={
+              <Link
+                href={
+                  design.user
+                    ? `${routes.newOrder}?customer=${design.user.id}`
+                    : routes.newOrder
+                }
+              />
+            }
+            className="group mt-5 h-10 w-full gap-2 text-xs font-bold"
+          >
+            {t(k("startOrder"))}
+            <ArrowRight className="size-3.5 transition-transform duration-300 group-hover:translate-x-1" />
+          </Button>
+        )}
       </div>
     </article>
   );
@@ -169,7 +230,8 @@ export const SharedDesignsView = ({ area }: { area: SharedDesignsArea }) => {
   const [search, setSearch] = useState("");
   const query = useDebouncedValue(search.trim(), 300);
   const { data, loading, error, reload } = useApi(
-    () => roomsApi.sharedDesigns({ limit: PAGE_SIZE, search: query || undefined }),
+    () =>
+      roomsApi.sharedDesigns({ limit: PAGE_SIZE, search: query || undefined }),
     [query],
   );
   const {
@@ -180,7 +242,12 @@ export const SharedDesignsView = ({ area }: { area: SharedDesignsArea }) => {
     loadMore,
   } = useCursorList({
     firstPage: data,
-    fetchPage: (cursor) => roomsApi.sharedDesigns({ cursor, limit: PAGE_SIZE, search: query || undefined }),
+    fetchPage: (cursor) =>
+      roomsApi.sharedDesigns({
+        cursor,
+        limit: PAGE_SIZE,
+        search: query || undefined,
+      }),
     fallbackError: t(k("loadMoreError")),
   });
 
@@ -189,7 +256,10 @@ export const SharedDesignsView = ({ area }: { area: SharedDesignsArea }) => {
       <DashboardPageHeader title={t(k("title"))} subtitle={t(k("subtitle"))} />
 
       <div className="relative mt-6 max-w-md">
-        <Search aria-hidden="true" className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Search
+          aria-hidden="true"
+          className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+        />
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
@@ -211,8 +281,12 @@ export const SharedDesignsView = ({ area }: { area: SharedDesignsArea }) => {
             <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-secondary text-ink">
               <Sparkles className="size-6" />
             </span>
-            <h2 className="mt-5 text-lg font-bold text-ink">{t(k("emptyTitle"))}</h2>
-            <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{t(k("emptyBody"))}</p>
+            <h2 className="mt-5 text-lg font-bold text-ink">
+              {t(k("emptyTitle"))}
+            </h2>
+            <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+              {t(k("emptyBody"))}
+            </p>
           </div>
         ) : (
           <>
@@ -223,11 +297,19 @@ export const SharedDesignsView = ({ area }: { area: SharedDesignsArea }) => {
             </div>
             {hasMore && (
               <div className="mt-8 flex flex-col items-center gap-2">
-                <Button type="button" variant="outline" onClick={() => void loadMore()} disabled={loadingMore} className="h-10 gap-2 px-5 text-sm font-bold">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void loadMore()}
+                  disabled={loadingMore}
+                  className="h-10 gap-2 px-5 text-sm font-bold"
+                >
                   {loadingMore && <Loader2 className="size-4 animate-spin" />}
                   {loadingMore ? t("staff.loading") : t(k("loadMore"))}
                 </Button>
-                {loadMoreError && <p className="text-xs text-red-600">{loadMoreError}</p>}
+                {loadMoreError && (
+                  <p className="text-xs text-red-600">{loadMoreError}</p>
+                )}
               </div>
             )}
           </>

@@ -25,6 +25,7 @@ import {
   RotateCcw,
   Search,
   Send,
+  ShoppingCart,
   Sofa,
   Sparkles,
   ThumbsDown,
@@ -32,6 +33,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -49,12 +51,21 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { ChatProductCard } from "@/components/chat-product-card";
-import { ListPagination } from "@/components/list-pagination";
 import { chatbotFollowUps } from "@/lib/chatbot-follow-ups";
-import { chatbotApi, eventsApi, productsApi, settingsApi } from "@/lib/api";
+import {
+  chatbotApi,
+  eventsApi,
+  productsApi,
+  settingsApi,
+  tokenStore,
+  toProduct,
+} from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { roomTypeLabels } from "@/lib/api/mappers";
-import { useApi } from "@/lib/api/use-api";
+import {
+  InfiniteScrollTrigger,
+  useInfiniteApi,
+} from "@/lib/api/use-infinite-api";
 import type {
   ApiChatConversation,
   ChatConversationSummary,
@@ -67,6 +78,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/lib/current-user";
 import { getSessionId } from "@/lib/session-id";
+import { useCart } from "@/lib/cart-store";
 
 type ChatMessage = {
   id: string;
@@ -292,7 +304,6 @@ export default function ChatbotPage() {
   );
   const [selectedTile, setSelectedTile] = useState<TileOption | null>(null);
   const [tileSearch, setTileSearch] = useState("");
-  const [tilePage, setTilePage] = useState(1);
   const [isSendingPreview, setIsSendingPreview] = useState(false);
   const [generatingPreview, setGeneratingPreview] = useState<{
     roomUrl: string;
@@ -329,6 +340,43 @@ export default function ChatbotPage() {
     Record<string, RecommendationDecision>
   >({});
   const { user, loading: userLoading } = useCurrentUser();
+  const cart = useCart();
+  const [addingPreviewProduct, setAddingPreviewProduct] = useState<
+    string | null
+  >(null);
+
+  const addPreviewTileToCart = async (
+    productId: string,
+    productName: string,
+  ) => {
+    if (!tokenStore.getAccessToken()) {
+      toast.error(t("chatCard.toast.signInRequiredTitle"), {
+        description: t("chatCard.toast.signInBody"),
+      });
+      return;
+    }
+    setAddingPreviewProduct(productId);
+    try {
+      const product = toProduct(await productsApi.get(productId));
+      const existing = cart.lines.find((line) => line.productId === productId);
+      const area =
+        Math.round(((existing?.areaSqm ?? 0) + product.boxCoverage) * 100) /
+        100;
+      cart.setQuantity(product, area);
+      toast.success(t("chatbot.previewActions.addedTitle"), {
+        description: t("chatbot.previewActions.addedBody", {
+          name: productName,
+        }),
+      });
+    } catch (cause) {
+      toast.error(t("chatbot.previewActions.addFailed"), {
+        description:
+          cause instanceof Error ? cause.message : t("dash.tryAgain"),
+      });
+    } finally {
+      setAddingPreviewProduct(null);
+    }
+  };
 
   // The customer's past conversations ("projects") — fetched lazily (only
   // once the switcher is actually opened) so a customer who never touches it
@@ -348,12 +396,21 @@ export default function ChatbotPage() {
 
   // Tile choices for the room-photo preview — only fetched once a photo is
   // actually picked, and re-fetched as the customer searches within them.
-  const { data: tileResults, loading: tilesLoading } = useApi(
-    () =>
+  const {
+    items: tileResults,
+    loading: tilesLoading,
+    loadingMore: tilesLoadingMore,
+    hasMore: hasMoreTiles,
+    loadMore: loadMoreTiles,
+  } = useInfiniteApi(
+    (page) =>
       pendingPhoto
-        ? productsApi.list({ search: tileSearch || undefined, page: tilePage, limit: 20 })
-        : Promise.resolve(undefined),
-    [pendingPhoto, tileSearch, tilePage],
+        ? productsApi.list({ search: tileSearch || undefined, page, limit: 20 })
+        : Promise.resolve({
+            items: [],
+            meta: { page: 1, limit: 20, total: 0, totalPages: 1 },
+          }),
+    [Boolean(pendingPhoto), tileSearch],
   );
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1246,7 +1303,6 @@ export default function ChatbotPage() {
           description: t("chatbot.toast.previewFailedBody"),
         });
       }
-
     } catch (cause) {
       toast.error(t("chatbot.toast.roomPreviewFailedTitle"), {
         description:
@@ -1651,10 +1707,9 @@ export default function ChatbotPage() {
                   const isAnimating =
                     message.sender === "bot" &&
                     typedMessages[message.id] !== undefined;
-                  const displayText =
-                    isAnimating
-                      ? typedMessages[message.id]
-                      : message.text;
+                  const displayText = isAnimating
+                    ? typedMessages[message.id]
+                    : message.text;
                   return (
                     <div
                       key={message.id}
@@ -1754,33 +1809,75 @@ export default function ChatbotPage() {
                                   })
                                 : t("chatbot.yourRoom");
                               return (
-                                <figure className="group relative mt-2 w-fit max-w-full overflow-hidden rounded-lg bg-slate-100">
-                                  {/* Let each generated image keep its natural aspect ratio while staying within the chat column. */}
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={previewUrl}
-                                    alt={previewAlt}
-                                    className={cn(
-                                      "block h-auto max-h-136 max-w-full w-auto rounded-lg",
-                                      !attachment.generatedImageUrl &&
-                                        "opacity-60",
-                                    )}
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setLightbox({
-                                        url: previewUrl,
-                                        alt: previewAlt,
-                                      })
-                                    }
-                                    aria-label={t("chatbot.viewFullScreen")}
-                                    title={t("chatbot.fullScreen")}
-                                    className="absolute right-3 top-3 flex size-9 items-center justify-center rounded-full bg-black/60 text-white opacity-0 shadow-sm transition-opacity hover:bg-black/80 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 group-hover:opacity-100"
-                                  >
-                                    <Maximize2 className="size-4" />
-                                  </button>
-                                </figure>
+                                <div className="mt-2 w-fit max-w-full">
+                                  <figure className="group relative overflow-hidden rounded-lg bg-slate-100">
+                                    {/* Let each generated image keep its natural aspect ratio while staying within the chat column. */}
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={previewUrl}
+                                      alt={previewAlt}
+                                      className={cn(
+                                        "block h-auto max-h-136 max-w-full w-auto rounded-lg",
+                                        !attachment.generatedImageUrl &&
+                                          "opacity-60",
+                                      )}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setLightbox({
+                                          url: previewUrl,
+                                          alt: previewAlt,
+                                        })
+                                      }
+                                      aria-label={t("chatbot.viewFullScreen")}
+                                      title={t("chatbot.fullScreen")}
+                                      className="absolute right-3 top-3 flex size-9 items-center justify-center rounded-full bg-black/60 text-white opacity-0 shadow-sm transition-opacity hover:bg-black/80 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 group-hover:opacity-100"
+                                    >
+                                      <Maximize2 className="size-4" />
+                                    </button>
+                                  </figure>
+                                  {attachment.generatedImageUrl && (
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        render={
+                                          <Link
+                                            href={`/products/${attachment.productId}`}
+                                          />
+                                        }
+                                        className="h-9 gap-2 rounded-full px-4 text-xs font-bold"
+                                      >
+                                        {t(
+                                          "chatbot.previewActions.viewDetails",
+                                        )}
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        disabled={
+                                          addingPreviewProduct ===
+                                          attachment.productId
+                                        }
+                                        onClick={() =>
+                                          void addPreviewTileToCart(
+                                            attachment.productId,
+                                            attachment.productName,
+                                          )
+                                        }
+                                        className="h-9 gap-2 rounded-full px-4 text-xs font-bold"
+                                      >
+                                        <ShoppingCart className="size-3.5" />
+                                        {addingPreviewProduct ===
+                                        attachment.productId
+                                          ? t("chatbot.previewActions.adding")
+                                          : t(
+                                              "chatbot.previewActions.addToCart",
+                                            )}
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
                               );
                             })()}
                           {message.sender === "user" && (
@@ -2076,7 +2173,7 @@ export default function ChatbotPage() {
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
                 <Input
                   value={tileSearch}
-                  onChange={(event) => { setTileSearch(event.target.value); setTilePage(1); }}
+                  onChange={(event) => setTileSearch(event.target.value)}
                   placeholder={t("chatbot.pendingPhoto.searchTiles")}
                   disabled={isSendingPreview}
                   className="h-9 rounded-full pl-9 text-xs"
@@ -2095,13 +2192,13 @@ export default function ChatbotPage() {
                       <span className="mt-1 block h-2.5 w-11 animate-pulse rounded bg-slate-200" />
                     </div>
                   ))}
-                {!tilesLoading && tileResults?.items.length === 0 && (
+                {!tilesLoading && tileResults.length === 0 && (
                   <p className="py-2 text-xs text-muted">
                     {t("chatbot.pendingPhoto.noTiles")}
                   </p>
                 )}
                 {!tilesLoading &&
-                  tileResults?.items.map((product) => {
+                  tileResults.map((product) => {
                     const isSelected = selectedTile?.id === product.id;
                     return (
                       <button
@@ -2148,15 +2245,13 @@ export default function ChatbotPage() {
                       </button>
                     );
                   })}
+                <InfiniteScrollTrigger
+                  hasMore={hasMoreTiles}
+                  loading={tilesLoadingMore}
+                  onLoadMore={loadMoreTiles}
+                  className="w-16 shrink-0 py-0"
+                />
               </div>
-              <ListPagination
-                page={tileResults?.meta.page ?? tilePage}
-                totalPages={tileResults?.meta.totalPages ?? 1}
-                totalItems={tileResults?.meta.total ?? 0}
-                pageSize={20}
-                onPageChange={setTilePage}
-                className="mt-2"
-              />
             </div>
           )}
 
