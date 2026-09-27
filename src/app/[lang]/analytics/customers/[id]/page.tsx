@@ -111,7 +111,7 @@ const CustomerDetailPage = ({ params }: CustomerDetailPageProps) => {
           ))}
         </div>
 
-        <div className="grid gap-5 sm:gap-6 xl:grid-cols-[1fr_1.7fr]">
+        <div className="grid gap-5 sm:gap-6 xl:grid-cols-[1fr_1.7fr] self-start">
           <section className="overflow-hidden rounded-2xl bg-card">
             <h2 className="px-5 py-5 text-lg font-bold text-ink sm:px-6">{t("analytics.customerDetail.profileDetails")}</h2>
             <Separator className="bg-[#E5E7EB]" />

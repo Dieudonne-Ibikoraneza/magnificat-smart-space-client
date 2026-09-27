@@ -21,7 +21,11 @@ import {
   BroomSparkles,
 } from "lucide-react";
 import { DashboardPageHeader as AnalyticsPageHeader } from "@/components/dashboard-page-headers";
-import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
+import {
+  AnalyticsPeriodSwitcher,
+  periodToRange,
+  type AnalyticsPeriodDays,
+} from "@/components/analytics-period-switcher";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { FilterOptionsCard } from "@/components/product-catalog";
 import { Badge } from "@/components/ui/badge";
@@ -62,7 +66,7 @@ import {
   type FilterGroup,
 } from "@/lib/catalog-utils";
 import { cn, formatCompactNumber } from "@/lib/utils";
-import { analyticsApi, productsApi } from "@/lib/api";
+import { analyticsApi } from "@/lib/api";
 import { roomTypeLabels, suitableForLabels } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
 import type { RecommendationRow, TileRecommendations } from "@/lib/api/types";
@@ -70,10 +74,17 @@ import type { RecommendationRow, TileRecommendations } from "@/lib/api/types";
 const PAGE_SIZE = 10;
 
 const SUITABLE_FOR_OPTIONS = ["Floor", "Wall", "Floor & Wall"];
-const AVAILABILITY_OPTIONS = ["In Stock Ready", "Low Stock", "Out of Stock (Pre-order)"];
+const AVAILABILITY_OPTIONS = [
+  "In Stock Ready",
+  "Low Stock",
+  "Out of Stock (Pre-order)",
+];
 
 /** `RecommendationRow` plus the catalog attributes only the product record carries — needed for the same Room type / Suitable for filters the storefront catalog uses, and for the card description. */
-type FilterableRecommendation = RecommendationRow & {
+type FilterableRecommendation = Omit<
+  RecommendationRow,
+  "roomTypes" | "suitableFor"
+> & {
   roomTypes: string[];
   suitableFor: "floor" | "wall" | "both";
   description: string;
@@ -107,73 +118,30 @@ const RECOMMENDATION_SORT_OPTIONS = Object.keys(
   RECOMMENDATION_SORT_KEYS,
 ) as RecommendationSortOption[];
 
-const sortRecommendations = (
-  items: FilterableRecommendation[],
-  sortBy: RecommendationSortOption,
-): FilterableRecommendation[] => {
-  const sorted = [...items];
-  switch (sortBy) {
-    case "displayed_asc":
-      return sorted.sort((a, b) => a.displayed - b.displayed);
-    case "accepted_desc":
-      return sorted.sort((a, b) => b.accepted - a.accepted);
-    case "accepted_asc":
-      return sorted.sort((a, b) => a.accepted - b.accepted);
-    case "acceptanceRate_desc":
-      return sorted.sort((a, b) => b.acceptanceRate - a.acceptanceRate);
-    case "acceptanceRate_asc":
-      return sorted.sort((a, b) => a.acceptanceRate - b.acceptanceRate);
-    case "averageMatchScore_desc":
-      return sorted.sort((a, b) => b.averageMatchScore - a.averageMatchScore);
-    case "averageMatchScore_asc":
-      return sorted.sort((a, b) => a.averageMatchScore - b.averageMatchScore);
-    case "name_asc":
-      return sorted.sort((a, b) => a.name.localeCompare(b.name));
-    case "name_desc":
-      return sorted.sort((a, b) => b.name.localeCompare(a.name));
-    case "displayed_desc":
-    default:
-      return sorted.sort((a, b) => b.displayed - a.displayed);
-  }
-};
-
 /** Same four dimensions the storefront catalog filters on, adapted to a recommendation row instead of a `Product`. */
-const buildRecommendationFilterGroups = (items: FilterableRecommendation[]): FilterGroup[] => [
+const buildRecommendationFilterGroups = (sizes: string[]): FilterGroup[] => [
   { title: "Room type", options: Object.values(roomTypeLabels) },
   { title: "Suitable for", options: SUITABLE_FOR_OPTIONS },
-  { title: "Size", options: Array.from(new Set(items.map((item) => item.size))).sort() },
+  { title: "Size", options: sizes },
   { title: "Availability", options: AVAILABILITY_OPTIONS },
 ];
 
-const matchesSuitableFor = (item: FilterableRecommendation, selected: string[]) =>
-  selected.some((option) => {
-    if (option === "Floor") return item.suitableFor === "floor" || item.suitableFor === "both";
-    if (option === "Wall") return item.suitableFor === "wall" || item.suitableFor === "both";
-    if (option === "Floor & Wall") return item.suitableFor === "both";
-    return false;
-  });
-
-const filterRecommendations = (
-  items: FilterableRecommendation[],
-  filters: CatalogFilters,
-): FilterableRecommendation[] =>
-  items.filter((item) => {
-    if (filters["Room type"].length > 0 && !filters["Room type"].some((room) => item.roomTypes.includes(room))) {
-      return false;
-    }
-    if (filters.Size.length > 0 && !filters.Size.includes(item.size)) return false;
-    if (filters.Availability.length > 0) {
-      const allowed = filters.Availability.map((label) => availabilityFilterMap[label]);
-      if (!allowed.includes(item.stockStatus)) return false;
-    }
-    if (filters["Suitable for"].length > 0 && !matchesSuitableFor(item, filters["Suitable for"])) return false;
-    return true;
-  });
-
 const stockStatusMeta = {
-  in_stock: { labelKey: "staff.stockStatus.in_stock", dot: "bg-green-500", text: "text-green-700" },
-  low_stock: { labelKey: "staff.stockStatus.low_stock", dot: "bg-amber-500", text: "text-amber-600" },
-  out_of_stock: { labelKey: "staff.stockStatus.out_of_stock", dot: "bg-red-500", text: "text-red-600" },
+  in_stock: {
+    labelKey: "staff.stockStatus.in_stock",
+    dot: "bg-green-500",
+    text: "text-green-700",
+  },
+  low_stock: {
+    labelKey: "staff.stockStatus.low_stock",
+    dot: "bg-amber-500",
+    text: "text-amber-600",
+  },
+  out_of_stock: {
+    labelKey: "staff.stockStatus.out_of_stock",
+    dot: "bg-red-500",
+    text: "text-red-600",
+  },
 } as const;
 
 const KpiSkeleton = () => (
@@ -186,7 +154,13 @@ const KpiSkeleton = () => (
   </article>
 );
 
-const KpiCards = ({ summary, loading }: { summary: TileRecommendations["summary"] | undefined; loading: boolean }) => {
+const KpiCards = ({
+  summary,
+  loading,
+}: {
+  summary: TileRecommendations["summary"] | undefined;
+  loading: boolean;
+}) => {
   const { t } = useTranslation();
   if (loading && !summary) {
     return (
@@ -201,16 +175,33 @@ const KpiCards = ({ summary, loading }: { summary: TileRecommendations["summary"
   if (!summary) return null;
 
   const kpis = [
-    { label: t("analytics.ai.kpiTotalRecommendations"), value: formatCompactNumber(summary.displayed), icon: BroomSparkles },
-    { label: t("analytics.ai.kpiAcceptanceRate"), value: `${summary.acceptanceRate.toFixed(1)}%`, icon: BadgeCheck },
-    { label: t("analytics.ai.kpiAvgMatchScore"), value: `${summary.averageMatchScore.toFixed(1)}%`, icon: TrendingUpDown },
+    {
+      label: t("analytics.ai.kpiTotalRecommendations"),
+      value: formatCompactNumber(summary.displayed),
+      icon: BroomSparkles,
+    },
+    {
+      label: t("analytics.ai.kpiAcceptanceRate"),
+      value: `${summary.acceptanceRate.toFixed(1)}%`,
+      icon: BadgeCheck,
+    },
+    {
+      label: t("analytics.ai.kpiAvgMatchScore"),
+      value: `${summary.averageMatchScore.toFixed(1)}%`,
+      icon: TrendingUpDown,
+    },
   ];
 
-  const pending = Math.max(summary.displayed - summary.accepted - summary.rejected, 0);
+  const pending = Math.max(
+    summary.displayed - summary.accepted - summary.rejected,
+    0,
+  );
   const outcomes = [
     {
       label: `${summary.displayed ? Math.round((summary.accepted / summary.displayed) * 100) : 0}%`,
-      value: summary.displayed ? (summary.accepted / summary.displayed) * 100 : 0,
+      value: summary.displayed
+        ? (summary.accepted / summary.displayed) * 100
+        : 0,
       icon: ThumbsUp,
       bar: "bg-blue-500",
       chip: "bg-blue-100 text-blue-600",
@@ -224,7 +215,9 @@ const KpiCards = ({ summary, loading }: { summary: TileRecommendations["summary"
     },
     {
       label: `${summary.displayed ? Math.round((summary.rejected / summary.displayed) * 100) : 0}%`,
-      value: summary.displayed ? (summary.rejected / summary.displayed) * 100 : 0,
+      value: summary.displayed
+        ? (summary.rejected / summary.displayed) * 100
+        : 0,
       icon: ThumbsDown,
       bar: "bg-red-500",
       chip: "bg-red-100 text-red-600",
@@ -302,100 +295,118 @@ const TableRowSkeleton = ({ columns }: { columns: number }) => (
   </TableRow>
 );
 
-const TopRecommendedProducts = ({ rows, loading }: { rows: RecommendationRow[]; loading: boolean }) => {
+const TopRecommendedProducts = ({
+  rows,
+  loading,
+}: {
+  rows: RecommendationRow[];
+  loading: boolean;
+}) => {
   const { t } = useTranslation();
   return (
-  <section className="rounded-2xl bg-card p-5 sm:p-6">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-lg font-bold text-ink">{t("analytics.ai.topRecommendedProducts")}</h2>
-      <Badge variant="secondary">{t("analytics.common.top5")}</Badge>
-    </div>
-    <div className="mt-5 overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("analytics.common.colProduct")}</TableHead>
-            <TableHead>{t("analytics.common.colSku")}</TableHead>
-            <TableHead>{t("analytics.common.colStock")}</TableHead>
-            <TableHead>{t("analytics.ai.colMatchScore")}</TableHead>
-            <TableHead>{t("analytics.ai.colDisplayed")}</TableHead>
-            <TableHead>{t("analytics.ai.colAccepted")}</TableHead>
-            <TableHead>{t("analytics.common.colActions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {loading && rows.length === 0 ? (
-            Array.from({ length: 5 }).map((_, index) => <TableRowSkeleton key={index} columns={7} />)
-          ) : rows.length === 0 ? (
+    <section className="rounded-2xl bg-card p-5 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-bold text-ink">
+          {t("analytics.ai.topRecommendedProducts")}
+        </h2>
+        <Badge variant="secondary">{t("analytics.common.top5")}</Badge>
+      </div>
+      <div className="mt-5 overflow-x-auto">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={7}>
-                <ApiEmptyState message={t("analytics.ai.noRecommendations")} />
-              </TableCell>
+              <TableHead>{t("analytics.common.colProduct")}</TableHead>
+              <TableHead>{t("analytics.common.colSku")}</TableHead>
+              <TableHead>{t("analytics.common.colStock")}</TableHead>
+              <TableHead>{t("analytics.ai.colMatchScore")}</TableHead>
+              <TableHead>{t("analytics.ai.colDisplayed")}</TableHead>
+              <TableHead>{t("analytics.ai.colAccepted")}</TableHead>
+              <TableHead>{t("analytics.common.colActions")}</TableHead>
             </TableRow>
-          ) : (
-            rows.map((product) => {
-              const status = stockStatusMeta[product.stockStatus];
-              return (
-                <TableRow key={product.productId}>
-                  <TableCell className="min-w-64">
-                    <div className="flex items-center gap-3">
-                      <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-                        <Image
-                          src={product.image}
-                          alt={product.name}
-                          fill
-                          unoptimized
-                          className="object-cover"
-                          sizes="48px"
+          </TableHeader>
+          <TableBody>
+            {loading && rows.length === 0 ? (
+              Array.from({ length: 5 }).map((_, index) => (
+                <TableRowSkeleton key={index} columns={7} />
+              ))
+            ) : rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7}>
+                  <ApiEmptyState
+                    message={t("analytics.ai.noRecommendations")}
+                  />
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((product) => {
+                const status = stockStatusMeta[product.stockStatus];
+                return (
+                  <TableRow key={product.productId}>
+                    <TableCell className="min-w-64">
+                      <div className="flex items-center gap-3">
+                        <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted-background">
+                          <Image
+                            src={product.image}
+                            alt={product.name}
+                            fill
+                            unoptimized
+                            className="object-cover"
+                            sizes="48px"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-ink">
+                            {product.name}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {product.collection} • {product.size}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap font-data text-ink">
+                      {product.sku}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5 font-data text-ink">
+                        <span
+                          className={cn("size-2 rounded-full", status.dot)}
                         />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-ink">
-                          {product.name}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {product.collection} • {product.size}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap font-data text-ink">
-                    {product.sku}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1.5 font-data text-ink">
-                      <span className={cn("size-2 rounded-full", status.dot)} />
-                      {product.quantityOnHandSqm.toLocaleString()} {t("analytics.common.sqm")}
-                    </span>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap font-data text-ink">
-                    {product.averageMatchScore.toFixed(1)}%
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap text-ink">
-                    {formatCompactNumber(product.displayed)}
-                    <span className="mt-0.5 block text-xs font-semibold text-green-600">
-                      {t("analytics.common.acceptedPct", { value: product.acceptanceRate.toFixed(1) })}
-                    </span>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap font-data text-ink">
-                    {formatCompactNumber(product.accepted)}
-                  </TableCell>
-                  <TableCell>
-                    <Link
-                      href={`/analytics/tiles/${product.productId}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold whitespace-nowrap text-ink hover:-translate-y-0.5 hover:shadow-md active:scale-95"
-                    >
-                      {t("analytics.common.viewDetails")} <ArrowUpRight className="size-3.5" />
-                    </Link>
-                  </TableCell>
-                </TableRow>
-              );
-            })
-          )}
-        </TableBody>
-      </Table>
-    </div>
-  </section>
+                        {product.quantityOnHandSqm.toLocaleString()}{" "}
+                        {t("analytics.common.sqm")}
+                      </span>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap font-data text-ink">
+                      {product.averageMatchScore.toFixed(1)}%
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-ink">
+                      {formatCompactNumber(product.displayed)}
+                      <span className="mt-0.5 block text-xs font-semibold text-green-600">
+                        {t("analytics.common.acceptedPct", {
+                          value: product.acceptanceRate.toFixed(1),
+                        })}
+                      </span>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap font-data text-ink">
+                      {formatCompactNumber(product.accepted)}
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/analytics/tiles/${product.productId}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold whitespace-nowrap text-ink hover:-translate-y-0.5 hover:shadow-md active:scale-95"
+                      >
+                        {t("analytics.common.viewDetails")}{" "}
+                        <ArrowUpRight className="size-3.5" />
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </section>
   );
 };
 
@@ -446,11 +457,17 @@ const TileCard = ({ product }: { product: FilterableRecommendation }) => {
                 className="size-4 shrink-0"
                 strokeWidth={2.25}
               />
-              <span className="truncate">{t("analytics.common.recommendationsCount", { value: formatCompactNumber(product.displayed) })}</span>
+              <span className="truncate">
+                {t("analytics.common.recommendationsCount", {
+                  value: formatCompactNumber(product.displayed),
+                })}
+              </span>
             </span>
             <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-bold tracking-wide text-red-500 uppercase sm:text-[11px]">
               <Heart className="size-3.5" strokeWidth={2.5} />
-              {t("analytics.common.acceptedPct", { value: product.acceptanceRate.toFixed(0) })}
+              {t("analytics.common.acceptedPct", {
+                value: product.acceptanceRate.toFixed(0),
+              })}
             </span>
           </div>
         </div>
@@ -471,7 +488,9 @@ const TileCard = ({ product }: { product: FilterableRecommendation }) => {
         <div className="mt-auto flex items-center justify-between gap-3 pt-4 sm:pt-5">
           <p className="text-xl font-bold text-ink">
             {product.quantityOnHandSqm.toLocaleString()}{" "}
-            <span className="text-sm font-medium text-muted">{t("analytics.common.sqm")}</span>
+            <span className="text-sm font-medium text-muted">
+              {t("analytics.common.sqm")}
+            </span>
           </p>
           <Link
             href={`/analytics/tiles/${product.productId}`}
@@ -498,27 +517,76 @@ const TileCardSkeleton = () => (
   </article>
 );
 
-const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; loading: boolean }) => {
+const AllProducts = ({ period }: { period: TileRecommendations["period"] }) => {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<RecommendationSortOption>("displayed_desc");
+  const [sortBy, setSortBy] =
+    useState<RecommendationSortOption>("displayed_desc");
 
-  const filterGroups = useMemo(() => buildRecommendationFilterGroups(rows), [rows]);
+  const roomTypes = filters["Room type"]
+    .map(
+      (label) =>
+        Object.entries(roomTypeLabels).find(
+          ([, value]) => value === label,
+        )?.[0],
+    )
+    .filter(Boolean)
+    .join(",");
+  const suitableFor = filters["Suitable for"]
+    .map((label) => {
+      if (label === "Floor") return "FLOOR";
+      if (label === "Wall") return "WALL";
+      if (label === "Floor & Wall") return "BOTH";
+      return undefined;
+    })
+    .filter(Boolean)
+    .join(",");
+  const stockStatuses = filters.Availability.map(
+    (label) => availabilityFilterMap[label],
+  )
+    .filter(Boolean)
+    .join(",");
+  const { data, loading, error, reload } = useApi(
+    () =>
+      analyticsApi.tileRecommendations({
+        period,
+        page: currentPage,
+        limit: PAGE_SIZE,
+        search: query.trim() || undefined,
+        sort: sortBy,
+        roomTypes: roomTypes || undefined,
+        suitableFor: suitableFor || undefined,
+        sizes: filters.Size.join(",") || undefined,
+        stockStatuses: stockStatuses || undefined,
+      }),
+    [
+      period,
+      currentPage,
+      query,
+      sortBy,
+      roomTypes,
+      suitableFor,
+      stockStatuses,
+      filters.Size,
+    ],
+  );
+  const rows = useMemo<FilterableRecommendation[]>(
+    () =>
+      (data?.table.items ?? []).map((item) => ({
+        ...item,
+        roomTypes: item.roomTypes.map((roomType) => roomTypeLabels[roomType]),
+        suitableFor: suitableForLabels[item.suitableFor],
+      })),
+    [data],
+  );
 
-  const results = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const searched = normalizedQuery
-      ? rows.filter(
-          (product) =>
-            product.name.toLowerCase().includes(normalizedQuery) ||
-            product.sku.toLowerCase().includes(normalizedQuery),
-        )
-      : rows;
-    return sortRecommendations(filterRecommendations(searched, filters), sortBy);
-  }, [rows, query, filters, sortBy]);
+  const filterGroups = useMemo(
+    () => buildRecommendationFilterGroups(data?.filters.sizes ?? []),
+    [data],
+  );
 
   const handleToggleFilter = (group: keyof CatalogFilters, option: string) => {
     setFilters((current) => toggleFilterOption(current, group, option));
@@ -530,23 +598,27 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
     setCurrentPage(1);
   };
 
-  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const total = data?.table.meta.total ?? 0;
+  const totalPages = data?.table.meta.totalPages ?? 1;
   const safePage = Math.min(Math.max(currentPage, 1), totalPages);
-  const showingStart = results.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-  const showingEnd = Math.min(safePage * PAGE_SIZE, results.length);
+  const showingStart = total === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const showingEnd = Math.min(safePage * PAGE_SIZE, total);
   const visiblePages = useMemo(
     () => getVisiblePages(safePage, totalPages),
     [safePage, totalPages],
   );
   const goToPage = (page: number) =>
     setCurrentPage(Math.min(Math.max(page, 1), totalPages));
-  const pageItems = results.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
     <section>
-      <h2 className="text-lg font-bold text-ink">{t("analytics.common.allProducts")}</h2>
+      <h2 className="text-lg font-bold text-ink">
+        {t("analytics.common.allProducts")}
+      </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        {t("analytics.common.productsManaged", { count: results.length.toLocaleString() })}
+        {t("analytics.common.productsManaged", {
+          count: total.toLocaleString(),
+        })}
       </p>
 
       <div className="relative mt-5 flex flex-col gap-3 rounded-xl border border-[#E5E7EB] bg-card p-4 shadow-sm sm:flex-row sm:items-center">
@@ -563,7 +635,9 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
           />
         </div>
         <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
-          <span className="hidden sm:inline">{t("analytics.common.sortBy")}</span>
+          <span className="hidden sm:inline">
+            {t("analytics.common.sortBy")}
+          </span>
           <Select
             value={sortBy}
             onValueChange={(value) => {
@@ -572,7 +646,11 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
             }}
           >
             <SelectTrigger className="h-11 w-full min-w-0 border-border sm:w-52">
-              <SelectValue>{(value) => t(RECOMMENDATION_SORT_KEYS[value as RecommendationSortOption])}</SelectValue>
+              <SelectValue>
+                {(value) =>
+                  t(RECOMMENDATION_SORT_KEYS[value as RecommendationSortOption])
+                }
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {RECOMMENDATION_SORT_OPTIONS.map((option) => (
@@ -587,14 +665,20 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
           <Button
             type="button"
             variant="outline"
-            className={cn("h-11 gap-2 border-border text-ink", filtersOpen && "bg-muted-background")}
+            className={cn(
+              "h-11 gap-2 border-border text-ink",
+              filtersOpen && "bg-muted-background",
+            )}
             onClick={() => setFiltersOpen((open) => !open)}
             aria-pressed={filtersOpen}
           >
             <Filter className="size-4" /> {t("analytics.common.filters")}
             {hasActiveFilters(filters) && (
               <span className="ml-0.5 inline-flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-ink">
-                {Object.values(filters).reduce((sum, group) => sum + group.length, 0)}
+                {Object.values(filters).reduce(
+                  (sum, group) => sum + group.length,
+                  0,
+                )}
               </span>
             )}
           </Button>
@@ -621,19 +705,21 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
         )}
       </div>
 
-      {loading && rows.length === 0 ? (
+      {error ? (
+        <ApiErrorState message={error} onRetry={reload} className="mt-6" />
+      ) : loading && rows.length === 0 ? (
         <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (
             <TileCardSkeleton key={index} />
           ))}
         </div>
-      ) : pageItems.length === 0 ? (
+      ) : rows.length === 0 ? (
         <p className="mt-6 rounded-2xl bg-card p-10 text-center text-sm text-muted-foreground">
           {t("analytics.common.noProductMatch")}
         </p>
       ) : (
         <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {pageItems.map((product) => (
+          {rows.map((product) => (
             <TileCard key={product.productId} product={product} />
           ))}
         </div>
@@ -644,7 +730,7 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
           {t("analytics.common.showingRange", {
             start: showingStart,
             end: showingEnd,
-            total: results.length.toLocaleString(),
+            total: total.toLocaleString(),
           })}
         </p>
         <Pagination className="mx-0 w-auto justify-start py-0 sm:justify-end">
@@ -661,7 +747,9 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
                 }}
               >
                 <ChevronsLeft className="size-4" />
-                <span className="hidden sm:inline">{t("analytics.common.first")}</span>
+                <span className="hidden sm:inline">
+                  {t("analytics.common.first")}
+                </span>
               </PaginationLink>
             </PaginationItem>
             <PaginationItem>
@@ -723,7 +811,9 @@ const AllProducts = ({ rows, loading }: { rows: FilterableRecommendation[]; load
                   goToPage(totalPages);
                 }}
               >
-                <span className="hidden sm:inline">{t("analytics.common.last")}</span>
+                <span className="hidden sm:inline">
+                  {t("analytics.common.last")}
+                </span>
                 <ChevronsRight className="size-4" />
               </PaginationLink>
             </PaginationItem>
@@ -739,34 +829,26 @@ const AnalyticsAiPage = () => {
   const [period, setPeriod] = useState<AnalyticsPeriodDays>(30);
   const range = periodToRange[period];
 
-  const { data: recommendations, loading, error, reload } = useApi(
-    () => analyticsApi.tileRecommendations({ period: range, limit: 100 }),
+  const {
+    data: recommendations,
+    loading,
+    error,
+    reload,
+  } = useApi(
+    () =>
+      analyticsApi.tileRecommendations({
+        period: range,
+        page: 1,
+        limit: 5,
+        sort: "displayed_desc",
+      }),
     [range],
   );
-  // Room type / suitable-for / description aren't part of the recommendation
-  // row — fetched separately, purely to power the same catalog filters (and
-  // the card description) the storefront uses.
-  const { data: productsData } = useApi(() => productsApi.listAll());
 
-  const items = useMemo(() => recommendations?.table.items ?? [], [recommendations]);
-  const filterableItems = useMemo<FilterableRecommendation[]>(() => {
-    const meta = new Map(
-      (productsData?.items ?? []).map((product) => [
-        product.id,
-        {
-          roomTypes: product.roomTypes.map((roomType) => roomTypeLabels[roomType]),
-          suitableFor: suitableForLabels[product.suitableFor],
-          description: product.description ?? "",
-        },
-      ]),
-    );
-    return items.map((item) => ({
-      ...item,
-      roomTypes: meta.get(item.productId)?.roomTypes ?? [],
-      suitableFor: meta.get(item.productId)?.suitableFor ?? "both",
-      description: meta.get(item.productId)?.description ?? "",
-    }));
-  }, [items, productsData]);
+  const items = useMemo(
+    () => recommendations?.table.items ?? [],
+    [recommendations],
+  );
   const topRecommendedRows = useMemo(
     () => [...items].sort((a, b) => b.displayed - a.displayed).slice(0, 5),
     [items],
@@ -786,8 +868,11 @@ const AnalyticsAiPage = () => {
         ) : (
           <>
             <KpiCards summary={recommendations?.summary} loading={loading} />
-            <TopRecommendedProducts rows={topRecommendedRows} loading={loading} />
-            <AllProducts rows={filterableItems} loading={loading} />
+            <TopRecommendedProducts
+              rows={topRecommendedRows}
+              loading={loading}
+            />
+            <AllProducts period={range} />
           </>
         )}
       </div>

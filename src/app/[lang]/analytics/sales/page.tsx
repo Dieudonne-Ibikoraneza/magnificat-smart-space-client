@@ -17,18 +17,34 @@ import {
   Wallet,
 } from "lucide-react";
 import { DashboardPageHeader as AnalyticsPageHeader } from "@/components/dashboard-page-headers";
-import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
+import {
+  AnalyticsPeriodSwitcher,
+  periodToRange,
+  type AnalyticsPeriodDays,
+} from "@/components/analytics-period-switcher";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { OrderStatusBadge } from "@/components/order-status-control";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CategoryBarChart, type CategoryDatum } from "@/components/category-bar-chart";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  CategoryBarChart,
+  type CategoryDatum,
+} from "@/components/category-bar-chart";
 import { RevenueTrendChart } from "@/components/revenue-trend-chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
+import { ListPagination } from "@/components/list-pagination";
 import { cn, formatCompactCurrency } from "@/lib/utils";
 import { analyticsApi, ordersApi } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
-import type { ApiOrder, RoomType } from "@/lib/api/types";
+import type { ApiOrder, OrderStatus, RoomType } from "@/lib/api/types";
+
+const ORDERS_PAGE_SIZE = 9;
 
 const ROOM_TYPE_KEYS: Record<RoomType, string> = {
   LIVING_ROOM: "catalog.roomTypes.livingRoom",
@@ -59,10 +75,14 @@ const axisFor = (values: number[]) => {
   const max = Math.max(1, ...values);
   const step = Math.max(1, Math.ceil(max / 4));
   const domainMax = step * 4;
-  return { yTicks: [0, step, step * 2, step * 3, domainMax], yDomainMax: domainMax };
+  return {
+    yTicks: [0, step, step * 2, step * 3, domainMax],
+    yDomainMax: domainMax,
+  };
 };
 
-const formatRWF = (value: string | number) => `RWF ${Math.round(Number(value)).toLocaleString("en-US")}`;
+const formatRWF = (value: string | number) =>
+  `RWF ${Math.round(Number(value)).toLocaleString("en-US")}`;
 
 const KpiCard = (kpi: SalesKpi) => {
   const { t } = useTranslation();
@@ -81,7 +101,9 @@ const KpiCard = (kpi: SalesKpi) => {
             <span
               className={cn(
                 "inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold",
-                kpi.trend.startsWith("-") ? "bg-amber-50 text-amber-700" : "bg-green-50 text-green-700",
+                kpi.trend.startsWith("-")
+                  ? "bg-amber-50 text-amber-700"
+                  : "bg-green-50 text-green-700",
               )}
             >
               {kpi.trend.startsWith("-") ? (
@@ -98,15 +120,21 @@ const KpiCard = (kpi: SalesKpi) => {
         <p className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
           {kpi.label}
         </p>
-        <p className="mt-1 truncate text-2xl font-black text-ink">{kpi.value}</p>
+        <p className="mt-1 truncate text-2xl font-black text-ink">
+          {kpi.value}
+        </p>
         {"subtitle" in kpi && (
           <p className="mt-1 text-xs text-muted-foreground">{kpi.subtitle}</p>
         )}
       </div>
       {"transportFees" in kpi && kpi.transportFees !== undefined && (
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3 text-xs">
-          <span className="text-muted-foreground">{t("analytics.sales.transportFeesNote")}</span>
-          <span className="font-data font-semibold text-ink">{formatCompactCurrency(kpi.transportFees)}</span>
+          <span className="text-muted-foreground">
+            {t("analytics.sales.transportFeesNote")}
+          </span>
+          <span className="font-data font-semibold text-ink">
+            {formatCompactCurrency(kpi.transportFees)}
+          </span>
         </div>
       )}
     </article>
@@ -135,29 +163,47 @@ const TileListSkeleton = () => (
   </div>
 );
 
-const RecentOrders = ({ orders, loading, error, onRetry }: { orders: ApiOrder[]; loading: boolean; error?: string; onRetry: () => void }) => {
+const RecentOrders = ({
+  orders,
+  loading,
+  error,
+  onRetry,
+  page,
+  totalPages,
+  total,
+  status,
+  sort,
+  query,
+  onPageChange,
+  onStatusChange,
+  onSortChange,
+  onQueryChange,
+}: {
+  orders: ApiOrder[];
+  loading: boolean;
+  error?: string;
+  onRetry: () => void;
+  page: number;
+  totalPages: number;
+  total: number;
+  status: OrderStatus | "all";
+  sort: "newest" | "oldest";
+  query: string;
+  onPageChange: (page: number) => void;
+  onStatusChange: (status: OrderStatus | "all") => void;
+  onSortChange: (sort: "newest" | "oldest") => void;
+  onQueryChange: (query: string) => void;
+}) => {
   const { t } = useTranslation();
-  const [status, setStatus] = useState("all");
-  const [sort, setSort] = useState("newest");
-  const [query, setQuery] = useState("");
-
-  const results = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const filtered = orders.filter(
-      (order) =>
-        (status === "all" || order.status === status) &&
-        (normalizedQuery === "" ||
-          (order.customer?.fullName ?? "").toLowerCase().includes(normalizedQuery) ||
-          order.orderNumber.toLowerCase().includes(normalizedQuery)),
-    );
-
-    return sort === "oldest" ? [...filtered].reverse() : filtered;
-  }, [orders, query, sort, status]);
 
   return (
     <section>
-      <h2 className="text-lg font-bold text-ink">{t("analytics.sales.recentOrders")}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{t("analytics.sales.recentOrdersSub")}</p>
+      <h2 className="text-lg font-bold text-ink">
+        {t("analytics.sales.recentOrders")}
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {t("analytics.sales.recentOrdersSub")}
+      </p>
 
       <div className="mt-5 rounded-2xl bg-card p-4 sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
@@ -168,34 +214,74 @@ const RecentOrders = ({ orders, loading, error, onRetry }: { orders: ApiOrder[];
           <div className="grid w-full min-w-0 grid-cols-2 gap-3 sm:min-w-[320px] sm:flex-1 lg:w-auto lg:flex-none lg:gap-5">
             <div className="min-w-0">
               <span className="sr-only">{t("analytics.customers.status")}</span>
-              <Select value={status} onValueChange={(value) => setStatus(value ?? "all")}>
+              <Select
+                value={status}
+                onValueChange={(value) =>
+                  onStatusChange((value ?? "all") as OrderStatus | "all")
+                }
+              >
                 <SelectTrigger className="h-10 w-full min-w-0 border-border bg-transparent text-sm font-medium">
                   <SelectValue className="min-w-0 truncate">
                     {(value) =>
                       value === "all" || !value
                         ? t("analytics.sales.statusAll")
-                        : t("analytics.sales.statusValue", { status: t(`staff.orderStatus.${value}`) })
+                        : t("analytics.sales.statusValue", {
+                            status: t(`staff.orderStatus.${value}`),
+                          })
                     }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t("analytics.sales.statusAll")}</SelectItem>
-                  <SelectItem value="PROCESSING">{t("analytics.sales.statusValue", { status: t("staff.orderStatus.PROCESSING") })}</SelectItem>
-                  <SelectItem value="SHIPPED">{t("analytics.sales.statusValue", { status: t("staff.orderStatus.SHIPPED") })}</SelectItem>
-                  <SelectItem value="DELIVERED">{t("analytics.sales.statusValue", { status: t("staff.orderStatus.DELIVERED") })}</SelectItem>
-                  <SelectItem value="CANCELLED">{t("analytics.sales.statusValue", { status: t("staff.orderStatus.CANCELLED") })}</SelectItem>
+                  <SelectItem value="all">
+                    {t("analytics.sales.statusAll")}
+                  </SelectItem>
+                  <SelectItem value="PROCESSING">
+                    {t("analytics.sales.statusValue", {
+                      status: t("staff.orderStatus.PROCESSING"),
+                    })}
+                  </SelectItem>
+                  <SelectItem value="SHIPPED">
+                    {t("analytics.sales.statusValue", {
+                      status: t("staff.orderStatus.SHIPPED"),
+                    })}
+                  </SelectItem>
+                  <SelectItem value="DELIVERED">
+                    {t("analytics.sales.statusValue", {
+                      status: t("staff.orderStatus.DELIVERED"),
+                    })}
+                  </SelectItem>
+                  <SelectItem value="CANCELLED">
+                    {t("analytics.sales.statusValue", {
+                      status: t("staff.orderStatus.CANCELLED"),
+                    })}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="min-w-0">
               <span className="sr-only">{t("analytics.sales.orderDate")}</span>
-              <Select value={sort} onValueChange={(value) => setSort(value ?? "newest")}>
+              <Select
+                value={sort}
+                onValueChange={(value) =>
+                  onSortChange((value ?? "newest") as "newest" | "oldest")
+                }
+              >
                 <SelectTrigger className="h-10 w-full min-w-0 border-border bg-transparent text-sm font-medium">
-                  <SelectValue className="min-w-0 truncate">{(value) => (value === "oldest" ? t("analytics.sales.orderDateOldest") : t("analytics.sales.orderDateNewest"))}</SelectValue>
+                  <SelectValue className="min-w-0 truncate">
+                    {(value) =>
+                      value === "oldest"
+                        ? t("analytics.sales.orderDateOldest")
+                        : t("analytics.sales.orderDateNewest")
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="newest">{t("analytics.sales.orderDateNewest")}</SelectItem>
-                  <SelectItem value="oldest">{t("analytics.sales.orderDateOldest")}</SelectItem>
+                  <SelectItem value="newest">
+                    {t("analytics.sales.orderDateNewest")}
+                  </SelectItem>
+                  <SelectItem value="oldest">
+                    {t("analytics.sales.orderDateOldest")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -204,14 +290,14 @@ const RecentOrders = ({ orders, loading, error, onRetry }: { orders: ApiOrder[];
             <Search className="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => onQueryChange(event.target.value)}
               placeholder={t("analytics.sales.searchPlaceholder")}
               aria-label={t("analytics.sales.searchAria")}
               className="w-full rounded-full border border-border bg-[#F9FAFB] py-3 pr-4 pl-11 text-sm text-ink outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/40"
             />
           </div>
           <p className="shrink-0 text-xs font-semibold tracking-wider text-muted-foreground uppercase lg:hidden xl:inline">
-            {t("analytics.common.showingResults", { count: results.length })}
+            {t("analytics.common.showingResults", { count: total })}
           </p>
         </div>
       </div>
@@ -228,44 +314,81 @@ const RecentOrders = ({ orders, loading, error, onRetry }: { orders: ApiOrder[];
         </div>
       ) : error ? (
         <ApiErrorState message={error} onRetry={onRetry} className="mt-5" />
-      ) : results.length === 0 ? (
-        <ApiEmptyState message={t("analytics.sales.noOrders")} className="mt-5 py-16" />
+      ) : orders.length === 0 ? (
+        <ApiEmptyState
+          message={t("analytics.sales.noOrders")}
+          className="mt-5 py-16"
+        />
       ) : (
         <ul className="mt-5 grid gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {results.map((order) => {
+          {orders.map((order) => {
             const items = order.items ?? [];
-            const totalVolume = items.reduce((sum, item) => sum + billedAreaOf(item), 0);
+            const totalVolume = items.reduce(
+              (sum, item) => sum + billedAreaOf(item),
+              0,
+            );
             return (
-              <li key={order.id} className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
+              <li
+                key={order.id}
+                className="flex flex-col rounded-2xl bg-card p-5 sm:p-6"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate font-data text-xs text-muted-foreground">#{order.orderNumber}</p>
-                    <h3 className="mt-0.5 truncate text-xl font-bold text-ink">{order.customer?.fullName ?? t("analytics.common.unknownCustomer")}</h3>
+                    <p className="truncate font-data text-xs text-muted-foreground">
+                      #{order.orderNumber}
+                    </p>
+                    <h3 className="mt-0.5 truncate text-xl font-bold text-ink">
+                      {order.customer?.fullName ??
+                        t("analytics.common.unknownCustomer")}
+                    </h3>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {order.createdByType === "STAFF" && (
-                      <StaffCreatedIndicator createdByName={order.createdBy?.fullName ?? t("analytics.common.staffFallback")} />
+                      <StaffCreatedIndicator
+                        createdByName={
+                          order.createdBy?.fullName ??
+                          t("analytics.common.staffFallback")
+                        }
+                      />
                     )}
                     <OrderStatusBadge status={order.status} />
                   </div>
                 </div>
                 <dl className="mt-5 space-y-3 border-t border-[#E5E7EB] pt-4 text-sm">
                   <div className="flex items-start justify-between gap-3">
-                    <dt className="shrink-0 text-muted-foreground">{t("analytics.sales.summary")}</dt>
+                    <dt className="shrink-0 text-muted-foreground">
+                      {t("analytics.sales.summary")}
+                    </dt>
                     <dd className="min-w-0 text-right font-data text-ink">
-                      <span className="block">{t("analytics.sales.productTypes", { count: items.length })}</span>
-                      <span className="block whitespace-nowrap">{totalVolume.toLocaleString()} sqm</span>
+                      <span className="block">
+                        {t("analytics.sales.productTypes", {
+                          count: items.length,
+                        })}
+                      </span>
+                      <span className="block whitespace-nowrap">
+                        {totalVolume.toLocaleString()} sqm
+                      </span>
                     </dd>
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <dt className="text-muted-foreground">{t("analytics.sales.orderDateLabel")}</dt>
+                    <dt className="text-muted-foreground">
+                      {t("analytics.sales.orderDateLabel")}
+                    </dt>
                     <dd className="whitespace-nowrap font-data text-ink">
-                      {new Date(order.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                      {new Date(order.createdAt).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between gap-3 border-t border-[#E5E7EB] pt-3">
-                    <dt className="text-muted-foreground">{t("analytics.sales.totalSpend")}</dt>
-                    <dd className="font-data text-xl font-semibold whitespace-nowrap text-ink">{formatRWF(order.total)}</dd>
+                    <dt className="text-muted-foreground">
+                      {t("analytics.sales.totalSpend")}
+                    </dt>
+                    <dd className="font-data text-xl font-semibold whitespace-nowrap text-ink">
+                      {formatRWF(order.total)}
+                    </dd>
                   </div>
                 </dl>
                 <Link
@@ -280,6 +403,15 @@ const RecentOrders = ({ orders, loading, error, onRetry }: { orders: ApiOrder[];
           })}
         </ul>
       )}
+      {!loading && !error && total > 0 && (
+        <ListPagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={total}
+          pageSize={ORDERS_PAGE_SIZE}
+          onPageChange={onPageChange}
+        />
+      )}
     </section>
   );
 };
@@ -287,12 +419,42 @@ const RecentOrders = ({ orders, loading, error, onRetry }: { orders: ApiOrder[];
 const AnalyticsSalesPage = () => {
   const { t } = useTranslation();
   const [period, setPeriod] = useState<AnalyticsPeriodDays>(7);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [orderStatus, setOrderStatus] = useState<OrderStatus | "all">("all");
+  const [orderSort, setOrderSort] = useState<"newest" | "oldest">("newest");
+  const [orderQuery, setOrderQuery] = useState("");
   const range = periodToRange[period];
 
-  const { data: sales, loading: salesLoading, error: salesError, reload: reloadSales } = useApi(() => analyticsApi.sales(range), [range]);
-  const { data: customerAnalytics, loading: customerAnalyticsLoading } = useApi(() => analyticsApi.customers(range), [range]);
-  const { data: tiles, loading: tilesLoading } = useApi(() => analyticsApi.tiles({ period: range }), [range]);
-  const { data: ordersData, loading: ordersLoading, error: ordersError, reload: reloadOrders } = useApi(() => ordersApi.listAll());
+  const {
+    data: sales,
+    loading: salesLoading,
+    error: salesError,
+    reload: reloadSales,
+  } = useApi(() => analyticsApi.sales(range), [range]);
+  const { data: customerAnalytics, loading: customerAnalyticsLoading } = useApi(
+    () => analyticsApi.customers(range),
+    [range],
+  );
+  const { data: tiles, loading: tilesLoading } = useApi(
+    () => analyticsApi.tiles({ period: range }),
+    [range],
+  );
+  const {
+    data: ordersData,
+    loading: ordersLoading,
+    error: ordersError,
+    reload: reloadOrders,
+  } = useApi(
+    () =>
+      ordersApi.list({
+        page: ordersPage,
+        limit: ORDERS_PAGE_SIZE,
+        status: orderStatus === "all" ? undefined : orderStatus,
+        search: orderQuery.trim() || undefined,
+        sort: orderSort,
+      }),
+    [ordersPage, orderStatus, orderQuery, orderSort],
+  );
 
   const kpis: SalesKpi[] = sales
     ? [
@@ -303,22 +465,46 @@ const AnalyticsSalesPage = () => {
           trend: `${sales.percentChangeVsLastPeriod > 0 ? "+" : ""}${sales.percentChangeVsLastPeriod.toFixed(1)}%`,
           transportFees: sales.totalTransportFees,
         },
-        { label: t("analytics.sales.kpiAvgOrderValue"), value: formatRWF(sales.averageOrderValue), icon: ShoppingBasket },
-        { label: t("analytics.sales.kpiTotalOrders"), value: sales.totalOrders.toLocaleString(), icon: ShoppingBasket },
+        {
+          label: t("analytics.sales.kpiAvgOrderValue"),
+          value: formatRWF(sales.averageOrderValue),
+          icon: ShoppingBasket,
+        },
+        {
+          label: t("analytics.sales.kpiTotalOrders"),
+          value: sales.totalOrders.toLocaleString(),
+          icon: ShoppingBasket,
+        },
         sales.topPerformer
           ? {
               label: t("analytics.sales.kpiBestSelling"),
               value: sales.topPerformer.name,
               icon: Target,
               badge: t("analytics.sales.topPerformer"),
-              subtitle: sales.totalSales > 0 ? t("analytics.sales.ofTotalRevenue", { value: ((sales.topPerformer.revenue / sales.totalSales) * 100).toFixed(0) }) : "",
+              subtitle:
+                sales.totalSales > 0
+                  ? t("analytics.sales.ofTotalRevenue", {
+                      value: (
+                        (sales.topPerformer.revenue / sales.totalSales) *
+                        100
+                      ).toFixed(0),
+                    })
+                  : "",
             }
-          : { label: t("analytics.sales.kpiBestSelling"), value: t("analytics.sales.noSalesYet"), icon: Target },
+          : {
+              label: t("analytics.sales.kpiBestSelling"),
+              value: t("analytics.sales.noSalesYet"),
+              icon: Target,
+            },
       ]
     : [];
 
   const projectTypeRevenue: CategoryDatum[] = useMemo(
-    () => (customerAnalytics?.projectTypes ?? []).map((row) => ({ category: t(ROOM_TYPE_KEYS[row.roomType]), value: row.revenue })),
+    () =>
+      (customerAnalytics?.projectTypes ?? []).map((row) => ({
+        category: t(ROOM_TYPE_KEYS[row.roomType]),
+        value: row.revenue,
+      })),
     [customerAnalytics, t],
   );
   const projectTypeAxis = axisFor(projectTypeRevenue.map((row) => row.value));
@@ -326,7 +512,7 @@ const AnalyticsSalesPage = () => {
   const topPerformingTiles = sales?.bestSellingTiles.slice(0, 3) ?? [];
   const topAppliedTiles = tiles?.leaderboards.mostApplied.slice(0, 3) ?? [];
 
-  const orders = ordersData?.items.slice(0, 30) ?? [];
+  const orders = ordersData?.items ?? [];
 
   return (
     <>
@@ -338,7 +524,11 @@ const AnalyticsSalesPage = () => {
       </AnalyticsPageHeader>
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
         {salesError ? (
-          <ApiErrorState message={salesError} onRetry={reloadSales} className="my-8" />
+          <ApiErrorState
+            message={salesError}
+            onRetry={reloadSales}
+            className="my-8"
+          />
         ) : salesLoading || !sales ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <KpiSkeleton />
@@ -361,16 +551,26 @@ const AnalyticsSalesPage = () => {
             </section>
           ) : sales.trend.length === 0 ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
-              <h2 className="text-lg font-bold text-ink">{t("analytics.sales.revenueTrends")}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{t("analytics.sales.revenueTrendsSub")}</p>
-              <ApiEmptyState message={t("analytics.sales.noSales")} className="py-16" />
+              <h2 className="text-lg font-bold text-ink">
+                {t("analytics.sales.revenueTrends")}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("analytics.sales.revenueTrendsSub")}
+              </p>
+              <ApiEmptyState
+                message={t("analytics.sales.noSales")}
+                className="py-16"
+              />
             </section>
           ) : (
             <RevenueTrendChart
               title={t("analytics.sales.revenueTrends")}
               subtitle={t("analytics.sales.revenueTrendsSub")}
               range={range}
-              data={sales.trend.map((point) => ({ day: point.label, value: point.value }))}
+              data={sales.trend.map((point) => ({
+                day: point.label,
+                value: point.value,
+              }))}
             />
           )}
 
@@ -380,9 +580,16 @@ const AnalyticsSalesPage = () => {
             </section>
           ) : projectTypeRevenue.every((row) => row.value === 0) ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
-              <h2 className="text-lg font-bold text-ink">{t("analytics.sales.projectTypes")}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{t("analytics.sales.projectTypesSub")}</p>
-              <ApiEmptyState message={t("analytics.sales.noProjectRevenue")} className="py-16" />
+              <h2 className="text-lg font-bold text-ink">
+                {t("analytics.sales.projectTypes")}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("analytics.sales.projectTypesSub")}
+              </p>
+              <ApiEmptyState
+                message={t("analytics.sales.noProjectRevenue")}
+                className="py-16"
+              />
             </section>
           ) : (
             <CategoryBarChart
@@ -393,7 +600,9 @@ const AnalyticsSalesPage = () => {
               tooltipValueFormatter={(value) => formatRWF(value)}
               yTicks={projectTypeAxis.yTicks}
               yDomainMax={projectTypeAxis.yDomainMax}
-              yTickFormatter={(value) => (value === 0 ? "0" : formatCompactCurrency(value))}
+              yTickFormatter={(value) =>
+                value === 0 ? "0" : formatCompactCurrency(value)
+              }
             />
           )}
         </div>
@@ -402,34 +611,62 @@ const AnalyticsSalesPage = () => {
           <section className="rounded-2xl bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <h2 className="text-lg font-bold text-ink">{t("analytics.sales.topPerformingTiles")}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">{t("analytics.sales.byRevenueVolume")}</p>
+                <h2 className="text-lg font-bold text-ink">
+                  {t("analytics.sales.topPerformingTiles")}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t("analytics.sales.byRevenueVolume")}
+                </p>
               </div>
               <Link
                 href="/analytics/tiles"
                 className="flex shrink-0 items-center gap-1.5 self-start text-xs font-semibold text-ink hover:underline"
               >
-                <ExternalLink className="size-3.5" /> {t("analytics.common.viewAll")}
+                <ExternalLink className="size-3.5" />{" "}
+                {t("analytics.common.viewAll")}
               </Link>
             </div>
             {salesLoading ? (
               <TileListSkeleton />
             ) : topPerformingTiles.length === 0 ? (
-              <ApiEmptyState message={t("analytics.sales.noTileRevenue")} className="py-10" />
+              <ApiEmptyState
+                message={t("analytics.sales.noTileRevenue")}
+                className="py-10"
+              />
             ) : (
               <ul className="mt-4">
                 {topPerformingTiles.map((tile, index) => (
-                  <li key={tile.productId} className={index > 0 ? "border-t border-border" : undefined}>
+                  <li
+                    key={tile.productId}
+                    className={index > 0 ? "border-t border-border" : undefined}
+                  >
                     <div className="flex items-center gap-3 py-4">
                       <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-                        {tile.image && <Image src={tile.image} alt={tile.name} fill unoptimized className="object-cover" sizes="56px" />}
+                        {tile.image && (
+                          <Image
+                            src={tile.image}
+                            alt={tile.name}
+                            fill
+                            unoptimized
+                            className="object-cover"
+                            sizes="56px"
+                          />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-ink">{tile.name}</p>
-                        <p className="truncate text-xs text-muted-foreground">{t("analytics.sales.piecesSold", { value: tile.pieces.toLocaleString() })}</p>
+                        <p className="truncate text-sm font-semibold text-ink">
+                          {tile.name}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {t("analytics.sales.piecesSold", {
+                            value: tile.pieces.toLocaleString(),
+                          })}
+                        </p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="font-data text-sm font-semibold text-ink">{formatCompactCurrency(tile.revenue)}</p>
+                        <p className="font-data text-sm font-semibold text-ink">
+                          {formatCompactCurrency(tile.revenue)}
+                        </p>
                       </div>
                     </div>
                   </li>
@@ -441,33 +678,59 @@ const AnalyticsSalesPage = () => {
           <section className="rounded-2xl bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <h2 className="text-lg font-bold text-ink">{t("analytics.sales.topAppliedTiles")}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">{t("analytics.sales.bySelectionRate")}</p>
+                <h2 className="text-lg font-bold text-ink">
+                  {t("analytics.sales.topAppliedTiles")}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t("analytics.sales.bySelectionRate")}
+                </p>
               </div>
               <Link
                 href="/analytics/tiles"
                 className="flex shrink-0 items-center gap-1.5 self-start text-xs font-semibold text-ink hover:underline"
               >
-                <ExternalLink className="size-3.5" /> {t("analytics.common.viewAll")}
+                <ExternalLink className="size-3.5" />{" "}
+                {t("analytics.common.viewAll")}
               </Link>
             </div>
             {tilesLoading ? (
               <TileListSkeleton />
             ) : topAppliedTiles.length === 0 ? (
-              <ApiEmptyState message={t("analytics.sales.noTileApplications")} className="py-10" />
+              <ApiEmptyState
+                message={t("analytics.sales.noTileApplications")}
+                className="py-10"
+              />
             ) : (
               <ul className="mt-4">
                 {topAppliedTiles.map((tile, index) => (
-                  <li key={tile.productId} className={index > 0 ? "border-t border-border" : undefined}>
+                  <li
+                    key={tile.productId}
+                    className={index > 0 ? "border-t border-border" : undefined}
+                  >
                     <div className="flex items-center gap-3 py-4">
                       <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted-background">
-                        {tile.image && <Image src={tile.image} alt={tile.name} fill unoptimized className="object-cover" sizes="56px" />}
+                        {tile.image && (
+                          <Image
+                            src={tile.image}
+                            alt={tile.name}
+                            fill
+                            unoptimized
+                            className="object-cover"
+                            sizes="56px"
+                          />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-ink">{tile.name}</p>
+                        <p className="truncate text-sm font-semibold text-ink">
+                          {tile.name}
+                        </p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="font-data text-sm font-semibold text-ink">{t("analytics.sales.applicationsCount", { value: tile.count.toLocaleString() })}</p>
+                        <p className="font-data text-sm font-semibold text-ink">
+                          {t("analytics.sales.applicationsCount", {
+                            value: tile.count.toLocaleString(),
+                          })}
+                        </p>
                       </div>
                     </div>
                   </li>
@@ -477,7 +740,31 @@ const AnalyticsSalesPage = () => {
           </section>
         </div>
 
-        <RecentOrders orders={orders} loading={ordersLoading} error={ordersError} onRetry={reloadOrders} />
+        <RecentOrders
+          orders={orders}
+          loading={ordersLoading}
+          error={ordersError}
+          onRetry={reloadOrders}
+          page={ordersData?.meta.page ?? ordersPage}
+          totalPages={ordersData?.meta.totalPages ?? 1}
+          total={ordersData?.meta.total ?? 0}
+          status={orderStatus}
+          sort={orderSort}
+          query={orderQuery}
+          onPageChange={setOrdersPage}
+          onStatusChange={(value) => {
+            setOrderStatus(value);
+            setOrdersPage(1);
+          }}
+          onSortChange={(value) => {
+            setOrderSort(value);
+            setOrdersPage(1);
+          }}
+          onQueryChange={(value) => {
+            setOrderQuery(value);
+            setOrdersPage(1);
+          }}
+        />
       </div>
     </>
   );
