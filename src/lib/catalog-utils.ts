@@ -15,7 +15,11 @@ export type CatalogFilters = {
 export type FilterGroup = { title: keyof CatalogFilters; options: string[] };
 
 const SUITABLE_FOR_OPTIONS = ["Floor", "Wall", "Floor & Wall"];
-const AVAILABILITY_OPTIONS = ["In Stock Ready", "Low Stock", "Out of Stock (Pre-order)"];
+const AVAILABILITY_OPTIONS = [
+  "In Stock Ready",
+  "Low Stock",
+  "Out of Stock (Pre-order)",
+];
 
 /**
  * Room type is a closed enum (`roomTypeLabels`), so every value is offered
@@ -25,10 +29,18 @@ const AVAILABILITY_OPTIONS = ["In Stock Ready", "Low Stock", "Out of Stock (Pre-
  * page; this also means a single collection's catalog naturally only offers
  * the one size it has, instead of a list of sizes that don't apply to it.
  */
-export const buildFilterGroups = (products: Product[]): FilterGroup[] => [
+export const buildFilterGroups = (
+  products: Product[],
+  sizeOptions?: string[],
+): FilterGroup[] => [
   { title: "Room type", options: Object.values(roomTypeLabels) },
   { title: "Suitable for", options: SUITABLE_FOR_OPTIONS },
-  { title: "Size", options: Array.from(new Set(products.map((product) => product.size))).sort() },
+  {
+    title: "Size",
+    options: Array.from(
+      new Set(sizeOptions ?? products.map((product) => product.size)),
+    ).sort(),
+  },
   { title: "Availability", options: AVAILABILITY_OPTIONS },
 ];
 
@@ -39,19 +51,49 @@ export const EMPTY_FILTERS: CatalogFilters = {
   "Suitable for": [],
 };
 
-export const availabilityFilterMap: Record<
-  string,
-  Product["stockStatus"]
-> = {
+export const availabilityFilterMap: Record<string, Product["stockStatus"]> = {
   "In Stock Ready": "in_stock",
   "Low Stock": "low_stock",
   "Out of Stock (Pre-order)": "out_of_stock",
 };
 
-const matchesSuitableForFilter = (
-  product: Product,
-  selected: string[],
-) =>
+const ROOM_TYPE_BY_LABEL: Record<string, string> = {
+  "Living Room (Saloon)": "LIVING_ROOM",
+  Bedroom: "BEDROOM",
+  Bathroom: "BATHROOM",
+  Kitchen: "KITCHEN",
+};
+
+/** Encode the visible filter selections for the paginated products endpoint. */
+export const catalogFilterQuery = (filters: CatalogFilters) => {
+  const suitableFors = filters["Suitable for"].flatMap((label) =>
+    label === "Floor"
+      ? ["FLOOR", "BOTH"]
+      : label === "Wall"
+        ? ["WALL", "BOTH"]
+        : ["BOTH"],
+  );
+  const uniqueSuitableFors = [...new Set(suitableFors)];
+  return {
+    sizes: filters.Size.length ? filters.Size.join(",") : undefined,
+    roomTypes: filters["Room type"].length
+      ? filters["Room type"]
+          .map((label) => ROOM_TYPE_BY_LABEL[label])
+          .filter(Boolean)
+          .join(",")
+      : undefined,
+    suitableFors: uniqueSuitableFors.length
+      ? uniqueSuitableFors.join(",")
+      : undefined,
+    stockStatuses: filters.Availability.length
+      ? filters.Availability.map((label) => availabilityFilterMap[label])
+          .filter(Boolean)
+          .join(",")
+      : undefined,
+  };
+};
+
+const matchesSuitableForFilter = (product: Product, selected: string[]) =>
   selected.some((option) => {
     if (option === "Floor") {
       return product.suitableFor === "floor" || product.suitableFor === "both";
@@ -101,7 +143,7 @@ export const filterProducts = (
 
     if (
       filters.Size.length > 0 &&
-      !filters.Size.includes(product.size)
+      !filters.Size.some((size) => normalizeSize(size) === normalizeSize(product.size))
     ) {
       return false;
     }
@@ -125,6 +167,10 @@ export const filterProducts = (
     return true;
   });
 
+/** Treat x/× and incidental whitespace consistently across imported catalogs. */
+export const normalizeSize = (size: string) =>
+  size.toLowerCase().replace(/[×✕*]/g, "x").replace(/\s+/g, "").trim();
+
 export const sortProducts = (
   products: Product[],
   sortBy: SortOption,
@@ -142,8 +188,12 @@ export const sortProducts = (
       // Real product ids are UUIDs with no such ordering — for those, trust
       // the order the products arrived in (the API already returns newest
       // first by default) instead of sorting.
-      const allNumericIds = products.every((product) => /^\d+$/.test(product.id));
-      return allNumericIds ? sorted.sort((a, b) => Number(b.id) - Number(a.id)) : sorted;
+      const allNumericIds = products.every((product) =>
+        /^\d+$/.test(product.id),
+      );
+      return allNumericIds
+        ? sorted.sort((a, b) => Number(b.id) - Number(a.id))
+        : sorted;
     }
   }
 };

@@ -21,6 +21,7 @@ import { localizedText } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
 import { useCurrentUser } from "@/lib/current-user";
 import { useLocale } from "@/lib/i18n";
+import { catalogFilterQuery, EMPTY_FILTERS, type CatalogFilters } from "@/lib/catalog-utils";
 import CollectionNotFound from "./not-found";
 
 /**
@@ -28,7 +29,11 @@ import CollectionNotFound from "./not-found";
  * the API. The two calls run together because the catalog needs the collection
  * title to label each card.
  */
-const CollectionDetailsPage = ({ params }: { params: Promise<{ id: string }> }) => {
+const CollectionDetailsPage = ({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) => {
   const { t } = useTranslation();
   const { locale } = useLocale();
   const { user } = useCurrentUser();
@@ -36,11 +41,27 @@ const CollectionDetailsPage = ({ params }: { params: Promise<{ id: string }> }) 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"newest" | "low" | "high">("newest");
+  const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
 
-  const { data, loading, error, reload } = useApi(
+  const { data, loading, refreshing, error, reload } = useApi(
     () =>
-      Promise.all([collectionsApi.get(id), productsApi.list({ collectionId: id, page, limit: 20, search: search || undefined, sort: sort === "low" ? "price_asc" : sort === "high" ? "price_desc" : "newest" })]),
-    [id, page, search, sort],
+      Promise.all([
+        collectionsApi.get(id),
+        productsApi.list({
+          collectionId: id,
+          page,
+          limit: 20,
+          search: search || undefined,
+          ...catalogFilterQuery(filters),
+          sort:
+            sort === "low"
+              ? "price_asc"
+              : sort === "high"
+                ? "price_desc"
+                : "newest",
+        }),
+      ]),
+    [id, page, search, sort, filters],
     { keepPreviousData: true },
   );
 
@@ -57,25 +78,34 @@ const CollectionDetailsPage = ({ params }: { params: Promise<{ id: string }> }) 
 
   if (error) {
     // A deleted or mistyped collection id is a 404, not a failure worth retrying.
-    if (error.toLowerCase().includes("not found")) return <CollectionNotFound />;
+    if (error.toLowerCase().includes("not found"))
+      return <CollectionNotFound />;
     return <ApiErrorState message={error} onRetry={reload} className="my-16" />;
   }
 
   const [collection, products] = data ?? [];
   if (!collection) return <CollectionNotFound />;
-  const collectionTitle = localizedText(collection.title, collection.titleRw, locale);
+  const collectionTitle = localizedText(
+    collection.title,
+    collection.titleRw,
+    locale,
+  );
 
   const isClient = user?.role === "CLIENT";
 
   return (
     <>
-      {user && !isClient && <StaffCollectionToolbar role={user.role} collectionId={collection.id} />}
+      {user && !isClient && (
+        <StaffCollectionToolbar role={user.role} collectionId={collection.id} />
+      )}
       <ProductCatalog
         breadcrumb={
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink render={<Link href="/collections" />}>{t("collections.breadcrumb")}</BreadcrumbLink>
+                <BreadcrumbLink render={<Link href="/collections" />}>
+                  {t("collections.breadcrumb")}
+                </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -84,10 +114,31 @@ const CollectionDetailsPage = ({ params }: { params: Promise<{ id: string }> }) 
             </BreadcrumbList>
           </Breadcrumb>
         }
-        products={(products?.items ?? []).map((product) => toProduct(product, collectionTitle, locale))}
+        products={(products?.items ?? []).map((product) =>
+          toProduct(product, collectionTitle, locale),
+        )}
+        isRefreshing={refreshing}
         showFavorites={isClient}
         showAddToCart={isClient}
-        serverPagination={{ page: products?.meta.page ?? page, totalPages: products?.meta.totalPages ?? 1, totalItems: products?.meta.total ?? 0, pageSize: 20, onPageChange: setPage, onSearchChange: (value) => { setSearch(value); setPage(1); }, onSortChange: (value) => { setSort(value); setPage(1); } }}
+        serverPagination={{
+          page: products?.meta.page ?? page,
+          totalPages: products?.meta.totalPages ?? 1,
+          totalItems: products?.meta.total ?? 0,
+          pageSize: 20,
+          onPageChange: setPage,
+          onSearchChange: (value) => {
+            setSearch(value);
+            setPage(1);
+          },
+          onSortChange: (value) => {
+            setSort(value);
+            setPage(1);
+          },
+          onFiltersChange: (value) => {
+            setFilters(value);
+            setPage(1);
+          },
+        }}
       />
     </>
   );

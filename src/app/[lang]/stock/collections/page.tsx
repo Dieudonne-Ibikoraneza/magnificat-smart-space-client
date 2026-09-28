@@ -5,9 +5,21 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowDownWideNarrow, ArrowRight, Boxes, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import {
+  ArrowDownWideNarrow,
+  ArrowRight,
+  Boxes,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { DashboardPageHeader as StockPageHeader } from "@/components/dashboard-page-headers";
-import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
+import {
+  ApiEmptyState,
+  ApiErrorState,
+  ApiLoading,
+} from "@/components/api-state";
 import { ListPagination } from "@/components/list-pagination";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
@@ -20,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
-import { collectionsApi } from "@/lib/api";
+import { collectionsApi, productsApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { useApi } from "@/lib/api/use-api";
 import type { ApiCollection } from "@/lib/api/types";
@@ -44,12 +56,17 @@ const StockCollectionCard = ({
     try {
       await collectionsApi.remove(collection.id);
       toast.success(t("stock.collections.toastDeletedTitle"), {
-        description: t("stock.collections.toastDeletedBody", { name: collection.title }),
+        description: t("stock.collections.toastDeletedBody", {
+          name: collection.title,
+        }),
       });
       onDeleted();
     } catch (cause) {
       toast.error(t("stock.collections.toastFailedTitle"), {
-        description: cause instanceof ApiError ? cause.message : t("stock.collections.toastTryAgain"),
+        description:
+          cause instanceof ApiError
+            ? cause.message
+            : t("stock.collections.toastTryAgain"),
       });
     } finally {
       setDeleting(false);
@@ -89,7 +106,9 @@ const StockCollectionCard = ({
             render={<Link href={`/stock/collections/${collection.id}`} />}
             className="group/cta h-12 min-h-12 min-w-0 flex-1 gap-3 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
           >
-            <span className="truncate">{t("stock.collections.viewCollection")}</span>
+            <span className="truncate">
+              {t("stock.collections.viewCollection")}
+            </span>
             <ArrowRight className="size-4 shrink-0 transition-transform duration-300 group-hover/cta:translate-x-1" />
           </Button>
 
@@ -101,7 +120,9 @@ const StockCollectionCard = ({
               variant="ghost"
               size="icon-sm"
               className="h-12 w-10 rounded-none text-ink hover:bg-white/45"
-              aria-label={t("stock.collections.editAria", { title: collection.title })}
+              aria-label={t("stock.collections.editAria", {
+                title: collection.title,
+              })}
             >
               <Pencil className="size-4" strokeWidth={2.25} />
             </Button>
@@ -114,12 +135,16 @@ const StockCollectionCard = ({
                   size="icon-sm"
                   disabled={deleting}
                   className="h-12 w-10 rounded-none text-ink hover:bg-white/45 hover:text-red-600"
-                  aria-label={t("stock.collections.deleteAria", { title: collection.title })}
+                  aria-label={t("stock.collections.deleteAria", {
+                    title: collection.title,
+                  })}
                 >
                   <Trash2 className="size-4" strokeWidth={2.25} />
                 </Button>
               }
-              title={t("stock.collections.confirmDeleteTitle", { title: collection.title })}
+              title={t("stock.collections.confirmDeleteTitle", {
+                title: collection.title,
+              })}
               description={t("stock.collections.confirmDeleteDescription")}
               confirmLabel={t("stock.collections.confirmDeleteLabel")}
               onConfirm={() => void handleDelete()}
@@ -140,21 +165,20 @@ export default function StockCollectionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const { data, loading, error, reload } = useApi(
-    () => collectionsApi.list({
-      page: currentPage,
-      limit: 20,
-      search: query.trim() || undefined,
-      size: size === "all" ? undefined : size,
-      sort,
-    }),
+    () =>
+      collectionsApi.list({
+        page: currentPage,
+        limit: 20,
+        search: query.trim() || undefined,
+        size: size === "all" ? undefined : size,
+        sort,
+      }),
     [currentPage, query, size, sort],
   );
+  const { data: filterOptions } = useApi(() => productsApi.filterOptions());
   const collections = useMemo(() => data?.items ?? [], [data]);
 
-  const sizeOptions = useMemo(
-    () => Array.from(new Set(collections.map((collection) => collection.size))).sort(),
-    [collections],
-  );
+  const sizeOptions = filterOptions?.sizes ?? [];
 
   const handleReload = () => {
     reload();
@@ -164,7 +188,11 @@ export default function StockCollectionsPage() {
     <>
       <StockPageHeader
         title={t("stock.collections.title")}
-        subtitle={loading ? t("stock.collections.loading") : t("stock.collections.managed", { count: data?.meta.total ?? 0 })}
+        subtitle={
+          loading
+            ? t("stock.collections.loading")
+            : t("stock.collections.managed", { count: data?.meta.total ?? 0 })
+        }
       >
         <Button
           type="button"
@@ -182,19 +210,34 @@ export default function StockCollectionsPage() {
             <Search className="absolute top-1/2 left-4 size-5 -translate-y-1/2 text-[#71809a]" />
             <Input
               value={query}
-              onChange={(event) => { setQuery(event.target.value); setCurrentPage(1); }}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setCurrentPage(1);
+              }}
               placeholder={t("stock.collections.searchPlaceholder")}
               aria-label={t("stock.collections.searchAria")}
               className="h-11 rounded-full bg-[#fafbfc] pl-11 text-sm"
             />
           </div>
           <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center">
-            <Select value={size} onValueChange={(value) => { setSize(value ?? "all"); setCurrentPage(1); }}>
+            <Select
+              value={size}
+              onValueChange={(value) => {
+                setSize(value ?? "all");
+                setCurrentPage(1);
+              }}
+            >
               <SelectTrigger className="h-11 min-w-0 bg-card sm:w-32">
-                <SelectValue>{(value) => (value === "all" ? t("stock.collections.sizeTrigger") : value)}</SelectValue>
+                <SelectValue>
+                  {(value) =>
+                    value === "all" ? t("stock.collections.sizeTrigger") : value
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t("stock.collections.sizeAll")}</SelectItem>
+                <SelectItem value="all">
+                  {t("stock.collections.sizeAll")}
+                </SelectItem>
                 {sizeOptions.map((option) => (
                   <SelectItem key={option} value={option}>
                     {option}
@@ -202,16 +245,30 @@ export default function StockCollectionsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={sort} onValueChange={(value) => { setSort((value as SortOption) ?? "newest"); setCurrentPage(1); }}>
+            <Select
+              value={sort}
+              onValueChange={(value) => {
+                setSort((value as SortOption) ?? "newest");
+                setCurrentPage(1);
+              }}
+            >
               <SelectTrigger className="h-11 min-w-0 gap-1.5 bg-card sm:w-44">
                 <ArrowDownWideNarrow className="size-4 shrink-0 text-[#71809a]" />
                 <SelectValue>
-                  {(value) => (value === "oldest" ? t("stock.collections.sortOldest") : t("stock.collections.sortNewest"))}
+                  {(value) =>
+                    value === "oldest"
+                      ? t("stock.collections.sortOldest")
+                      : t("stock.collections.sortNewest")
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="newest">{t("stock.collections.sortNewest")}</SelectItem>
-                <SelectItem value="oldest">{t("stock.collections.sortOldest")}</SelectItem>
+                <SelectItem value="newest">
+                  {t("stock.collections.sortNewest")}
+                </SelectItem>
+                <SelectItem value="oldest">
+                  {t("stock.collections.sortOldest")}
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -220,11 +277,17 @@ export default function StockCollectionsPage() {
 
       <div className="mt-6 sm:mt-8">
         {loading ? (
-          <ApiLoading label={t("stock.collections.loadingList")} className="py-24" />
+          <ApiLoading
+            label={t("stock.collections.loadingList")}
+            className="py-24"
+          />
         ) : error ? (
           <ApiErrorState message={error} onRetry={reload} className="my-16" />
         ) : collections.length === 0 ? (
-          <ApiEmptyState message={t("stock.collections.empty")} className="py-16" />
+          <ApiEmptyState
+            message={t("stock.collections.empty")}
+            className="py-16"
+          />
         ) : (
           <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {collections.map((collection) => (

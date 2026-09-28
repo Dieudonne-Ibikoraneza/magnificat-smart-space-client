@@ -9,6 +9,7 @@ import { DashboardPageHeader as SalesPageHeader } from "@/components/dashboard-p
 import { productsApi, toProduct } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
 import { useLocale } from "@/lib/i18n";
+import { catalogFilterQuery, EMPTY_FILTERS, type CatalogFilters } from "@/lib/catalog-utils";
 
 /** Sales is view-only here — only admin/stock can create or edit a product (see ProductsController's @Roles), so there's no "Add New Product" action on this page. */
 const CatalogPage = () => {
@@ -17,12 +18,27 @@ const CatalogPage = () => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"newest" | "low" | "high">("newest");
+  const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
   const { data, loading, error, reload } = useApi(
-    () => productsApi.list({ page, limit: 20, search: search || undefined, sort: sort === "low" ? "price_asc" : sort === "high" ? "price_desc" : "newest" }),
-    [page, search, sort],
+    () =>
+      productsApi.list({
+        page,
+        limit: 20,
+        search: search || undefined,
+        ...catalogFilterQuery(filters),
+        sort:
+          sort === "low"
+            ? "price_asc"
+            : sort === "high"
+              ? "price_desc"
+              : "newest",
+      }),
+    [page, search, sort, filters],
     { keepPreviousData: true },
   );
-  const products = data?.items.map((product) => toProduct(product, undefined, locale)) ?? [];
+  const { data: filterOptions } = useApi(() => productsApi.filterOptions());
+  const products =
+    data?.items.map((product) => toProduct(product, undefined, locale)) ?? [];
 
   return (
     <>
@@ -35,15 +51,36 @@ const CatalogPage = () => {
           <ProductsPageSkeleton />
         ) : error ? (
           <ApiErrorState message={error} onRetry={reload} className="my-16" />
-        ) : products.length === 0 && !search && (data?.meta.total ?? 0) === 0 ? (
+        ) : products.length === 0 &&
+          !search &&
+          (data?.meta.total ?? 0) === 0 ? (
           <ApiEmptyState message={t("sales.catalog.empty")} className="my-16" />
         ) : (
           <ProductCatalog
             products={products}
+            sizeOptions={filterOptions?.sizes}
             showFavorites={false}
             showAddToCart={false}
             detailsBasePath="/sales/catalog"
-            serverPagination={{ page: data?.meta.page ?? page, totalPages: data?.meta.totalPages ?? 1, totalItems: data?.meta.total ?? 0, pageSize: 20, onPageChange: setPage, onSearchChange: (value) => { setSearch(value); setPage(1); }, onSortChange: (value) => { setSort(value); setPage(1); } }}
+            serverPagination={{
+              page: data?.meta.page ?? page,
+              totalPages: data?.meta.totalPages ?? 1,
+              totalItems: data?.meta.total ?? 0,
+              pageSize: 20,
+              onPageChange: setPage,
+              onSearchChange: (value) => {
+                setSearch(value);
+                setPage(1);
+              },
+              onSortChange: (value) => {
+                setSort(value);
+                setPage(1);
+              },
+              onFiltersChange: (value) => {
+                setFilters(value);
+                setPage(1);
+              },
+            }}
           />
         )}
       </div>

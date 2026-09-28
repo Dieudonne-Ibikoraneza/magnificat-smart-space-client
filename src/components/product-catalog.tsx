@@ -127,10 +127,7 @@ export const FilterOptionsCard = ({
           {t("catalog.reset")}
         </Button>
       </div>
-      <Accordion
-        multiple
-        defaultValue={groups.map((group) => group.title)}
-      >
+      <Accordion multiple defaultValue={groups.map((group) => group.title)}>
         {groups.map((group) => (
           <AccordionItem key={group.title} value={group.title}>
             <AccordionTrigger className="cursor-pointer py-4 text-sm font-semibold text-ink hover:no-underline">
@@ -178,7 +175,9 @@ const AiHelpCard = () => {
   return (
     <section className="rounded-2xl bg-ink p-6 text-center text-white shadow-sm">
       <h3 className="mb-2 text-lg font-bold">{t("catalog.aiHelp.title")}</h3>
-      <p className="mb-5 text-sm leading-5 text-white/75">{t("catalog.aiHelp.body")}</p>
+      <p className="mb-5 text-sm leading-5 text-white/75">
+        {t("catalog.aiHelp.body")}
+      </p>
       <Button
         nativeButton={false}
         className="h-12 min-h-12 w-full py-3 font-semibold text-ink bg-primary hover:bg-primary/90"
@@ -257,6 +256,7 @@ const CatalogToolbar = ({
   showingStart,
   showingEnd,
   totalResults,
+  activeFilterCount,
   viewMode,
   sortBy,
   onSortChange,
@@ -271,6 +271,7 @@ const CatalogToolbar = ({
   showingStart: number;
   showingEnd: number;
   totalResults: number;
+  activeFilterCount: number;
   viewMode: "grid" | "list";
   sortBy: SortOption;
   onSortChange: (value: SortOption) => void;
@@ -285,117 +286,153 @@ const CatalogToolbar = ({
   const { t } = useTranslation();
 
   return (
-  <div
-    className="relative mb-4 flex flex-col gap-3 overflow-hidden rounded-xl bg-white px-5 py-3 shadow-sm transition-[max-height] duration-300 ease-in-out"
-    style={{
-      maxHeight: searchVisible ? "320px" : "128px",
-      transition: "max-height 300ms cubic-bezier(0.4, 0, 0.2, 1)",
-      willChange: "max-height",
-    }}
-  >
-    <Button
-      type="button"
-      size="icon-lg"
-      className="fixed right-6 bottom-6 z-40 size-14 rounded-full bg-primary text-ink shadow-lg hover:bg-primary/90 xl:hidden"
-      onClick={onOpenFilters}
-      aria-label={t("catalog.openFilters")}
+    <div
+      className="relative mb-4 flex flex-col gap-3 overflow-hidden rounded-xl bg-white px-5 py-3 shadow-sm transition-[max-height] duration-300 ease-in-out"
+      style={{
+        maxHeight: searchVisible ? "320px" : "128px",
+        transition: "max-height 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+        willChange: "max-height",
+      }}
     >
-      <SlidersHorizontal className="size-6" />
-    </Button>
-    <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-    <p className="text-sm text-muted">
-      {totalResults === 0
-        ? t("catalog.results.none")
-        : t("catalog.results.showing", {
-            start: showingStart,
-            end: showingEnd,
-            total: totalResults,
-          })}
-    </p>
-    <div className="flex w-full items-center justify-between gap-4 sm:w-auto">
-      <div className="flex items-center gap-2 text-sm text-muted">
-        <span>{t("catalog.sortBy")}</span>
-        <Select
-          value={sortBy}
-          onValueChange={(value) => onSortChange(value as SortOption)}
-        >
-          <SelectTrigger className="h-9 w-40 rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold hover:bg-muted-background data-[state=open]:border-border data-[state=open]:bg-white">
-            <SelectValue>{(value) => t(SORT_KEYS[value as SortOption])}</SelectValue>
-          </SelectTrigger>
-          <SelectContent className="w-48 rounded-2xl border-slate-200 bg-white p-2 shadow-[0_14px_32px_rgba(15,39,71,0.16)] [&_[data-slot=select-item]]:mb-1">
-            <SelectItem
-              value="newest"
-              className="rounded-xl py-3 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20"
-            >
-              {t("catalog.sort.newest")}
-            </SelectItem>
-            <SelectItem
-              value="low"
-              className="rounded-xl py-3 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20"
-            >
-              {t("catalog.sort.low")}
-            </SelectItem>
-            <SelectItem
-              value="high"
-              className="rounded-xl py-3 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20"
-            >
-              {t("catalog.sort.high")}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="flex rounded-lg bg-muted-background p-1">
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            onClick={() => onViewModeChange("grid")}
-            className={viewMode === "grid" ? "bg-white text-ink shadow-sm" : "text-muted"}
-            aria-label={t("catalog.gridView")}
+      <Button
+        type="button"
+        size="icon-lg"
+        className="catalog-mobile-filter-trigger fixed right-4 bottom-6 z-40 size-14 rounded-full bg-primary text-ink shadow-lg hover:bg-primary/90 sm:right-6 sm:bottom-6 xl:hidden"
+        onClick={onOpenFilters}
+        aria-label={t("catalog.openFilters")}
+      >
+        <SlidersHorizontal className="size-6" />
+        {activeFilterCount > 0 && (
+          <span
+            aria-hidden="true"
+            className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-ink px-1 text-[11px] font-bold leading-none text-white ring-2 ring-white"
           >
-            <LayoutGrid />
-          </Button>
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            onClick={() => onViewModeChange("list")}
-            className={viewMode === "list" ? "bg-white text-ink shadow-sm" : "text-muted"}
-            aria-label={t("catalog.listView")}
-          >
-            <List />
-          </Button>
+            {activeFilterCount}
+          </span>
+        )}
+      </Button>
+      <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted">
+          {totalResults === 0
+            ? t("catalog.results.none")
+            : t("catalog.results.showing", {
+                start: showingStart,
+                end: showingEnd,
+                total: totalResults,
+              })}
+        </p>
+        <div className="flex w-full items-center justify-between gap-4 sm:w-auto">
+          <div className="flex items-center gap-2 text-sm text-muted">
+            <span>{t("catalog.sortBy")}</span>
+            <Select
+              value={sortBy}
+              onValueChange={(value) => onSortChange(value as SortOption)}
+            >
+              <SelectTrigger className="h-9 w-40 rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold hover:bg-muted-background data-[state=open]:border-border data-[state=open]:bg-white">
+                <SelectValue>
+                  {(value) => t(SORT_KEYS[value as SortOption])}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="w-48 rounded-2xl border-slate-200 bg-white p-2 shadow-[0_14px_32px_rgba(15,39,71,0.16)] [&_[data-slot=select-item]]:mb-1">
+                <SelectItem
+                  value="newest"
+                  className="rounded-xl py-3 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20"
+                >
+                  {t("catalog.sort.newest")}
+                </SelectItem>
+                <SelectItem
+                  value="low"
+                  className="rounded-xl py-3 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20"
+                >
+                  {t("catalog.sort.low")}
+                </SelectItem>
+                <SelectItem
+                  value="high"
+                  className="rounded-xl py-3 text-sm data-[highlighted]:bg-primary/20 data-[selected]:bg-primary/20"
+                >
+                  {t("catalog.sort.high")}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-lg bg-muted-background p-1">
+              <Button
+                size="icon-xs"
+                variant="ghost"
+                onClick={() => onViewModeChange("grid")}
+                className={
+                  viewMode === "grid"
+                    ? "bg-white text-ink shadow-sm"
+                    : "text-muted"
+                }
+                aria-label={t("catalog.gridView")}
+              >
+                <LayoutGrid />
+              </Button>
+              <Button
+                size="icon-xs"
+                variant="ghost"
+                onClick={() => onViewModeChange("list")}
+                className={
+                  viewMode === "list"
+                    ? "bg-white text-ink shadow-sm"
+                    : "text-muted"
+                }
+                aria-label={t("catalog.listView")}
+              >
+                <List />
+              </Button>
+            </div>
+            <Button
+              type="button"
+              size="icon-xs"
+              variant="ghost"
+              className={
+                searchOpen ? "bg-muted-background text-ink" : "text-muted"
+              }
+              onClick={onToggleSearch}
+              aria-label={
+                searchOpen
+                  ? t("catalog.closeProductSearch")
+                  : t("catalog.searchProducts")
+              }
+              aria-expanded={searchOpen}
+            >
+              {searchOpen ? (
+                <X className="size-5" />
+              ) : (
+                <Search className="size-5" />
+              )}
+            </Button>
+          </div>
         </div>
-        <Button
-          type="button"
-          size="icon-xs"
-          variant="ghost"
-          className={searchOpen ? "bg-muted-background text-ink" : "text-muted"}
-          onClick={onToggleSearch}
-          aria-label={searchOpen ? t("catalog.closeProductSearch") : t("catalog.searchProducts")}
-          aria-expanded={searchOpen}
+      </div>
+      {searchVisible ? (
+        <div
+          className={
+            searchOpen
+              ? "animate-in slide-in-from-top-2 fade-in duration-200"
+              : "animate-out slide-out-to-top-2 fade-out duration-200"
+          }
         >
-          {searchOpen ? <X className="size-5" /> : <Search className="size-5" />}
-        </Button>
-      </div>
-    </div>
-    </div>
-    {searchVisible ? (
-      <div className={searchOpen ? "animate-in slide-in-from-top-2 fade-in duration-200" : "animate-out slide-out-to-top-2 fade-out duration-200"}>
-        <label htmlFor="catalog-search" className="sr-only">{t("catalog.searchProducts")}</label>
-        <div className="relative ml-auto w-full max-w-md">
-          <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted" />
-          <Input
-            id="catalog-search"
-            autoFocus
-            value={searchQuery}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder={t("catalog.searchPlaceholder")}
-            className="h-11 w-full rounded-full border-slate-200 bg-[#F9FAFB] pr-4 pl-11 text-sm focus-visible:ring-primary/40"
-          />
+          <label htmlFor="catalog-search" className="sr-only">
+            {t("catalog.searchProducts")}
+          </label>
+          <div className="relative ml-auto w-full max-w-md">
+            <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted" />
+            <Input
+              id="catalog-search"
+              autoFocus
+              value={searchQuery}
+              onChange={(event) => onSearchChange(event.target.value)}
+              placeholder={t("catalog.searchPlaceholder")}
+              className="h-11 w-full rounded-full border-slate-200 bg-[#F9FAFB] pr-4 pl-11 text-sm focus-visible:ring-primary/40"
+            />
+          </div>
         </div>
-      </div>
-    ) : null}
-  </div>
+      ) : null}
+    </div>
   );
 };
 
@@ -461,6 +498,7 @@ const MobileFiltersSheet = ({
 
 export const ProductCatalog = ({
   products,
+  sizeOptions,
   breadcrumb,
   showFavorites = true,
   showAddToCart = true,
@@ -470,6 +508,8 @@ export const ProductCatalog = ({
   serverPagination,
 }: {
   products: Product[];
+  /** Complete size list for server-paginated catalogs; falls back to the loaded page. */
+  sizeOptions?: string[];
   breadcrumb?: ReactNode;
   showFavorites?: boolean;
   /** Off for staff catalogs (e.g. sales) — a cart is a customer's own. */
@@ -487,6 +527,7 @@ export const ProductCatalog = ({
     onPageChange: (page: number) => void;
     onSearchChange?: (search: string) => void;
     onSortChange?: (sort: SortOption) => void;
+    onFiltersChange?: (filters: CatalogFilters) => void;
   };
 }) => {
   const { t } = useTranslation();
@@ -502,7 +543,9 @@ export const ProductCatalog = ({
   const [searchOpen, setSearchOpen] = useState(Boolean(initialSearch));
   const [searchVisible, setSearchVisible] = useState(Boolean(initialSearch));
   const [searchQuery, setSearchQuery] = useState(initialSearch);
-  const searchUrlDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchUrlDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   // A `?search=` param can change out from under us (the header search box,
   // browser back/forward) — resync the local search state when it does, by
@@ -521,7 +564,8 @@ export const ProductCatalog = ({
 
   useEffect(() => {
     return () => {
-      if (searchUrlDebounceRef.current) clearTimeout(searchUrlDebounceRef.current);
+      if (searchUrlDebounceRef.current)
+        clearTimeout(searchUrlDebounceRef.current);
     };
   }, []);
 
@@ -530,37 +574,41 @@ export const ProductCatalog = ({
     : hasActiveFilters(filters)
       ? "filters"
       : "collection";
-  // The local field updates before the debounced server query and URL do.
-  // Treat that short gap as loading too, otherwise clearing a zero-result
-  // search briefly masquerades as a genuinely empty collection.
-  const isSearchTransitioning = Boolean(
-    serverPagination && searchQuery.trim() !== initialSearch.trim(),
+  const filterGroups = useMemo(
+    () => buildFilterGroups(products, sizeOptions),
+    [products, sizeOptions],
   );
 
-  const filterGroups = useMemo(() => buildFilterGroups(products), [products]);
-
   const processedProducts = useMemo(() => {
-    if (serverPagination) return filterProducts(products, filters);
+    // A server-paginated page has already been filtered across the whole
+    // catalog. Filtering its slice again makes valid matches on other pages
+    // disappear while the total count still reflects the unfiltered query.
+    if (serverPagination) return products;
     const normalizedSearch = searchQuery.trim().toLowerCase();
-    const searchedProducts = products.filter((product) =>
-      normalizedSearch === "" ||
-      product.name.toLowerCase().includes(normalizedSearch) ||
-      product.collection.toLowerCase().includes(normalizedSearch) ||
-      product.collectionId.toLowerCase().includes(normalizedSearch),
+    const searchedProducts = products.filter(
+      (product) =>
+        normalizedSearch === "" ||
+        product.name.toLowerCase().includes(normalizedSearch) ||
+        product.collection.toLowerCase().includes(normalizedSearch) ||
+        product.collectionId.toLowerCase().includes(normalizedSearch),
     );
     const filtered = filterProducts(searchedProducts, filters);
     return sortProducts(filtered, sortBy);
   }, [products, filters, searchQuery, sortBy, serverPagination]);
 
   const pagination = useMemo(() => {
-    if (!serverPagination) return paginateProducts(processedProducts, currentPage);
+    if (!serverPagination)
+      return paginateProducts(processedProducts, currentPage);
     const start = (serverPagination.page - 1) * serverPagination.pageSize;
     return {
       items: processedProducts,
       totalPages: serverPagination.totalPages,
       currentPage: serverPagination.page,
       showingStart: serverPagination.totalItems === 0 ? 0 : start + 1,
-      showingEnd: Math.min(start + processedProducts.length, serverPagination.totalItems),
+      showingEnd: Math.min(
+        start + processedProducts.length,
+        serverPagination.totalItems,
+      ),
       totalResults: serverPagination.totalItems,
     };
   }, [processedProducts, currentPage, serverPagination]);
@@ -570,17 +618,17 @@ export const ProductCatalog = ({
     [pagination.currentPage, pagination.totalPages],
   );
 
-  const handleToggleFilter = (
-    group: keyof CatalogFilters,
-    option: string,
-  ) => {
-    setFilters((current) => toggleFilterOption(current, group, option));
+  const handleToggleFilter = (group: keyof CatalogFilters, option: string) => {
+    const next = toggleFilterOption(filters, group, option);
+    setFilters(next);
+    serverPagination?.onFiltersChange?.(next);
     setCurrentPage(1);
   };
 
   const handleResetFilters = () => {
     setFilters(EMPTY_FILTERS);
     setCurrentPage(1);
+    serverPagination?.onFiltersChange?.(EMPTY_FILTERS);
   };
 
   const handleSortChange = (value: SortOption) => {
@@ -612,7 +660,8 @@ export const ProductCatalog = ({
     setSearchQuery(value);
     setCurrentPage(1);
 
-    if (searchUrlDebounceRef.current) clearTimeout(searchUrlDebounceRef.current);
+    if (searchUrlDebounceRef.current)
+      clearTimeout(searchUrlDebounceRef.current);
     searchUrlDebounceRef.current = setTimeout(() => {
       serverPagination?.onSearchChange?.(value);
       const nextParams = new URLSearchParams(searchParams.toString());
@@ -623,7 +672,9 @@ export const ProductCatalog = ({
         nextParams.delete("search");
       }
       const query = nextParams.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+      router.replace(query ? `${pathname}?${query}` : pathname, {
+        scroll: false,
+      });
     }, 300);
   };
 
@@ -671,6 +722,10 @@ export const ProductCatalog = ({
               showingStart={pagination.showingStart}
               showingEnd={pagination.showingEnd}
               totalResults={pagination.totalResults}
+              activeFilterCount={Object.values(filters).reduce(
+                (count, group) => count + group.length,
+                0,
+              )}
               viewMode={viewMode}
               sortBy={sortBy}
               onSortChange={handleSortChange}
@@ -683,7 +738,7 @@ export const ProductCatalog = ({
               onSearchChange={handleSearchChange}
             />
 
-            {pagination.items.length === 0 && (isRefreshing || isSearchTransitioning) ? (
+            {pagination.items.length === 0 && isRefreshing ? (
               <div
                 role="status"
                 className="flex min-h-52 items-center justify-center gap-2 rounded-2xl bg-white px-6 py-16 text-sm text-muted shadow-sm"
@@ -734,7 +789,9 @@ export const ProductCatalog = ({
                       }}
                     >
                       <ChevronsLeft className="size-4" />
-                      <span className="hidden sm:inline">{t("catalog.pagination.first")}</span>
+                      <span className="hidden sm:inline">
+                        {t("catalog.pagination.first")}
+                      </span>
                     </PaginationLink>
                   </PaginationItem>
                   <PaginationItem>
@@ -800,7 +857,9 @@ export const ProductCatalog = ({
                         goToPage(pagination.totalPages);
                       }}
                     >
-                      <span className="hidden sm:inline">{t("catalog.pagination.last")}</span>
+                      <span className="hidden sm:inline">
+                        {t("catalog.pagination.last")}
+                      </span>
                       <ChevronsRight className="size-4" />
                     </PaginationLink>
                   </PaginationItem>

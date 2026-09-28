@@ -20,7 +20,11 @@ import {
 import { getVisiblePages } from "@/lib/catalog-utils";
 import { staffStockDisplay } from "@/lib/stock-display";
 import { DashboardPageHeader as StockPageHeader } from "@/components/dashboard-page-headers";
-import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
+import {
+  ApiEmptyState,
+  ApiErrorState,
+  ApiLoading,
+} from "@/components/api-state";
 import { EditProductDialog } from "@/components/edit-product-dialog";
 import { DeleteProductButton } from "@/components/delete-product-button";
 import { InventoryProductCard } from "@/components/inventory-product-card";
@@ -86,15 +90,24 @@ const InventoryPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   const { data, loading, error, reload } = useApi(
-    () => productsApi.list({ page: currentPage, limit: PAGE_SIZE, search: query.trim() || undefined, suitableFor: suitableFor === "all" ? undefined : suitableFor as "WALL" | "FLOOR" | "BOTH", roomType: roomType === "all" ? undefined : roomType as RoomType, size: size === "all" ? undefined : size }),
+    () =>
+      productsApi.list({
+        page: currentPage,
+        limit: PAGE_SIZE,
+        search: query.trim() || undefined,
+        suitableFor:
+          suitableFor === "all"
+            ? undefined
+            : (suitableFor as "WALL" | "FLOOR" | "BOTH"),
+        roomType: roomType === "all" ? undefined : (roomType as RoomType),
+        size: size === "all" ? undefined : size,
+      }),
     [currentPage, query, suitableFor, roomType, size],
   );
+  const { data: filterOptions } = useApi(() => productsApi.filterOptions());
   const allProducts = useMemo(() => data?.items ?? [], [data]);
 
-  const sizeOptions = useMemo(
-    () => Array.from(new Set(allProducts.map((product) => product.size))).sort(),
-    [allProducts],
-  );
+  const sizeOptions = filterOptions?.sizes ?? [];
 
   const results = useMemo(
     () =>
@@ -105,14 +118,25 @@ const InventoryPage = () => {
             term === "" ||
             product.name.toLowerCase().includes(term) ||
             product.sku.toLowerCase().includes(term);
-          const matchesSuitableFor = suitableFor === "all" || product.suitableFor === suitableFor;
-          const matchesStatus = status === "all" || product.stockStatus === status;
-          const matchesRoomType = roomType === "all" || product.roomTypes.includes(roomType as RoomType);
+          const matchesSuitableFor =
+            suitableFor === "all" || product.suitableFor === suitableFor;
+          const matchesStatus =
+            status === "all" || product.stockStatus === status;
+          const matchesRoomType =
+            roomType === "all" ||
+            product.roomTypes.includes(roomType as RoomType);
           const matchesSize = size === "all" || product.size === size;
-          return matchesQuery && matchesSuitableFor && matchesStatus && matchesRoomType && matchesSize;
+          return (
+            matchesQuery &&
+            matchesSuitableFor &&
+            matchesStatus &&
+            matchesRoomType &&
+            matchesSize
+          );
         })
         .sort((a, b) => {
-          const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          const diff =
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
           return sort === "newest" ? -diff : diff;
         }),
     [allProducts, query, suitableFor, status, roomType, size, sort],
@@ -124,12 +148,12 @@ const InventoryPage = () => {
   const showingStart = totalResults === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const showingEnd = Math.min(safePage * PAGE_SIZE, totalResults);
 
-  const pageItems = useMemo(
-    () => results,
-    [results],
-  );
+  const pageItems = useMemo(() => results, [results]);
 
-  const visiblePages = useMemo(() => getVisiblePages(safePage, totalPages), [safePage, totalPages]);
+  const visiblePages = useMemo(
+    () => getVisiblePages(safePage, totalPages),
+    [safePage, totalPages],
+  );
 
   const goToPage = (page: number) => {
     setCurrentPage(Math.min(Math.max(page, 1), totalPages));
@@ -139,7 +163,11 @@ const InventoryPage = () => {
     <>
       <StockPageHeader
         title={t("stock.inventory.title")}
-        subtitle={loading ? t("stock.inventory.loadingProducts") : t("stock.inventory.productsManaged", { count: totalResults })}
+        subtitle={
+          loading
+            ? t("stock.inventory.loadingProducts")
+            : t("stock.inventory.productsManaged", { count: totalResults })
+        }
       >
         <Button
           type="button"
@@ -188,10 +216,18 @@ const InventoryPage = () => {
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t("stock.inventory.suitableForAll")}</SelectItem>
-                <SelectItem value="FLOOR">{t("stock.inventory.floor")}</SelectItem>
-                <SelectItem value="WALL">{t("stock.inventory.wall")}</SelectItem>
-                <SelectItem value="BOTH">{t("stock.inventory.floorAndWall")}</SelectItem>
+                <SelectItem value="all">
+                  {t("stock.inventory.suitableForAll")}
+                </SelectItem>
+                <SelectItem value="FLOOR">
+                  {t("stock.inventory.floor")}
+                </SelectItem>
+                <SelectItem value="WALL">
+                  {t("stock.inventory.wall")}
+                </SelectItem>
+                <SelectItem value="BOTH">
+                  {t("stock.inventory.floorAndWall")}
+                </SelectItem>
               </SelectContent>
             </Select>
             <Select
@@ -211,10 +247,18 @@ const InventoryPage = () => {
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t("stock.inventory.allStatus")}</SelectItem>
-                <SelectItem value="in_stock">{t("staff.stockStatus.in_stock")}</SelectItem>
-                <SelectItem value="low_stock">{t("staff.stockStatus.low_stock")}</SelectItem>
-                <SelectItem value="out_of_stock">{t("staff.stockStatus.out_of_stock")}</SelectItem>
+                <SelectItem value="all">
+                  {t("stock.inventory.allStatus")}
+                </SelectItem>
+                <SelectItem value="in_stock">
+                  {t("staff.stockStatus.in_stock")}
+                </SelectItem>
+                <SelectItem value="low_stock">
+                  {t("staff.stockStatus.low_stock")}
+                </SelectItem>
+                <SelectItem value="out_of_stock">
+                  {t("staff.stockStatus.out_of_stock")}
+                </SelectItem>
               </SelectContent>
             </Select>
             <Select
@@ -226,11 +270,17 @@ const InventoryPage = () => {
             >
               <SelectTrigger className="h-11 min-w-0 bg-card sm:w-40">
                 <SelectValue>
-                  {(value) => (value === "all" ? t("stock.inventory.roomTypeTrigger") : t(ROOM_TYPE_KEYS[value as RoomType]))}
+                  {(value) =>
+                    value === "all"
+                      ? t("stock.inventory.roomTypeTrigger")
+                      : t(ROOM_TYPE_KEYS[value as RoomType])
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t("stock.inventory.roomTypeAll")}</SelectItem>
+                <SelectItem value="all">
+                  {t("stock.inventory.roomTypeAll")}
+                </SelectItem>
                 {roomTypeOptions.map((option) => (
                   <SelectItem key={option} value={option}>
                     {t(ROOM_TYPE_KEYS[option])}
@@ -246,10 +296,16 @@ const InventoryPage = () => {
               }}
             >
               <SelectTrigger className="h-11 min-w-0 bg-card sm:w-32">
-                <SelectValue>{(value) => (value === "all" ? t("stock.inventory.sizeTrigger") : value)}</SelectValue>
+                <SelectValue>
+                  {(value) =>
+                    value === "all" ? t("stock.inventory.sizeTrigger") : value
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t("stock.inventory.sizeAll")}</SelectItem>
+                <SelectItem value="all">
+                  {t("stock.inventory.sizeAll")}
+                </SelectItem>
                 {sizeOptions.map((option) => (
                   <SelectItem key={option} value={option}>
                     {option}
@@ -257,16 +313,29 @@ const InventoryPage = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={sort} onValueChange={(value) => setSort((value as SortOption) ?? "newest")}>
+            <Select
+              value={sort}
+              onValueChange={(value) =>
+                setSort((value as SortOption) ?? "newest")
+              }
+            >
               <SelectTrigger className="h-11 min-w-0 gap-1.5 bg-card sm:w-44">
                 <ArrowDownWideNarrow className="size-4 shrink-0 text-[#71809a]" />
                 <SelectValue>
-                  {(value) => (value === "oldest" ? t("stock.inventory.sortOldest") : t("stock.inventory.sortNewest"))}
+                  {(value) =>
+                    value === "oldest"
+                      ? t("stock.inventory.sortOldest")
+                      : t("stock.inventory.sortNewest")
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="newest">{t("stock.inventory.sortNewest")}</SelectItem>
-                <SelectItem value="oldest">{t("stock.inventory.sortOldest")}</SelectItem>
+                <SelectItem value="newest">
+                  {t("stock.inventory.sortNewest")}
+                </SelectItem>
+                <SelectItem value="oldest">
+                  {t("stock.inventory.sortOldest")}
+                </SelectItem>
               </SelectContent>
             </Select>
             <div className="flex h-11 w-fit items-center justify-center justify-self-end rounded-lg bg-[#f4f5f6] p-1 sm:w-auto">
@@ -301,11 +370,18 @@ const InventoryPage = () => {
         ) : error ? (
           <ApiErrorState message={error} onRetry={reload} className="my-16" />
         ) : totalResults === 0 ? (
-          <ApiEmptyState message={t("stock.inventory.noResults")} className="py-16" />
+          <ApiEmptyState
+            message={t("stock.inventory.noResults")}
+            className="py-16"
+          />
         ) : view === "grid" ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {pageItems.map((product) => (
-              <InventoryProductCard key={product.id} product={product} onChanged={reload} />
+              <InventoryProductCard
+                key={product.id}
+                product={product}
+                onChanged={reload}
+              />
             ))}
           </div>
         ) : (
@@ -314,10 +390,18 @@ const InventoryPage = () => {
               <Table className="min-w-220">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="px-3 py-4">{t("stock.inventory.colProduct")}</TableHead>
-                    <TableHead className="px-3 py-4">{t("stock.inventory.colSku")}</TableHead>
-                    <TableHead className="px-3 py-4">{t("stock.inventory.colSize")}</TableHead>
-                    <TableHead className="px-3 py-4">{t("stock.inventory.colStock")}</TableHead>
+                    <TableHead className="px-3 py-4">
+                      {t("stock.inventory.colProduct")}
+                    </TableHead>
+                    <TableHead className="px-3 py-4">
+                      {t("stock.inventory.colSku")}
+                    </TableHead>
+                    <TableHead className="px-3 py-4">
+                      {t("stock.inventory.colSize")}
+                    </TableHead>
+                    <TableHead className="px-3 py-4">
+                      {t("stock.inventory.colStock")}
+                    </TableHead>
                     <TableHead className="px-3 py-4">
                       {t("stock.inventory.colPrice")}
                     </TableHead>
@@ -373,7 +457,9 @@ const InventoryPage = () => {
                               className={`size-2 rounded-full ${itemStatus.dot}`}
                             />
                             {quantity.toLocaleString()}{" "}
-                            <span className="font-sans text-sm font-normal text-muted-foreground">{t("stock.inventory.sqm")}</span>
+                            <span className="font-sans text-sm font-normal text-muted-foreground">
+                              {t("stock.inventory.sqm")}
+                            </span>
                           </span>
                         </TableCell>
                         <TableCell className="p-4 font-data text-base font-medium text-ink">
@@ -384,10 +470,14 @@ const InventoryPage = () => {
                             <Button
                               type="button"
                               nativeButton={false}
-                              render={<Link href={`/stock/inventory/${product.id}`} />}
+                              render={
+                                <Link href={`/stock/inventory/${product.id}`} />
+                              }
                               variant="ghost"
                               size="icon-sm"
-                              aria-label={t("stock.inventory.viewAria", { name: product.name })}
+                              aria-label={t("stock.inventory.viewAria", {
+                                name: product.name,
+                              })}
                             >
                               <Eye className="size-4" />
                             </Button>
@@ -399,7 +489,9 @@ const InventoryPage = () => {
                                   type="button"
                                   variant="ghost"
                                   size="icon-sm"
-                                  aria-label={t("stock.inventory.editAria", { name: product.name })}
+                                  aria-label={t("stock.inventory.editAria", {
+                                    name: product.name,
+                                  })}
                                 >
                                   <Pencil className="size-4" />
                                 </Button>
@@ -415,7 +507,9 @@ const InventoryPage = () => {
                                   variant="ghost"
                                   size="icon-sm"
                                   className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                                  aria-label={t("stock.inventory.deleteAria", { name: product.name })}
+                                  aria-label={t("stock.inventory.deleteAria", {
+                                    name: product.name,
+                                  })}
                                 >
                                   <Trash2 className="size-4" />
                                 </Button>
@@ -436,7 +530,11 @@ const InventoryPage = () => {
       {!loading && !error && totalResults > 0 && totalPages > 1 && (
         <footer className="mt-8 flex flex-col gap-4 text-sm text-[#53604d] sm:flex-row sm:items-center sm:justify-between">
           <p>
-            {t("stock.inventory.showingRange", { start: showingStart, end: showingEnd, total: totalResults.toLocaleString() })}
+            {t("stock.inventory.showingRange", {
+              start: showingStart,
+              end: showingEnd,
+              total: totalResults.toLocaleString(),
+            })}
           </p>
           <Pagination className="mx-0 w-auto justify-start py-0 sm:justify-end">
             <PaginationContent className="gap-1 sm:gap-2">
@@ -452,7 +550,9 @@ const InventoryPage = () => {
                   }}
                 >
                   <ChevronsLeft className="size-4" />
-                  <span className="hidden sm:inline">{t("sales.newOrder.productStep.first")}</span>
+                  <span className="hidden sm:inline">
+                    {t("sales.newOrder.productStep.first")}
+                  </span>
                 </PaginationLink>
               </PaginationItem>
               <PaginationItem>
@@ -514,7 +614,9 @@ const InventoryPage = () => {
                     goToPage(totalPages);
                   }}
                 >
-                  <span className="hidden sm:inline">{t("sales.newOrder.productStep.last")}</span>
+                  <span className="hidden sm:inline">
+                    {t("sales.newOrder.productStep.last")}
+                  </span>
                   <ChevronsRight className="size-4" />
                 </PaginationLink>
               </PaginationItem>
