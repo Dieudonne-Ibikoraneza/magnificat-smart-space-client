@@ -9,6 +9,7 @@ import { CurrentUserProvider } from "@/lib/current-user";
 import { I18nProvider, LOCALE_COOKIE, isLocale, localeFromAcceptLanguage } from "@/lib/i18n";
 import { Toaster } from "@/components/ui/toast";
 import { GlobalOrderAlertDialog } from "@/components/global-order-alert-dialog";
+import { ScrollbarHoverController } from "@/components/scrollbar-hover-controller";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
@@ -34,6 +35,7 @@ const RootLayout = async ({ children }: LayoutProps<"/">) => {
       className={cn("h-full antialiased", "font-sans", inter.variable, manrope.variable)}
     >
       <body className="flex min-h-full min-w-0 flex-col overflow-x-hidden">
+        <ScrollbarHoverController />
         <I18nProvider locale={locale}>
           <CurrentUserProvider>
             <CartProvider>

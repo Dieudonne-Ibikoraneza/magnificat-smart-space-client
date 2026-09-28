@@ -4,9 +4,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Keep the catalog filter in its usual corner unless the negotiation bubble
+   is actually rendered. When both are present, stack the filter above chat. */
+@media (max-width: 1279px) {
+  body:has([data-cart-negotiation-widget]) .catalog-mobile-filter-trigger {
+    bottom: 6rem;
+  }
+}
+
 :root {
   --ink: #0f2747;
-  --primary: #CCEF22;
+  --primary: #ccef22;
   --amber: #f4b400;
   --muted: #6b7280;
   --muted-background: #f3f4f6;
@@ -29,7 +37,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: #dbe3ec;
   --input: #dbe3ec;
-  --ring: #CCEF22;
+  --ring: #ccef22;
   --chart-blue: #3b82f6;
   --chart-blue-soft: #dbeafe;
   --data-ink: #4c4546;
@@ -41,7 +49,7 @@
   --radius: 0.625rem;
   --sidebar: #f8fafc;
   --sidebar-foreground: #0f2747;
-  --sidebar-primary: #CCEF22;
+  --sidebar-primary: #ccef22;
   --sidebar-primary-foreground: #0f2747;
   --sidebar-accent: #f5f7f9;
   --sidebar-accent-foreground: #0f2747;
@@ -62,8 +70,10 @@
   --color-muted-background: var(--muted-background);
   --color-skeleton: var(--skeleton);
   --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-data: var(--font-manrope), "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Consolas,
+  --font-data:
+    var(--font-manrope), "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:
+    "SFMono-Regular", "Cascadia Code", "Roboto Mono", Consolas,
     "Liberation Mono", monospace;
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -108,14 +118,75 @@ body {
   font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Keep scrollbars thin until the pointer enters their gutter. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ink) 38%, transparent) transparent;
+}
+
+.scrollbar-hover-active {
+  scrollbar-color: color-mix(in srgb, var(--ink) 65%, transparent) transparent;
+}
+
+@supports selector(::-webkit-scrollbar-button) {
+  * {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+
+  .scrollbar-hover-active {
+    scrollbar-color: auto;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-color: color-mix(in srgb, var(--ink) 42%, transparent);
+    background-clip: padding-box;
+    transition: border-width 150ms ease, background-color 150ms ease;
+  }
+
+  .scrollbar-hover-active::-webkit-scrollbar-thumb {
+    border-width: 0;
+    background-color: color-mix(in srgb, var(--ink) 65%, transparent);
+  }
+
+  *::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
 @keyframes chat-message-enter-user {
-  from { opacity: 0; transform: translate3d(24px, 10px, 0) scale(0.98); }
-  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translate3d(24px, 10px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 @keyframes chat-message-enter-bot {
-  from { opacity: 0; transform: translate3d(-24px, 10px, 0) scale(0.98); }
-  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translate3d(-24px, 10px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 .chat-message-enter-user {
@@ -128,21 +199,14 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .chat-message-enter-user,
-  .chat-message-enter-bot { animation: none; }
+  .chat-message-enter-bot {
+    animation: none;
+  }
 }
 
 .recharts-cartesian-axis-tick-value,
 .recharts-cartesian-axis-tick-value tspan {
   font-family: var(--font-data) !important;
-}
-
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
 }
 
 @media print {
@@ -184,16 +248,34 @@ body {
 }
 
 @keyframes like-pop {
-  0% { transform: scale(0.65); }
-  45% { transform: scale(1.28); }
-  75% { transform: scale(0.92); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(0.65);
+  }
+  45% {
+    transform: scale(1.28);
+  }
+  75% {
+    transform: scale(0.92);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 @keyframes like-spark {
-  0% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--spark-angle)) translateY(0) scale(0.4); }
-  18% { opacity: 1; }
-  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--spark-angle)) translateY(var(--spark-distance)) scale(0.2); }
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--spark-angle)) translateY(0)
+      scale(0.4);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--spark-angle))
+      translateY(var(--spark-distance)) scale(0.2);
+  }
 }
 
 .animate-like-pop {
@@ -212,14 +294,45 @@ body {
   animation: like-spark 560ms cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
 }
 
-.like-spark-1 { --spark-angle: 0deg; --spark-distance: -22px; }
-.like-spark-2 { --spark-angle: 45deg; --spark-distance: -20px; animation-delay: 20ms; }
-.like-spark-3 { --spark-angle: 90deg; --spark-distance: -22px; animation-delay: 35ms; }
-.like-spark-4 { --spark-angle: 135deg; --spark-distance: -20px; animation-delay: 15ms; }
-.like-spark-5 { --spark-angle: 180deg; --spark-distance: -22px; animation-delay: 30ms; }
-.like-spark-6 { --spark-angle: 225deg; --spark-distance: -20px; animation-delay: 10ms; }
-.like-spark-7 { --spark-angle: 270deg; --spark-distance: -22px; animation-delay: 25ms; }
-.like-spark-8 { --spark-angle: 315deg; --spark-distance: -20px; animation-delay: 40ms; }
+.like-spark-1 {
+  --spark-angle: 0deg;
+  --spark-distance: -22px;
+}
+.like-spark-2 {
+  --spark-angle: 45deg;
+  --spark-distance: -20px;
+  animation-delay: 20ms;
+}
+.like-spark-3 {
+  --spark-angle: 90deg;
+  --spark-distance: -22px;
+  animation-delay: 35ms;
+}
+.like-spark-4 {
+  --spark-angle: 135deg;
+  --spark-distance: -20px;
+  animation-delay: 15ms;
+}
+.like-spark-5 {
+  --spark-angle: 180deg;
+  --spark-distance: -22px;
+  animation-delay: 30ms;
+}
+.like-spark-6 {
+  --spark-angle: 225deg;
+  --spark-distance: -20px;
+  animation-delay: 10ms;
+}
+.like-spark-7 {
+  --spark-angle: 270deg;
+  --spark-distance: -22px;
+  animation-delay: 25ms;
+}
+.like-spark-8 {
+  --spark-angle: 315deg;
+  --spark-distance: -20px;
+  animation-delay: 40ms;
+}
 
 .dark {
   --background: oklch(0.145 0 0);
