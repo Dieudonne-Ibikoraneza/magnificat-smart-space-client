@@ -34,6 +34,8 @@ export type UserStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED";
 export type HearAboutUs =
   "SOCIAL_MEDIA" | "REFERRAL" | "ADVERTISEMENT" | "SEARCH_ENGINE" | "OTHER";
 export type SuitableFor = "FLOOR" | "WALL" | "BOTH";
+export type VisualizerTilePattern = "STRAIGHT" | "TWO_TURN" | "QUARTER_TURN";
+export type VisualizerTileCorner = "TOP_RIGHT" | "BOTTOM_RIGHT" | "BOTTOM_LEFT" | "TOP_LEFT";
 /** The rooms the whole app supports — living room, bedroom, bathroom, kitchen. */
 export type RoomType = "LIVING_ROOM" | "BEDROOM" | "BATHROOM" | "KITCHEN";
 export type StockStatus = "in_stock" | "low_stock" | "out_of_stock";
@@ -165,6 +167,8 @@ export type ApiProduct = {
   nameRw: string | null;
   descriptionRw: string | null;
   suitableFor: SuitableFor;
+  visualizerPattern: VisualizerTilePattern | null;
+  visualizerPatternCorner?: VisualizerTileCorner;
   roomTypes: RoomType[];
   isActive: boolean;
   createdAt: string;
@@ -734,14 +738,14 @@ export type FulfillmentQueue = {
  */
 export type AnalyticsOverview = {
   period: AnalyticsPeriod;
-  /** Tile revenue only — never the delivery cost. See `totalTransportFees`. */
+  /** Tile revenue in the selected period, dated by verified payment. */
   totalSales: number;
   /** Delivery/transport fees earned orders were quoted, kept independent of `totalSales` on purpose. */
   totalTransportFees: number;
   totalOrders: number;
-  /** Placed but unpaid. */
+  /** Currently placed but unpaid, across all periods. */
   pendingOrders: number;
-  /** Paid, not yet shipped. */
+  /** Currently paid but not yet shipped, across all periods. */
   pendingFulfillments: number;
   averageOrderValue: number;
   byCreator: {
@@ -750,12 +754,14 @@ export type AnalyticsOverview = {
     total: number;
   }[];
   creatorTrend: CreatorTrendPoint[];
+  /** Lifetime customer base; the period selector does not filter this snapshot. */
   totalCustomers: number;
   repeatCustomers: number;
   repeatPurchaseRate: number;
   totalRecommendations: number;
   recommendationAcceptanceRate: number;
   averageMatchScore: number;
+  /** Current inventory snapshot, independent of the selected reporting period. */
   activeProducts: number;
   lowStockItems: number;
   outOfStockItems: number;
@@ -766,12 +772,17 @@ export type AnalyticsOverview = {
 
 export type CustomerAnalytics = {
   period: AnalyticsPeriod;
+  /** Lifetime customer base. */
   totalCustomers: number;
   activeCustomers: number;
+  /** Signups in the selected period. */
   newCustomers: number;
+  /** Customers with multiple verified, non-cancelled purchases over their lifetime. */
   repeatCustomerCount: number;
   repeatPurchaseRate: number;
+  /** Acquisition channels for signups in the selected period. */
   byHeardAboutUs: { source: HearAboutUs | null; count: number }[];
+  /** Customers by order placement date; revenue by verified payment date, in the selected period. */
   projectTypes: { roomType: RoomType; customers: number; revenue: number }[];
   trend: {
     /** New signups per bucket. */
@@ -924,6 +935,10 @@ export type TileAnalytics = {
   };
   filters: { sizes: string[] };
   table: Paginated<TilePerformanceRow>;
+  previews: {
+    mostViewed: TilePerformanceRow[];
+    mostLiked: TilePerformanceRow[];
+  };
 };
 
 export type TilePerformanceRow = {
@@ -940,6 +955,8 @@ export type TilePerformanceRow = {
   stockStatus: StockStatus;
   viewed: number;
   applied: number;
+  /** AI recommendations displayed for this product within the selected period. */
+  recommended: number;
   compared: number;
   saved: number;
   purchased: number;

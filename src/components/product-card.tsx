@@ -31,6 +31,8 @@ export type Product = {
   stockStatus: "in_stock" | "low_stock" | "out_of_stock";
   roomTypes: string[];
   suitableFor: "floor" | "wall" | "both";
+  visualizerPattern?: "STRAIGHT" | "TWO_TURN" | "QUARTER_TURN" | null;
+  visualizerPatternCorner?: "TOP_RIGHT" | "BOTTOM_RIGHT" | "BOTTOM_LEFT" | "TOP_LEFT";
 };
 
 /**

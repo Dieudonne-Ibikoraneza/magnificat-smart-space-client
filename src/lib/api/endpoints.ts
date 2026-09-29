@@ -60,6 +60,8 @@ import type {
   TileRates,
   TileRecommendations,
   UserStatus,
+  VisualizerTilePattern,
+  VisualizerTileCorner,
 } from "./types";
 
 /**
@@ -213,7 +215,7 @@ export type ProductQuery = {
   suitableFor?: SuitableFor;
   compatibleWith?: SuitableFor;
   search?: string;
-  sort?: "newest" | "price_asc" | "price_desc";
+  sort?: "newest" | "oldest" | "price_asc" | "price_desc";
   stockStatus?: StockStatus;
   sizes?: string;
   roomTypes?: string;
@@ -241,6 +243,8 @@ export type ProductInput = {
   nameRw?: string;
   descriptionRw?: string;
   suitableFor?: SuitableFor;
+  visualizerPattern?: VisualizerTilePattern;
+  visualizerPatternCorner?: VisualizerTileCorner;
   roomTypes?: RoomType[];
   /** Opening stock in square metres — boxes/pieces are a display conversion only. */
   initialAreaSqm?: number;
@@ -323,20 +327,15 @@ export const productsApi = {
     }),
 
   /**
-   * Uploads to a private Supabase Storage blob (admin/stock manager only) —
-   * `image` in the returned data is a short-lived signed URL good only for
-   * an immediate preview; submit `path`, not `image`, as the product's own
-   * `image` field when creating/updating it. The server resolves that path
-   * to a fresh signed URL on every read, since the one returned here expires.
+   * Uploads a product image (admin/stock manager only). Persist `path`;
+   * `url` serves image bytes through the application for immediate preview.
    */
   uploadImage: (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
     return apiUpload<{
-      bucket: string;
       path: string;
       url: string;
-      expiresIn: number;
       contentType: string;
       size: number;
     }>("/products/upload-image", formData);
@@ -603,26 +602,17 @@ export const roomsApi = {
   list: () => api.get<ApiRoom[]>("/rooms"),
   /** Every room template, published or hidden — admin content management only. */
   listAdmin: () => api.get<ApiRoom[]>("/rooms/admin"),
-  create: (body: {
-    type: RoomType;
-    name: string;
-    modelUrl: string;
-    description?: string;
-    thumbnail?: string;
-  }) => api.post<ApiRoom>("/rooms", body),
-  update: (
-    id: string,
-    body: Partial<{
-      type: RoomType;
-      name: string;
-      modelUrl: string;
-      description: string;
-      thumbnail: string;
-      isActive: boolean;
-    }>,
-  ) => api.patch<ApiRoom>(`/rooms/${id}`, body),
-  /** Rejected (400) if any saved customer design still uses this room — hide it (`update` with `isActive: false`) instead. */
-  remove: (id: string) => api.delete<void>(`/rooms/${id}`),
+  update: (id: string, body: { thumbnail: string }) =>
+    api.patch<ApiRoom>(`/rooms/${id}`, body),
+  uploadThumbnail: (file: File, onProgress?: (percentage: number) => void) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiUpload<{ bucket: string; path: string; url: string; expiresIn: number; contentType: string; size: number }>(
+      "/rooms/upload-thumbnail",
+      formData,
+      onProgress,
+    );
+  },
 
   saveDesign: (body: {
     roomId: string;
@@ -891,7 +881,25 @@ export const analyticsApi = {
       page?: number;
       limit?: number;
       search?: string;
-      sort?: "applied_asc" | "applied_desc";
+      sort?:
+        | "viewed_asc"
+        | "viewed_desc"
+        | "applied_asc"
+        | "applied_desc"
+        | "recommended_asc"
+        | "recommended_desc"
+        | "saved_asc"
+        | "saved_desc"
+        | "purchased_asc"
+        | "purchased_desc"
+        | "selectionRate_asc"
+        | "selectionRate_desc"
+        | "name_asc"
+        | "name_desc";
+      roomTypes?: string;
+      suitableFor?: string;
+      sizes?: string;
+      stockStatuses?: string;
     } = {},
   ) => api.get<TileAnalytics>("/analytics/tiles", { query }),
   tileRates: (productId: string) =>
