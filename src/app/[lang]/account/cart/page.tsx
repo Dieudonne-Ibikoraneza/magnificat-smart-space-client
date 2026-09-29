@@ -15,6 +15,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CartSkeleton } from "@/components/skeletons";
+import { PrintDocument } from "@/components/print-document";
 import { stockLabels } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -60,7 +61,7 @@ const CartPage = () => {
    * the server opens/continues the customer's cart negotiation thread for
    * that in the same call, invisibly to `CartNegotiationChat`'s own state, so
    * this is the signal that tells it to go fetch the thread again. */
-  const [negotiationRefreshToken, setNegotiationRefreshToken] = useState(0);
+  const [, setNegotiationRefreshToken] = useState(0);
   /** What's currently typed in a quantity box, kept separate from the committed value so a mid-edit "" or "3." doesn't get clobbered by the store's clamped/rounded number. */
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const autoOpenedShortageKeyRef = useRef("");
@@ -516,11 +517,8 @@ const CartPage = () => {
         </aside>
       </div>
 
-      <section
-        id="quotation-print"
-        aria-hidden="true"
-        className="quotation-printable mx-auto max-w-4xl bg-white p-5 text-ink sm:p-10"
-      >
+      <PrintDocument id="quotation-print">
+      <section className="mx-auto max-w-4xl bg-white p-5 text-ink sm:p-10">
         <header className="flex items-start justify-between gap-8 border-b border-slate-200 pb-6">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#9f8355]">
@@ -604,6 +602,7 @@ const CartPage = () => {
           </div>
         </footer>
       </section>
+      </PrintDocument>
     </div>
   );
 };
