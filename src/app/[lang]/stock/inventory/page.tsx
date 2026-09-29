@@ -14,20 +14,22 @@ import {
   List,
   Pencil,
   Plus,
+  RotateCcw,
   Search,
+  SlidersHorizontal,
   Trash2,
 } from "lucide-react";
 import { getVisiblePages } from "@/lib/catalog-utils";
 import { staffStockDisplay } from "@/lib/stock-display";
 import { DashboardPageHeader as StockPageHeader } from "@/components/dashboard-page-headers";
 import {
-  ApiEmptyState,
   ApiErrorState,
   ApiLoading,
 } from "@/components/api-state";
 import { EditProductDialog } from "@/components/edit-product-dialog";
 import { DeleteProductButton } from "@/components/delete-product-button";
 import { InventoryProductCard } from "@/components/inventory-product-card";
+import { InventoryEmptyState } from "@/components/inventory-empty-state";
 import { productsApi } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
 import type { RoomType, StockStatus } from "@/lib/api/types";
@@ -88,6 +90,12 @@ const InventoryPage = () => {
   const [sort, setSort] = useState<SortOption>("newest");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [currentPage, setCurrentPage] = useState(1);
+  const activeFilterCount =
+    Number(query.trim() !== "") +
+    Number(suitableFor !== "all") +
+    Number(status !== "all") +
+    Number(roomType !== "all") +
+    Number(size !== "all");
 
   const { data, loading, error, reload } = useApi(
     () =>
@@ -101,46 +109,14 @@ const InventoryPage = () => {
             : (suitableFor as "WALL" | "FLOOR" | "BOTH"),
         roomType: roomType === "all" ? undefined : (roomType as RoomType),
         size: size === "all" ? undefined : size,
+        stockStatus: status === "all" ? undefined : (status as StockStatus),
+        sort,
       }),
-    [currentPage, query, suitableFor, roomType, size],
+    [currentPage, query, suitableFor, status, roomType, size, sort],
   );
   const { data: filterOptions } = useApi(() => productsApi.filterOptions());
-  const allProducts = useMemo(() => data?.items ?? [], [data]);
 
   const sizeOptions = filterOptions?.sizes ?? [];
-
-  const results = useMemo(
-    () =>
-      allProducts
-        .filter((product) => {
-          const term = query.trim().toLowerCase();
-          const matchesQuery =
-            term === "" ||
-            product.name.toLowerCase().includes(term) ||
-            product.sku.toLowerCase().includes(term);
-          const matchesSuitableFor =
-            suitableFor === "all" || product.suitableFor === suitableFor;
-          const matchesStatus =
-            status === "all" || product.stockStatus === status;
-          const matchesRoomType =
-            roomType === "all" ||
-            product.roomTypes.includes(roomType as RoomType);
-          const matchesSize = size === "all" || product.size === size;
-          return (
-            matchesQuery &&
-            matchesSuitableFor &&
-            matchesStatus &&
-            matchesRoomType &&
-            matchesSize
-          );
-        })
-        .sort((a, b) => {
-          const diff =
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-          return sort === "newest" ? -diff : diff;
-        }),
-    [allProducts, query, suitableFor, status, roomType, size, sort],
-  );
 
   const totalResults = data?.meta.total ?? 0;
   const totalPages = data?.meta.totalPages ?? 1;
@@ -148,7 +124,7 @@ const InventoryPage = () => {
   const showingStart = totalResults === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const showingEnd = Math.min(safePage * PAGE_SIZE, totalResults);
 
-  const pageItems = useMemo(() => results, [results]);
+  const pageItems = data?.items ?? [];
 
   const visiblePages = useMemo(
     () => getVisiblePages(safePage, totalPages),
@@ -179,10 +155,21 @@ const InventoryPage = () => {
         </Button>
       </StockPageHeader>
 
-      <section className="mt-6 rounded-xl border border-[#E5E7EB] bg-card p-4 shadow-sm sm:mt-8 sm:p-5">
-        <div className="flex flex-col gap-3 xl:flex-row">
-          <div className="relative min-w-0 flex-1">
-            <Search className="absolute top-1/2 left-4 size-5 -translate-y-1/2 text-[#71809a]" />
+      <section className="mt-6 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:mt-8 sm:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-[#F2F8D9] text-[#324515]"><SlidersHorizontal className="size-4" /></span>
+            <div>
+              <h2 className="text-sm font-bold text-ink">{t("stock.inventory.filtersTitle")}</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">{t("stock.inventory.filtersSubtitle")}</p>
+            </div>
+            {activeFilterCount > 0 && <span className="rounded-full bg-[#F2F8D9] px-2.5 py-1 text-xs font-bold text-[#324515]">{activeFilterCount}</span>}
+          </div>
+          {activeFilterCount > 0 && <Button type="button" variant="ghost" onClick={() => { setQuery(""); setSuitableFor("all"); setStatus("all"); setRoomType("all"); setSize("all"); setCurrentPage(1); }} className="h-9 gap-2 rounded-lg px-3 text-xs font-semibold text-muted-foreground hover:bg-[#F7F8F2] hover:text-ink"><RotateCcw className="size-3.5" />{t("stock.inventory.clearFilters")}</Button>}
+        </div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative min-w-[220px] flex-[1_1_260px]">
+            <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#71809a]" />
             <Input
               value={query}
               onChange={(event) => {
@@ -191,7 +178,7 @@ const InventoryPage = () => {
               }}
               placeholder={t("stock.inventory.searchPlaceholder")}
               aria-label={t("stock.inventory.searchAria")}
-              className="h-11 rounded-full bg-[#fafbfc] pl-11 text-sm"
+              className="h-12 rounded-xl border-[#E5E7EB] bg-[#F8F9F6] pl-10 text-sm placeholder:text-muted-foreground/80 focus-visible:border-primary/70"
             />
           </div>
           <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center">
@@ -202,7 +189,7 @@ const InventoryPage = () => {
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="h-11 min-w-0 bg-card sm:w-40">
+            <SelectTrigger className={`h-12 min-w-0 rounded-xl bg-white sm:w-44 ${suitableFor !== "all" ? "border-primary/60 bg-[#F8FBEF]" : "border-[#E5E7EB]"}`}>
                 <SelectValue>
                   {(value) =>
                     value === "all"
@@ -237,7 +224,7 @@ const InventoryPage = () => {
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="h-11 min-w-0 bg-card sm:w-32">
+            <SelectTrigger className={`h-12 min-w-0 rounded-xl bg-white sm:w-40 ${status !== "all" ? "border-primary/60 bg-[#F8FBEF]" : "border-[#E5E7EB]"}`}>
                 <SelectValue>
                   {(value) =>
                     value === "all"
@@ -268,7 +255,7 @@ const InventoryPage = () => {
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="h-11 min-w-0 bg-card sm:w-40">
+              <SelectTrigger className={`h-12 min-w-0 rounded-xl bg-white sm:w-44 ${roomType !== "all" ? "border-primary/60 bg-[#F8FBEF]" : "border-[#E5E7EB]"}`}>
                 <SelectValue>
                   {(value) =>
                     value === "all"
@@ -295,7 +282,7 @@ const InventoryPage = () => {
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="h-11 min-w-0 bg-card sm:w-32">
+              <SelectTrigger className={`h-12 min-w-0 rounded-xl bg-white sm:w-36 ${size !== "all" ? "border-primary/60 bg-[#F8FBEF]" : "border-[#E5E7EB]"}`}>
                 <SelectValue>
                   {(value) =>
                     value === "all" ? t("stock.inventory.sizeTrigger") : value
@@ -315,11 +302,12 @@ const InventoryPage = () => {
             </Select>
             <Select
               value={sort}
-              onValueChange={(value) =>
-                setSort((value as SortOption) ?? "newest")
-              }
+              onValueChange={(value) => {
+                setSort((value as SortOption) ?? "newest");
+                setCurrentPage(1);
+              }}
             >
-              <SelectTrigger className="h-11 min-w-0 gap-1.5 bg-card sm:w-44">
+              <SelectTrigger className="h-12 min-w-0 gap-1.5 rounded-xl border-[#E5E7EB] bg-white sm:w-44">
                 <ArrowDownWideNarrow className="size-4 shrink-0 text-[#71809a]" />
                 <SelectValue>
                   {(value) =>
@@ -338,7 +326,7 @@ const InventoryPage = () => {
                 </SelectItem>
               </SelectContent>
             </Select>
-            <div className="flex h-11 w-fit items-center justify-center justify-self-end rounded-lg bg-[#f4f5f6] p-1 sm:w-auto">
+            <div className="flex h-12 w-fit items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F5F6F2] p-1">
               <Button
                 type="button"
                 variant={view === "list" ? "default" : "ghost"}
@@ -369,10 +357,12 @@ const InventoryPage = () => {
           <ApiLoading label={t("stock.inventory.loading")} className="py-24" />
         ) : error ? (
           <ApiErrorState message={error} onRetry={reload} className="my-16" />
-        ) : totalResults === 0 ? (
-          <ApiEmptyState
-            message={t("stock.inventory.noResults")}
-            className="py-16"
+        ) : pageItems.length === 0 ? (
+          <InventoryEmptyState
+            searchTerm={query}
+            hasFilters={suitableFor !== "all" || status !== "all" || roomType !== "all" || size !== "all"}
+            onClearSearch={() => { setQuery(""); setCurrentPage(1); }}
+            onResetFilters={() => { setQuery(""); setSuitableFor("all"); setStatus("all"); setRoomType("all"); setSize("all"); setCurrentPage(1); }}
           />
         ) : view === "grid" ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
