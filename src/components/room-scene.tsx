@@ -22,6 +22,8 @@ import {
   ProgressTrack,
   ProgressValue,
 } from "@/components/ui/progress";
+import type { VisualizerTileCorner, VisualizerTilePattern } from "@/lib/api/types";
+import { tilePatternShader } from "@/lib/tile-pattern-shader";
 import { cn } from "@/lib/utils";
 
 /**
@@ -40,16 +42,23 @@ import { cn } from "@/lib/utils";
 const MAX_TEXTURE_LOAD_RETRIES = 2;
 const TEXTURE_RETRY_DELAY_MS = 500;
 
-/** "25×40cm" / "60x60 cm" → metres. Falls back to a square derived from the piece area. */
-const tileMetres = (product: Product): [number, number] => {
-  const match = product.size.match(/(\d+(?:\.\d+)?)\s*[×x]\s*(\d+(?:\.\d+)?)/i);
+/** Parse physical dimensions and orient them to the photo; fall back to area and aspect ratio. */
+const tileMetres = (product: Product, imageAspect = 1): [number, number] => {
+  const match = product.size.match(/(\d+(?:\.\d+)?)\s*(mm|cm|m)?\s*[×x]\s*(\d+(?:\.\d+)?)\s*(mm|cm|m)?\b/i);
   if (match) {
-    const width = Number(match[1]) / 100;
-    const height = Number(match[2]) / 100;
-    if (width > 0 && height > 0) return [width, height];
+    const metresPerUnit = (unit: string) => ({ mm: 0.001, cm: 0.01, m: 1 })[unit.toLowerCase()]!;
+    const width = Number(match[1]) * metresPerUnit(match[2] ?? match[4] ?? "cm");
+    const height = Number(match[3]) * metresPerUnit(match[4] ?? match[2] ?? "cm");
+    if (width > 0 && height > 0) {
+      // Catalog dimensions may list the short side first even when the photo
+      // is landscape. Match its orientation without changing physical size.
+      const directError = Math.abs(Math.log(imageAspect / (width / height)));
+      const rotatedError = Math.abs(Math.log(imageAspect / (height / width)));
+      return rotatedError < directError ? [height, width] : [width, height];
+    }
   }
-  const side = Math.sqrt(Math.max(product.tileArea, 0.01));
-  return [side, side];
+  const area = Number.isFinite(product.tileArea) && product.tileArea > 0 ? product.tileArea : 0.01;
+  return [Math.sqrt(area * imageAspect), Math.sqrt(area / imageAspect)];
 };
 
 /**
@@ -111,9 +120,13 @@ const useTileTexture = (
           }
           // Everything the texture needs is set here, at creation, so nothing
           // downstream has to reach back in and mutate it.
-          const [width, height] = tileMetres(product);
-          texture.wrapS = THREE.RepeatWrapping;
-          texture.wrapT = THREE.RepeatWrapping;
+          const image = texture.image as HTMLImageElement;
+          const aspect = image.naturalWidth / image.naturalHeight;
+          const [width, height] = tileMetres(product, Number.isFinite(aspect) && aspect > 0 ? aspect : 1);
+          // The shader repeats and rotates each cell itself. Wrapping the
+          // source image blends in its opposite edge at rotated seams.
+          texture.wrapS = THREE.ClampToEdgeWrapping;
+          texture.wrapT = THREE.ClampToEdgeWrapping;
           texture.colorSpace = THREE.SRGBColorSpace;
           texture.anisotropy = 8;
           texture.repeat.set(1 / width, 1 / height);
@@ -183,13 +196,72 @@ const GROUT_WIDTH_M = 0.003;
 const GROUT_DARKEN = 0.4;
 
 /**
- * Tile photos already contain their own neutral colour information. A small
- * texture-coloured self-fill stops the room's warm/cool directional lights
- * from making identical tiles look like different products on perpendicular
- * walls or on the floor, while still leaving enough physical shading to show
- * corners and depth.
+ * Catalog photos already carry their surface shading. Keep most of that
+ * original color and blend in bounded room lighting for corners and shadows,
+ * so ceiling lights and the studio environment cannot bleach the artwork.
  */
-const TILE_SELF_FILL = 0.25;
+const TILE_LIGHTING_BLEND = 0.2;
+
+const QUARTER_TURN_TILE_MATCHERS = [
+  "damask",
+  "3d cube",
+  "crosswood",
+  "pixel grid",
+  "spider web",
+  "fgp33756j",
+  "fhp33605j",
+  "fhp33785j",
+  "yme33001j",
+  "gft44063t",
+];
+
+const TWO_TURN_TILE_MATCHERS = [
+  "bamboo",
+  "chevron",
+  "diagonal timber",
+  "ledger",
+  "linear",
+  "malaga chevron",
+  "multi-plank",
+  "nordic",
+  "oak",
+  "parquet",
+  "plank",
+  "split stone",
+  "swirl-stone",
+  "walnut",
+  "wood",
+  "w36271t",
+  "w42358",
+  "w36581t",
+  "wq36014g",
+  "wq36015g",
+  "wq36016g",
+  "wq36017i",
+  "fhp66501t",
+];
+
+export type TilePattern = VisualizerTilePattern;
+
+const resolveTilePattern = (
+  product: Product | undefined,
+  override?: TilePattern,
+): TilePattern => {
+  if (override) return override;
+  if (!product) return "STRAIGHT";
+  if (product.visualizerPattern) return product.visualizerPattern;
+  const haystack = [product.name, product.sku, product.collection, product.image]
+    .join(" ")
+    .replaceAll("%20", " ")
+    .toLowerCase();
+  if (QUARTER_TURN_TILE_MATCHERS.some((matcher) => haystack.includes(matcher))) {
+    return "QUARTER_TURN";
+  }
+  if (TWO_TURN_TILE_MATCHERS.some((matcher) => haystack.includes(matcher))) {
+    return "TWO_TURN";
+  }
+  return "STRAIGHT";
+};
 
 /**
  * Source photos for tiles like these (`Terrazzo Tile No Lighting No
@@ -206,33 +278,55 @@ const TILE_SELF_FILL = 0.25;
  * anti-aliases the line against screen-space derivatives so it doesn't
  * shimmer/moire as the camera moves further from the floor.
  */
-const useTileMaterial = (texture: THREE.Texture | null, tileSize: [number, number] | null) => {
+const useTileMaterial = (
+  texture: THREE.Texture | null,
+  tileSize: [number, number] | null,
+  tilePattern: TilePattern = "STRAIGHT",
+  tileCorner: VisualizerTileCorner = "TOP_RIGHT",
+) => {
   const material = useMemo(() => {
     if (!texture || !tileSize) return null;
 
     const nextMaterial = new THREE.MeshStandardMaterial({
       map: texture,
-      emissive: 0xffffff,
-      emissiveMap: texture,
-      emissiveIntensity: TILE_SELF_FILL,
-      roughness: 0.55,
-      metalness: 0.02,
+      roughness: 0.8,
+      metalness: 0,
+      envMapIntensity: 0.2,
+      // The texture is sRGB; preserve its color through the final output
+      // conversion instead of applying the room's filmic tone mapping again.
+      toneMapped: false,
       side: THREE.DoubleSide,
     });
     const [width, height] = tileSize;
-    const groutFractionX = Math.min(GROUT_WIDTH_M / width, 0.45);
-    const groutFractionY = Math.min(GROUT_WIDTH_M / height, 0.45);
+    // A regular rectangular grid cannot accommodate 90-degree rotations
+    // without stretching alternate pieces. Half-turns preserve their size.
+    const effectivePattern = tilePattern === "QUARTER_TURN" && Math.abs(width - height) > 1e-6
+      ? "TWO_TURN"
+      : tilePattern;
+    // Each neighboring tile contributes half the joint. Applying the full
+    // width on both edges doubles a 3 mm setting into a 6 mm visible seam.
+    const groutFractionX = Math.min(GROUT_WIDTH_M / (2 * width), 0.45);
+    const groutFractionY = Math.min(GROUT_WIDTH_M / (2 * height), 0.45);
+    // These fractions are compiled into GLSL, so differently sized tiles must
+    // not reuse a program compiled with another tile's grout proportions.
+    nextMaterial.customProgramCacheKey = () =>
+      `tile-material-v6-${effectivePattern.toLowerCase()}-${tileCorner}-${groutFractionX.toFixed(6)}-${groutFractionY.toFixed(6)}`;
     nextMaterial.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        "#include <common>",
+        `#include <common>
+${tilePatternShader(effectivePattern, tileCorner)}`,
+      );
       shader.fragmentShader = shader.fragmentShader.replace(
         "#include <map_fragment>",
         `
-        #include <map_fragment>
         #ifdef USE_MAP
+        diffuseColor *= tileSample(map, vMapUv);
         {
           vec2 tileUv = fract(vMapUv);
           vec2 edgeDist = min(tileUv, 1.0 - tileUv);
           vec2 groutFraction = vec2(${groutFractionX.toFixed(6)}, ${groutFractionY.toFixed(6)});
-          vec2 aa = max(fwidth(vMapUv), vec2(1e-4));
+          vec2 aa = max(0.5 * fwidth(vMapUv), vec2(1e-4));
           vec2 seam = smoothstep(groutFraction - aa, groutFraction + aa, edgeDist);
           float shade = min(seam.x, seam.y);
           diffuseColor.rgb *= mix(${GROUT_DARKEN.toFixed(3)}, 1.0, shade);
@@ -240,9 +334,19 @@ const useTileMaterial = (texture: THREE.Texture | null, tileSize: [number, numbe
         #endif
         `,
       );
+      shader.fragmentShader = shader.fragmentShader.replace(
+        "#include <opaque_fragment>",
+        `
+        // Preserve the source image while retaining a little physical light
+        // and shadow. Per-channel bounds prevent colored lights bleaching it.
+        vec3 tileRoomLight = clamp(outgoingLight, vec3(0.0), diffuseColor.rgb * 1.25);
+        outgoingLight = mix(diffuseColor.rgb, tileRoomLight, ${TILE_LIGHTING_BLEND.toFixed(3)});
+        #include <opaque_fragment>
+        `,
+      );
     };
     return nextMaterial;
-  }, [texture, tileSize]);
+  }, [texture, tileSize, tilePattern, tileCorner]);
 
   useEffect(() => () => material?.dispose(), [material]);
 
@@ -381,8 +485,9 @@ const ORIENTATION_SPLIT_DOT = 0.7;
 
 /**
  * Project a world-space point onto metre UVs for a face with the given
- * normal. Floors use XZ; walls use the two axes most perpendicular to the
- * face so a 50 cm tile lands at 50 cm on every orientation.
+ * normal. Use an orthonormal basis in the face plane: dropping a world axis
+ * compresses diagonal walls and slopes. Canonicalize the normal so reversed
+ * triangle winding does not mirror adjacent pieces of the same surface.
  */
 const projectMetreUv = (
   point: THREE.Vector3,
@@ -392,13 +497,21 @@ const projectMetreUv = (
   const ax = Math.abs(normal.x);
   const ay = Math.abs(normal.y);
   const az = Math.abs(normal.z);
-  if (ay >= ax && ay >= az) {
-    return out.set(point.x, point.z);
+  const floor = ay >= ax && ay >= az;
+  const dominant = floor ? normal.y : ax >= az ? normal.x : normal.z;
+  const n = normal.clone().multiplyScalar(dominant < 0 ? -1 : 1);
+  const u = new THREE.Vector3();
+  const v = new THREE.Vector3();
+  if (floor) {
+    u.set(1, 0, 0).addScaledVector(n, -n.x).normalize();
+    v.crossVectors(u, n).normalize();
+  } else {
+    v.set(0, 1, 0).addScaledVector(n, -n.y).normalize();
+    u.crossVectors(v, n).normalize();
+    // Retain the existing +Z direction on X-facing walls.
+    if (ax >= az) u.negate();
   }
-  if (ax >= az) {
-    return out.set(point.z, point.y);
-  }
-  return out.set(point.x, point.y);
+  return out.set(point.dot(u), point.dot(v));
 };
 
 /**
@@ -1016,6 +1129,8 @@ const RoomModel = ({
   modelUrl,
   floorTile,
   wallTile,
+  floorTilePattern,
+  wallTilePattern,
   surfaceOverride,
   prepareScene,
   onReady,
@@ -1023,6 +1138,8 @@ const RoomModel = ({
   modelUrl: string;
   floorTile?: Product;
   wallTile?: Product;
+  floorTilePattern?: TilePattern;
+  wallTilePattern?: TilePattern;
   /** Explicit tileable-mesh list; falls back to the `Floor` / `Wall_*` naming convention. */
   surfaceOverride?: SurfaceOverride;
   /** See `RoomScene`'s prop of the same name. */
@@ -1057,8 +1174,20 @@ const RoomModel = ({
 
   const floorTexture = useTileTexture(floorTile);
   const wallTexture = useTileTexture(wallTile);
-  const floorMaterial = useTileMaterial(floorTexture.texture, floorTexture.tileSize);
-  const wallMaterial = useTileMaterial(wallTexture.texture, wallTexture.tileSize);
+  // Some tiles need installer-style rotation: ornamental pieces often use
+  // four-turn groups, while directional pieces can use a gentler two-turn alternation.
+  const floorMaterial = useTileMaterial(
+    floorTexture.texture,
+    floorTexture.tileSize,
+    resolveTilePattern(floorTile, floorTilePattern),
+    floorTile?.visualizerPatternCorner,
+  );
+  const wallMaterial = useTileMaterial(
+    wallTexture.texture,
+    wallTexture.tileSize,
+    resolveTilePattern(wallTile, wallTilePattern),
+    wallTile?.visualizerPatternCorner,
+  );
   const tilesReady = floorTexture.ready && wallTexture.ready;
 
   // The GLB's own materials, kept so deselecting a tile puts the plain
@@ -1131,10 +1260,9 @@ const RoomModel = ({
         ? (geometry.index?.count ?? geometry.attributes.position.count) / 3
         : prepareTileableGroups(geometry);
       const tileable = tileableTris * 3;
-      // Sourced override meshes use 0..1 UVs — rewrite to metres so labelled
-      // tile sizes land at their true physical scale (procedural rooms already
-      // ship metre UVs from the generator, so leave those alone).
-      if (override) syncUvs(tileableTris);
+      // Use the same world-space scale and origin for every room, including
+      // generated meshes that may have been scaled or rotated after export.
+      syncUvs(tileableTris);
       const grouped = object.geometry as THREE.BufferGeometry;
       const hasTrim = grouped.groups.length === 2 && tileable > 0;
 
@@ -1282,6 +1410,8 @@ export const RoomScene = ({
   modelUrl,
   floorTile,
   wallTile,
+  floorTilePattern,
+  wallTilePattern,
   className,
   cameraConfig: cameraConfigProp,
   surfaceOverride,
@@ -1291,6 +1421,8 @@ export const RoomScene = ({
   modelUrl: string;
   floorTile?: Product;
   wallTile?: Product;
+  floorTilePattern?: TilePattern;
+  wallTilePattern?: TilePattern;
   className?: string;
   /**
    * Each room owns its own camera rig (see `components/visualizer/*`), so
@@ -1360,6 +1492,8 @@ export const RoomScene = ({
               modelUrl={modelUrl}
               floorTile={floorTile}
               wallTile={wallTile}
+              floorTilePattern={floorTilePattern}
+              wallTilePattern={wallTilePattern}
               surfaceOverride={surfaceOverride}
               prepareScene={prepareScene}
               onReady={() => setReadyModelUrl(modelUrl)}
