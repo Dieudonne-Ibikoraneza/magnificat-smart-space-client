@@ -16,6 +16,7 @@ import {
   RoomWithCamera,
   type RoomCameraRig,
 } from "@/components/visualizer/room-camera";
+import type { TilePattern } from "@/components/room-scene";
 import { addSkirting } from "@/components/visualizer/room-trim";
 
 /**
@@ -239,14 +240,17 @@ const RIG: RoomCameraRig = {
 
 export const LivingRoom = ({
   floorTile,
+  floorTilePattern,
   className,
 }: {
   floorTile?: Product;
+  floorTilePattern?: TilePattern;
   className?: string;
 }) => (
   <RoomWithCamera
     modelUrl={MODEL_URL}
     floorTile={floorTile}
+    floorTilePattern={floorTilePattern}
     className={className}
     rig={RIG}
     surfaceOverride={SURFACE_OVERRIDE}

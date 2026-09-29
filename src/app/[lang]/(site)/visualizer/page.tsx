@@ -58,15 +58,31 @@ import {
   useInfiniteApi,
 } from "@/lib/api/use-infinite-api";
 import { useLocale } from "@/lib/i18n";
-import type { ApiCollection, ApiRoom, RoomType } from "@/lib/api/types";
+import type {
+  ApiCollection,
+  ApiRoom,
+  RoomType,
+  VisualizerTilePattern,
+} from "@/lib/api/types";
 import { useCart } from "@/lib/cart-store";
 import { useCurrentUser } from "@/lib/current-user";
 import { getSessionId } from "@/lib/session-id";
 import { cn } from "@/lib/utils";
+import { visualizerPatternLabelKey } from "@/lib/visualizer-pattern";
 
 type Surface = "floor" | "walls";
 type SurfaceSelections = Record<Surface, Product | null>;
+type SurfacePatternOverrides = Record<Surface, VisualizerTilePattern | null>;
 const EMPTY_SELECTIONS: SurfaceSelections = { floor: null, walls: null };
+const EMPTY_PATTERN_OVERRIDES: SurfacePatternOverrides = {
+  floor: null,
+  walls: null,
+};
+const TILE_PATTERN_OPTIONS: VisualizerTilePattern[] = [
+  "STRAIGHT",
+  "TWO_TURN",
+  "QUARTER_TURN",
+];
 
 /**
  * The four room types the app supports, each with its own tuned 3D scene
@@ -241,6 +257,59 @@ const SurfaceToggle = ({
   );
 };
 
+const TilePatternToggle = ({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: VisualizerTilePattern;
+  disabled?: boolean;
+  onChange: (pattern: VisualizerTilePattern) => void;
+}) => {
+  const { t } = useTranslation();
+
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border border-slate-200 bg-white p-2 shadow-sm transition-opacity",
+        disabled && "pointer-events-none opacity-50",
+      )}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2 px-1">
+        <p className="text-xs font-bold uppercase tracking-wide text-muted">
+          {t("visualizerPattern.label")}
+        </p>
+        <p className="text-xs font-medium text-muted">
+          {t("visualizer.tilePatternHint")}
+        </p>
+      </div>
+      <div
+        className="grid grid-cols-3 gap-1 rounded-xl bg-muted-background p-1"
+        role="radiogroup"
+        aria-label={t("visualizerPattern.label")}
+      >
+        {TILE_PATTERN_OPTIONS.map((pattern) => (
+          <button
+            key={pattern}
+            type="button"
+            role="radio"
+            aria-checked={value === pattern}
+            onClick={() => onChange(pattern)}
+            className={cn(
+              "rounded-lg px-2 py-2 text-xs font-bold transition-colors",
+              value === pattern
+                ? "bg-ink text-white shadow-sm"
+                : "text-muted hover:bg-white hover:text-ink",
+            )}
+          >
+            {t(visualizerPatternLabelKey(pattern))}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const formatPrice = (value: number) => `RWF ${value.toLocaleString()}`;
 
 const SURFACE_LABEL_KEYS = {
@@ -362,6 +431,9 @@ const ConfigureSpacePanel = ({
   productsLoading,
   selectedProductId,
   onSelectTile,
+  selectedProduct,
+  activeTilePattern,
+  onTilePatternChange,
   showActions = true,
   onOpenSaveDialog,
   floorTile,
@@ -382,6 +454,9 @@ const ConfigureSpacePanel = ({
   productsLoading: boolean;
   selectedProductId: string | null;
   onSelectTile: (product: Product) => void;
+  selectedProduct?: Product | null;
+  activeTilePattern: VisualizerTilePattern;
+  onTilePatternChange: (pattern: VisualizerTilePattern) => void;
   showActions?: boolean;
   onOpenSaveDialog: () => void;
   floorTile?: Product;
@@ -397,82 +472,93 @@ const ConfigureSpacePanel = ({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="relative z-10 shrink-0 space-y-3 bg-background pb-3">
-        <div className="flex items-center gap-2">
+      <div className="scrollbar-fine min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-1 pb-4">
+        <div className="flex items-center gap-2 pb-3">
           <Layers3 className="size-5 text-ink" strokeWidth={2} />
           <h2 className="text-lg font-bold text-ink">
             {t("visualizer.configureSpace")}
           </h2>
         </div>
 
-        <SurfaceToggle
-          activeSurface={activeSurface}
-          onChange={onSurfaceChange}
-        />
-
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
-            aria-hidden="true"
+        <div className="sticky top-0 z-10 space-y-3 bg-background pb-3">
+          <SurfaceToggle
+            activeSurface={activeSurface}
+            onChange={onSurfaceChange}
           />
-          <Input
-            value={searchQuery}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder={t("visualizer.searchPlaceholder")}
-            className="h-10 rounded-xl bg-white py-0 pl-10 leading-10"
-          />
-        </div>
-      </div>
 
-      <div className="scrollbar-fine min-h-0 flex-1 overflow-y-auto overscroll-y-contain border-t border-slate-100 pt-2">
-        {productsLoading ? (
-          <ApiLoading label={t("visualizer.loadingTiles")} className="py-8" />
-        ) : filteredCollections.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted">
-            {t("visualizer.noSearchResults")}
-          </p>
-        ) : (
-          <div className="pb-8">
-            <Accordion
-              multiple
-              value={openAccordionItems}
-              onValueChange={onOpenAccordionChange}
-            >
-              {filteredCollections.map(
-                ({ collection, products: collectionProducts }) => (
-                  <AccordionItem key={collection.id} value={collection.id}>
-                    <AccordionTrigger className="cursor-pointer py-3 text-sm font-semibold text-ink hover:no-underline focus:outline-none focus-visible:outline-none focus-visible:ring-0">
-                      {collection.title}
-                    </AccordionTrigger>
-                    <AccordionContent className="pb-4">
-                      {collectionProducts.length === 0 ? (
-                        <p className="text-sm text-muted">
-                          {t("visualizer.noTilesInCollection")}
-                        </p>
-                      ) : (
-                        <div className="scrollbar-fine-x flex gap-3 overflow-x-auto pb-2">
-                          {collectionProducts.map((product) => (
-                            <TilePickerCard
-                              key={product.id}
-                              product={product}
-                              selected={selectedProductId === product.id}
-                              onSelect={() => onSelectTile(product)}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </AccordionContent>
-                  </AccordionItem>
-                ),
-              )}
-            </Accordion>
-            <InfiniteScrollTrigger
-              hasMore={infiniteScroll.hasMore}
-              loading={infiniteScroll.loading}
-              onLoadMore={infiniteScroll.onLoadMore}
+          <div className="relative">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
+              aria-hidden="true"
+            />
+            <Input
+              value={searchQuery}
+              onChange={(event) => onSearchChange(event.target.value)}
+              placeholder={t("visualizer.searchPlaceholder")}
+              className="h-10 rounded-xl bg-white py-0 pl-10 leading-10"
             />
           </div>
-        )}
+        </div>
+
+        <div className="pb-3">
+          <TilePatternToggle
+            value={activeTilePattern}
+            disabled={!selectedProduct}
+            onChange={onTilePatternChange}
+          />
+        </div>
+
+        <div className="border-t border-slate-100 pt-2">
+          {productsLoading ? (
+            <ApiLoading label={t("visualizer.loadingTiles")} className="py-8" />
+          ) : filteredCollections.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted">
+              {t("visualizer.noSearchResults")}
+            </p>
+          ) : (
+            <div className="pb-2">
+              <Accordion
+                multiple
+                value={openAccordionItems}
+                onValueChange={onOpenAccordionChange}
+              >
+                {filteredCollections.map(
+                  ({ collection, products: collectionProducts }) => (
+                    <AccordionItem key={collection.id} value={collection.id}>
+                      <AccordionTrigger className="cursor-pointer py-3 text-sm font-semibold text-ink hover:no-underline focus:outline-none focus-visible:outline-none focus-visible:ring-0">
+                        {collection.title}
+                      </AccordionTrigger>
+                      <AccordionContent className="pb-4">
+                        {collectionProducts.length === 0 ? (
+                          <p className="text-sm text-muted">
+                            {t("visualizer.noTilesInCollection")}
+                          </p>
+                        ) : (
+                          <div className="scrollbar-fine-x flex gap-3 overflow-x-auto pb-2">
+                            {collectionProducts.map((product) => (
+                              <TilePickerCard
+                                key={product.id}
+                                product={product}
+                                selected={selectedProductId === product.id}
+                                onSelect={() => onSelectTile(product)}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ),
+                )}
+              </Accordion>
+              <InfiniteScrollTrigger
+                hasMore={infiniteScroll.hasMore}
+                loading={infiniteScroll.loading}
+                onLoadMore={infiniteScroll.onLoadMore}
+              />
+            </div>
+          )}
+        </div>
+
       </div>
 
       <AppliedTilesCart
@@ -482,7 +568,7 @@ const ConfigureSpacePanel = ({
       />
 
       {showActions && (
-        <div className="mt-4 shrink-0">
+        <div className="mt-3 shrink-0 border-t border-slate-100 bg-background pt-3">
           <Button
             type="button"
             onClick={onOpenSaveDialog}
@@ -529,7 +615,7 @@ const MobileTilePickerSheet = ({
     >
       <div
         className={cn(
-          "absolute inset-x-0 bottom-0 flex max-h-[85dvh] flex-col overflow-hidden rounded-t-3xl bg-background px-5 shadow-2xl duration-300",
+          "absolute inset-x-0 bottom-0 flex h-[92dvh] flex-col overflow-hidden rounded-t-3xl bg-background px-5 pb-[env(safe-area-inset-bottom)] shadow-2xl duration-300",
           closing
             ? "animate-out slide-out-to-bottom-full fade-out"
             : "animate-in slide-in-from-bottom-full fade-in",
@@ -688,6 +774,9 @@ const VisualizerPage = () => {
   const [selectionsByRoom, setSelectionsByRoom] = useState<
     Partial<Record<RoomType, SurfaceSelections>>
   >({});
+  const [patternOverridesByRoom, setPatternOverridesByRoom] = useState<
+    Partial<Record<RoomType, SurfacePatternOverrides>>
+  >({});
 
   const {
     data: apiRooms,
@@ -790,6 +879,10 @@ const VisualizerPage = () => {
       setSelectionsByRoom((current) => ({
         ...current,
         [roomType]: nextSelections,
+      }));
+      setPatternOverridesByRoom((current) => ({
+        ...current,
+        [roomType]: EMPTY_PATTERN_OVERRIDES,
       }));
     }
   }
@@ -913,6 +1006,9 @@ const VisualizerPage = () => {
   const selections: SurfaceSelections =
     (effectiveRoomType && selectionsByRoom[effectiveRoomType]) ||
     EMPTY_SELECTIONS;
+  const patternOverrides: SurfacePatternOverrides =
+    (effectiveRoomType && patternOverridesByRoom[effectiveRoomType]) ||
+    EMPTY_PATTERN_OVERRIDES;
 
   const setSelections = (
     updater:
@@ -925,6 +1021,24 @@ const VisualizerPage = () => {
       const next =
         typeof updater === "function" ? updater(currentForRoom) : updater;
       return { ...current, [roomType]: next };
+    });
+  };
+
+  const setPatternOverride = (
+    surface: Surface,
+    pattern: VisualizerTilePattern | null,
+  ) => {
+    if (!effectiveRoomType) return;
+    const roomType = effectiveRoomType;
+    setPatternOverridesByRoom((current) => {
+      const currentForRoom = current[roomType] ?? EMPTY_PATTERN_OVERRIDES;
+      return {
+        ...current,
+        [roomType]: {
+          ...currentForRoom,
+          [surface]: pattern,
+        },
+      };
     });
   };
 
@@ -1014,6 +1128,12 @@ const VisualizerPage = () => {
   const selectedProduct = selections[activeSurface];
   const floorTile = selections.floor ?? undefined;
   const wallTile = selections.walls ?? undefined;
+  const activeTilePattern =
+    patternOverrides[activeSurface] ??
+    selectedProduct?.visualizerPattern ??
+    "STRAIGHT";
+  const floorTilePattern = patternOverrides.floor ?? undefined;
+  const wallTilePattern = patternOverrides.walls ?? undefined;
 
   const closePicker = () => {
     setPickerClosing(true);
@@ -1029,6 +1149,7 @@ const VisualizerPage = () => {
       ...current,
       [activeSurface]: product,
     }));
+    setPatternOverride(activeSurface, null);
 
     const sessionId = getSessionId();
     // Every apply is its own interaction event (mirrors the "VIEWED" event
@@ -1168,6 +1289,10 @@ const VisualizerPage = () => {
     productsLoading,
     selectedProductId: selectedProduct?.id ?? null,
     onSelectTile: handleSelectTile,
+    selectedProduct,
+    activeTilePattern,
+    onTilePatternChange: (pattern: VisualizerTilePattern) =>
+      setPatternOverride(activeSurface, pattern),
     onOpenSaveDialog: openSaveDialog,
     floorTile,
     wallTile,
@@ -1261,19 +1386,31 @@ const VisualizerPage = () => {
                 </p>
               </div>
             ) : effectiveRoomType === "LIVING_ROOM" ? (
-              <LivingRoom floorTile={floorTile} className="relative flex-1" />
+              <LivingRoom
+                floorTile={floorTile}
+                floorTilePattern={floorTilePattern}
+                className="relative flex-1"
+              />
             ) : effectiveRoomType === "BATHROOM" ? (
               <Bathroom
                 floorTile={floorTile}
                 wallTile={wallTile}
+                floorTilePattern={floorTilePattern}
+                wallTilePattern={wallTilePattern}
                 className="relative flex-1"
               />
             ) : effectiveRoomType === "BEDROOM" ? (
-              <Bedroom floorTile={floorTile} className="relative flex-1" />
+              <Bedroom
+                floorTile={floorTile}
+                floorTilePattern={floorTilePattern}
+                className="relative flex-1"
+              />
             ) : effectiveRoomType === "KITCHEN" ? (
               <Kitchen
                 floorTile={floorTile}
                 wallTile={wallTile}
+                floorTilePattern={floorTilePattern}
+                wallTilePattern={wallTilePattern}
                 className="relative flex-1"
               />
             ) : null}

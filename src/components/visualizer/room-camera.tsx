@@ -7,7 +7,7 @@ import { Box3, Vector3, type Object3D } from "three";
 import { ArrowDownToLine, ArrowUpToLine, BrickWall, RotateCcw, type LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { CameraConfig, SurfaceOverride } from "@/components/room-scene";
+import type { CameraConfig, SurfaceOverride, TilePattern } from "@/components/room-scene";
 import { RoomScene } from "@/components/room-scene";
 import type { Product } from "@/components/product-card";
 import { cn } from "@/lib/utils";
@@ -262,6 +262,8 @@ export const RoomWithCamera = ({
   modelUrl,
   floorTile,
   wallTile,
+  floorTilePattern,
+  wallTilePattern,
   className,
   rig,
   surfaceOverride,
@@ -270,6 +272,8 @@ export const RoomWithCamera = ({
   modelUrl: string;
   floorTile?: Product;
   wallTile?: Product;
+  floorTilePattern?: TilePattern;
+  wallTilePattern?: TilePattern;
   className?: string;
   rig: RoomCameraRig;
   surfaceOverride?: SurfaceOverride;
@@ -288,6 +292,8 @@ export const RoomWithCamera = ({
         modelUrl={modelUrl}
         floorTile={floorTile}
         wallTile={wallTile}
+        floorTilePattern={floorTilePattern}
+        wallTilePattern={wallTilePattern}
         className="size-full"
         cameraConfig={rig.config}
         surfaceOverride={surfaceOverride}

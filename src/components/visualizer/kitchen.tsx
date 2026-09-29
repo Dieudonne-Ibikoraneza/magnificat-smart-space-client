@@ -3,6 +3,7 @@
 import { Box3, Group, Mesh, MeshStandardMaterial, PlaneGeometry, Vector3, type Object3D } from "three";
 import type { SurfaceOverride } from "@/components/room-scene";
 import type { Product } from "@/components/product-card";
+import type { TilePattern } from "@/components/room-scene";
 import { fixtureZones, RoomWithCamera, type RoomCameraRig } from "@/components/visualizer/room-camera";
 import { addSkirting } from "@/components/visualizer/room-trim";
 
@@ -168,16 +169,22 @@ const RIG: RoomCameraRig = {
 export const Kitchen = ({
   floorTile,
   wallTile,
+  floorTilePattern,
+  wallTilePattern,
   className,
 }: {
   floorTile?: Product;
   wallTile?: Product;
+  floorTilePattern?: TilePattern;
+  wallTilePattern?: TilePattern;
   className?: string;
 }) => (
   <RoomWithCamera
     modelUrl={MODEL_URL}
     floorTile={floorTile}
     wallTile={wallTile}
+    floorTilePattern={floorTilePattern}
+    wallTilePattern={wallTilePattern}
     className={className}
     rig={RIG}
     surfaceOverride={SURFACE_OVERRIDE}
