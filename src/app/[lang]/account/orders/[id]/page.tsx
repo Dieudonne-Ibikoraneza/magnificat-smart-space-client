@@ -41,6 +41,7 @@ import { DeliveryDetailsCard } from "@/components/delivery-details-card";
 import { OrderNegotiationPanel } from "@/components/order-negotiation-panel";
 import { OrderSupportDialog } from "@/components/order-support-dialog";
 import { ordersApi } from "@/lib/api";
+import { OrderInvoice } from "@/components/order-invoice";
 import { useApi } from "@/lib/api/use-api";
 import type { OrderStatus } from "@/lib/api/types";
 
@@ -149,6 +150,7 @@ const AccountOrderDetailsPage = ({ params }: AccountOrderDetailsProps) => {
 
   return (
     <div className="mx-auto max-w-300">
+      <OrderInvoice order={order} />
       <header className="border-b border-slate-200 pb-5 sm:pb-6">
         <Breadcrumb>
           <BreadcrumbList>

@@ -40,6 +40,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ordersApi } from "@/lib/api";
+import { OrderInvoice } from "@/components/order-invoice";
 import { useApi } from "@/lib/api/use-api";
 import type { OrderStatus } from "@/lib/api/types";
 
@@ -186,6 +187,7 @@ const OrderDetailPage = ({ params }: OrderDetailPageProps) => {
 
   return (
     <>
+      <OrderInvoice order={order} />
       <StockDetailHeader
         breadcrumbs={[
           {
