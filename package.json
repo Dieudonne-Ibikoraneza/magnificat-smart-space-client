@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint --max-warnings=0",
     "lint:fix": "eslint --fix",
-    "models:build": "node scripts/generate-room-models.mjs"
+    "models:build": "node scripts/generate-room-models.mjs",
+    "test:product-validation": "node tests/product-validation.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
