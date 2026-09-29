@@ -4,7 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useTranslation } from "react-i18next";
-import { Boxes, Layers3, Maximize2, Package } from "lucide-react";
+import { Boxes, Layers3, Maximize2, Package, RotateCw } from "lucide-react";
 import { DashboardDetailHeader as AdminDetailHeader } from "@/components/dashboard-page-headers";
 import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import { toProduct } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
 import { useLocale } from "@/lib/i18n";
 import { staffStockDisplay } from "@/lib/stock-display";
+import { visualizerPatternLabelKey, visualizerCornerLabelKey } from "@/lib/visualizer-pattern";
 import type { RoomType } from "@/lib/api/types";
 
 type AdminProductDetailsProps = { params: Promise<{ id: string }> };
@@ -171,6 +172,20 @@ const AdminProductDetailsPage = ({ params }: AdminProductDetailsProps) => {
                   </p>
                 </div>
               )}
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {t("visualizerPattern.label")}
+                </p>
+                <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-ink">
+                  <RotateCw className="size-4" />
+                  {t(visualizerPatternLabelKey(apiProduct.visualizerPattern))}
+                  {apiProduct.visualizerPattern === "QUARTER_TURN" && (
+                    <span className="text-xs font-normal text-muted-foreground">
+                      · {t(visualizerCornerLabelKey(apiProduct.visualizerPatternCorner))}
+                    </span>
+                  )}
+                </p>
+              </div>
             </div>
             <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
               {t("stock.inventoryDetail.suitableFor")}
