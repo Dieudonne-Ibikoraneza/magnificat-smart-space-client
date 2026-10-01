@@ -22,7 +22,9 @@ import {
   periodToRange,
   type AnalyticsPeriodDays,
 } from "@/components/analytics-period-switcher";
-import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
+import { ApiErrorState } from "@/components/api-state";
+import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
+import { AnalyticsViewAllLink } from "@/components/analytics-view-all-link";
 import { OrderStatusBadge } from "@/components/order-status-control";
 import {
   Select,
@@ -198,9 +200,12 @@ const RecentOrders = ({
 
   return (
     <section>
-      <h2 className="text-lg font-bold text-ink">
-        {t("analytics.sales.recentOrders")}
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-bold text-ink">
+          {t("analytics.sales.recentOrders")}
+        </h2>
+        <AnalyticsViewAllLink href="/admin/orders" section={t("analytics.sales.recentOrders")} />
+      </div>
       <p className="mt-1 text-sm text-muted-foreground">
         {t("analytics.sales.recentOrdersSub")}
       </p>
@@ -315,8 +320,9 @@ const RecentOrders = ({
       ) : error ? (
         <ApiErrorState message={error} onRetry={onRetry} className="mt-5" />
       ) : orders.length === 0 ? (
-        <ApiEmptyState
+        <AnalyticsEmptyState
           message={t("analytics.sales.noOrders")}
+          description={t("analytics.common.emptyFiltersHint")}
           className="mt-5 py-16"
         />
       ) : (
@@ -418,7 +424,7 @@ const RecentOrders = ({
 
 const AdminAnalyticsSalesPage = () => {
   const { t } = useTranslation();
-  const [period, setPeriod] = useState<AnalyticsPeriodDays>(7);
+  const [period, setPeriod] = useState<AnalyticsPeriodDays>(30);
   const [ordersPage, setOrdersPage] = useState(1);
   const [orderStatus, setOrderStatus] = useState<OrderStatus | "all">("all");
   const [orderSort, setOrderSort] = useState<"newest" | "oldest">("newest");
@@ -546,27 +552,27 @@ const AdminAnalyticsSalesPage = () => {
 
         <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
           {salesLoading || !sales ? (
-            <section className="rounded-2xl bg-card p-5 sm:p-6">
+            <section className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
               <Skeleton className="h-65 w-full sm:h-80" />
             </section>
-          ) : sales.trend.length === 0 ? (
-            <section className="rounded-2xl bg-card p-5 sm:p-6">
+          ) : sales.trend.every((point) => point.value === 0) ? (
+            <section className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
               <h2 className="text-lg font-bold text-ink">
                 {t("analytics.sales.revenueTrends")}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {t("analytics.sales.revenueTrendsSub")}
               </p>
-              <ApiEmptyState
+              <AnalyticsEmptyState
                 message={t("analytics.sales.noSales")}
-                className="py-16"
+                description={t("analytics.common.emptyPeriodHint")}
+                className="mt-6 h-65 sm:h-80"
               />
             </section>
           ) : (
             <RevenueTrendChart
               title={t("analytics.sales.revenueTrends")}
               subtitle={t("analytics.sales.revenueTrendsSub")}
-              range={range}
               data={sales.trend.map((point) => ({
                 day: point.label,
                 value: point.value,
@@ -575,20 +581,21 @@ const AdminAnalyticsSalesPage = () => {
           )}
 
           {customerAnalyticsLoading || !customerAnalytics ? (
-            <section className="rounded-2xl bg-card p-5 sm:p-6">
+            <section className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
               <Skeleton className="h-65 w-full sm:h-80" />
             </section>
           ) : projectTypeRevenue.every((row) => row.value === 0) ? (
-            <section className="rounded-2xl bg-card p-5 sm:p-6">
+            <section className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
               <h2 className="text-lg font-bold text-ink">
                 {t("analytics.sales.projectTypes")}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {t("analytics.sales.projectTypesSub")}
               </p>
-              <ApiEmptyState
+              <AnalyticsEmptyState
                 message={t("analytics.sales.noProjectRevenue")}
-                className="py-16"
+                description={t("analytics.common.emptyPeriodHint")}
+                className="mt-6 h-65 sm:h-80"
               />
             </section>
           ) : (
@@ -608,7 +615,7 @@ const AdminAnalyticsSalesPage = () => {
         </div>
 
         <div className="grid gap-5 grid-cols-1 sm:gap-6 xl:grid-cols-2">
-          <section className="rounded-2xl bg-card p-5 sm:p-6">
+          <section className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <h2 className="text-lg font-bold text-ink">
@@ -629,8 +636,9 @@ const AdminAnalyticsSalesPage = () => {
             {salesLoading ? (
               <TileListSkeleton />
             ) : topPerformingTiles.length === 0 ? (
-              <ApiEmptyState
+              <AnalyticsEmptyState
                 message={t("analytics.sales.noTileRevenue")}
+                description={t("analytics.common.emptyPeriodHint")}
                 className="py-10"
               />
             ) : (
@@ -675,7 +683,7 @@ const AdminAnalyticsSalesPage = () => {
             )}
           </section>
 
-          <section className="rounded-2xl bg-card p-5 sm:p-6">
+          <section className="flex flex-col rounded-2xl bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <h2 className="text-lg font-bold text-ink">
@@ -696,8 +704,9 @@ const AdminAnalyticsSalesPage = () => {
             {tilesLoading ? (
               <TileListSkeleton />
             ) : topAppliedTiles.length === 0 ? (
-              <ApiEmptyState
+              <AnalyticsEmptyState
                 message={t("analytics.sales.noTileApplications")}
+                description={t("analytics.common.emptyPeriodHint")}
                 className="py-10"
               />
             ) : (
