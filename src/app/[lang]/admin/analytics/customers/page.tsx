@@ -15,7 +15,9 @@ import { useTranslation } from "react-i18next";
 import { ArrowRight, ListFilter, Repeat2, Search, UserRoundPlus, UsersRound } from "lucide-react";
 import { DashboardPageHeader as AdminPageHeader } from "@/components/dashboard-page-headers";
 import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays } from "@/components/analytics-period-switcher";
-import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
+import { ApiErrorState } from "@/components/api-state";
+import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
+import { AnalyticsViewAllLink } from "@/components/analytics-view-all-link";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CategoryBarChart, type CategoryDatum } from "@/components/category-bar-chart";
@@ -115,16 +117,24 @@ const CustomerTrendChart = ({ period, data }: { period: AnalyticsPeriodDays; dat
       </div>
     </div>
     <div className="mt-6 h-65 w-full font-data sm:mt-8 sm:h-80">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 8 }}>
-          <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
-          <XAxis dataKey="day" tickLine={false} axisLine={false} tick={ChartAxisTick} />
-          <YAxis tickLine={false} axisLine={false} width={32} allowDecimals={false} tick={ChartAxisTick} />
-          <Tooltip cursor={{ stroke: "var(--border)" }} content={<CustomerTrendTooltip />} />
-          <Line type="monotone" dataKey="newCustomers" name="newCustomers" stroke="#d1d5db" strokeWidth={2} dot={false} animationDuration={700} />
-          <Line type="monotone" dataKey="repeatCustomers" name="repeatCustomers" stroke="var(--primary)" strokeWidth={2.5} dot={false} animationDuration={700} />
-        </LineChart>
-      </ResponsiveContainer>
+      {data.every((point) => point.newCustomers === 0 && point.repeatCustomers === 0) ? (
+        <AnalyticsEmptyState
+          message={t("analytics.common.noActivity")}
+          description={t("analytics.common.emptyPeriodHint")}
+          className="h-full"
+        />
+      ) : (
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 8 }}>
+            <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="var(--border)" />
+            <XAxis dataKey="day" tickLine={false} axisLine={false} tick={ChartAxisTick} />
+            <YAxis tickLine={false} axisLine={false} width={32} allowDecimals={false} tick={ChartAxisTick} />
+            <Tooltip cursor={{ stroke: "var(--border)" }} content={<CustomerTrendTooltip />} />
+            <Line type="monotone" dataKey="newCustomers" name="newCustomers" stroke="#d1d5db" strokeWidth={2} dot={false} animationDuration={700} />
+            <Line type="monotone" dataKey="repeatCustomers" name="repeatCustomers" stroke="var(--primary)" strokeWidth={2.5} dot={false} animationDuration={700} />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
     </div>
   </section>
   );
@@ -132,7 +142,7 @@ const CustomerTrendChart = ({ period, data }: { period: AnalyticsPeriodDays; dat
 
 const AdminAnalyticsCustomersPage = () => {
   const { t } = useTranslation();
-  const [period, setPeriod] = useState<AnalyticsPeriodDays>(7);
+  const [period, setPeriod] = useState<AnalyticsPeriodDays>(30);
   const range = periodToRange[period];
 
   const { data: customerAnalytics, loading: analyticsLoading, error: analyticsError, reload: reloadAnalytics } = useApi(
@@ -238,7 +248,11 @@ const AdminAnalyticsCustomersPage = () => {
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <h2 className="text-lg font-bold text-ink">{t("analytics.customers.projectTypesTitle")}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{t("analytics.customers.projectTypesSubShort")}</p>
-              <ApiEmptyState message={t("analytics.customers.noProjects")} className="py-16" />
+              <AnalyticsEmptyState
+                message={t("analytics.customers.noProjects")}
+                description={t("analytics.common.emptyPeriodHint")}
+                className="py-16"
+              />
             </section>
           ) : (
             <CategoryBarChart
@@ -279,7 +293,11 @@ const AdminAnalyticsCustomersPage = () => {
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <h2 className="text-lg font-bold text-ink">{t("analytics.customers.acquisitionTitle")}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{t("analytics.customers.acquisitionSub")}</p>
-              <ApiEmptyState message={t("analytics.customers.noResults")} className="py-16" />
+              <AnalyticsEmptyState
+                message={t("analytics.common.noActivity")}
+                description={t("analytics.common.emptyPeriodHint")}
+                className="mt-6 h-65 sm:h-80"
+              />
             </section>
           ) : (
             <CategoryBarChart
@@ -297,7 +315,10 @@ const AdminAnalyticsCustomersPage = () => {
         </div>
 
         <section>
-          <h2 className="text-lg font-bold text-ink">{t("analytics.customers.customersHeading")}</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-bold text-ink">{t("analytics.customers.customersHeading")}</h2>
+            <AnalyticsViewAllLink href="/admin/customers" section={t("analytics.customers.customersHeading")} />
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">{t("analytics.customers.customersSub")}</p>
 
           <div className="mt-5 rounded-2xl bg-card p-4 sm:p-5">
@@ -369,7 +390,11 @@ const AdminAnalyticsCustomersPage = () => {
           ) : customersError ? (
             <ApiErrorState message={customersError} onRetry={reloadCustomers} className="mt-5" />
           ) : directoryResults.length === 0 ? (
-            <ApiEmptyState message={t("analytics.customers.noResults")} className="mt-5 py-16" />
+            <AnalyticsEmptyState
+              message={t("analytics.customers.noResults")}
+              description={t("analytics.common.emptyFiltersHint")}
+              className="mt-5 py-16"
+            />
           ) : (
             <ul className="mt-5 grid gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
               {directoryResults.map((customer) => (

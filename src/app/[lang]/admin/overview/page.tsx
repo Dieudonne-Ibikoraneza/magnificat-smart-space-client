@@ -49,7 +49,9 @@ import {
   periodToRange,
   type AnalyticsPeriodDays,
 } from "@/components/analytics-period-switcher";
-import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
+import { ApiErrorState } from "@/components/api-state";
+import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
+import { AnalyticsViewAllLink } from "@/components/analytics-view-all-link";
 import { OrderStatusBadge } from "@/components/order-status-control";
 import { OrdersByCreatorChart } from "@/components/orders-by-creator-chart";
 import { StaffCreatedIndicator } from "@/components/staff-created-indicator";
@@ -60,7 +62,6 @@ import { cn, formatCompactCurrency, formatCompactNumber } from "@/lib/utils";
 import { analyticsApi, ordersApi, reportsApi } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
 import type {
-  AnalyticsPeriod,
   LowStockRow,
   OrderStatus,
   TilePerformanceRow,
@@ -68,14 +69,6 @@ import type {
 
 const pct = (numerator: number, denominator: number) =>
   denominator > 0 ? (numerator / denominator) * 100 : 0;
-
-/** The chart's own 7D/30D/3M/12M granularity mapped onto the backend's three real period buckets — "3M" has no distinct bucket of its own, so it shows the same 30-day figures as "30D" rather than inventing a fourth series. */
-const rangeToPeriod: Record<"7D" | "30D" | "3M" | "12M", AnalyticsPeriod> = {
-  "7D": "WEEKLY",
-  "30D": "MONTHLY",
-  "3M": "MONTHLY",
-  "12M": "YEARLY",
-};
 
 const orderStatusMeta: Record<
   OrderStatus,
@@ -254,13 +247,14 @@ const SalesOverviewTooltip = ({
   );
 };
 
-const SalesOverview = () => {
+const SalesOverview = ({
+  overview,
+  loading,
+}: {
+  overview: Awaited<ReturnType<typeof analyticsApi.overview>> | undefined;
+  loading: boolean;
+}) => {
   const { t } = useTranslation();
-  const [range, setRange] = useState<"7D" | "30D" | "3M" | "12M">("30D");
-  const { data: overview, loading } = useApi(
-    () => analyticsApi.overview(rangeToPeriod[range]),
-    [range],
-  );
 
   const data = (overview?.revenueTrend ?? []).map((point) => ({
     day: point.label,
@@ -274,31 +268,14 @@ const SalesOverview = () => {
           <h2 className="text-lg font-bold text-ink">
             {t("admin.overview.salesOverview")}
           </h2>
-          <div className="flex h-9 items-center rounded-lg border border-border bg-background p-1">
-            {(["7D", "30D", "3M", "12M"] as const).map((item) => (
-              <button
-                type="button"
-                key={item}
-                onClick={() => setRange(item)}
-                aria-pressed={range === item}
-                className={cn(
-                  "h-7 rounded-md px-3 text-[10px] font-bold tracking-wide transition-colors",
-                  range === item
-                    ? "bg-ink text-primary"
-                    : "text-muted-foreground hover:bg-secondary",
-                )}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
         </div>
         <div className="mt-6 h-65 w-full font-data sm:mt-8 sm:h-72">
           {loading && !overview ? (
             <Skeleton className="size-full" />
-          ) : data.length === 0 ? (
-            <ApiEmptyState
+          ) : data.every((point) => point.value === 0) ? (
+            <AnalyticsEmptyState
               message={t("admin.overview.noRevenueYet")}
+              description={t("analytics.common.emptyPeriodHint")}
               className="h-full"
             />
           ) : (
@@ -519,9 +496,12 @@ const CustomerJourneyFunnel = ({
   const { t } = useTranslation();
   return (
     <section className="rounded-2xl bg-card p-5 sm:p-6">
-      <h2 className="text-lg font-bold text-ink">
-        {t("admin.overview.journeyFunnelTitle")}
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-bold text-ink">
+          {t("admin.overview.journeyFunnelTitle")}
+        </h2>
+        <AnalyticsViewAllLink href="/admin/analytics/journey" section={t("admin.overview.journeyFunnelTitle")} />
+      </div>
       <p className="mt-1 text-sm text-muted-foreground">
         {t("admin.overview.journeyFunnelSubtitle")}
       </p>
@@ -680,9 +660,12 @@ const TilePerformance = ({
 
   return (
     <section>
-      <h2 className="text-lg font-bold text-ink">
-        {t("admin.overview.tilePerformance")}
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-bold text-ink">
+          {t("admin.overview.tilePerformance")}
+        </h2>
+        <AnalyticsViewAllLink href="/admin/analytics/tiles" section={t("admin.overview.tilePerformance")} />
+      </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {items.map((item) => {
           const Icon = item.icon;
@@ -759,9 +742,12 @@ const InventoryOverview = ({
 
   return (
     <section>
-      <h2 className="text-lg font-bold text-ink">
-        {t("admin.overview.inventoryOverview")}
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-bold text-ink">
+          {t("admin.overview.inventoryOverview")}
+        </h2>
+        <AnalyticsViewAllLink href="/admin/inventory" section={t("admin.overview.inventoryOverview")} />
+      </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {loading && !overview
           ? Array.from({ length: 4 }).map((_, index) => (
@@ -807,7 +793,7 @@ const InventoryOverview = ({
         {error ? (
           <ApiErrorState message={error} onRetry={onRetry} className="mt-4" />
         ) : !loading && urgentItems.length === 0 ? (
-          <ApiEmptyState
+          <AnalyticsEmptyState
             message={t("admin.overview.noUrgentItems")}
             className="mt-4"
           />
@@ -1011,7 +997,7 @@ const RecentOrders = ({
       {error ? (
         <ApiErrorState message={error} onRetry={onRetry} className="mt-4" />
       ) : !loading && orders.length === 0 ? (
-        <ApiEmptyState
+        <AnalyticsEmptyState
           message={t("admin.overview.noOrders")}
           className="mt-4"
         />
@@ -1366,7 +1352,7 @@ const AdminDashboardPage = () => {
       <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
         <KpiCards overview={overview} loading={overviewLoading} />
         <div className="grid gap-5 sm:gap-6 xl:grid-cols-[1fr_320px]">
-          <SalesOverview />
+          <SalesOverview overview={overview} loading={overviewLoading} />
           <NeedsAttention overview={overview} loading={overviewLoading} />
         </div>
         <CustomerJourneyFunnel

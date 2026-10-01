@@ -26,7 +26,9 @@ import {
   periodToRange,
   type AnalyticsPeriodDays,
 } from "@/components/analytics-period-switcher";
-import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
+import { ApiErrorState } from "@/components/api-state";
+import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
+import { AnalyticsViewAllLink } from "@/components/analytics-view-all-link";
 import { FilterOptionsCard } from "@/components/product-catalog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -298,9 +300,11 @@ const TableRowSkeleton = ({ columns }: { columns: number }) => (
 const TopRecommendedProducts = ({
   rows,
   loading,
+  onViewAll,
 }: {
   rows: RecommendationRow[];
   loading: boolean;
+  onViewAll: () => void;
 }) => {
   const { t } = useTranslation();
   return (
@@ -309,7 +313,14 @@ const TopRecommendedProducts = ({
         <h2 className="text-lg font-bold text-ink">
           {t("analytics.ai.topRecommendedProducts")}
         </h2>
-        <Badge variant="secondary">{t("analytics.common.top5")}</Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary">{t("analytics.common.top5")}</Badge>
+          <AnalyticsViewAllLink
+            href="#all-products"
+            section={t("analytics.ai.topRecommendedProducts")}
+            onSelect={onViewAll}
+          />
+        </div>
       </div>
       <div className="mt-5 overflow-x-auto">
         <Table>
@@ -332,8 +343,9 @@ const TopRecommendedProducts = ({
             ) : rows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7}>
-                  <ApiEmptyState
+                  <AnalyticsEmptyState
                     message={t("analytics.ai.noRecommendations")}
+                    description={t("analytics.common.emptyPeriodHint")}
                   />
                 </TableCell>
               </TableRow>
@@ -517,14 +529,23 @@ const TileCardSkeleton = () => (
   </article>
 );
 
-const AllProducts = ({ period }: { period: TileRecommendations["period"] }) => {
+const AllProducts = ({
+  period,
+  sortBy,
+  setSortBy,
+  currentPage,
+  setCurrentPage,
+}: {
+  period: TileRecommendations["period"];
+  sortBy: RecommendationSortOption;
+  setSortBy: (sort: RecommendationSortOption) => void;
+  currentPage: number;
+  setCurrentPage: (page: number) => void;
+}) => {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [sortBy, setSortBy] =
-    useState<RecommendationSortOption>("displayed_desc");
 
   const roomTypes = filters["Room type"]
     .map(
@@ -611,10 +632,13 @@ const AllProducts = ({ period }: { period: TileRecommendations["period"] }) => {
     setCurrentPage(Math.min(Math.max(page, 1), totalPages));
 
   return (
-    <section>
-      <h2 className="text-lg font-bold text-ink">
-        {t("analytics.common.allProducts")}
-      </h2>
+    <section id="all-products" className="scroll-mt-24">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-bold text-ink">
+          {t("analytics.common.allProducts")}
+        </h2>
+        <AnalyticsViewAllLink href="/admin/inventory" section={t("analytics.common.allProducts")} />
+      </div>
       <p className="mt-1 text-sm text-muted-foreground">
         {t("analytics.common.productsManaged", {
           count: total.toLocaleString(),
@@ -714,9 +738,11 @@ const AllProducts = ({ period }: { period: TileRecommendations["period"] }) => {
           ))}
         </div>
       ) : rows.length === 0 ? (
-        <p className="mt-6 rounded-2xl bg-card p-10 text-center text-sm text-muted-foreground">
-          {t("analytics.common.noProductMatch")}
-        </p>
+<AnalyticsEmptyState
+          message={t("analytics.common.noProductMatch")}
+          description={t("analytics.common.emptyFiltersHint")}
+          className="mt-6 rounded-2xl bg-card"
+        />
       ) : (
         <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map((product) => (
@@ -827,6 +853,8 @@ const AllProducts = ({ period }: { period: TileRecommendations["period"] }) => {
 const AdminAnalyticsAiPage = () => {
   const { t } = useTranslation();
   const [period, setPeriod] = useState<AnalyticsPeriodDays>(30);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState<RecommendationSortOption>("displayed_desc");
   const range = periodToRange[period];
 
   const {
@@ -871,8 +899,18 @@ const AdminAnalyticsAiPage = () => {
             <TopRecommendedProducts
               rows={topRecommendedRows}
               loading={loading}
+              onViewAll={() => {
+                setSortBy("displayed_desc");
+                setCurrentPage(1);
+              }}
             />
-            <AllProducts period={range} />
+            <AllProducts
+              period={range}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+            />
           </>
         )}
       </div>

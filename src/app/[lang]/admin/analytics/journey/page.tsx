@@ -31,7 +31,9 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { DashboardPageHeader as AdminPageHeader } from "@/components/dashboard-page-headers";
 import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays, type AnalyticsRange } from "@/components/analytics-period-switcher";
-import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
+import { ApiErrorState } from "@/components/api-state";
+import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
+import { AnalyticsViewAllLink } from "@/components/analytics-view-all-link";
 import { JOURNEY_STAGE_TITLE_KEYS } from "@/components/conversion-funnel";
 import { ListPagination } from "@/components/list-pagination";
 import {
@@ -486,18 +488,24 @@ const StepDrillDown = ({
       <section className="rounded-2xl bg-card p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-ink">{t("analytics.journey.customerLedger")}</h2>
-          <button
-            type="button"
-            className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline"
-          >
-            <Filter className="size-3.5" /> {t("analytics.journey.filter")}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-ink hover:underline"
+            >
+              <Filter className="size-3.5" /> {t("analytics.journey.filter")}
+            </button>
+            <AnalyticsViewAllLink href="/admin/customers" section={t("analytics.customers.customersHeading")} />
+          </div>
         </div>
         <div className="mt-5 overflow-x-auto">
           {error ? (
             <ApiErrorState message={error} onRetry={reload} />
           ) : !loading && detail && detail.actions.length === 0 ? (
-            <ApiEmptyState message={t("analytics.journey.noActivity")} />
+            <AnalyticsEmptyState
+              message={t("analytics.journey.noActivity")}
+              description={t("analytics.common.emptyPeriodHint")}
+            />
           ) : (
             <Table>
               <TableHeader>
