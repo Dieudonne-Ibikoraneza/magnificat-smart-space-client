@@ -1,24 +1,10 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { ApiError, SESSION_CHANGED_EVENT, tokenStore, usersApi } from "@/lib/api";
 import type { ApiUser } from "@/lib/api/types";
+import { CurrentUserContext } from "@/lib/current-user-context";
 
-type CurrentUserState = {
-  /**
-   * `null` once loading is false means "signed out" — never a loading
-   * placeholder — unless `error` is set, which means the check itself failed
-   * (network down, API 5xx) and says nothing about whether anyone is signed in.
-   */
-  user: ApiUser | null;
-  loading: boolean;
-  /** The session check couldn't complete. Not "signed out": don't redirect, offer `refresh` as a retry. */
-  error: boolean;
-  /** Re-checks who's signed in — call after login/logout so every consumer updates together. */
-  refresh: () => void;
-};
-
-const CurrentUserContext = createContext<CurrentUserState | null>(null);
 
 type InternalState = { generation: number; user: ApiUser | null; loading: boolean; error: boolean };
 

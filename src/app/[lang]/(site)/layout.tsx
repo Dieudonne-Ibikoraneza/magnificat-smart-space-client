@@ -5,7 +5,6 @@ import { SessionPending } from "@/components/api-state";
 import { SiteHeader } from "@/components/siteheader";
 import { ALL_ROLES } from "@/lib/auth-routes";
 import { useRequireRole } from "@/lib/require-role";
-import { CurrentUserProvider } from "@/lib/current-user";
 import { CartNegotiationChat } from "@/components/cart-negotiation-chat";
 
 /**
@@ -16,7 +15,7 @@ import { CartNegotiationChat } from "@/components/cart-negotiation-chat";
  * sees once inside (favorites/cart vs. staff tooling) is decided per-page —
  * see `product-card.tsx`, `siteheader.tsx`, and the staff toolbar components.
  */
-const SiteLayoutContent = ({ children }: { children: React.ReactNode }) => {
+const SiteLayout = ({ children }: { children: React.ReactNode }) => {
   const { t } = useTranslation();
   const { authorized } = useRequireRole(ALL_ROLES);
 
@@ -38,11 +37,5 @@ const SiteLayoutContent = ({ children }: { children: React.ReactNode }) => {
     </div>
   );
 };
-
-const SiteLayout = ({ children }: { children: React.ReactNode }) => (
-  <CurrentUserProvider>
-    <SiteLayoutContent>{children}</SiteLayoutContent>
-  </CurrentUserProvider>
-);
 
 export default SiteLayout;

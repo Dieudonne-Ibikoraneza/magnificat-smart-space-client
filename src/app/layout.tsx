@@ -3,12 +3,8 @@ import "./globals.css";
 import { Inter, Manrope } from "next/font/google";
 import { cookies, headers } from "next/headers";
 import { cn } from "@/lib/utils";
-import { CartProvider } from "@/lib/cart-store";
-import { FavoritesProvider } from "@/lib/favorites-store";
-import { CurrentUserProvider } from "@/lib/current-user";
-import { I18nProvider, LOCALE_COOKIE, isLocale, localeFromAcceptLanguage } from "@/lib/i18n";
-import { Toaster } from "@/components/ui/toast";
-import { GlobalOrderAlertDialog } from "@/components/global-order-alert-dialog";
+import { AppProviders } from "@/components/app-providers";
+import { LOCALE_COOKIE, isLocale, localeFromAcceptLanguage } from "@/lib/i18n/config";
 import { ScrollbarHoverController } from "@/components/scrollbar-hover-controller";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -36,15 +32,7 @@ const RootLayout = async ({ children }: LayoutProps<"/">) => {
     >
       <body className="flex min-h-full min-w-0 flex-col overflow-x-hidden">
         <ScrollbarHoverController />
-        <I18nProvider locale={locale}>
-          <CurrentUserProvider>
-            <CartProvider>
-              <FavoritesProvider>{children}</FavoritesProvider>
-            </CartProvider>
-            <GlobalOrderAlertDialog />
-          </CurrentUserProvider>
-          <Toaster />
-        </I18nProvider>
+        <AppProviders locale={locale}>{children}</AppProviders>
       </body>
     </html>
   );
