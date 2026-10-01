@@ -30,6 +30,7 @@ import {
 import { ChartAxisTick } from "@/components/chart-axis-tick";
 import { AdjustStockDialog } from "@/components/adjust-stock-dialog";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
+import { AnalyticsViewAllLink } from "@/components/analytics-view-all-link";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -464,7 +465,12 @@ export const StockReportView = ({ area, period }: { area: StockReportArea; perio
         <div className="grid items-start gap-6 xl:grid-cols-2">
           <section className="overflow-hidden rounded-[14px] bg-white shadow-sm">
             <div className="border-b border-[#edf0eb] px-5 py-5 sm:px-6">
-              <h2 className="text-xl font-bold text-ink">{t("stock.reports.lowStockReportTitle")}</h2>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-xl font-bold text-ink">{t("stock.reports.lowStockReportTitle")}</h2>
+                {area === "admin" && (
+                  <AnalyticsViewAllLink href="/admin/inventory" section={t("analytics.common.allProducts")} />
+                )}
+              </div>
               <p className="mt-0.5 text-xs text-muted">{t("stock.reports.lowStockReportSub")}</p>
             </div>
             <div className="p-5 sm:p-6">
@@ -534,11 +540,16 @@ export const StockReportView = ({ area, period }: { area: StockReportArea; perio
                 <h2 className="text-xl font-bold text-ink">{t("stock.overview.fulfillmentQueue")}</h2>
                 <p className="mt-0.5 text-xs text-muted">{t("stock.overview.fulfillmentQueueSub")}</p>
               </div>
-              {!fulfillment.loading && !fulfillment.error && (
-                <span className="shrink-0 rounded-full bg-secondary px-2.5 py-1 text-xs font-bold text-ink">
-                  {pendingFulfillments.toLocaleString()}
-                </span>
-              )}
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                {!fulfillment.loading && !fulfillment.error && (
+                  <span className="shrink-0 rounded-full bg-secondary px-2.5 py-1 text-xs font-bold text-ink">
+                    {pendingFulfillments.toLocaleString()}
+                  </span>
+                )}
+                {area === "admin" && (
+                  <AnalyticsViewAllLink href="/admin/orders" section={t("stock.overview.fulfillmentQueue")} />
+                )}
+              </div>
             </div>
             <div className="p-5 sm:p-6">
               {fulfillment.loading ? (

@@ -4,46 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ChartAxisTick } from "@/components/chart-axis-tick";
-import { cn, formatCompactNumber } from "@/lib/utils";
-
-const revenueDatasets = {
-  WEEKLY: [
-    { day: "Mon", value: 6_000_000 },
-    { day: "Tue", value: 8_100_000 },
-    { day: "Wed", value: 11_200_000 },
-    { day: "Thu", value: 10_400_000 },
-    { day: "Fri", value: 14_100_000 },
-    { day: "Sat", value: 19_000_000 },
-    { day: "Sun", value: 13_300_000 },
-  ],
-  MONTHLY: [
-    { day: "Oct 01", value: 6_800_000 },
-    { day: "Oct 05", value: 9_400_000 },
-    { day: "Oct 10", value: 11_900_000 },
-    { day: "Oct 15", value: 11_100_000 },
-    { day: "Oct 20", value: 12_400_000 },
-    { day: "Oct 25", value: 12_300_000 },
-    { day: "Oct 30", value: 12_350_000 },
-    { day: "Nov 05", value: 11_000_000 },
-    { day: "Nov 10", value: 15_200_000 },
-    { day: "Nov 15", value: 18_400_000 },
-    { day: "Nov 20", value: 13_400_000 },
-  ],
-  YEARLY: [
-    { day: "Jan", value: 42_000_000 },
-    { day: "Feb", value: 51_000_000 },
-    { day: "Mar", value: 47_500_000 },
-    { day: "Apr", value: 62_000_000 },
-    { day: "May", value: 58_000_000 },
-    { day: "Jun", value: 71_000_000 },
-    { day: "Jul", value: 66_500_000 },
-    { day: "Aug", value: 78_000_000 },
-    { day: "Sep", value: 73_000_000 },
-    { day: "Oct", value: 88_000_000 },
-    { day: "Nov", value: 81_000_000 },
-    { day: "Dec", value: 95_000_000 },
-  ],
-} as const;
+import { formatCompactNumber } from "@/lib/utils";
 
 const RevenueTooltip = ({
   active,
@@ -70,19 +31,14 @@ const RevenueTooltip = ({
 export const RevenueTrendChart = ({
   title,
   subtitle,
-  range: controlledRange,
-  data: realData,
+  data,
 }: {
   title: string;
   subtitle: string;
-  range?: keyof typeof revenueDatasets;
-  /** Real trend points, e.g. from `AnalyticsOverview.revenueTrend` — overrides the built-in sample data below. When passed, the internal WEEKLY/MONTHLY/YEARLY toggle also hides, since `range` (from the caller's own period switcher) already controls what was fetched. */
-  data?: { day: string; value: number }[];
+  /** Trend points fetched for the page's global period selection. */
+  data: { day: string; value: number }[];
 }) => {
-  const [internalRange, setInternalRange] = useState<keyof typeof revenueDatasets>("WEEKLY");
   const [hovered, setHovered] = useState<number | null>(null);
-  const range = controlledRange ?? internalRange;
-  const data = realData ?? revenueDatasets[range];
 
   return (
     <section className="rounded-2xl bg-card p-5 sm:p-6">
@@ -91,26 +47,6 @@ export const RevenueTrendChart = ({
           <h2 className="text-lg font-bold text-ink">{title}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
         </div>
-        {controlledRange === undefined && realData === undefined && (
-          <div className="flex h-9 items-center rounded-lg border border-border bg-background p-1">
-            {(["WEEKLY", "MONTHLY", "YEARLY"] as const).map((item) => (
-              <button
-                type="button"
-                key={item}
-                onClick={() => setInternalRange(item)}
-                aria-pressed={range === item}
-                className={cn(
-                  "h-7 rounded-md px-3 text-[10px] font-bold tracking-wide transition-colors",
-                  range === item
-                    ? "bg-ink text-primary"
-                    : "text-muted-foreground hover:bg-secondary",
-                )}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
       <div className="mt-6 h-65 w-full font-data sm:mt-8 sm:h-80">
         <ResponsiveContainer width="100%" height="100%">
