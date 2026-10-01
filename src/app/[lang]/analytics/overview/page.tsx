@@ -27,7 +27,8 @@ import {
   periodToRange,
   type AnalyticsPeriodDays,
 } from "@/components/analytics-period-switcher";
-import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
+import { ApiErrorState } from "@/components/api-state";
+import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
 import { ChartAxisTick } from "@/components/chart-axis-tick";
 import {
   ConversionFunnel,
@@ -215,8 +216,9 @@ const AiRecommendationsPanel = ({
       </div>
       <div className="mt-6 border-t border-border pt-5">
         {totalRecommendations === 0 ? (
-          <ApiEmptyState
+          <AnalyticsEmptyState
             message={t("analytics.overview.noAiRecs")}
+            description={t("analytics.common.emptyPeriodHint")}
             className="py-6"
           />
         ) : (
@@ -241,7 +243,7 @@ const AiRecommendationsPanel = ({
 
 const AnalyticsOverviewPage = () => {
   const { t } = useTranslation();
-  const [period, setPeriod] = useState<AnalyticsPeriodDays>(7);
+  const [period, setPeriod] = useState<AnalyticsPeriodDays>(30);
   const range = periodToRange[period];
 
   const {
@@ -369,7 +371,7 @@ const AnalyticsOverviewPage = () => {
               </p>
               <Skeleton className="mt-6 h-65 w-full sm:mt-8 sm:h-80" />
             </section>
-          ) : overview.revenueTrend.length === 0 ? (
+          ) : overview.revenueTrend.every((point) => point.value === 0) ? (
             <section className="rounded-2xl bg-card p-5 sm:p-6">
               <h2 className="text-lg font-bold text-ink">
                 {t("analytics.overview.salesOverview")}
@@ -377,16 +379,16 @@ const AnalyticsOverviewPage = () => {
               <p className="mt-1 text-sm text-muted-foreground">
                 {t("analytics.overview.revenuePerformance")}
               </p>
-              <ApiEmptyState
+              <AnalyticsEmptyState
                 message={t("analytics.overview.noSales")}
-                className="py-16"
+                description={t("analytics.common.emptyPeriodHint")}
+                className="mt-6 h-65 sm:h-80"
               />
             </section>
           ) : (
             <RevenueTrendChart
               title={t("analytics.overview.salesOverview")}
               subtitle={t("analytics.overview.revenuePerformance")}
-              range={range}
               data={overview.revenueTrend.map((point) => ({
                 day: point.label,
                 value: point.value,
@@ -445,8 +447,9 @@ const AnalyticsOverviewPage = () => {
                 ))}
               </div>
             ) : topTiles.length === 0 ? (
-              <ApiEmptyState
+              <AnalyticsEmptyState
                 message={t("analytics.overview.noTileActivity")}
+                description={t("analytics.common.emptyPeriodHint")}
                 className="py-10"
               />
             ) : (
@@ -525,7 +528,7 @@ const AnalyticsOverviewPage = () => {
                 ))}
               </div>
             ) : topCustomers.length === 0 ? (
-              <ApiEmptyState
+              <AnalyticsEmptyState
                 message={t("analytics.overview.noCustomers")}
                 className="py-10"
               />

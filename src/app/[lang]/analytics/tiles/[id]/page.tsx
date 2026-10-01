@@ -14,6 +14,7 @@ import {
   MousePointerClick,
   MousePointerSquareDashed,
   Package,
+  RotateCw,
   ShoppingBasket,
   Wallet,
 } from "lucide-react";
@@ -27,6 +28,7 @@ import { toProduct } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
 import { useLocale } from "@/lib/i18n";
 import { formatCompactNumber } from "@/lib/utils";
+import { visualizerPatternLabelKey, visualizerCornerLabelKey } from "@/lib/visualizer-pattern";
 import type { RoomType, StockStatus } from "@/lib/api/types";
 
 type TileDetailPageProps = { params: Promise<{ id: string }> };
@@ -237,6 +239,20 @@ const TileDetailPage = ({ params }: TileDetailPageProps) => {
                     </p>
                   </div>
                 )}
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {t("visualizerPattern.label")}
+                  </p>
+                  <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-ink">
+                    <RotateCw className="size-4" />
+                    {t(visualizerPatternLabelKey(apiProduct.visualizerPattern))}
+                  {apiProduct.visualizerPattern === "QUARTER_TURN" && (
+                    <span className="text-xs font-normal text-muted-foreground">
+                      · {t(visualizerCornerLabelKey(apiProduct.visualizerPatternCorner))}
+                    </span>
+                  )}
+                  </p>
+                </div>
               </div>
               <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
                 {t("analytics.tileDetail.suitableFor")}

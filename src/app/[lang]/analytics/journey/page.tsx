@@ -31,7 +31,8 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { DashboardPageHeader as AnalyticsPageHeader } from "@/components/dashboard-page-headers";
 import { AnalyticsPeriodSwitcher, periodToRange, type AnalyticsPeriodDays, type AnalyticsRange } from "@/components/analytics-period-switcher";
-import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
+import { ApiErrorState } from "@/components/api-state";
+import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
 import { JOURNEY_STAGE_TITLE_KEYS } from "@/components/conversion-funnel";
 import { ListPagination } from "@/components/list-pagination";
 import {
@@ -497,7 +498,10 @@ const StepDrillDown = ({
           {error ? (
             <ApiErrorState message={error} onRetry={reload} />
           ) : !loading && detail && detail.actions.length === 0 ? (
-            <ApiEmptyState message={t("analytics.journey.noActivity")} />
+            <AnalyticsEmptyState
+              message={t("analytics.journey.noActivity")}
+              description={t("analytics.common.emptyPeriodHint")}
+            />
           ) : (
             <Table>
               <TableHeader>

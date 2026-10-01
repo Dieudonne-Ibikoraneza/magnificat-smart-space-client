@@ -26,7 +26,8 @@ import {
   periodToRange,
   type AnalyticsPeriodDays,
 } from "@/components/analytics-period-switcher";
-import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
+import { ApiErrorState } from "@/components/api-state";
+import { AnalyticsEmptyState } from "@/components/analytics-empty-state";
 import { FilterOptionsCard } from "@/components/product-catalog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -332,8 +333,9 @@ const TopRecommendedProducts = ({
             ) : rows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7}>
-                  <ApiEmptyState
+                  <AnalyticsEmptyState
                     message={t("analytics.ai.noRecommendations")}
+                    description={t("analytics.common.emptyPeriodHint")}
                   />
                 </TableCell>
               </TableRow>
@@ -714,9 +716,11 @@ const AllProducts = ({ period }: { period: TileRecommendations["period"] }) => {
           ))}
         </div>
       ) : rows.length === 0 ? (
-        <p className="mt-6 rounded-2xl bg-card p-10 text-center text-sm text-muted-foreground">
-          {t("analytics.common.noProductMatch")}
-        </p>
+<AnalyticsEmptyState
+          message={t("analytics.common.noProductMatch")}
+          description={t("analytics.common.emptyFiltersHint")}
+          className="mt-6 rounded-2xl bg-card"
+        />
       ) : (
         <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map((product) => (
