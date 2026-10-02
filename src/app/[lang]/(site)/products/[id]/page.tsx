@@ -12,6 +12,7 @@ import {
   Heart,
   Layers3,
   Maximize2,
+  RotateCw,
   ShoppingCart,
 } from "lucide-react";
 import { ApiErrorState } from "@/components/api-state";
@@ -35,6 +36,7 @@ import { useCart } from "@/lib/cart-store";
 import { useCurrentUser } from "@/lib/current-user";
 import { useLocale } from "@/lib/i18n";
 import { getSessionId } from "@/lib/session-id";
+import { visualizerPatternLabelKey, visualizerCornerLabelKey } from "@/lib/visualizer-pattern";
 import type { Product } from "@/components/product-card";
 import ProductNotFound from "./not-found";
 
@@ -313,6 +315,22 @@ const ProductDetailsPage = ({
                 </p>
                 <p className="mt-1 text-sm font-bold text-ink">{product.sku}</p>
               </div>
+              {!isClient && user && (
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                    {t("visualizerPattern.label")}
+                  </p>
+                  <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-ink">
+                    <RotateCw className="size-4" />
+                    {t(visualizerPatternLabelKey(apiProduct.visualizerPattern))}
+                  {apiProduct.visualizerPattern === "QUARTER_TURN" && (
+                    <span className="text-xs font-normal text-muted-foreground">
+                      · {t(visualizerCornerLabelKey(apiProduct.visualizerPatternCorner))}
+                    </span>
+                  )}
+                  </p>
+                </div>
+              )}
             </div>
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
               {t("productDetail.suitableFor")}

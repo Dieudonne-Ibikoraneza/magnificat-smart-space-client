@@ -4,7 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useTranslation } from "react-i18next";
-import { Layers3, Maximize2 } from "lucide-react";
+import { Layers3, Maximize2, RotateCw } from "lucide-react";
 import { DashboardPageHeader as SalesPageHeader } from "@/components/dashboard-page-headers";
 import {
   Breadcrumb,
@@ -22,6 +22,7 @@ import { productsApi } from "@/lib/api";
 import { toProduct } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
 import { useLocale } from "@/lib/i18n";
+import { visualizerPatternLabelKey, visualizerCornerLabelKey } from "@/lib/visualizer-pattern";
 import type { RoomType, StockStatus } from "@/lib/api/types";
 
 type SalesProductDetailsProps = { params: Promise<{ id: string }> };
@@ -167,6 +168,20 @@ const SalesProductDetailsPage = ({ params }: SalesProductDetailsProps) => {
                 </p>
                 <p className="mt-1 text-sm font-bold text-ink">
                   {t("sales.catalogDetail.perBoxValue", { coverage: product.boxCoverage, pieces: product.piecesPerBox })}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {t("visualizerPattern.label")}
+                </p>
+                <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-ink">
+                  <RotateCw className="size-4" />
+                  {t(visualizerPatternLabelKey(apiProduct.visualizerPattern))}
+                  {apiProduct.visualizerPattern === "QUARTER_TURN" && (
+                    <span className="text-xs font-normal text-muted-foreground">
+                      · {t(visualizerCornerLabelKey(apiProduct.visualizerPatternCorner))}
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
