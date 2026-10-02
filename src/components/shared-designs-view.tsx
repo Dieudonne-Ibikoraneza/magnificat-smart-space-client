@@ -81,7 +81,7 @@ const DesignCard = ({
   const routes = AREA_ROUTES[area];
   const k = (key: string) => `${area}.designs.${key}`;
   const preview =
-    design.previewImageUrl || design.room?.thumbnail || "/showroom.jpg";
+    design.room?.thumbnail || design.previewImageUrl || "/showroom.jpg";
   const tiles = design.tiles.flatMap((tile) =>
     tile.product
       ? [

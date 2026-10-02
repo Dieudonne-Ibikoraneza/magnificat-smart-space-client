@@ -421,20 +421,43 @@ export const apiRequest = async <T>(path: string, options: RequestOptions = {}):
  * multipart boundary itself (setting it manually strips the boundary and the
  * server can't parse the body at all).
  */
-export const apiUpload = async <T>(path: string, formData: FormData): Promise<T> => {
+export const apiUpload = async <T>(
+  path: string,
+  formData: FormData,
+  onProgress?: (percentage: number) => void,
+): Promise<T> => {
   await ensureFreshAccessToken();
 
-  const sendForm = () => {
+  const sendForm = (): Promise<Response> => {
     const headers: Record<string, string> = {};
     const accessToken = tokenStore.getAccessToken();
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+    if (onProgress) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `${API_BASE_URL}${path}`);
+        Object.entries(headers).forEach(([name, value]) => xhr.setRequestHeader(name, value));
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+        };
+        xhr.onload = () => resolve(new Response(xhr.responseText, {
+          status: xhr.status,
+          statusText: xhr.statusText,
+          headers: { "Content-Type": xhr.getResponseHeader("Content-Type") ?? "application/json" },
+        }));
+        xhr.onerror = () => reject(new ApiError(0, networkErrorMessage()));
+        xhr.onabort = () => reject(new ApiError(0, "Upload was cancelled."));
+        xhr.send(formData);
+      });
+    }
     return fetch(`${API_BASE_URL}${path}`, { method: "POST", headers, body: formData });
   };
 
   let response: Response;
   try {
     response = await sendForm();
-  } catch {
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
     throw new ApiError(0, networkErrorMessage());
   }
 
