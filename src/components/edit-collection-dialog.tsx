@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState, type ChangeEvent } from "react";
+import { useRef, useState, type ChangeEvent, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 import { ImagePlus, Pencil, Trash2, X } from "lucide-react";
 import {
@@ -33,10 +33,12 @@ const tileAreaFromSize = (size: string) => {
 export const EditCollectionDialog = ({
   collection,
   onUpdated,
+  trigger,
 }: {
   collection: ApiCollection;
   /** Called after a successful edit so the parent can refetch the collection. */
   onUpdated: () => void;
+  trigger?: ReactElement;
 }) => {
   const { t } = useTranslation();
   const { locale } = useLocale();
@@ -104,12 +106,14 @@ export const EditCollectionDialog = ({
     >
       <DialogTrigger
         render={
-          <Button type="button" variant="outline" className="h-12 gap-2 font-bold uppercase px-4" />
+          trigger ?? (
+            <Button type="button" variant="outline" className="h-12 gap-2 font-bold uppercase px-4">
+              <Pencil className="size-4 stroke-3" />
+              {t("staff.editCollection.trigger")}
+            </Button>
+          )
         }
-      >
-        <Pencil className="size-4 stroke-3" />
-        {t("staff.editCollection.trigger")}
-      </DialogTrigger>
+      />
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{t("staff.editCollection.title")}</DialogTitle>
@@ -222,9 +226,11 @@ export const EditCollectionDialog = ({
 export const DeleteCollectionDialog = ({
   collection,
   onDeleted,
+  trigger,
 }: {
   collection: ApiCollection;
   onDeleted: () => void;
+  trigger?: ReactElement;
 }) => {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -250,10 +256,14 @@ export const DeleteCollectionDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button type="button" variant="destructive" className="h-12 gap-2 font-bold uppercase px-4" />}>
-        <Trash2 className="size-4 stroke-3" />
-        {t("staff.deleteCollection.trigger")}
-      </DialogTrigger>
+      <DialogTrigger
+        render={trigger ?? (
+          <Button type="button" variant="destructive" className="h-12 gap-2 font-bold uppercase px-4">
+            <Trash2 className="size-4 stroke-3" />
+            {t("staff.deleteCollection.trigger")}
+          </Button>
+        )}
+      />
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{t("staff.deleteCollection.title")}</DialogTitle>

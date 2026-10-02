@@ -25,7 +25,9 @@
     "loadMore": "Load more"
   },
   "common": {
-    "orderArea": { "requested": "Requested: {{value}} m²" },
+    "orderArea": {
+      "requested": "Requested: {{value}} m²"
+    },
     "loading": "Loading…",
     "empty": "Nothing here yet",
     "error": "Something went wrong",
@@ -173,6 +175,18 @@
       "body": "The collection you are looking for does not exist or may have been moved.",
       "browse": "Browse Collections"
     }
+  },
+  "visualizerPattern": {
+    "label": "3D Layout",
+    "straight": "Straight",
+    "twoTurn": "Two-turn",
+    "fourTurn": "Four-turn",
+    "centerCorner": "Four-turn center",
+    "centerCornerHint": "Choose the corner of the original tile image that all four tiles should bring together.",
+    "topRight": "Top right",
+    "bottomRight": "Bottom right",
+    "bottomLeft": "Bottom left",
+    "topLeft": "Top left"
   },
   "productDetail": {
     "back": "Back",
@@ -345,6 +359,7 @@
     },
     "pricePerSqm": "/ sqm",
     "configureSpace": "Configure Space",
+    "tilePatternHint": "Preview repeat",
     "searchPlaceholder": "Search by name or size…",
     "loadingTiles": "Loading tiles…",
     "noSearchResults": "No tiles match your search.",
@@ -1086,7 +1101,7 @@
       "imageHint": "PNG, JPG or WEBP · up to 10MB",
       "boxCoverage": "Box Coverage (m²)",
       "piecesPerBox": "Pieces per Box",
-      "packagingError": "Enter valid coverage and a whole number of pieces per box.",
+      "packagingError": "Enter valid box coverage to calculate at least one piece per box.",
       "price": "Price (RWF / sqm)",
       "priceError": "Enter a price greater than 0.",
       "descriptionLabel": "Description",
@@ -1097,6 +1112,11 @@
       "floorAndWall": "Floor & Wall",
       "roomTypes": "Room Types",
       "roomTypesHint": "At least one.",
+      "visualizerPattern": "3D Layout",
+      "visualizerPatternHint": "Choose how the tile repeats in the 3D room.",
+      "visualizerStraight": "Straight",
+      "visualizerTwoTurn": "Two-turn",
+      "visualizerQuarterTurn": "Four-turn",
       "cancel": "Cancel",
       "saving": "Saving…",
       "save": "Save changes",
@@ -1104,7 +1124,8 @@
       "toastUpdatedBody": "{{name}} was saved.",
       "toastFailedTitle": "Couldn't save changes",
       "toastTryAgain": "Please try again.",
-      "editingRwHint": "You're editing the Kinyarwanda name and description. The English version will be regenerated automatically when you save."
+      "editingRwHint": "You're editing the Kinyarwanda name and description. The English version will be regenerated automatically when you save.",
+      "requiredFieldsHint": "Fields marked * are required."
     },
     "editCollection": {
       "trigger": "Edit Collection",
@@ -1160,6 +1181,14 @@
       "PLACED_ORDER": "Order Placed",
       "PURCHASED": "Purchased"
     }
+  },
+  "invoice": {
+    "title": "Invoice",
+    "orderStatus": "Order status",
+    "paymentStatus": "Payment status",
+    "subtotal": "Subtotal",
+    "transportFee": "Transport fee",
+    "transportPending": "Not yet costed"
   },
   "sales": {
     "createCustomer": {
@@ -1585,6 +1614,10 @@
     },
     "inventory": {
       "title": "Inventory",
+      "noProductsTitle": "No products in inventory yet",
+      "filtersTitle": "Refine inventory",
+      "filtersSubtitle": "Narrow products by their details.",
+      "clearFilters": "Clear filters",
       "loadingProducts": "Loading products…",
       "productsManaged": "{{count}} Products currently managed",
       "addNewProduct": "Add New Product",
@@ -1674,6 +1707,11 @@
       "floorAndWall": "Floor & Wall",
       "roomTypes": "Room Types",
       "roomTypesHint": "Select every room this tile suits (at least one).",
+      "visualizerPattern": "3D Layout",
+      "visualizerPatternHint": "Choose how the tile repeats in the 3D room.",
+      "visualizerStraight": "Straight",
+      "visualizerTwoTurn": "Two-turn",
+      "visualizerQuarterTurn": "Four-turn",
       "priceBoxCoverage": "Price & Box Coverage",
       "priceBoxCoverageSub": "Price is for this tile only. Pieces per box are auto-filled from the box coverage and the collection's tile size.",
       "price": "Price (RWF / sqm)",
@@ -1681,7 +1719,7 @@
       "priceError": "Enter a price greater than 0.",
       "boxCoverage": "Box Coverage (m²)",
       "boxCoveragePlaceholder": "10",
-      "boxCoverageError": "Enter the area a full box covers, in m².",
+      "boxCoverageError": "Enter a valid box coverage greater than 0, in m².",
       "boxCoverageHint": "Select a collection first to auto-fill pieces per box.",
       "piecesPerBox": "Pieces / Box",
       "piecesValue": "{{count}} pcs",
@@ -1694,8 +1732,8 @@
       "initialStockPlaceholder": "1240",
       "costPrice": "Cost Price (RWF / sqm)",
       "costPricePlaceholder": "15000",
-      "costPriceError": "Enter a cost price greater than 0, or leave it blank.",
-      "costPriceHint": "What we paid per m² for this opening stock — feeds inventory valuation. Optional.",
+      "costPriceError": "Enter a valid cost price greater than 0, or leave it blank when opening stock is 0.",
+      "costPriceHint": "What we paid per m² for this opening stock — feeds inventory valuation. Required when opening stock is greater than 0.",
       "stockOut": "Out of stock",
       "stockLow": "Low stock",
       "stockIn": "In stock",
@@ -1708,7 +1746,7 @@
       "registering": "Registering...",
       "register": "Register Product",
       "checkFieldsTitle": "Check the highlighted fields",
-      "checkFieldsBody": "All fields, including a product image, are required to register a product.",
+      "checkFieldsBody": "Fill in the required fields and correct the errors shown below each field.",
       "toastRegisteredTitle": "Product registered",
       "toastRegisteredBody": "{{name}} (SKU {{sku}}) was added to the catalog.",
       "toastFailedTitle": "Couldn't register product",
@@ -1716,7 +1754,15 @@
       "skuChecking": "Checking availability…",
       "skuAvailable": "SKU is available.",
       "skuTaken": "This SKU is already used by another product.",
-      "skuCheckError": "Couldn't check SKU availability — it will be re-checked on submit."
+      "skuCheckError": "Couldn't check SKU availability. Retry the check or submit to check again.",
+      "requiredFieldsHint": "Fields marked * are required. Cost price is required when opening stock is greater than 0.",
+      "imageRequired": "Upload a product image.",
+      "collectionRequired": "Select a collection.",
+      "roomTypesRequired": "Select at least one room type.",
+      "initialStockError": "Enter a valid stock quantity of 0 or greater.",
+      "boxCoveragePiecesError": "Box coverage must cover at least one tile in the selected collection.",
+      "costPriceRequired": "Enter a valid cost price greater than 0 for the opening stock.",
+      "retrySku": "Retry availability check"
     },
     "collections": {
       "title": "Collections",
@@ -1955,6 +2001,9 @@
     },
     "common": {
       "viewAll": "View All",
+      "emptyPeriodHint": "Try a different period using the selector at the top of the page.",
+      "emptyFiltersHint": "Try a different search or clear your filters.",
+      "noActivity": "No activity in this period",
       "viewDetails": "View Details",
       "viewProfile": "View Profile",
       "sortBy": "Sort by:",
@@ -1992,8 +2041,10 @@
       "likesCount": "{{value}} Likes",
       "likesLower": "{{value}} likes",
       "recommendationsCount": "{{value}} recommendations",
+      "purchasesCount": "{{value}} purchases",
       "pcs": "{{value}} pcs",
       "selectionPct": "{{value}}% selection",
+      "purchaseConversionPct": "{{value}}% purchase conversion",
       "acceptedPct": "{{value}}% accepted",
       "notSpecified": "Not specified",
       "soldSqm": "{{value}} sqm sold"
@@ -2153,6 +2204,8 @@
         "viewed_desc": "Most Viewed",
         "viewed_asc": "Least Viewed",
         "applied_desc": "Most Applications",
+        "recommended_desc": "Most Recommendations",
+        "recommended_asc": "Least Recommendations",
         "applied_asc": "Fewest Applications",
         "saved_desc": "Most Liked",
         "saved_asc": "Least Liked",
@@ -2512,10 +2565,13 @@
       "descriptionPlaceholder": "What the space looks like and which surfaces can be tiled.",
       "modelUrlLabel": "3D model URL",
       "modelUrlPlaceholder": "/models/rooms/living_room.glb",
-      "thumbnailLabel": "Thumbnail URL",
-      "thumbnailPlaceholder": "https://…",
+      "thumbnailLabel": "Upload room image",
+      "chooseImage": "Choose image",
+      "changeThumbnail": "Change {{name}} image",
+      "changeImage": "Change image",
       "cancel": "Cancel",
       "saving": "Saving…",
+      "uploading": "Uploading…",
       "saveChanges": "Save changes",
       "toastRoomUpdated": "Room updated",
       "toastRoomUpdatedDesc": "{{name}} has been saved.",

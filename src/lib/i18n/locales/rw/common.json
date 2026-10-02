@@ -25,7 +25,9 @@
     "loadMore": "Erekana byinshi"
   },
   "common": {
-    "orderArea": { "requested": "Wasabye: {{value}} m²" },
+    "orderArea": {
+      "requested": "Wasabye: {{value}} m²"
+    },
     "loading": "Biratunganywa…",
     "empty": "Nta kintu kirahari",
     "error": "Hari ikitagenze neza",
@@ -173,6 +175,18 @@
       "body": "Ikusanyirizo ushaka ntiribaho cyangwa rishobora kuba ryarimuwe.",
       "browse": "Reba Amakusanyirizo"
     }
+  },
+  "visualizerPattern": {
+    "label": "Imiterere ya 3D",
+    "straight": "Bisanzwe",
+    "twoTurn": "Two-turn",
+    "fourTurn": "Four-turn",
+    "centerCorner": "Ihuriro ry’amakaro ane",
+    "centerCornerHint": "Hitamo inguni y’ifoto y’ikaro ihurirwaho n’amakaro ane.",
+    "topRight": "Hejuru iburyo",
+    "bottomRight": "Hasi iburyo",
+    "bottomLeft": "Hasi ibumoso",
+    "topLeft": "Hejuru ibumoso"
   },
   "productDetail": {
     "back": "Subira Inyuma",
@@ -345,6 +359,7 @@
     },
     "pricePerSqm": "/ m²",
     "configureSpace": "Genzura Umwanya",
+    "tilePatternHint": "Reba isubiramo",
     "searchPlaceholder": "Shakisha ku izina cyangwa ingano…",
     "loadingTiles": "Kuzana amakaro…",
     "noSearchResults": "Nta karo rihuye n'ishakisha ryawe.",
@@ -1086,7 +1101,7 @@
       "imageHint": "PNG, JPG cyangwa WEBP · kugeza kuri 10MB",
       "boxCoverage": "Ubuso bwa Karito (m²)",
       "piecesPerBox": "Piece muri Karito",
-      "packagingError": "Andika ubuso bwemewe n'umubare wuzuye wa piece muri karito.",
+      "packagingError": "Andika ubuso bwemewe bwa karito kugira ngo habazwe nibura ikaro rimwe muri karito.",
       "price": "Igiciro (RWF / m²)",
       "priceError": "Andika igiciro kirenze 0.",
       "descriptionLabel": "Ibisobanuro",
@@ -1097,6 +1112,11 @@
       "floorAndWall": "Hasi & Urukuta",
       "roomTypes": "Ubwoko bw'Ibyumba",
       "roomTypesHint": "Byibura bumwe.",
+      "visualizerPattern": "Imiterere ya 3D",
+      "visualizerPatternHint": "Hitamo uko ikaro risubirwamo muri 3D.",
+      "visualizerStraight": "Bisanzwe",
+      "visualizerTwoTurn": "Two-turn",
+      "visualizerQuarterTurn": "Four-turn",
       "cancel": "Hagarika",
       "saving": "Kubika…",
       "save": "Bika impinduka",
@@ -1104,7 +1124,8 @@
       "toastUpdatedBody": "{{name}} cyabitswe.",
       "toastFailedTitle": "Ntibyashobotse kubika impinduka",
       "toastTryAgain": "Ongera ugerageze.",
-      "editingRwHint": "Uri guhindura izina n'ibisobanuro by'Ikinyarwanda. Icyongereza kizongera kigenwe ubwacyo igihe uzabika."
+      "editingRwHint": "Uri guhindura izina n'ibisobanuro by'Ikinyarwanda. Icyongereza kizongera kigenwe ubwacyo igihe uzabika.",
+      "requiredFieldsHint": "Ahari * hagomba kuzuzwa."
     },
     "editCollection": {
       "trigger": "Hindura Ikusanyirizo",
@@ -1160,6 +1181,14 @@
       "PLACED_ORDER": "Itumizo Ryashyizweho",
       "PURCHASED": "Byaguzwe"
     }
+  },
+  "invoice": {
+    "title": "Inyemezabuguzi",
+    "orderStatus": "Uko itumizo rihagaze",
+    "paymentStatus": "Uko ubwishyu buhagaze",
+    "subtotal": "Igiteranyo cy'ibicuruzwa",
+    "transportFee": "Amafaranga y'ubwikorezi",
+    "transportPending": "Ntarabarwa"
   },
   "sales": {
     "createCustomer": {
@@ -1585,6 +1614,10 @@
     },
     "inventory": {
       "title": "Ububiko",
+      "noProductsTitle": "Nta bicuruzwa biri mu bubiko ubu",
+      "filtersTitle": "Shungura ububiko",
+      "filtersSubtitle": "Gabanya ibicuruzwa ukurikije amakuru yabyo.",
+      "clearFilters": "Kuraho amashungura",
       "loadingProducts": "Kuzana ibicuruzwa…",
       "productsManaged": "Ibicuruzwa {{count}} bicungwa ubu",
       "addNewProduct": "Ongeraho Igicuruzwa Gishya",
@@ -1674,6 +1707,11 @@
       "floorAndWall": "Hasi & Urukuta",
       "roomTypes": "Ubwoko bw'Ibyumba",
       "roomTypesHint": "Hitamo buri cyumba iki karo gikwiranye na cyo (byibura kimwe).",
+      "visualizerPattern": "Imiterere ya 3D",
+      "visualizerPatternHint": "Hitamo uko ikaro risubirwamo muri 3D.",
+      "visualizerStraight": "Bisanzwe",
+      "visualizerTwoTurn": "Two-turn",
+      "visualizerQuarterTurn": "Four-turn",
       "priceBoxCoverage": "Igiciro & Ubuso bwa Karito",
       "priceBoxCoverageSub": "Igiciro ni icy'iki karo gusa. Piece kuri buri karito zuzuzwa ziturutse ku buso bwa karito n'ingano y'ikaro y'ikusanyirizo.",
       "price": "Igiciro (RWF / m²)",
@@ -1681,7 +1719,7 @@
       "priceError": "Andika igiciro kirenze 0.",
       "boxCoverage": "Ubuso bwa Karito (m²)",
       "boxCoveragePlaceholder": "10",
-      "boxCoverageError": "Andika ubuso karito yuzuye ipfuka, muri m².",
+      "boxCoverageError": "Andika ubuso agasanduku gapfuka burenze 0, muri m².",
       "boxCoverageHint": "Banza uhitemo ikusanyirizo kugira ngo piece kuri karito zuzuzwe.",
       "piecesPerBox": "Piece / Karito",
       "piecesValue": "piece {{count}}",
@@ -1694,8 +1732,8 @@
       "initialStockPlaceholder": "1240",
       "costPrice": "Igiciro cyo Kugura (RWF / m²)",
       "costPricePlaceholder": "15000",
-      "costPriceError": "Andika igiciro cyo kugura kirenze 0, cyangwa ukireke ubusa.",
-      "costPriceHint": "Icyo twishyuye kuri buri m² kuri ubu bubiko butangira — kigira uruhare mu kubara agaciro k'ububiko. Si ngombwa.",
+      "costPriceError": "Andika igiciro cy’ubuguzi kirenze 0, cyangwa usige ubusa iyo ububiko bw’ibanze ari 0.",
+      "costPriceHint": "Igiciro twishyuye kuri m² y’ububiko bw’ibanze — gikoreshwa mu kubara agaciro k’ububiko. Kirakenewe iyo ububiko bw’ibanze burenze 0.",
       "stockOut": "Byashize mu bubiko",
       "stockLow": "Ububiko buke",
       "stockIn": "Iri mu bubiko",
@@ -1708,7 +1746,7 @@
       "registering": "Kwandika...",
       "register": "Andika Igicuruzwa",
       "checkFieldsTitle": "Reba imyanya yagaragajwe",
-      "checkFieldsBody": "Imyanya yose, harimo ishusho y'igicuruzwa, irasabwa kugira ngo wandike igicuruzwa.",
+      "checkFieldsBody": "Uzuza ibisabwa kandi ukosore amakosa agaragara munsi ya buri mwanya.",
       "toastRegisteredTitle": "Igicuruzwa cyanditswe",
       "toastRegisteredBody": "{{name}} (SKU {{sku}}) cyongewe muri katarogu.",
       "toastFailedTitle": "Ntibyashobotse kwandika igicuruzwa",
@@ -1716,7 +1754,15 @@
       "skuChecking": "Kugenzura niba ihari…",
       "skuAvailable": "SKU irahari, ushobora kuyikoresha.",
       "skuTaken": "SKU iri gukoreshwa n'ikindi gicuruzwa.",
-      "skuCheckError": "Ntibyashobotse kugenzura SKU — bizongera kugenzurwa mu kohereza."
+      "skuCheckError": "Kugenzura niba SKU iboneka byanze. Ongera ugerageze cyangwa wohereze ifishi kugira ngo yongere igenzurwe.",
+      "requiredFieldsHint": "Ahari * hagomba kuzuzwa. Igiciro cy’ubuguzi kirakenewe iyo ububiko bw’ibanze burenze 0.",
+      "imageRequired": "Shyiraho ifoto y’igicuruzwa.",
+      "collectionRequired": "Hitamo icyiciro.",
+      "roomTypesRequired": "Hitamo nibura ubwoko bumwe bw’icyumba.",
+      "initialStockError": "Andika ingano y’ububiko iri 0 cyangwa irenga.",
+      "boxCoveragePiecesError": "Ubuso agasanduku gapfuka bugomba kuba nibura ubuso bw’ikaro rimwe ryo mu cyiciro wahisemo.",
+      "costPriceRequired": "Andika igiciro cy’ubuguzi kirenze 0 ku bubiko bw’ibanze.",
+      "retrySku": "Ongera ugenzure SKU"
     },
     "collections": {
       "title": "Amakusanyirizo",
@@ -1955,6 +2001,9 @@
     },
     "common": {
       "viewAll": "Reba Byose",
+      "emptyPeriodHint": "Hitamo ikindi gihe ukoresheje amahitamo ari hejuru y'urupapuro.",
+      "emptyFiltersHint": "Gerageza gushakisha ukundi cyangwa ukureho amashungura.",
+      "noActivity": "Nta gikorwa cyabaye muri iki gihe",
       "viewDetails": "Reba Ibisobanuro",
       "viewProfile": "Reba Umwirondoro",
       "sortBy": "Shungura ku:",
@@ -1992,8 +2041,10 @@
       "likesCount": "Yakunzwe {{value}}",
       "likesLower": "Yakunzwe {{value}}",
       "recommendationsCount": "inama {{value}}",
+      "purchasesCount": "Ibyaguzwe {{value}}",
       "pcs": "piece {{value}}",
       "selectionPct": "{{value}}% byatoranyijwe",
+      "purchaseConversionPct": "{{value}}% igipimo cyo kugura",
       "acceptedPct": "{{value}}% byemewe",
       "notSpecified": "Ntabwo byavuzwe",
       "soldSqm": "metero kare {{value}} zagurishijwe"
@@ -2153,6 +2204,8 @@
         "viewed_desc": "Arebwa Cyane",
         "viewed_asc": "Arebwa Bike",
         "applied_desc": "Byakoreshejwe Cyane",
+        "recommended_desc": "Byagiriwe Inama Cyane",
+        "recommended_asc": "Byagiriwe Inama Gake",
         "applied_asc": "Byakoreshejwe Bike",
         "saved_desc": "Akunzwe Cyane",
         "saved_asc": "Akunzwe Bike",
@@ -2512,10 +2565,13 @@
       "descriptionPlaceholder": "Uko icyumba kimeze n'ahantu hashobora kwambikwa ibikoresho.",
       "modelUrlLabel": "Aderesi y'icyitegererezo cya 3D",
       "modelUrlPlaceholder": "/models/rooms/living_room.glb",
-      "thumbnailLabel": "Aderesi y'ifoto ngufi",
-      "thumbnailPlaceholder": "https://…",
+      "thumbnailLabel": "Ohereza ifoto y'icyumba",
+      "chooseImage": "Hitamo ifoto",
+      "changeThumbnail": "Hindura ifoto ya {{name}}",
+      "changeImage": "Hindura ifoto",
       "cancel": "Hagarika",
       "saving": "Kubika…",
+      "uploading": "Kohereza…",
       "saveChanges": "Bika impinduka",
       "toastRoomUpdated": "Icyumba cyahinduwe",
       "toastRoomUpdatedDesc": "{{name}} yabitswe.",
@@ -2961,7 +3017,7 @@
     "chatbot.roomPhotoRequired": "Ifoto y'icyumba irakenewe mu gasanduku \"file\".",
     "chatbot.conversationNotFound": "Ikiganiro ntikibonetse.",
     "chatbot.recommendationNotFound": "Inama ntiyabonetse.",
-    "chatbot.roomPhotoNotYours": "Iyi foto y\u2019icyumba ntabwo yashyizweho na konti yawe. Yongere uyishyireho ubundi ugerageze.",
+    "chatbot.roomPhotoNotYours": "Iyi foto y’icyumba ntabwo yashyizweho na konti yawe. Yongere uyishyireho ubundi ugerageze.",
     "chatbot.knowledgeEntryNotFound": "Icyanditswe mu bumenyi ntikibonetse.",
     "calculator.areaOrDimensionsRequired": "Tanga ubuso bwose (totalAreaSqm) cyangwa uburebure n'ubugari byombi.",
     "quotes.notFound": "Ubusabe bw'igiciro ntibubonetse.",

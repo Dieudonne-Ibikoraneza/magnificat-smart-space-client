@@ -9,34 +9,20 @@ import { ArrowRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { DashboardPageHeader as AdminPageHeader } from "@/components/dashboard-page-headers";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
 import { ListPagination } from "@/components/list-pagination";
+import { DeleteCollectionDialog, EditCollectionDialog } from "@/components/edit-collection-dialog";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/toast";
 import { collectionsApi } from "@/lib/api";
-import { ApiError } from "@/lib/api/client";
 import { useApi } from "@/lib/api/use-api";
 import type { ApiCollection } from "@/lib/api/types";
 
 const AdminCollectionCard = ({
   collection,
-  onDeleted,
+  onChanged,
 }: {
   collection: ApiCollection;
-  onDeleted: () => void;
+  onChanged: () => void;
 }) => {
   const { t } = useTranslation();
-  const handleDelete = async () => {
-    if (!window.confirm(t("stock.collections.confirmDelete", { title: collection.title }))) return;
-    try {
-      await collectionsApi.remove(collection.id);
-      toast.success(t("stock.collections.toastDeletedTitle"), { description: t("stock.collections.toastDeletedBody", { name: collection.title }) });
-      onDeleted();
-    } catch (cause) {
-      toast.error(t("stock.collections.toastFailedTitle"), {
-        description: cause instanceof ApiError ? cause.message : t("stock.collections.toastTryAgain"),
-      });
-    }
-  };
-
   return (
     <article className="group relative flex min-h-97.5 overflow-hidden rounded-3xl bg-ink shadow-sm transition-shadow duration-300 hover:shadow-[0_16px_36px_rgba(15,39,71,0.18)]">
       {collection.image && (
@@ -69,28 +55,37 @@ const AdminCollectionCard = ({
           </Button>
 
           <div className="flex h-12 min-h-12 shrink-0 items-center overflow-hidden rounded-full bg-primary shadow-sm">
-            <Button
-              type="button"
-              nativeButton={false}
-              render={<Link href={`/admin/collections/${collection.id}`} />}
-              variant="ghost"
-              size="icon-sm"
-              className="h-12 w-10 rounded-none text-ink hover:bg-white/45"
-              aria-label={t("stock.collections.editAria", { title: collection.title })}
-            >
-              <Pencil className="size-4" strokeWidth={2.25} />
-            </Button>
+            <EditCollectionDialog
+              collection={collection}
+              onUpdated={onChanged}
+              trigger={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="h-12 w-10 rounded-none text-ink hover:bg-white/45"
+                  aria-label={t("stock.collections.editAria", { title: collection.title })}
+                >
+                  <Pencil className="size-4" strokeWidth={2.25} />
+                </Button>
+              }
+            />
             <span className="h-4 w-px bg-ink/15" aria-hidden="true" />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => void handleDelete()}
-              className="h-12 w-10 rounded-none text-ink hover:bg-white/45 hover:text-red-600"
-              aria-label={t("stock.collections.deleteAria", { title: collection.title })}
-            >
-              <Trash2 className="size-4" strokeWidth={2.25} />
-            </Button>
+            <DeleteCollectionDialog
+              collection={collection}
+              onDeleted={onChanged}
+              trigger={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="h-12 w-10 rounded-none text-ink hover:bg-white/45 hover:text-red-600"
+                  aria-label={t("stock.collections.deleteAria", { title: collection.title })}
+                >
+                  <Trash2 className="size-4" strokeWidth={2.25} />
+                </Button>
+              }
+            />
           </div>
         </div>
       </div>
@@ -135,7 +130,7 @@ export default function AdminCollectionsPage() {
         ) : (
           <section className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {collections.map((collection) => (
-              <AdminCollectionCard key={collection.id} collection={collection} onDeleted={reload} />
+              <AdminCollectionCard key={collection.id} collection={collection} onChanged={reload} />
             ))}
           </section>
         )}
