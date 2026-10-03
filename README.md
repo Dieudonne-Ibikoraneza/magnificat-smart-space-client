@@ -2,6 +2,25 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+For production Docker:
+
+Use `./docker.sh --init-env`, fill `.env.docker`, and run `./docker.sh --up`
+to build and start the frontend, waiting for a healthy container. Use
+`./docker.sh --help` to see flags for building, logs, status, restart, stop,
+and custom environment files. The image starts through `docker-entrypoint.sh`
+and forwards shutdown signals directly to Node.
+
+```sh
+cp .env.docker.example .env.docker
+# Set NEXT_PUBLIC_API_URL to your browser-facing API URL, including /api/v1.
+docker compose --env-file .env.docker -f compose.production.yaml up -d --build
+```
+
+The frontend runs from Next.js standalone output and includes `public/`
+assets and `.next/static`. Rebuild when changing `NEXT_PUBLIC_API_URL`.
+See [the workspace Docker guide](../DOCKER.md) for deploying both applications
+and connecting the separately managed database and storage.
+
 First, run the development server:
 
 ```bash
