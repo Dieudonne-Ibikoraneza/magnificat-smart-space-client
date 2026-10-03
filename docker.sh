@@ -158,11 +158,12 @@ fi
 docker info >/dev/null 2>&1 || fail "Cannot access the Docker daemon. Start Docker and check your permissions."
 
 ensure_network() {
-  if [[ "$SERVICE" == backend ]]; then
-    local network_name
-    # Compose parses dotenv safely; never execute an env file as shell code.
-    network_name="$(compose config --environment | sed -n 's/^BACKEND_NETWORK=//p')"
-    sh "$SCRIPT_DIR/scripts/create-docker-network.sh" "${network_name:-magnificat-backend}"
+  local network_name
+  # The server-side image proxy connects to the API on the external backend network.
+  network_name="$(compose config --environment | sed -n 's/^BACKEND_NETWORK=//p')"
+  network_name="${network_name:-magnificat-backend}"
+  if ! docker network inspect "$network_name" >/dev/null 2>&1; then
+    docker network create --driver bridge "$network_name"
   fi
 }
 

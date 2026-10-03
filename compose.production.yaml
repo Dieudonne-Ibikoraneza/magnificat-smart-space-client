@@ -13,12 +13,15 @@ services:
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?Set NEXT_PUBLIC_API_URL}
+      # Server-side image requests use Docker DNS; browsers use the public URL above.
+      API_URL: ${API_URL:-http://backend:4000/api/v1}
       HOSTNAME: 0.0.0.0
       PORT: "3000"
     ports:
       - "${FRONTEND_BIND_ADDRESS:-127.0.0.1}:${FRONTEND_PORT:-3000}:3000"
     networks:
       - frontend
+      - backend
     healthcheck:
       test:
         - CMD
@@ -32,6 +35,9 @@ services:
     stop_grace_period: 30s
 
 networks:
+  backend:
+    name: ${BACKEND_NETWORK:-magnificat-backend}
+    external: true
   frontend:
     name: ${FRONTEND_NETWORK:-magnificat-frontend}
     driver: bridge
