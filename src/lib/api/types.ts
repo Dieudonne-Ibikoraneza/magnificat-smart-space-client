@@ -171,6 +171,7 @@ export type ApiProduct = {
   visualizerPatternCorner?: VisualizerTileCorner;
   roomTypes: RoomType[];
   isActive: boolean;
+  recommendationExcluded: boolean;
   createdAt: string;
   updatedAt: string;
   /** Denormalised from the product's collection. */
@@ -613,6 +614,17 @@ export type NegotiationInboxThread = {
 
 /** `GET /chatbot/admin/asked-questions` — cursor-paginated for infinite scroll (see the endpoint's own doc). */
 export type AskedQuestionsPage = CursorPage<AskedQuestion>;
+
+export type ApiRecommendationTile = {
+  id: string;
+  name: string;
+  nameRw: string | null;
+  sku: string;
+  image: string | null;
+  isActive: boolean;
+  recommendationExcluded: boolean;
+  collection: { title: string; titleRw: string | null; size: string };
+};
 
 export type ApiKnowledgeBaseEntry = {
   id: string;

@@ -8,6 +8,7 @@ import type {
   ApiCartNegotiationMessage,
   ApiCollection,
   ApiKnowledgeBaseEntry,
+  ApiRecommendationTile,
   ApiOrder,
   ApiOrderDelivery,
   ApiOrderMessage,
@@ -207,6 +208,7 @@ export const usersApi = {
 // --- Catalog ----------------------------------------------------------------
 
 export type ProductQuery = {
+  catalogStatus?: "all" | "active" | "inactive";
   page?: number;
   limit?: number;
   collectionId?: string;
@@ -345,6 +347,7 @@ export const productsApi = {
   update: (id: string, body: Partial<ProductInput>) =>
     api.patch<ApiProduct>(`/products/${id}`, body),
   remove: (id: string) => api.delete<void>(`/products/${id}`),
+  reactivate: (id: string) => api.patch<Pick<ApiProduct, "id" | "isActive" | "recommendationExcluded">>(`/products/${id}/reactivate`, {}),
 
   /** `changeAreaSqm` is always square metres — boxes/pieces are a display conversion only, never sent here. */
   adjustStock: (
@@ -751,6 +754,17 @@ export const chatbotApi = {
     api.get<ApiKnowledgeBaseEntry[]>("/chatbot/knowledge-base"),
   adminKnowledgeBase: () =>
     api.get<ApiKnowledgeBaseEntry[]>("/chatbot/admin/knowledge-base"),
+  recommendationTiles: (query: {
+    search?: string;
+    eligibility?: "all" | "excluded" | "eligible";
+    page?: number;
+    limit?: number;
+  } = {}) => api.get<Paginated<ApiRecommendationTile>>("/chatbot/admin/recommendation-tiles", { query }),
+  setRecommendationExclusion: (id: string, recommendationExcluded: boolean) =>
+    api.patch<Pick<ApiRecommendationTile, "id" | "recommendationExcluded">>(
+      `/chatbot/admin/recommendation-tiles/${id}`,
+      { recommendationExcluded },
+    ),
   createKnowledgeBaseEntry: (body: {
     question: string;
     answer: string;

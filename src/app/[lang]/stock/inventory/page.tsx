@@ -17,7 +17,7 @@ import {
   RotateCcw,
   Search,
   SlidersHorizontal,
-  Trash2,
+  PowerOff,
 } from "lucide-react";
 import { getVisiblePages } from "@/lib/catalog-utils";
 import { staffStockDisplay } from "@/lib/stock-display";
@@ -27,6 +27,8 @@ import {
   ApiLoading,
 } from "@/components/api-state";
 import { EditProductDialog } from "@/components/edit-product-dialog";
+import { ReactivateProductButton } from "@/components/reactivate-product-button";
+import { InventoryProductFlags } from "@/components/inventory-product-flags";
 import { DeleteProductButton } from "@/components/delete-product-button";
 import { InventoryProductCard } from "@/components/inventory-product-card";
 import { InventoryEmptyState } from "@/components/inventory-empty-state";
@@ -84,6 +86,7 @@ const InventoryPage = () => {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [suitableFor, setSuitableFor] = useState("all");
+  const [catalogStatus, setCatalogStatus] = useState<"all" | "active" | "inactive">("all");
   const [status, setStatus] = useState("all");
   const [roomType, setRoomType] = useState("all");
   const [size, setSize] = useState("all");
@@ -95,11 +98,13 @@ const InventoryPage = () => {
     Number(suitableFor !== "all") +
     Number(status !== "all") +
     Number(roomType !== "all") +
-    Number(size !== "all");
+    Number(size !== "all") +
+    Number(catalogStatus !== "all");
 
   const { data, loading, error, reload } = useApi(
     () =>
       productsApi.list({
+        catalogStatus,
         page: currentPage,
         limit: PAGE_SIZE,
         search: query.trim() || undefined,
@@ -112,7 +117,7 @@ const InventoryPage = () => {
         stockStatus: status === "all" ? undefined : (status as StockStatus),
         sort,
       }),
-    [currentPage, query, suitableFor, status, roomType, size, sort],
+    [currentPage, query, suitableFor, status, roomType, size, sort, catalogStatus],
   );
   const { data: filterOptions } = useApi(() => productsApi.filterOptions());
 
@@ -165,7 +170,7 @@ const InventoryPage = () => {
             </div>
             {activeFilterCount > 0 && <span className="rounded-full bg-[#F2F8D9] px-2.5 py-1 text-xs font-bold text-[#324515]">{activeFilterCount}</span>}
           </div>
-          {activeFilterCount > 0 && <Button type="button" variant="ghost" onClick={() => { setQuery(""); setSuitableFor("all"); setStatus("all"); setRoomType("all"); setSize("all"); setCurrentPage(1); }} className="h-9 gap-2 rounded-lg px-3 text-xs font-semibold text-muted-foreground hover:bg-[#F7F8F2] hover:text-ink"><RotateCcw className="size-3.5" />{t("stock.inventory.clearFilters")}</Button>}
+          {activeFilterCount > 0 && <Button type="button" variant="ghost" onClick={() => { setQuery(""); setSuitableFor("all"); setStatus("all"); setRoomType("all"); setSize("all"); setCatalogStatus("all"); setCurrentPage(1); }} className="h-9 gap-2 rounded-lg px-3 text-xs font-semibold text-muted-foreground hover:bg-[#F7F8F2] hover:text-ink"><RotateCcw className="size-3.5" />{t("stock.inventory.clearFilters")}</Button>}
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="relative min-w-[220px] flex-[1_1_260px]">
@@ -300,6 +305,16 @@ const InventoryPage = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={catalogStatus} onValueChange={(value) => { setCatalogStatus((value as "all" | "active" | "inactive") ?? "all"); setCurrentPage(1); }}>
+              <SelectTrigger aria-label={t("stock.inventory.catalogStatusLabel")} className="h-12 min-w-0 rounded-xl border-[#E5E7EB] bg-white sm:w-44">
+                <SelectValue>{(value) => t(`stock.inventory.catalog_${value}`)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("stock.inventory.catalog_all")}</SelectItem>
+                <SelectItem value="active">{t("stock.inventory.catalog_active")}</SelectItem>
+                <SelectItem value="inactive">{t("stock.inventory.catalog_inactive")}</SelectItem>
+              </SelectContent>
+            </Select>
             <Select
               value={sort}
               onValueChange={(value) => {
@@ -360,9 +375,9 @@ const InventoryPage = () => {
         ) : pageItems.length === 0 ? (
           <InventoryEmptyState
             searchTerm={query}
-            hasFilters={suitableFor !== "all" || status !== "all" || roomType !== "all" || size !== "all"}
+            hasFilters={suitableFor !== "all" || status !== "all" || roomType !== "all" || size !== "all" || catalogStatus !== "all"}
             onClearSearch={() => { setQuery(""); setCurrentPage(1); }}
-            onResetFilters={() => { setQuery(""); setSuitableFor("all"); setStatus("all"); setRoomType("all"); setSize("all"); setCurrentPage(1); }}
+            onResetFilters={() => { setQuery(""); setSuitableFor("all"); setStatus("all"); setRoomType("all"); setSize("all"); setCatalogStatus("all"); setCurrentPage(1); }}
           />
         ) : view === "grid" ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -392,6 +407,7 @@ const InventoryPage = () => {
                     <TableHead className="px-3 py-4">
                       {t("stock.inventory.colStock")}
                     </TableHead>
+                    <TableHead className="px-3 py-4">{t("stock.inventory.colFlags")}</TableHead>
                     <TableHead className="px-3 py-4">
                       {t("stock.inventory.colPrice")}
                     </TableHead>
@@ -452,6 +468,10 @@ const InventoryPage = () => {
                             </span>
                           </span>
                         </TableCell>
+                        <TableCell className="p-4">
+                          <InventoryProductFlags product={product} />
+                          {product.isActive && <span className="text-muted-foreground">—</span>}
+                        </TableCell>
                         <TableCell className="p-4 font-data text-base font-medium text-ink">
                           {Math.round(Number(product.price)).toLocaleString()}
                         </TableCell>
@@ -487,24 +507,28 @@ const InventoryPage = () => {
                                 </Button>
                               }
                             />
-                            <DeleteProductButton
-                              productId={product.id}
-                              productName={product.name}
-                              onDeleted={reload}
-                              trigger={
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                                  aria-label={t("stock.inventory.deleteAria", {
-                                    name: product.name,
-                                  })}
-                                >
-                                  <Trash2 className="size-4" />
-                                </Button>
-                              }
-                            />
+                            {product.isActive ? (
+                              <DeleteProductButton
+                                productId={product.id}
+                                productName={product.name}
+                                onDeleted={reload}
+                                trigger={
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    className="text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+                                    aria-label={t("stock.inventory.deleteAria", {
+                                      name: product.name,
+                                    })}
+                                  >
+                                    <PowerOff className="size-4" />
+                                  </Button>
+                                }
+                              />
+                            ) : (
+                              <ReactivateProductButton compact productId={product.id} productName={product.name} onReactivated={reload} />
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

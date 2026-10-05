@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { QuantityCalculator } from "@/components/quantity-calculator";
 import { StockLevelPanel } from "@/components/stock-level-panel";
 import { EditProductDialog } from "@/components/edit-product-dialog";
+import { ReactivateProductButton } from "@/components/reactivate-product-button";
+import { InventoryProductFlags } from "@/components/inventory-product-flags";
 import { DeleteProductButton } from "@/components/delete-product-button";
 import { ProductCompareButton } from "@/components/product-compare-button";
 import { TileAnalyticsSummary } from "@/components/tile-analytics-summary";
@@ -111,6 +113,7 @@ const StockProductDetailsPage = ({ params }: StockProductDetailsProps) => {
                 <h2 className="mt-3 text-2xl font-bold text-ink sm:text-3xl">
                   {product.name}
                 </h2>
+                <InventoryProductFlags product={apiProduct} className="mt-3" />
               </div>
               <span
                 className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold uppercase ${stock.badge}`}
@@ -224,7 +227,11 @@ const StockProductDetailsPage = ({ params }: StockProductDetailsProps) => {
             <ProductCompareButton productId={product.id} />
             <div className="grid grid-cols-2 gap-3">
               <EditProductDialog product={apiProduct} onUpdated={reload} />
-              <DeleteProductButton productId={product.id} productName={product.name} redirectTo="/stock/inventory" />
+              {apiProduct.isActive ? (
+                <DeleteProductButton productId={product.id} productName={product.name} redirectTo="/stock/inventory" />
+              ) : (
+                <ReactivateProductButton productId={product.id} productName={product.name} onReactivated={reload} />
+              )}
             </div>
           </section>
         </div>

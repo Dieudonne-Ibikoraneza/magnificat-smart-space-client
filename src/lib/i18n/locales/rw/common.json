@@ -333,6 +333,8 @@
   "visualizer": {
     "loading": "Kuzana ibyumba..",
     "loadingRoom": "Kuzana icyumba…",
+    "previewUnavailable": "Iri karo ntirikora cyangwa ntirishobora gukoreshwa ahatoranyijwe. Hitamo irindi karo urebe uko risa mu cyumba.",
+    "previewNoCompatibleRoom": "Nta cyumba gihari gishobora gukoresha amakaro yatoranyijwe. Hitamo irindi karo cyangwa icyumba kugira ngo ukomeze.",
     "empty": "Nta byumba byashyiriweho igaragaza. Garuka mukanya.",
     "selectTileAria": "Hitamo {{name}}",
     "surfaceTypeAria": "Ubwoko bw'ubuso",
@@ -1076,14 +1078,16 @@
       "reserved": "Byabikiwe (ibyatumijwe bitegereje)"
     },
     "deleteProduct": {
-      "deleting": "Gusiba…",
-      "delete": "Siba",
-      "confirmTitle": "Siba {{name}}?",
-      "confirmDescription": "Ibi bikura igicuruzwa mu bubiko no muri katarogu. Ntibishobora gusubizwaho.",
-      "confirmLabel": "Siba igicuruzwa",
-      "toastDeletedTitle": "Igicuruzwa cyasibwe",
-      "toastDeletedBody": "{{name}} cyavanywe mu bubiko.",
-      "toastFailedTitle": "Ntibyashobotse gusiba igicuruzwa",
+      "deleting": "Guhagarika…",
+      "delete": "Hagarika",
+      "confirmTitle": "Hagarika ikaro?",
+      "confirmDescription": "Iri karo ntirizongera kugaragara muri katarogu y'abakiriya kandi ntirizongera gutangwa mu nama za AI.",
+      "tileLabel": "Ikaro",
+      "recoveryDescription": "Riguma mu bubiko bwawe. Abayobozi n'abashinzwe ububiko bashobora kongera kurikoresha igihe icyo ari cyo cyose.",
+      "confirmLabel": "Hagarika ikaro",
+      "toastDeletedTitle": "Ikaro ryahagaritswe",
+      "toastDeletedBody": "{{name}} ntirikora kandi ryakuwe mu nama za AI.",
+      "toastFailedTitle": "Ntibyashobotse guhagarika ikaro",
       "toastTryAgain": "Ongera ugerageze."
     },
     "editProduct": {
@@ -1180,6 +1184,16 @@
       "NEGOTIATED": "Byaganiriweho",
       "PLACED_ORDER": "Itumizo Ryashyizweho",
       "PURCHASED": "Byaguzwe"
+    },
+    "reactivateProduct": {
+      "button": "Ongera ukoreshe",
+      "aria": "Ongera ukoreshe {{name}}",
+      "title": "Ongera ukoreshe {{name}}?",
+      "description": "Iri karo rizongera kuboneka mu iduka. Rizakomeza gukurwa mu nama za AI kugeza umuyobozi yemeje ko ryongera gutangwaho inama mu bubiko bw’ubumenyi.",
+      "saving": "Birimo kongera gukoreshwa…",
+      "success": "Ikaro ryongeye gukora",
+      "successDescription": "{{name}} ryongeye gukora kandi rikomeza gukurwa mu nama za AI.",
+      "failed": "Ntibyashobotse kongera gukoresha ikaro"
     }
   },
   "invoice": {
@@ -1647,13 +1661,19 @@
       "viewAria": "Reba {{name}}",
       "showingRange": "Herekanwa {{start}} kugeza {{end}} muri {{total}} bisubizo",
       "editAria": "Hindura {{name}}",
-      "deleteAria": "Siba {{name}}",
+      "deleteAria": "Hagarika {{name}}",
       "roomTypeTrigger": "Icyumba",
       "roomTypeAll": "Ibyumba byose",
       "sizeTrigger": "Ingano",
       "sizeAll": "Ingano zose",
       "sortNewest": "Bishya mbere",
-      "sortOldest": "Bishaje mbere"
+      "sortOldest": "Bishaje mbere",
+      "inactive": "Ntirikora",
+      "colFlags": "Ibimenyetso",
+      "catalogStatusLabel": "Imiterere mu iduka",
+      "catalog_all": "Amakaro yose",
+      "catalog_active": "Amakaro akora",
+      "catalog_inactive": "Amakaro adakora"
     },
     "inventoryDetail": {
       "loading": "Kuzana igicuruzwa…",
@@ -2492,7 +2512,7 @@
     },
     "knowledgeBase": {
       "title": "Ububiko bw'Ubumenyi bwa Chatbot",
-      "subtitle": "Ibisubizo umufasha wa AI yemerewe gutanga uko byanditswe.",
+      "subtitle": "Cunga ibisubizo by’umufasha n’amakaro ashobora kugiraho inama.",
       "loading": "Harimo gupakirwa ububiko bw'ubumenyi…",
       "addEntry": "Ongeramo Inyandiko",
       "statTotalEntries": "Inyandiko zose",
@@ -2533,7 +2553,52 @@
       "toastEntryDeactivated": "Inyandiko yahagaritswe",
       "toastEntryDeleted": "Inyandiko yasibwe",
       "toastSaveFailed": "Ntibyashobotse kubika inyandiko",
-      "toastDeleteFailed": "Ntibyashobotse gusiba inyandiko"
+      "toastDeleteFailed": "Ntibyashobotse gusiba inyandiko",
+      "entriesTab": "Inyandiko z’ubumenyi",
+      "exclusions": {
+        "title": "Amakaro atagirwa inama",
+        "description": "Hitamo amakaro AI ishobora kugiraho inama. Amakaro yakuwe mu nama akomeza kuboneka mu iduka.",
+        "search": "Shakisha amakaro ukoresheje izina cyangwa SKU…",
+        "all": "Amakaro yose",
+        "excluded": "Yakuwe mu nama",
+        "eligible": "Yemerewe",
+        "loading": "Amakaro arimo gutangizwa…",
+        "inactive": "Ntirikora mu iduka",
+        "exclude": "Kura mu nama",
+        "restore": "Yemerere nanone",
+        "excludeAria": "Kura {{name}} mu makaro atangwaho inama",
+        "restoreAria": "Ongera wemerere {{name}} gutangwaho inama",
+        "saving": "Birimo kubikwa…",
+        "excludedSaved": "Ikaro ryakuwe mu makaro atangwaho inama",
+        "restored": "Ikaro ryongeye kwemererwa gutangwaho inama",
+        "saveFailed": "Ntibyashobotse guhindura amakaro atangwaho inama",
+        "empty": "Nta makaro ahuye n’ubushakashatsi n’iyungurura.",
+        "tileColumn": "Ikaro",
+        "collectionColumn": "Icyiciro n’ingano",
+        "statusColumn": "Imiterere muri AI",
+        "actionColumn": "Igikorwa",
+        "sizeLabel": "Ingano",
+        "resultsCount_one": "Habonetse ikaro {{count}}",
+        "resultsCount_other": "Habonetse amakaro {{count}}",
+        "inactiveHelp": "Ryakuwe mu nama kuko ridakora mu iduka.",
+        "inactiveDescription": "Amakaro adakora akurwa mu nama ku buryo bwikora. Banza wongere wemerere iri karo gukora mu iduka kugira ngo ryemererwe gutangwaho inama.",
+        "noExcludedTitle": "Nta makaro arakurwa mu nama",
+        "noExcludedDescription": "Kugira ngo ikaro ridatangwaho inama na AI, rishakire mu makaro yose hanyuma uhitemo Kurikura mu nama.",
+        "noResultsTitle": "Nta makaro ahuye n’ibyashakishijwe",
+        "noResultsDescription": "Nta makaro ahuye na “{{search}}” n’iyungurura wahisemo. Gerageza irindi zina cyangwa SKU, cyangwa ukureho iyungurura.",
+        "noAllowedTitle": "Nta makaro yemerewe",
+        "noAllowedDescription": "Reba amakaro yose, urebe imiterere yayo kandi wongere wemerere ikaro gutangwaho inama.",
+        "noTilesTitle": "Urutonde rw’amakaro rurimo ubusa",
+        "noTilesDescription": "Amakaro azagaragara hano namara kongerwa mu iduka.",
+        "clearFilters": "Kuraho ubushakashatsi n’iyungurura",
+        "browseAll": "Reba amakaro yose",
+        "tilesLabel": "Amakaro",
+        "tilesCount_one": "Ikaro {{count}}",
+        "tilesCount_other": "Amakaro {{count}}",
+        "confirmExcludeTitle": "Kura iri karo mu nama?",
+        "confirmExcludeDescription": "AI ntizongera kugiraho inama iri karo. Rizakomeza kuboneka mu iduka, kandi ushobora kongera kuryemerera igihe icyo ari cyo cyose.",
+        "confirmExclude": "Kura mu nama"
+      }
     },
     "rooms": {
       "title": "Ibyumba bya 3D",
@@ -3117,6 +3182,8 @@
     "field.surface": "Ubuso",
     "field.tiles": "Tuwile",
     "field.size": "Ingano",
-    "field.image": "Ifoto"
+    "field.image": "Ifoto",
+    "chatbot.inactiveTileCannotBeAllowed": "Banza wongere wemerere iri karo gukora mu iduka kugira ngo ryemererwe gutangwaho inama.",
+    "products.inactiveCatalogRestricted": "Amakaro adakora aboneka gusa ku bayobozi n’abashinzwe ububiko."
   }
 }

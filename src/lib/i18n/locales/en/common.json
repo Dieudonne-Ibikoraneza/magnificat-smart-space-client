@@ -333,6 +333,8 @@
   "visualizer": {
     "loading": "Loading the visualizer…",
     "loadingRoom": "Loading the room…",
+    "previewUnavailable": "This tile is inactive or cannot be used on the requested surface. Choose another tile to preview.",
+    "previewNoCompatibleRoom": "No available room supports the tiles in this preview. Choose another tile or room to continue.",
     "empty": "No rooms are configured for the visualizer yet. Check back soon.",
     "selectTileAria": "Select {{name}}",
     "surfaceTypeAria": "Surface type",
@@ -1076,14 +1078,16 @@
       "reserved": "Reserved (pending orders)"
     },
     "deleteProduct": {
-      "deleting": "Deleting…",
-      "delete": "Delete",
-      "confirmTitle": "Delete {{name}}?",
-      "confirmDescription": "This removes the product from inventory and the catalog. This can't be undone.",
-      "confirmLabel": "Delete product",
-      "toastDeletedTitle": "Product deleted",
-      "toastDeletedBody": "{{name}} was removed from inventory.",
-      "toastFailedTitle": "Couldn't delete product",
+      "deleting": "Deactivating…",
+      "delete": "Deactivate",
+      "confirmTitle": "Deactivate tile?",
+      "confirmDescription": "This tile will be hidden from the customer catalog and excluded from AI recommendations.",
+      "tileLabel": "Tile",
+      "recoveryDescription": "It stays in your inventory. Admins and stock managers can reactivate it at any time.",
+      "confirmLabel": "Deactivate tile",
+      "toastDeletedTitle": "Tile deactivated",
+      "toastDeletedBody": "{{name}} is now inactive and excluded from AI recommendations.",
+      "toastFailedTitle": "Couldn't deactivate tile",
       "toastTryAgain": "Please try again."
     },
     "editProduct": {
@@ -1180,6 +1184,16 @@
       "NEGOTIATED": "Negotiated",
       "PLACED_ORDER": "Order Placed",
       "PURCHASED": "Purchased"
+    },
+    "reactivateProduct": {
+      "button": "Reactivate",
+      "aria": "Reactivate {{name}}",
+      "title": "Reactivate {{name}}?",
+      "description": "This tile will return to the catalog. It will stay excluded from AI recommendations until an admin selects Allow again in the knowledge base.",
+      "saving": "Reactivating…",
+      "success": "Tile reactivated",
+      "successDescription": "{{name}} is active again and remains excluded from AI recommendations.",
+      "failed": "Couldn’t reactivate the tile"
     }
   },
   "invoice": {
@@ -1647,13 +1661,19 @@
       "viewAria": "View {{name}}",
       "showingRange": "Showing {{start}} to {{end}} of {{total}} results",
       "editAria": "Edit {{name}}",
-      "deleteAria": "Delete {{name}}",
+      "deleteAria": "Deactivate {{name}}",
       "roomTypeTrigger": "Room",
       "roomTypeAll": "All rooms",
       "sizeTrigger": "Size",
       "sizeAll": "All sizes",
       "sortNewest": "Newest first",
-      "sortOldest": "Oldest first"
+      "sortOldest": "Oldest first",
+      "inactive": "Inactive",
+      "colFlags": "Flags",
+      "catalogStatusLabel": "Catalog status",
+      "catalog_all": "All catalog tiles",
+      "catalog_active": "Active tiles",
+      "catalog_inactive": "Inactive tiles"
     },
     "inventoryDetail": {
       "loading": "Loading product…",
@@ -2492,7 +2512,7 @@
     },
     "knowledgeBase": {
       "title": "Chatbot Knowledge Base",
-      "subtitle": "Answers the AI assistant is allowed to give word for word.",
+      "subtitle": "Manage the assistant’s answers and control which tiles it can recommend.",
       "loading": "Loading knowledge base…",
       "addEntry": "Add entry",
       "statTotalEntries": "Total entries",
@@ -2533,7 +2553,52 @@
       "toastEntryDeactivated": "Entry deactivated",
       "toastEntryDeleted": "Entry deleted",
       "toastSaveFailed": "Couldn't save the entry",
-      "toastDeleteFailed": "Couldn't delete the entry"
+      "toastDeleteFailed": "Couldn't delete the entry",
+      "entriesTab": "Knowledge entries",
+      "exclusions": {
+        "title": "Recommendation exclusions",
+        "description": "Choose which tiles the AI can recommend. Excluded tiles stay available in your catalog.",
+        "search": "Search tiles by name or SKU…",
+        "all": "All tiles",
+        "excluded": "Excluded",
+        "eligible": "Allowed",
+        "loading": "Loading tiles…",
+        "inactive": "Catalog inactive",
+        "exclude": "Exclude",
+        "restore": "Allow again",
+        "excludeAria": "Exclude {{name}} from recommendations",
+        "restoreAria": "Allow recommendations for {{name}} again",
+        "saving": "Saving…",
+        "excludedSaved": "Tile excluded from recommendations",
+        "restored": "Tile allowed for recommendations again",
+        "saveFailed": "Couldn’t update recommendation eligibility",
+        "empty": "No tiles match this search and filter.",
+        "tileColumn": "Tile",
+        "collectionColumn": "Collection & size",
+        "statusColumn": "AI status",
+        "actionColumn": "Action",
+        "sizeLabel": "Size",
+        "resultsCount_one": "{{count}} tile found",
+        "resultsCount_other": "{{count}} tiles found",
+        "inactiveHelp": "Automatically excluded: catalog inactive.",
+        "inactiveDescription": "Inactive tiles are automatically excluded. Reactivate the tile in the catalog before allowing recommendations.",
+        "noExcludedTitle": "No tiles excluded yet",
+        "noExcludedDescription": "To keep a tile out of AI recommendations, find it in All tiles and select Exclude.",
+        "noResultsTitle": "No matching tiles",
+        "noResultsDescription": "No tiles match “{{search}}” with the current filter. Try a different name or SKU, or clear the filters.",
+        "noAllowedTitle": "No allowed tiles",
+        "noAllowedDescription": "Browse all tiles to review their status and allow a tile again.",
+        "noTilesTitle": "Your tile list is empty",
+        "noTilesDescription": "Tiles will appear here once they are added to your catalog.",
+        "clearFilters": "Clear search & filters",
+        "browseAll": "Browse all tiles",
+        "tilesLabel": "Tiles",
+        "tilesCount_one": "{{count}} tile",
+        "tilesCount_other": "{{count}} tiles",
+        "confirmExcludeTitle": "Exclude this tile?",
+        "confirmExcludeDescription": "The AI will stop recommending this tile. It stays available in the catalog, and you can allow it again anytime.",
+        "confirmExclude": "Exclude tile"
+      }
     },
     "rooms": {
       "title": "3D Rooms",
@@ -3117,6 +3182,8 @@
     "field.surface": "Surface",
     "field.tiles": "Tiles",
     "field.size": "Size",
-    "field.image": "Image"
+    "field.image": "Image",
+    "chatbot.inactiveTileCannotBeAllowed": "Reactivate this tile in the catalog before allowing recommendations.",
+    "products.inactiveCatalogRestricted": "Inactive tiles are available only to admins and stock managers."
   }
 }

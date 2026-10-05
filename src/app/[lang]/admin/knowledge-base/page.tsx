@@ -14,6 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { DashboardPageHeader as AdminPageHeader } from "@/components/dashboard-page-headers";
+import { RecommendationExclusions } from "@/components/recommendation-exclusions";
 import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -72,6 +73,7 @@ export default function AdminKnowledgeBasePage() {
   const { t } = useTranslation();
   const { data, loading, error, reload } = useApi(() => chatbotApi.adminKnowledgeBase());
   const entries = useMemo(() => data ?? [], [data]);
+  const [view, setView] = useState<"entries" | "tiles">("entries");
   const [search, setSearch] = useState("");
   const [language, setLanguage] = useState<(typeof languageFilters)[number]>("all");
   const [editing, setEditing] = useState<ApiKnowledgeBaseEntry | null>(null);
@@ -193,41 +195,30 @@ export default function AdminKnowledgeBasePage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="pb-10">
-        <AdminPageHeader
-          title={t("admin.knowledgeBase.title")}
-          subtitle={t("admin.knowledgeBase.subtitle")}
-        />
-        <ApiLoading label={t("admin.knowledgeBase.loading")} className="mt-12" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="pb-10">
-        <AdminPageHeader
-          title={t("admin.knowledgeBase.title")}
-          subtitle={t("admin.knowledgeBase.subtitle")}
-        />
-        <ApiErrorState message={error} onRetry={reload} className="mt-8" />
-      </div>
-    );
-  }
-
   return (
     <div className="pb-10">
       <AdminPageHeader
         title={t("admin.knowledgeBase.title")}
         subtitle={t("admin.knowledgeBase.subtitle")}
       >
-        <Button type="button" onClick={openCreate} className="h-11 shrink-0 gap-2 font-bold">
+        {view === "entries" && <Button type="button" onClick={openCreate} className="h-11 shrink-0 gap-2 font-bold">
           <Plus className="size-4" /> {t("admin.knowledgeBase.addEntry")}
-        </Button>
+        </Button>}
       </AdminPageHeader>
 
+      <div className="mt-6 flex flex-wrap gap-x-5 border-b border-border">
+        <Button type="button" variant="ghost" aria-pressed={view === "entries"} onClick={() => setView("entries")} className={cn("-mb-px h-11 gap-2 rounded-none border-0 border-b-2 px-1 text-sm font-semibold hover:bg-transparent", view === "entries" ? "border-ink text-ink" : "border-transparent text-muted-foreground")}>
+          <BookOpen className="size-4" /> {t("admin.knowledgeBase.entriesTab")}
+        </Button>
+        <Button type="button" variant="ghost" aria-pressed={view === "tiles"} onClick={() => setView("tiles")} className={cn("-mb-px h-11 gap-2 rounded-none border-0 border-b-2 px-1 text-sm font-semibold hover:bg-transparent", view === "tiles" ? "border-ink text-ink" : "border-transparent text-muted-foreground")}>
+          <CircleSlash className="size-4" /> {t("admin.knowledgeBase.exclusions.title")}
+        </Button>
+      </div>
+
+      {view === "tiles" ? <RecommendationExclusions />
+        : loading ? <ApiLoading label={t("admin.knowledgeBase.loading")} className="mt-12" />
+        : error ? <ApiErrorState message={error} onRetry={reload} className="mt-8" />
+        : <>
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         {stats.map(({ key, label, value, icon: Icon }) => (
           <article key={key} className="rounded-2xl bg-card p-5">
@@ -352,6 +343,8 @@ export default function AdminKnowledgeBasePage() {
           </p>
         )}
       </div>
+
+      </>}
 
       <Dialog open={creating || editing !== null} onOpenChange={(open: boolean) => !open && closeDialog()}>
         <DialogContent className="max-w-lg">
