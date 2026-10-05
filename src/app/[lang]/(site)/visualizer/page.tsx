@@ -69,6 +69,10 @@ import { useCurrentUser } from "@/lib/current-user";
 import { getSessionId } from "@/lib/session-id";
 import { cn } from "@/lib/utils";
 import { visualizerPatternLabelKey } from "@/lib/visualizer-pattern";
+import {
+  loadVisualizerPreview,
+  resolvePreviewRoom,
+} from "@/lib/visualizer-preview";
 
 type Surface = "floor" | "walls";
 type SurfaceSelections = Record<Surface, Product | null>;
@@ -558,7 +562,6 @@ const ConfigureSpacePanel = ({
             </div>
           )}
         </div>
-
       </div>
 
       <AppliedTilesCart
@@ -751,12 +754,30 @@ const VisualizerPage = () => {
   const [initialFloorParam] = useState(() => searchParams.get("floor"));
   const [initialWallParam] = useState(() => searchParams.get("wall"));
 
-  const [activeRoomType, setActiveRoomType] = useState<RoomType | null>(() =>
-    initialRoomParam && ROOM_TABS.some((tab) => tab.type === initialRoomParam)
-      ? (initialRoomParam as RoomType)
-      : null,
+  const [activeRoomType, setActiveRoomType] = useState<RoomType | null>(null);
+  const [activeSurface, setActiveSurface] = useState<Surface>(
+    initialWallParam && !initialFloorParam ? "walls" : "floor",
   );
-  const [activeSurface, setActiveSurface] = useState<Surface>("floor");
+  const hasPreviewRequest =
+    !designIdParam && Boolean(initialFloorParam || initialWallParam);
+  const {
+    data: previewTiles,
+    loading: previewLoading,
+    error: previewError,
+    reload: reloadPreview,
+  } = useApi(async () => {
+    if (!hasPreviewRequest) return null;
+    try {
+      return await loadVisualizerPreview(
+        initialFloorParam,
+        initialWallParam,
+        productsApi.get,
+      );
+    } catch (cause) {
+      if (cause instanceof ApiError) throw cause;
+      throw new ApiError(400, t("visualizer.previewUnavailable"));
+    }
+  }, [initialFloorParam, initialWallParam, hasPreviewRequest]);
   const [searchQuery, setSearchQuery] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerClosing, setPickerClosing] = useState(false);
@@ -805,10 +826,16 @@ const VisualizerPage = () => {
     [roomsByType],
   );
 
-  // Land on the first available tab once rooms load, unless the user already
-  // picked one or a saved design (below) claims a specific one — a plain
-  // derived value, not state, so there's nothing to synchronize via effect.
-  const effectiveRoomType = activeRoomType ?? visibleTabs[0]?.type ?? null;
+  // Product links need a compatible room even when they omit `?room=`.
+  // Manual room changes and loaded designs take precedence after initialization.
+  const previewRoomType = resolvePreviewRoom(
+    initialRoomParam,
+    visibleTabs.map((tab) => tab.type),
+    previewTiles ?? null,
+  );
+  const effectiveRoomType =
+    activeRoomType ??
+    (hasPreviewRequest && previewLoading ? null : previewRoomType);
   const activeRoomRow = effectiveRoomType
     ? roomsByType.get(effectiveRoomType)
     : undefined;
@@ -850,6 +877,66 @@ const VisualizerPage = () => {
       designIdParam ? roomsApi.getDesign(designIdParam) : Promise.resolve(null),
     [designIdParam],
   );
+
+  // Wait for the exact requested products before choosing a room or seeding defaults.
+  const [previewApplied, setPreviewApplied] = useState(false);
+  if (hasPreviewRequest && previewTiles && previewRoomType && !previewApplied) {
+    setPreviewApplied(true);
+    setActiveRoomType(previewRoomType);
+    setSelectionsByRoom((current) => ({
+      ...current,
+      [previewRoomType]: {
+        floor: previewTiles.floor
+          ? toProduct(previewTiles.floor, undefined, locale)
+          : null,
+        walls: previewTiles.walls
+          ? toProduct(previewTiles.walls, undefined, locale)
+          : null,
+      },
+    }));
+  }
+
+  const { data: defaultTiles, loading: defaultsLoading } = useApi(async () => {
+    if (
+      !effectiveRoomType ||
+      designIdParam ||
+      (hasPreviewRequest && !previewApplied)
+    )
+      return null;
+    const currentForRoom =
+      selectionsByRoom[effectiveRoomType] ?? EMPTY_SELECTIONS;
+    const [floor, walls] = await Promise.all([
+      currentForRoom.floor
+        ? Promise.resolve(null)
+        : productsApi.list({
+            roomType: effectiveRoomType,
+            compatibleWith: "FLOOR",
+            limit: 1,
+          }),
+      currentForRoom.walls
+        ? Promise.resolve(null)
+        : productsApi.list({
+            roomType: effectiveRoomType,
+            compatibleWith: "WALL",
+            limit: 1,
+          }),
+    ]);
+    return {
+      roomType: effectiveRoomType,
+      floor:
+        currentForRoom.floor ??
+        (floor?.items[0] ? toProduct(floor.items[0], undefined, locale) : null),
+      walls:
+        currentForRoom.walls ??
+        (walls?.items[0] ? toProduct(walls.items[0], undefined, locale) : null),
+    };
+  }, [
+    effectiveRoomType,
+    designIdParam,
+    hasPreviewRequest,
+    previewApplied,
+    locale,
+  ]);
 
   // Applies a loaded shared/saved design exactly once, the moment it arrives —
   // derived during render (comparing against the last-applied id) rather than
@@ -932,19 +1019,8 @@ const VisualizerPage = () => {
     [productItems, collectionTitleById, locale],
   );
 
-  // Every room used to always open pre-tiled rather than bare — replicate
-  // that once each room's own product list first loads, preferring whatever
-  // `?floor=`/`?wall=` named (a shared/bookmarked link — only meaningful for
-  // the room that link actually pointed at, never a room switched to later)
-  // and otherwise falling back to the first floor-suitable and first
-  // wall-suitable product from that room's own API results — not just the
-  // same first product for both, since a floor-only or wall-only tile would
-  // then get wrongly defaulted onto the surface it can't go on. Tracked per
-  // room type so switching to a room that's never been visited this session
-  // still gets its own defaults, without re-defaulting (and stomping the
-  // customer's own picks) on a room switched back to. Skipped when a saved
-  // design is being loaded via `?design=`, so it can't stomp that design's
-  // own tiles.
+  // Seed each room once with surface-compatible defaults. The URL's exact
+  // products and any manual picks always take priority over these defaults.
   const [defaultAppliedRooms, setDefaultAppliedRooms] = useState<Set<RoomType>>(
     () => new Set(),
   );
@@ -952,52 +1028,18 @@ const VisualizerPage = () => {
     effectiveRoomType &&
     !defaultAppliedRooms.has(effectiveRoomType) &&
     !designIdParam &&
-    mappedProducts.length > 0
+    (!hasPreviewRequest || previewApplied) &&
+    defaultTiles?.roomType === effectiveRoomType
   ) {
     const roomType = effectiveRoomType;
     setDefaultAppliedRooms((current) => new Set(current).add(roomType));
-    const isInitialRoom = initialRoomParam === roomType;
-    const floorFromUrl =
-      isInitialRoom && initialFloorParam
-        ? mappedProducts.find(
-            (product) =>
-              product.id === initialFloorParam &&
-              (product.suitableFor === "floor" ||
-                product.suitableFor === "both"),
-          )
-        : undefined;
-    const wallFromUrl =
-      isInitialRoom && initialWallParam
-        ? mappedProducts.find(
-            (product) =>
-              product.id === initialWallParam &&
-              (product.suitableFor === "wall" ||
-                product.suitableFor === "both"),
-          )
-        : undefined;
-    const firstFloorTile = mappedProducts.find(
-      (product) =>
-        product.suitableFor === "floor" || product.suitableFor === "both",
-    );
-    const firstWallTile = mappedProducts.find(
-      (product) =>
-        product.suitableFor === "wall" || product.suitableFor === "both",
-    );
     setSelectionsByRoom((current) => {
       const currentForRoom = current[roomType] ?? EMPTY_SELECTIONS;
       return {
         ...current,
         [roomType]: {
-          floor:
-            currentForRoom.floor ??
-            floorFromUrl ??
-            firstFloorTile ??
-            mappedProducts[0],
-          walls:
-            currentForRoom.walls ??
-            wallFromUrl ??
-            firstWallTile ??
-            mappedProducts[0],
+          floor: currentForRoom.floor ?? defaultTiles.floor,
+          walls: currentForRoom.walls ?? defaultTiles.walls,
         },
       };
     });
@@ -1049,7 +1091,16 @@ const VisualizerPage = () => {
   // `?design=` is still loading, so it can't overwrite that link with the
   // pre-design defaults for the one render before the design's own tiles land.
   useEffect(() => {
-    if (designIdParam && !appliedDesignId) return;
+    if (roomsLoading || previewLoading || previewError) return;
+    if (hasPreviewRequest && !previewApplied) return;
+    if (designIdParam && appliedDesignId !== designIdParam) return;
+    if (
+      !designIdParam &&
+      (defaultsLoading ||
+        !effectiveRoomType ||
+        !defaultAppliedRooms.has(effectiveRoomType))
+    )
+      return;
 
     const params = new URLSearchParams(searchParams.toString());
     if (effectiveRoomType) params.set("room", effectiveRoomType);
@@ -1069,6 +1120,13 @@ const VisualizerPage = () => {
     selections.walls,
     designIdParam,
     appliedDesignId,
+    roomsLoading,
+    previewLoading,
+    previewError,
+    hasPreviewRequest,
+    previewApplied,
+    defaultsLoading,
+    defaultAppliedRooms,
     router,
     searchParams,
   ]);
@@ -1304,7 +1362,11 @@ const VisualizerPage = () => {
     },
   };
 
-  if (roomsLoading || collectionsLoading) {
+  if (
+    roomsLoading ||
+    collectionsLoading ||
+    (hasPreviewRequest && previewLoading)
+  ) {
     return <ApiLoading label={t("visualizer.loading")} className="py-24" />;
   }
 
@@ -1330,6 +1392,25 @@ const VisualizerPage = () => {
 
   if (visibleTabs.length === 0) {
     return <ApiEmptyState message={t("visualizer.empty")} className="my-16" />;
+  }
+
+  if (hasPreviewRequest && previewError) {
+    return (
+      <ApiErrorState
+        message={previewError}
+        onRetry={reloadPreview}
+        className="my-16"
+      />
+    );
+  }
+
+  if (hasPreviewRequest && !previewRoomType) {
+    return (
+      <ApiEmptyState
+        message={t("visualizer.previewNoCompatibleRoom")}
+        className="my-16"
+      />
+    );
   }
 
   return (

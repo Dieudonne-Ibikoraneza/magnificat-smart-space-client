@@ -11,6 +11,8 @@
     "test:product-validation": "node tests/product-validation.test.mjs",
     "test:invoice-print": "node tests/invoice-print.test.mjs",
     "test:tile-analytics": "node tests/tile-analytics.test.mjs",
+    "test:visualizer-preview": "node tests/visualizer-preview.test.mjs",
+    "test:profiling-brief": "node tests/profiling-brief.test.mjs",
     "models:build": "node scripts/generate-room-models.mjs"
   },
   "dependencies": {

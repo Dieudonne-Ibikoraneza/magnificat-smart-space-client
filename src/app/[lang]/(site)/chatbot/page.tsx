@@ -62,6 +62,7 @@ import {
 } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import { roomTypeLabels } from "@/lib/api/mappers";
+import { buildProfilingBrief } from "@/lib/profiling-brief";
 import {
   InfiniteScrollTrigger,
   useInfiniteApi,
@@ -1074,16 +1075,7 @@ export default function ChatbotPage() {
    */
   const finishProfiling = (answers: { question: string; answer: string }[]) => {
     setPhase("chatting");
-    const summary = answers
-      .map(
-        (entry, index) =>
-          `Question ${index + 1}: ${entry.question}\nAnswer: ${entry.answer}`,
-      )
-      .join("\n\n");
-    const recommendationRequest =
-      `${summary}\n\nThese are the project and room specifications — from all the products, ` +
-      "please recommend the 3 best tiles.";
-    void sendToAssistant(recommendationRequest.slice(0, MAX_MESSAGE_LENGTH), {
+    void sendToAssistant(buildProfilingBrief(answers), {
       showUserBubble: false,
     });
   };
