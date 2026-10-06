@@ -769,16 +769,16 @@ export const chatbotApi = {
     question: string;
     answer: string;
     tags?: string[];
-    language?: Language;
+    language?: "EN";
   }) => api.post<ApiKnowledgeBaseEntry>("/chatbot/knowledge-base", body),
   updateKnowledgeBaseEntry: (
     id: string,
     body: Partial<
       Pick<
         ApiKnowledgeBaseEntry,
-        "question" | "answer" | "tags" | "language" | "isActive"
+        "question" | "answer" | "tags" | "isActive"
       >
-    >,
+    > & { language?: "EN" },
   ) => api.patch<ApiKnowledgeBaseEntry>(`/chatbot/knowledge-base/${id}`, body),
   deleteKnowledgeBaseEntry: (id: string) =>
     api.delete<void>(`/chatbot/knowledge-base/${id}`),

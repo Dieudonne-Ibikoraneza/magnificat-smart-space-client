@@ -7,7 +7,7 @@ import {
   Bot,
   CircleCheck,
   CircleSlash,
-  Languages,
+  LoaderCircle,
   Pencil,
   Plus,
   Search,
@@ -29,63 +29,47 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { chatbotApi } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
-import type { ApiKnowledgeBaseEntry, Language } from "@/lib/api/types";
+import type { ApiKnowledgeBaseEntry } from "@/lib/api/types";
 import { useApi } from "@/lib/api/use-api";
 import { cn } from "@/lib/utils";
-
-type KnowledgeBaseLanguage = Extract<Language, "EN" | "RW">;
 
 type EntryDraft = {
   question: string;
   answer: string;
   tags: string;
-  language: KnowledgeBaseLanguage;
 };
 
-const emptyDraft: EntryDraft = { question: "", answer: "", tags: "", language: "EN" };
+const emptyDraft: EntryDraft = { question: "", answer: "", tags: "" };
 
-const LANGUAGE_KEYS: Record<KnowledgeBaseLanguage, string> = {
-  EN: "admin.knowledgeBase.languageEnglish",
-  RW: "admin.knowledgeBase.languageKinyarwanda",
-};
-
-const languageFilters = ["all", "EN", "RW"] as const;
 const formatDate = (value: string) =>
   new Date(value).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
 /**
  * Chatbot knowledge base management (doc 3.10). Entries are the answers the AI
- * assistant is allowed to give verbatim, maintained per platform language so
- * the bilingual requirement in section 2 holds for chatbot answers too.
+ * assistant is allowed to give, managed as English source entries.
  */
 export default function AdminKnowledgeBasePage() {
   const { t } = useTranslation();
   const { data, loading, error, reload } = useApi(() => chatbotApi.adminKnowledgeBase());
-  const entries = useMemo(() => data ?? [], [data]);
+  const entries = useMemo(() => (data ?? []).filter((entry) => entry.language === "EN"), [data]);
   const [view, setView] = useState<"entries" | "tiles">("entries");
   const [search, setSearch] = useState("");
-  const [language, setLanguage] = useState<(typeof languageFilters)[number]>("all");
   const [editing, setEditing] = useState<ApiKnowledgeBaseEntry | null>(null);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<EntryDraft>(emptyDraft);
   const [submitting, setSubmitting] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmingEntry, setConfirmingEntry] = useState<ApiKnowledgeBaseEntry | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const statusSaving = confirmingEntry !== null && busyId === confirmingEntry.id;
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return entries.filter((entry) => {
-      if (language !== "all" && entry.language !== language) return false;
       if (!term) return true;
       return (
         entry.question.toLowerCase().includes(term) ||
@@ -93,12 +77,11 @@ export default function AdminKnowledgeBasePage() {
         entry.tags.some((tag) => tag.toLowerCase().includes(term))
       );
     });
-  }, [entries, language, search]);
+  }, [entries, search]);
 
   const stats = [
     { key: "total", label: t("admin.knowledgeBase.statTotalEntries"), value: entries.length, icon: BookOpen },
     { key: "active", label: t("admin.knowledgeBase.statActive"), value: entries.filter((entry) => entry.isActive).length, icon: CircleCheck },
-    { key: "rw", label: t("admin.knowledgeBase.statKinyarwanda"), value: entries.filter((entry) => entry.language === "RW").length, icon: Languages },
   ];
 
   const openCreate = () => {
@@ -112,7 +95,6 @@ export default function AdminKnowledgeBasePage() {
       question: entry.question,
       answer: entry.answer,
       tags: entry.tags.join(", "),
-      language: entry.language,
     });
     setEditing(entry);
     setCreating(false);
@@ -139,7 +121,7 @@ export default function AdminKnowledgeBasePage() {
         question: draft.question.trim(),
         answer: draft.answer.trim(),
         tags,
-        language: draft.language,
+        language: "EN" as const,
       };
       if (editing) {
         await chatbotApi.updateKnowledgeBaseEntry(editing.id, body);
@@ -162,7 +144,9 @@ export default function AdminKnowledgeBasePage() {
   };
 
   const toggleActive = async (entry: ApiKnowledgeBaseEntry) => {
+    if (busyId !== null) return;
     setBusyId(entry.id);
+    setStatusError(null);
     try {
       await chatbotApi.updateKnowledgeBaseEntry(entry.id, { isActive: !entry.isActive });
       toast.success(
@@ -170,10 +154,13 @@ export default function AdminKnowledgeBasePage() {
           ? t("admin.knowledgeBase.toastEntryDeactivated")
           : t("admin.knowledgeBase.toastEntryActivated"),
       );
+      setConfirmingEntry(null);
       reload();
     } catch (cause) {
+      const message = cause instanceof ApiError ? cause.message : t("admin.systemSettings.toastTryAgain");
+      setStatusError(message);
       toast.error(t("admin.knowledgeBase.toastSaveFailed"), {
-        description: cause instanceof ApiError ? cause.message : t("admin.systemSettings.toastTryAgain"),
+        description: message,
       });
     } finally {
       setBusyId(null);
@@ -219,7 +206,7 @@ export default function AdminKnowledgeBasePage() {
         : loading ? <ApiLoading label={t("admin.knowledgeBase.loading")} className="mt-12" />
         : error ? <ApiErrorState message={error} onRetry={reload} className="mt-8" />
         : <>
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
         {stats.map(({ key, label, value, icon: Icon }) => (
           <article key={key} className="rounded-2xl bg-card p-5">
             <span className="flex size-10 items-center justify-center rounded-lg bg-muted-background text-ink">
@@ -242,22 +229,6 @@ export default function AdminKnowledgeBasePage() {
             className="h-11 rounded-lg pl-10 text-sm"
           />
         </div>
-        <div className="flex h-11 shrink-0 items-center gap-1 rounded-xl border border-border bg-card p-1">
-          {languageFilters.map((value) => (
-            <Button
-              key={value}
-              type="button"
-              variant="ghost"
-              onClick={() => setLanguage(value)}
-              className={cn(
-                "h-9 rounded-lg px-3 text-xs font-bold",
-                language === value ? "bg-ink text-primary hover:bg-ink/90" : "text-muted-foreground",
-              )}
-            >
-              {value === "all" ? t("admin.knowledgeBase.filterAll") : value}
-            </Button>
-          ))}
-        </div>
       </div>
 
       <div className="mt-6 space-y-3">
@@ -274,8 +245,7 @@ export default function AdminKnowledgeBasePage() {
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <Badge variant="outline">{entry.language}</Badge>
-                <Badge variant={entry.isActive ? "primary" : "muted"}>
+                <Badge variant="outline" className={entry.isActive ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600"}>
                   {entry.isActive ? t("admin.knowledgeBase.active") : t("admin.knowledgeBase.inactive")}
                 </Badge>
               </div>
@@ -308,9 +278,18 @@ export default function AdminKnowledgeBasePage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => void toggleActive(entry)}
-                  disabled={busyId === entry.id}
-                  className="h-9 gap-1.5 text-xs font-bold"
+                  onClick={() => {
+                    setStatusError(null);
+                    setConfirmingEntry(entry);
+                  }}
+                  disabled={busyId !== null}
+                  aria-haspopup="dialog"
+                  className={cn(
+                    "h-9 gap-1.5 text-xs font-bold",
+                    entry.isActive
+                      ? "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:text-amber-900"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800",
+                  )}
                 >
                   {entry.isActive ? <CircleSlash className="size-3.5" /> : <CircleCheck className="size-3.5" />}
                   {entry.isActive ? t("admin.knowledgeBase.deactivate") : t("admin.knowledgeBase.activate")}
@@ -346,6 +325,58 @@ export default function AdminKnowledgeBasePage() {
 
       </>}
 
+      <Dialog
+        open={confirmingEntry !== null}
+        onOpenChange={(open) => {
+          if (!open && !statusSaving) setConfirmingEntry(null);
+        }}
+      >
+        <DialogContent className="max-w-sm" showClose={!statusSaving} aria-busy={statusSaving}>
+          <DialogHeader>
+            <span className={cn(
+              "mb-3 flex size-11 items-center justify-center rounded-xl border",
+              confirmingEntry?.isActive
+                ? "border-amber-200 bg-amber-50 text-amber-700"
+                : "border-emerald-200 bg-emerald-50 text-emerald-600",
+            )}>
+              {confirmingEntry?.isActive ? <CircleSlash aria-hidden="true" className="size-5" /> : <CircleCheck aria-hidden="true" className="size-5" />}
+            </span>
+            <DialogTitle>{t(`admin.knowledgeBase.${confirmingEntry?.isActive ? "confirmDeactivateTitle" : "confirmActivateTitle"}`)}</DialogTitle>
+            <DialogDescription className="leading-6">
+              {t(`admin.knowledgeBase.${confirmingEntry?.isActive ? "confirmDeactivateDescription" : "confirmActivateDescription"}`)}
+            </DialogDescription>
+          </DialogHeader>
+          {confirmingEntry && (
+            <div className="mt-5 rounded-xl border border-border bg-slate-50 px-4 py-3">
+              <p className="text-xs font-semibold text-muted-foreground">{t("admin.knowledgeBase.questionLabel")}</p>
+              <p className="mt-1 max-h-32 overflow-y-auto break-words text-sm font-semibold leading-6 text-ink">{confirmingEntry.question}</p>
+            </div>
+          )}
+          {statusError && (
+            <p role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{statusError}</p>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={statusSaving} onClick={() => setConfirmingEntry(null)} className="h-10 px-5 text-sm font-bold">
+              {t("admin.knowledgeBase.cancel")}
+            </Button>
+            <Button
+              type="button"
+              disabled={statusSaving}
+              onClick={() => {
+                if (confirmingEntry) void toggleActive(confirmingEntry);
+              }}
+              className={cn(
+                "h-10 gap-2 px-5 text-sm font-bold text-white",
+                confirmingEntry?.isActive ? "bg-amber-700 hover:bg-amber-800" : "bg-emerald-700 hover:bg-emerald-800",
+              )}
+            >
+              {statusSaving && <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />}
+              {t(`admin.knowledgeBase.${confirmingEntry?.isActive ? (statusSaving ? "deactivating" : "deactivate") : (statusSaving ? "activating" : "activate")}`)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={creating || editing !== null} onOpenChange={(open: boolean) => !open && closeDialog()}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -379,41 +410,15 @@ export default function AdminKnowledgeBasePage() {
               />
             </Field>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="kb-language">{t("admin.knowledgeBase.languageLabel")}</FieldLabel>
-                <Select
-                  value={draft.language}
-                  onValueChange={(value) =>
-                    setDraft((current) => ({
-                      ...current,
-                      language: (value ?? current.language) as KnowledgeBaseLanguage,
-                    }))
-                  }
-                >
-                  <SelectTrigger id="kb-language" className="h-10 w-full text-sm">
-                    <SelectValue>{(value) => t(LANGUAGE_KEYS[value as KnowledgeBaseLanguage])}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(LANGUAGE_KEYS) as KnowledgeBaseLanguage[]).map((code) => (
-                      <SelectItem key={code} value={code}>
-                        {t(LANGUAGE_KEYS[code])}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="kb-tags">{t("admin.knowledgeBase.tagsLabel")}</FieldLabel>
-                <Input
-                  id="kb-tags"
-                  value={draft.tags}
-                  onChange={(event) => setDraft((current) => ({ ...current, tags: event.target.value }))}
-                  placeholder={t("admin.knowledgeBase.tagsPlaceholder")}
-                />
-              </Field>
-            </div>
+            <Field>
+              <FieldLabel htmlFor="kb-tags">{t("admin.knowledgeBase.tagsLabel")}</FieldLabel>
+              <Input
+                id="kb-tags"
+                value={draft.tags}
+                onChange={(event) => setDraft((current) => ({ ...current, tags: event.target.value }))}
+                placeholder={t("admin.knowledgeBase.tagsPlaceholder")}
+              />
+            </Field>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeDialog} className="h-10 px-5 text-sm font-bold">
