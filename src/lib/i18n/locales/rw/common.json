@@ -1156,6 +1156,16 @@
       "toastTryAgain": "Ongera ugerageze.",
       "editingRwHint": "Uri guhindura umutwe n'ibisobanuro by'Ikinyarwanda. Icyongereza kizongera kigenwe ubwacyo igihe uzabika."
     },
+    "reactivateCollection": {
+      "button": "Ongera ukoreshe itsinda",
+      "aria": "Ongera ukoreshe {{name}}",
+      "title": "Ongera ukoreshe “{{name}}”?",
+      "description": "Iri tsinda rirongera gukora kandi ryemererwe kongerwamo ibicuruzwa bishya.",
+      "saving": "Ririmo kongera gukoreshwa…",
+      "success": "Itsinda ryongeye gukora",
+      "successDescription": "{{name}} ryongeye gukora.",
+      "failed": "Ntibyashobotse kongera gukoresha itsinda"
+    },
     "deleteCollection": {
       "trigger": "Siba Ikusanyirizo",
       "title": "Siba ikusanyirizo?",
@@ -1785,6 +1795,7 @@
       "retrySku": "Ongera ugenzure SKU"
     },
     "collections": {
+      "inactive": "Ntirikora",
       "title": "Amakusanyirizo",
       "loading": "Kuzana amakusanyirizo…",
       "managed": "Amakusanyirizo y'ibicuruzwa {{count}} acungwa ubu",
@@ -1811,6 +1822,10 @@
       "sortOldest": "Bishaje mbere"
     },
     "collectionDetail": {
+      "emptyTitle": "Nta bicuruzwa biri muri iri tsinda",
+      "emptyBody": "Umuyobozi ashobora kongera ibicuruzwa muri iri tsinda.",
+      "inactiveTitle": "Iri tsinda ntirikora",
+      "inactiveBody": "Ibicuruzwa bisanzwe biracyaboneka. Ibicuruzwa bishya bishobora kongerwamo iri tsinda rimaze kongera gukora.",
       "loading": "Kuzana ikusanyirizo…",
       "loadingProducts": "Kuzana ibicuruzwa…",
       "crumbOverview": "Incamake",
@@ -3185,6 +3200,8 @@
     "field.size": "Ingano",
     "field.image": "Ifoto",
     "chatbot.inactiveTileCannotBeAllowed": "Banza wongere wemerere iri karo gukora mu iduka kugira ngo ryemererwe gutangwaho inama.",
+    "collections.inactiveCatalogRestricted": "Amatsinda adakora aboneka gusa ku bayobozi n’abashinzwe ububiko.",
+    "products.inactiveCollection": "Ibicuruzwa bishya ntibishobora kongerwa mu itsinda ridakora. Banza wongere urikoreshe.",
     "products.inactiveCatalogRestricted": "Amakaro adakora aboneka gusa ku bayobozi n’abashinzwe ububiko."
   }
 }

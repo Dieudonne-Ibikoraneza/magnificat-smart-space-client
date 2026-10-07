@@ -1156,6 +1156,16 @@
       "toastTryAgain": "Please try again.",
       "editingRwHint": "You're editing the Kinyarwanda title and description. The English version will be regenerated automatically when you save."
     },
+    "reactivateCollection": {
+      "button": "Reactivate collection",
+      "aria": "Reactivate {{name}}",
+      "title": "Reactivate “{{name}}”?",
+      "description": "This makes the collection active and allows new products to be added.",
+      "saving": "Reactivating…",
+      "success": "Collection reactivated",
+      "successDescription": "{{name}} is active again.",
+      "failed": "Couldn't reactivate collection"
+    },
     "deleteCollection": {
       "trigger": "Delete Collection",
       "title": "Delete collection?",
@@ -1785,6 +1795,7 @@
       "retrySku": "Retry availability check"
     },
     "collections": {
+      "inactive": "Inactive",
       "title": "Collections",
       "loading": "Loading collections…",
       "managed": "{{count}} product collections currently managed",
@@ -1811,6 +1822,10 @@
       "sortOldest": "Oldest first"
     },
     "collectionDetail": {
+      "emptyTitle": "No products in this collection",
+      "emptyBody": "An admin can add products to this collection.",
+      "inactiveTitle": "This collection is inactive",
+      "inactiveBody": "Existing products remain available. New products can be added after the collection is reactivated.",
       "loading": "Loading collection…",
       "loadingProducts": "Loading products…",
       "crumbOverview": "Overview",
@@ -3185,6 +3200,8 @@
     "field.size": "Size",
     "field.image": "Image",
     "chatbot.inactiveTileCannotBeAllowed": "Reactivate this tile in the catalog before allowing recommendations.",
+    "collections.inactiveCatalogRestricted": "Inactive collections are available only to admins and stock managers.",
+    "products.inactiveCollection": "New products cannot be created in an inactive collection. Reactivate the collection first.",
     "products.inactiveCatalogRestricted": "Inactive tiles are available only to admins and stock managers."
   }
 }

@@ -270,6 +270,7 @@ export type CollectionInput = {
 export const collectionsApi = {
   list: (
     query: {
+      catalogStatus?: "all" | "active" | "inactive";
       page?: number;
       limit?: number;
       search?: string;

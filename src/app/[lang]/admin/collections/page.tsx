@@ -10,6 +10,7 @@ import { DashboardPageHeader as AdminPageHeader } from "@/components/dashboard-p
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
 import { ListPagination } from "@/components/list-pagination";
 import { DeleteCollectionDialog, EditCollectionDialog } from "@/components/edit-collection-dialog";
+import { ReactivateCollectionButton } from "@/components/reactivate-collection-button";
 import { Button } from "@/components/ui/button";
 import { collectionsApi } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
@@ -36,6 +37,11 @@ const AdminCollectionCard = ({
         />
       )}
       <div className="absolute inset-0 bg-linear-to-t from-ink via-ink/55 to-transparent" />
+      {!collection.isActive && (
+        <span className="absolute top-4 right-4 z-10 rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm">
+          {t("stock.collections.inactive")}
+        </span>
+      )}
       <div className="relative z-10 mt-auto flex w-full translate-y-2 flex-col p-6 transition-transform duration-300 group-hover:translate-y-0 sm:p-7">
         <h2 className="text-xl font-bold leading-tight text-white sm:text-2xl">
           {collection.title}
@@ -71,21 +77,30 @@ const AdminCollectionCard = ({
               }
             />
             <span className="h-4 w-px bg-ink/15" aria-hidden="true" />
-            <DeleteCollectionDialog
-              collection={collection}
-              onDeleted={onChanged}
-              trigger={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-12 w-10 rounded-none text-ink hover:bg-white/45 hover:text-red-600"
-                  aria-label={t("stock.collections.deleteAria", { title: collection.title })}
-                >
-                  <Trash2 className="size-4" strokeWidth={2.25} />
-                </Button>
-              }
-            />
+            {collection.isActive ? (
+              <DeleteCollectionDialog
+                collection={collection}
+                onDeleted={onChanged}
+                trigger={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-12 w-10 rounded-none text-ink hover:bg-white/45 hover:text-red-600"
+                    aria-label={t("stock.collections.deleteAria", { title: collection.title })}
+                  >
+                    <Trash2 className="size-4" strokeWidth={2.25} />
+                  </Button>
+                }
+              />
+            ) : (
+              <ReactivateCollectionButton
+                compact
+                collectionId={collection.id}
+                collectionName={collection.title}
+                onReactivated={onChanged}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -98,7 +113,7 @@ export default function AdminCollectionsPage() {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const { data, loading, error, reload } = useApi(
-    () => collectionsApi.list({ page: currentPage, limit: 20 }),
+    () => collectionsApi.list({ page: currentPage, limit: 20, catalogStatus: "all" }),
     [currentPage],
   );
   const collections = data?.items ?? [];

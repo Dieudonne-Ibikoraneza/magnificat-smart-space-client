@@ -2,17 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ArrowDownWideNarrow,
   ArrowRight,
   Boxes,
-  Pencil,
-  Plus,
   Search,
-  Trash2,
 } from "lucide-react";
 import { DashboardPageHeader as StockPageHeader } from "@/components/dashboard-page-headers";
 import {
@@ -21,7 +17,6 @@ import {
   ApiLoading,
 } from "@/components/api-state";
 import { ListPagination } from "@/components/list-pagination";
-import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,9 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "@/components/ui/toast";
 import { collectionsApi, productsApi } from "@/lib/api";
-import { ApiError } from "@/lib/api/client";
 import { useApi } from "@/lib/api/use-api";
 import type { ApiCollection } from "@/lib/api/types";
 
@@ -42,36 +35,11 @@ type SortOption = "newest" | "oldest";
 const StockCollectionCard = ({
   collection,
   productCount,
-  onDeleted,
 }: {
   collection: ApiCollection;
   productCount: number;
-  onDeleted: () => void;
 }) => {
   const { t } = useTranslation();
-  const [deleting, setDeleting] = useState(false);
-
-  const handleDelete = async () => {
-    setDeleting(true);
-    try {
-      await collectionsApi.remove(collection.id);
-      toast.success(t("stock.collections.toastDeletedTitle"), {
-        description: t("stock.collections.toastDeletedBody", {
-          name: collection.title,
-        }),
-      });
-      onDeleted();
-    } catch (cause) {
-      toast.error(t("stock.collections.toastFailedTitle"), {
-        description:
-          cause instanceof ApiError
-            ? cause.message
-            : t("stock.collections.toastTryAgain"),
-      });
-    } finally {
-      setDeleting(false);
-    }
-  };
 
   return (
     <article className="group relative flex min-h-97.5 overflow-hidden rounded-3xl bg-ink shadow-sm transition-shadow duration-300 hover:shadow-[0_16px_36px_rgba(15,39,71,0.18)]">
@@ -86,6 +54,11 @@ const StockCollectionCard = ({
         />
       )}
       <div className="absolute inset-0 bg-linear-to-t from-ink via-ink/55 to-transparent" />
+      {!collection.isActive && (
+        <span className="absolute top-4 right-4 z-10 rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm">
+          {t("stock.collections.inactive")}
+        </span>
+      )}
 
       <span className="absolute top-4 left-4 z-10 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-bold text-ink shadow-sm">
         <Boxes className="size-3.5" />
@@ -111,45 +84,6 @@ const StockCollectionCard = ({
             </span>
             <ArrowRight className="size-4 shrink-0 transition-transform duration-300 group-hover/cta:translate-x-1" />
           </Button>
-
-          <div className="flex h-12 min-h-12 shrink-0 items-center overflow-hidden rounded-full bg-primary shadow-sm">
-            <Button
-              type="button"
-              nativeButton={false}
-              render={<Link href={`/stock/collections/${collection.id}`} />}
-              variant="ghost"
-              size="icon-sm"
-              className="h-12 w-10 rounded-none text-ink hover:bg-white/45"
-              aria-label={t("stock.collections.editAria", {
-                title: collection.title,
-              })}
-            >
-              <Pencil className="size-4" strokeWidth={2.25} />
-            </Button>
-            <span className="h-4 w-px bg-ink/15" aria-hidden="true" />
-            <ConfirmDialog
-              trigger={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={deleting}
-                  className="h-12 w-10 rounded-none text-ink hover:bg-white/45 hover:text-red-600"
-                  aria-label={t("stock.collections.deleteAria", {
-                    title: collection.title,
-                  })}
-                >
-                  <Trash2 className="size-4" strokeWidth={2.25} />
-                </Button>
-              }
-              title={t("stock.collections.confirmDeleteTitle", {
-                title: collection.title,
-              })}
-              description={t("stock.collections.confirmDeleteDescription")}
-              confirmLabel={t("stock.collections.confirmDeleteLabel")}
-              onConfirm={() => void handleDelete()}
-            />
-          </div>
         </div>
       </div>
     </article>
@@ -158,7 +92,6 @@ const StockCollectionCard = ({
 
 export default function StockCollectionsPage() {
   const { t } = useTranslation();
-  const router = useRouter();
   const [query, setQuery] = useState("");
   const [size, setSize] = useState("all");
   const [sort, setSort] = useState<SortOption>("newest");
@@ -167,6 +100,7 @@ export default function StockCollectionsPage() {
   const { data, loading, error, reload } = useApi(
     () =>
       collectionsApi.list({
+        catalogStatus: "all",
         page: currentPage,
         limit: 20,
         search: query.trim() || undefined,
@@ -180,10 +114,6 @@ export default function StockCollectionsPage() {
 
   const sizeOptions = filterOptions?.sizes ?? [];
 
-  const handleReload = () => {
-    reload();
-  };
-
   return (
     <>
       <StockPageHeader
@@ -193,16 +123,7 @@ export default function StockCollectionsPage() {
             ? t("stock.collections.loading")
             : t("stock.collections.managed", { count: data?.meta.total ?? 0 })
         }
-      >
-        <Button
-          type="button"
-          onClick={() => router.push("/stock/collections/new")}
-          className="h-11 gap-2 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
-        >
-          <Plus className="size-4" />
-          {t("stock.collections.addNew")}
-        </Button>
-      </StockPageHeader>
+      />
 
       <section className="mt-6 rounded-xl border border-[#E5E7EB] bg-card p-4 shadow-sm sm:mt-8 sm:p-5">
         <div className="flex flex-col gap-3 xl:flex-row">
@@ -295,7 +216,6 @@ export default function StockCollectionsPage() {
                 key={collection.id}
                 collection={collection}
                 productCount={collection._count?.products ?? 0}
-                onDeleted={handleReload}
               />
             ))}
           </section>

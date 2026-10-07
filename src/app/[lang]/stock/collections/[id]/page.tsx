@@ -10,14 +10,12 @@ import {
   LayoutGrid,
   List,
   PackageOpen,
-  Plus,
   Search,
 } from "lucide-react";
-import { notFound, useRouter } from "next/navigation";
+import { notFound } from "next/navigation";
 import { DashboardDetailHeader as StockDetailHeader } from "@/components/dashboard-page-headers";
 import { InventoryProductCard } from "@/components/inventory-product-card";
 import { ApiEmptyState, ApiErrorState, ApiLoading } from "@/components/api-state";
-import { DeleteCollectionDialog, EditCollectionDialog } from "@/components/edit-collection-dialog";
 import { getVisiblePages } from "@/lib/catalog-utils";
 import { collectionsApi, productsApi } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
@@ -69,7 +67,6 @@ export default function StockCollectionDetailsPage({
 }) {
   const { t } = useTranslation();
   const { id } = use(params);
-  const router = useRouter();
   const [query, setQuery] = useState("");
   const [suitableFor, setSuitableFor] = useState("all");
   const [status, setStatus] = useState("all");
@@ -80,7 +77,6 @@ export default function StockCollectionDetailsPage({
     data: collection,
     loading: collectionLoading,
     error: collectionError,
-    reload: reloadCollection,
   } = useApi(() => collectionsApi.get(id), [id]);
 
   const {
@@ -136,15 +132,14 @@ export default function StockCollectionDetailsPage({
           { label: collection.title },
         ]}
         title={collection.title}
-        actions={
-          <>
-            <EditCollectionDialog collection={collection} onUpdated={reloadCollection} />
-            <DeleteCollectionDialog collection={collection} onDeleted={() => router.push("/stock/collections")} />
-          </>
-        }
         meta={
           <>
             <p className="w-full max-w-xl text-sm leading-6 text-muted sm:text-base">{collection.description}</p>
+            {!collection.isActive && (
+              <p className="w-full text-sm font-medium text-slate-600">
+                {t("stock.collectionDetail.inactiveBody")}
+              </p>
+            )}
             <div className="flex w-full items-center gap-3">
               <span className="rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-ink">
                 {t("stock.collectionDetail.productCount", { count: products.length })}
@@ -254,18 +249,10 @@ export default function StockCollectionDetailsPage({
             <span className="flex size-16 items-center justify-center rounded-full bg-primary/15 text-ink">
               <PackageOpen className="size-8" strokeWidth={1.6} />
             </span>
-            <h2 className="mt-5 text-xl font-bold text-ink sm:text-2xl">{t("stock.collectionDetail.readyTitle")}</h2>
+            <h2 className="mt-5 text-xl font-bold text-ink sm:text-2xl">{t(collection.isActive ? "stock.collectionDetail.emptyTitle" : "stock.collectionDetail.inactiveTitle")}</h2>
             <p className="mt-2 max-w-md text-sm leading-6 text-muted sm:text-base">
-              {t("stock.collectionDetail.readyBody")}
+              {t(collection.isActive ? "stock.collectionDetail.emptyBody" : "stock.collectionDetail.inactiveBody")}
             </p>
-            <Button
-              nativeButton={false}
-              render={<Link href={`/stock/inventory/new?collectionId=${id}`} />}
-              className="mt-6 h-11 gap-2 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
-            >
-              <Plus className="size-4" />
-              {t("stock.collectionDetail.addProduct")}
-            </Button>
           </div>
         ) : totalResults === 0 ? (
           <ApiEmptyState message={t("stock.collectionDetail.noResults")} className="py-16" />
