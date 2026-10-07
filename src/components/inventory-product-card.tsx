@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, Eye, Pencil, PowerOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useCurrentUser } from "@/lib/current-user";
 import { ReactivateProductButton } from "@/components/reactivate-product-button";
 import { InventoryProductFlags } from "@/components/inventory-product-flags";
 import { DeleteProductButton } from "@/components/delete-product-button";
@@ -24,6 +25,8 @@ export const InventoryProductCard = ({
   onChanged?: () => void;
 }) => {
   const { t } = useTranslation();
+  const { user } = useCurrentUser();
+  const canManageProducts = user?.role === "ADMIN";
   const status = staffStockDisplay(product);
   const quantity = status.quantityOnHandSqm;
 
@@ -87,41 +90,45 @@ export const InventoryProductCard = ({
           <div className="flex items-center gap-1.5">
             {onChanged && (
               <>
-                <EditProductDialog
-                  product={product}
-                  onUpdated={onChanged}
-                  trigger={
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-sm"
-                      aria-label={t("stock.inventory.editAria", {
-                        name: product.name,
-                      })}
-                    >
-                      <Pencil className="size-3.5" />
-                    </Button>
-                  }
-                />
-                {product.isActive ? (
-                  <DeleteProductButton
-                    productId={product.id}
-                    productName={product.name}
-                    onDeleted={onChanged}
+                {canManageProducts && (
+                  <EditProductDialog
+                    product={product}
+                    onUpdated={onChanged}
                     trigger={
                       <Button
                         type="button"
                         variant="outline"
                         size="icon-sm"
-                        className="text-amber-700 hover:bg-amber-50 hover:text-amber-800"
-                        aria-label={t("stock.inventory.deleteAria", {
+                        aria-label={t("stock.inventory.editAria", {
                           name: product.name,
                         })}
                       >
-                        <PowerOff className="size-3.5" />
+                        <Pencil className="size-3.5" />
                       </Button>
                     }
                   />
+                )}
+                {product.isActive ? (
+                  canManageProducts && (
+                    <DeleteProductButton
+                      productId={product.id}
+                      productName={product.name}
+                      onDeleted={onChanged}
+                      trigger={
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-sm"
+                          className="text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+                          aria-label={t("stock.inventory.deleteAria", {
+                            name: product.name,
+                          })}
+                        >
+                          <PowerOff className="size-3.5" />
+                        </Button>
+                      }
+                    />
+                  )
                 ) : (
                   <ReactivateProductButton
                     compact

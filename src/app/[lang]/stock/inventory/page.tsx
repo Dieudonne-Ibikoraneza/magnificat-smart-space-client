@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useCurrentUser } from "@/lib/current-user";
 import {
   ArrowDownWideNarrow,
   ChevronsLeft,
@@ -13,7 +13,6 @@ import {
   LayoutGrid,
   List,
   Pencil,
-  Plus,
   RotateCcw,
   Search,
   SlidersHorizontal,
@@ -83,7 +82,8 @@ type SortOption = "newest" | "oldest";
 
 const InventoryPage = () => {
   const { t } = useTranslation();
-  const router = useRouter();
+  const { user } = useCurrentUser();
+  const canManageProducts = user?.role === "ADMIN";
   const [query, setQuery] = useState("");
   const [suitableFor, setSuitableFor] = useState("all");
   const [catalogStatus, setCatalogStatus] = useState<"all" | "active" | "inactive">("all");
@@ -149,16 +149,7 @@ const InventoryPage = () => {
             ? t("stock.inventory.loadingProducts")
             : t("stock.inventory.productsManaged", { count: totalResults })
         }
-      >
-        <Button
-          type="button"
-          onClick={() => router.push("/stock/inventory/new")}
-          className="h-11 gap-2 bg-primary px-5 font-bold text-ink hover:bg-primary/90"
-        >
-          <Plus className="size-4" />
-          {t("stock.inventory.addNewProduct")}
-        </Button>
-      </StockPageHeader>
+      />
 
       <section className="mt-6 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm sm:mt-8 sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -491,41 +482,45 @@ const InventoryPage = () => {
                             >
                               <Eye className="size-4" />
                             </Button>
-                            <EditProductDialog
-                              product={product}
-                              onUpdated={reload}
-                              trigger={
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  aria-label={t("stock.inventory.editAria", {
-                                    name: product.name,
-                                  })}
-                                >
-                                  <Pencil className="size-4" />
-                                </Button>
-                              }
-                            />
-                            {product.isActive ? (
-                              <DeleteProductButton
-                                productId={product.id}
-                                productName={product.name}
-                                onDeleted={reload}
+                            {canManageProducts && (
+                              <EditProductDialog
+                                product={product}
+                                onUpdated={reload}
                                 trigger={
                                   <Button
                                     type="button"
                                     variant="ghost"
                                     size="icon-sm"
-                                    className="text-amber-700 hover:bg-amber-50 hover:text-amber-800"
-                                    aria-label={t("stock.inventory.deleteAria", {
+                                    aria-label={t("stock.inventory.editAria", {
                                       name: product.name,
                                     })}
                                   >
-                                    <PowerOff className="size-4" />
+                                    <Pencil className="size-4" />
                                   </Button>
                                 }
                               />
+                            )}
+                            {product.isActive ? (
+                              canManageProducts && (
+                                <DeleteProductButton
+                                  productId={product.id}
+                                  productName={product.name}
+                                  onDeleted={reload}
+                                  trigger={
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      className="text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+                                      aria-label={t("stock.inventory.deleteAria", {
+                                        name: product.name,
+                                      })}
+                                    >
+                                      <PowerOff className="size-4" />
+                                    </Button>
+                                  }
+                                />
+                              )
                             ) : (
                               <ReactivateProductButton compact productId={product.id} productName={product.name} onReactivated={reload} />
                             )}

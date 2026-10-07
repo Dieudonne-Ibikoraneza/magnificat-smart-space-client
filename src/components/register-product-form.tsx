@@ -445,7 +445,7 @@ const BoldTextarea = ({
   );
 };
 
-export const RegisterProductForm = ({ role }: { role: "admin" | "stock" }) => {
+export const RegisterProductForm = ({ role }: { role: "admin" }) => {
   const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -453,7 +453,7 @@ export const RegisterProductForm = ({ role }: { role: "admin" | "stock" }) => {
   const formRef = useRef<HTMLFormElement>(null);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const { data: collectionsData } = useApi(() => collectionsApi.listAll());
-  const collections = collectionsData?.items ?? [];
+  const collections = (collectionsData?.items ?? []).filter((collection) => collection.isActive);
   const requestedCollectionId = searchParams.get("collectionId");
 
   const [name, setName] = useState("");

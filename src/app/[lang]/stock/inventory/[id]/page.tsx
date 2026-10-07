@@ -4,6 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useTranslation } from "react-i18next";
+import { useCurrentUser } from "@/lib/current-user";
 import { Boxes, Layers3, Maximize2, Package, RotateCw } from "lucide-react";
 import { DashboardDetailHeader as StockDetailHeader } from "@/components/dashboard-page-headers";
 import { ApiErrorState, ApiLoading } from "@/components/api-state";
@@ -42,6 +43,8 @@ const getSuitableFor = (suitableFor: "floor" | "wall" | "both") => {
 
 const StockProductDetailsPage = ({ params }: StockProductDetailsProps) => {
   const { t } = useTranslation();
+  const { user } = useCurrentUser();
+  const canManageProducts = user?.role === "ADMIN";
   const { locale } = useLocale();
   const { id } = use(params);
   const { data: apiProduct, loading, error, reload } = useApi(() => productsApi.get(id), [id]);
@@ -225,14 +228,18 @@ const StockProductDetailsPage = ({ params }: StockProductDetailsProps) => {
           <QuantityCalculator product={product} />
           <section className="space-y-3 rounded-2xl bg-card p-4 sm:p-5">
             <ProductCompareButton productId={product.id} />
-            <div className="grid grid-cols-2 gap-3">
-              <EditProductDialog product={apiProduct} onUpdated={reload} />
-              {apiProduct.isActive ? (
-                <DeleteProductButton productId={product.id} productName={product.name} redirectTo="/stock/inventory" />
-              ) : (
-                <ReactivateProductButton productId={product.id} productName={product.name} onReactivated={reload} />
-              )}
-            </div>
+            {(canManageProducts || !apiProduct.isActive) && (
+              <div className="grid grid-cols-2 gap-3">
+                {canManageProducts && <EditProductDialog product={apiProduct} onUpdated={reload} />}
+                {apiProduct.isActive ? (
+                  canManageProducts && (
+                    <DeleteProductButton productId={product.id} productName={product.name} redirectTo="/stock/inventory" />
+                  )
+                ) : (
+                  <ReactivateProductButton productId={product.id} productName={product.name} onReactivated={reload} />
+                )}
+              </div>
+            )}
           </section>
         </div>
       </div>

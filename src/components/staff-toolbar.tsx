@@ -43,10 +43,8 @@ export const staffOrderHref = (
 
 /**
  * "You're not a customer" banner shown above the catalog/collections grid
- * for signed-in staff, with a shortcut into the creation flow their own
- * dashboard already offers — skipped entirely for sales/analyst, who can't
- * create products or collections (`ProductsController`/`CollectionsController`
- * `@Roles`).
+ * for signed-in staff. Only admins get shortcuts to product and collection
+ * creation; stock managers retain inventory viewing and adjustment links.
  */
 export const StaffCatalogActions = ({
   role,
@@ -56,7 +54,7 @@ export const StaffCatalogActions = ({
   kind?: "product" | "collection";
 }) => {
   const { t } = useTranslation();
-  const base = INVENTORY_BASE[role];
+  const base = role === "ADMIN" ? INVENTORY_BASE[role] : undefined;
 
   return (
     <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-dashed border-amber/50 bg-amber/5 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">

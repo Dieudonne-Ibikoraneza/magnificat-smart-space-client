@@ -13,7 +13,6 @@ import {
   Filter,
   Package,
   PencilLine,
-  Plus,
   ShelvingUnit,
   WalletCards,
 } from "lucide-react";
@@ -150,13 +149,6 @@ const StockOverviewPage = () => {
           >
             <PencilLine className="size-4" />
             {t("stock.overview.manualAdjust")}
-          </Link>
-          <Link
-            href="/stock/inventory/new"
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-sm hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <Plus className="size-4" />
-            {t("stock.overview.addProduct")}
           </Link>
         </div>
       </StockPageHeader>
