@@ -38,6 +38,7 @@ import { useLocale } from "@/lib/i18n";
 import { getSessionId } from "@/lib/session-id";
 import { visualizerPatternLabelKey, visualizerCornerLabelKey } from "@/lib/visualizer-pattern";
 import type { Product } from "@/components/product-card";
+import { calculatorPurchaseArea, type CalculatorPurchase } from "@/lib/baseboard-options";
 import ProductNotFound from "./not-found";
 
 const formatPrice = (value: number) => `RWF ${value.toLocaleString()}`;
@@ -141,6 +142,7 @@ const ProductDetailsPage = ({
   }, [apiProduct]);
 
   const [requiredArea, setRequiredArea] = useState("26");
+  const [calculatorPurchase, setCalculatorPurchase] = useState<CalculatorPurchase | null>(null);
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteBusy, setFavoriteBusy] = useState(false);
 
@@ -211,7 +213,8 @@ const ProductDetailsPage = ({
 
   const addToCart = () => {
     if (!requireAuth()) return;
-    const area = Number(requiredArea);
+    const area = calculatorPurchaseArea(calculatorPurchase, product.id, requiredArea);
+    if (area === null) return;
     if (!Number.isFinite(area) || area <= 0) {
       toast.error(t("productDetail.toast.invalidAreaTitle"), {
         description: t("productDetail.toast.invalidAreaBody"),
@@ -388,9 +391,11 @@ const ProductDetailsPage = ({
           </section>
 
           <QuantityCalculator
+            key={product.id}
             product={product}
             value={requiredArea}
             onChange={setRequiredArea}
+            onPurchaseChange={setCalculatorPurchase}
           />
 
           {/* Customer actions stay customer-only; compare remains useful to every role. */}
@@ -423,6 +428,7 @@ const ProductDetailsPage = ({
               <Button
                 type="button"
                 onClick={addToCart}
+                disabled={calculatorPurchaseArea(calculatorPurchase, product.id, requiredArea) === null}
                 className="h-16 min-h-16 w-full justify-start gap-3 rounded-xl bg-primary px-4 py-3 font-bold text-ink hover:bg-primary/90"
               >
                 <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-ink/10">
