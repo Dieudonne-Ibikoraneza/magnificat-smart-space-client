@@ -29,6 +29,7 @@ import {
 } from "@/components/analytics-period-switcher";
 import { ChartAxisTick } from "@/components/chart-axis-tick";
 import { AdjustStockDialog } from "@/components/adjust-stock-dialog";
+import { StockReportOutputActions } from "@/components/stock-report-output-actions";
 import { ApiEmptyState, ApiErrorState } from "@/components/api-state";
 import { AnalyticsViewAllLink } from "@/components/analytics-view-all-link";
 import { Button } from "@/components/ui/button";
@@ -216,6 +217,7 @@ export const StockReportView = ({ area, period }: { area: StockReportArea; perio
 
   return (
     <div className="space-y-6">
+        <StockReportOutputActions period={period} movementType={movementFilter} />
         {/* --- Stock summary --------------------------------------------------- */}
         <section className="rounded-[14px] bg-white p-6 shadow-sm sm:p-8">
           <h2 className="text-2xl font-bold text-ink">{t("stock.reports.summaryTitle")}</h2>

@@ -214,6 +214,24 @@ body {
 }
 
 @media print {
+  .stock-report-document header { margin-bottom: 18px; }
+  .stock-report-document h1 { margin: 4px 0 12px; font-size: 20pt; color: #0f2747; }
+  .stock-report-brand { font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+  .stock-report-metadata { margin: 0 0 10px; }
+  .stock-report-metadata > div { display: flex; gap: 12px; }
+  .stock-report-metadata dt { min-width: 180px; font-weight: bold; }
+  .stock-report-metadata dd { margin: 0; }
+  .stock-report-note { font-size: 8pt; color: #4b5563; margin: 3px 0; }
+  .stock-report-document section { margin-top: 18px; }
+  .stock-report-document h2 { font-size: 13pt; margin: 0 0 8px; break-after: avoid; }
+  .stock-report-document table { table-layout: fixed; font-size: 8pt; }
+  .stock-report-document th, .stock-report-document td {
+    padding: 6px; border: 1px solid #dbe3ec; text-align: left; vertical-align: top; overflow-wrap: anywhere;
+  }
+  .stock-report-document th { background: #f1f5f9; font-weight: bold; }
+}
+
+@media print {
   @page {
     size: A4;
     margin: 12mm;

@@ -30,6 +30,8 @@ import type {
   CustomerSummary,
   DiscoverySource,
   FloorPlanCalculation,
+  StockReportExport,
+  StockMovementsExport,
   FulfillmentQueue,
   HearAboutUs,
   JourneyAnalytics,
@@ -859,6 +861,10 @@ export const settingsApi = {
 // --- Stock reports ----------------------------------------------------------
 
 export const reportsApi = {
+  exportStockReport: (query: { period?: AnalyticsPeriod; type?: StockMovementType; productId?: string } = {}) =>
+    api.get<StockReportExport>("/reports/stock/export", { query }),
+  exportStockMovements: (query: { period?: AnalyticsPeriod; type?: StockMovementType; productId?: string } = {}) =>
+    api.get<StockMovementsExport>("/reports/stock/movements/export", { query }),
   stockSummary: (period: AnalyticsPeriod = "MONTHLY") =>
     api.get<StockSummary>("/reports/stock/summary", { query: { period } }),
 

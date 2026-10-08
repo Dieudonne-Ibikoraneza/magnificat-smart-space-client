@@ -747,6 +747,23 @@ export type StockSummary = {
   byType: { type: StockMovementType; movements: number; areaSqm: number }[];
 };
 
+export type StockExportMetadata = {
+  generatedAt: string;
+  period: AnalyticsPeriod;
+  from: string;
+  /** Exclusive end of the reporting window, in UTC. */
+  to: string;
+  movementType: StockMovementType | "ALL";
+};
+
+export type StockMovementsExport = StockExportMetadata & { items: StockMovement[] };
+export type StockReportExport = StockExportMetadata & {
+  summary: StockSummary;
+  movements: StockMovement[];
+  lowStock: LowStockRow[];
+  fulfillment: FulfillmentQueue;
+};
+
 export type LowStockRow = {
   productId: string;
   name: string;
