@@ -186,7 +186,7 @@ export type ApiProduct = {
    */
   quantityOnHandSqm?: number;
   /**
-   * Same staff-only visibility — square metres held by other customers'
+   * Admin/stock/analyst only — square metres held by other customers'
    * still-PENDING orders during their payment window (see
    * `availableAreaSqmOf`). `quantityOnHandSqm - reservedAreaSqm` (floored at
    * 0) is what's actually available to sell right now; `stockStatus` above
@@ -202,7 +202,7 @@ export type ApiProduct = {
     completeBoxes: number;
     remainingPieces: number;
   };
-  /** Same staff-only visibility — the moving weighted-average cost per m², for inventory valuation. Never shown to clients. */
+  /** Inventory cost is available to admins, stock managers and analysts; omitted for sales and clients. */
   averageCostPrice?: number;
   /** `quantityOnHandSqm * averageCostPrice` — same visibility as both. */
   inventoryValue?: number;

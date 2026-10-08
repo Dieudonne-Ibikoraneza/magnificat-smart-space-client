@@ -86,6 +86,7 @@ export const toProduct = (product: ApiProduct, collectionTitle?: string, locale:
   image: product.image,
   description: localizedText(product.description ?? "", product.descriptionRw, locale),
   stockStatus: product.stockStatus,
+  quantityOnHandSqm: availableStockSqm(product),
   roomTypes: product.roomTypes.map((roomType) => roomTypeLabels[roomType]),
   suitableFor: suitableForLabels[product.suitableFor],
   visualizerPattern: product.visualizerPattern,
@@ -106,5 +107,7 @@ export const toCollection = (collection: ApiCollection, locale: Locale = "en"): 
  * 3.2), so this is `undefined` for a client or anonymous viewer — render the
  * status badge instead of a figure when it is.
  */
-export const availableStockSqm = (product: ApiProduct): number | undefined =>
-  product.quantityOnHandSqm === undefined ? undefined : Math.max(0, product.quantityOnHandSqm);
+export const availableStockSqm = (product: ApiProduct): number | undefined => {
+  const quantity = product.quantityOnHandSqm;
+  return quantity != null && Number.isFinite(Number(quantity)) ? Math.max(0, Number(quantity)) : undefined;
+};

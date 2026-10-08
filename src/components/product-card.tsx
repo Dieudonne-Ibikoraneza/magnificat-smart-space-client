@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { ArrowRight, Check, Heart, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TileAnalyticsSummary } from "@/components/tile-analytics-summary";
+import { ProductStockQuantity } from "@/components/product-stock-quantity";
 import { toast } from "@/components/ui/toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { tokenStore } from "@/lib/api";
@@ -29,6 +30,8 @@ export type Product = {
   image: string;
   description: string;
   stockStatus: "in_stock" | "low_stock" | "out_of_stock";
+  /** Returned only when the viewer may see physical stock. */
+  quantityOnHandSqm?: number;
   roomTypes: string[];
   suitableFor: "floor" | "wall" | "both";
   visualizerPattern?: "STRAIGHT" | "TWO_TURN" | "QUARTER_TURN" | null;
@@ -142,12 +145,13 @@ export const ProductCard = ({
           className="object-cover transition-transform duration-700 group-hover:scale-105"
           sizes={list ? "(max-width: 640px) 100vw, 240px" : "(max-width: 768px) 100vw, 33vw"}
         />
-        <span
-          className={`absolute left-4 top-4 rounded-md border px-2.5 py-1 text-xs font-semibold shadow-sm ${stockStyles[product.stockStatus]}`}
-        >
-          <span className="mr-1.5">•</span>
-          {t(STOCK_KEYS[product.stockStatus])}
-        </span>
+        <div className="absolute left-4 top-4 flex flex-col items-start gap-2">
+          <span className={`rounded-md border px-2.5 py-1 text-xs font-semibold shadow-sm ${stockStyles[product.stockStatus]}`}>
+            <span className="mr-1.5">•</span>
+            {t(STOCK_KEYS[product.stockStatus])}
+          </span>
+          <ProductStockQuantity quantity={product.quantityOnHandSqm} className="rounded-md bg-white/95 px-2.5 py-1 shadow-sm" />
+        </div>
         {selectable && (
           <button
             type="button"

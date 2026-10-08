@@ -18,6 +18,7 @@ import { ApiErrorState, ApiLoading } from "@/components/api-state";
 import { Button } from "@/components/ui/button";
 import { QuantityCalculator } from "@/components/quantity-calculator";
 import { ProductCompareButton } from "@/components/product-compare-button";
+import { ProductStockQuantity } from "@/components/product-stock-quantity";
 import { productsApi } from "@/lib/api";
 import { toProduct } from "@/lib/api/mappers";
 import { useApi } from "@/lib/api/use-api";
@@ -147,6 +148,7 @@ const SalesProductDetailsPage = ({ params }: SalesProductDetailsProps) => {
                 {t(STOCK_KEYS[product.stockStatus])}
               </span>
             </div>
+            <ProductStockQuantity quantity={apiProduct.quantityOnHandSqm} className="mt-5 rounded-xl bg-secondary px-4 py-3 text-sm" />
             <p className="mt-6 border-b border-slate-200 pb-5 text-2xl font-bold text-ink">
               {formatPrice(product.price)}{" "}
               <span className="text-sm font-medium text-muted-foreground">

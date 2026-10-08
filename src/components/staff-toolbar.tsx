@@ -113,7 +113,7 @@ export const StaffProductToolbar = ({
       </div>
 
       {typeof product.quantityOnHandSqm === "number" && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className={`grid gap-3 ${role !== "SALES_PERSON" && typeof product.reservedAreaSqm === "number" ? "grid-cols-2" : "grid-cols-1"}`}>
           <div className="rounded-xl bg-white/70 p-3">
             <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-muted">
               <Boxes className="size-3.5" /> {t("staffToolbar.product.onHand")}
@@ -122,7 +122,7 @@ export const StaffProductToolbar = ({
               {product.quantityOnHandSqm.toLocaleString()} m²
             </p>
           </div>
-          {typeof product.reservedAreaSqm === "number" && (
+          {role !== "SALES_PERSON" && typeof product.reservedAreaSqm === "number" && (
             <div className="rounded-xl bg-white/70 p-3">
               <p className="text-[10px] font-bold uppercase tracking-wide text-muted">
                 {t("staffToolbar.product.reserved")}
