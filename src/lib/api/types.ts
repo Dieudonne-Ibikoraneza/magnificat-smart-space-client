@@ -236,7 +236,28 @@ export type QuantityCalculation = TileQuantity & {
 export type FloorPlanCalculation = {
   baseAreaSqm: number;
   wastagePercent: number;
+  /** Area to send to the cart; includes whole baseboard cutting tiles when selected. */
   requiredAreaSqm: number;
+  floor: {
+    requiredAreaSqm: number;
+    quantity: TileQuantity;
+    estimatedCost: number;
+  };
+  baseboard: {
+    perimeterM: number;
+    openingsWidthM: number;
+    lengthM: number;
+    requiredLengthM: number;
+    heightCm: number;
+    cutWidthMm: number;
+    wastagePercent: number;
+    stripLengthM: number;
+    stripsPerTile: number;
+    requiredStrips: number;
+    totalTiles: number;
+    purchasedAreaSqm: number;
+    estimatedCost: number;
+  } | null;
   quantity: TileQuantity;
   // Qualitative only — the public `/calculator/floor-plan` endpoint never
   // returns exact stock counts (see `calculator.service.ts`).

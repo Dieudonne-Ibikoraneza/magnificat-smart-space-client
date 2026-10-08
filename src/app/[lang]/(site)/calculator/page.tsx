@@ -24,6 +24,15 @@ import { FilterOptionsCard } from "@/components/product-catalog";
 import type { Product } from "@/components/product-card";
 import { staffOrderHref } from "@/components/staff-toolbar";
 import { Switch } from "@/components/ui/switch";
+import {
+  BaseboardFields,
+  BaseboardBreakdown,
+} from "@/components/baseboard-calculator-fields";
+import {
+  DEFAULT_BASEBOARD_OPTIONS,
+  baseboardInputErrorKey,
+  baseboardRequest,
+} from "@/lib/baseboard-options";
 import { calculatorApi, eventsApi, productsApi, toProduct } from "@/lib/api";
 import { ApiError } from "@/lib/api/client";
 import {
@@ -113,6 +122,9 @@ export default function FloorPlanCalculatorPage() {
   const [wastagePercent, setWastagePercent] = useState(
     String(DEFAULT_WASTAGE_PERCENT),
   );
+  const [baseboardOptions, setBaseboardOptions] = useState(
+    DEFAULT_BASEBOARD_OPTIONS,
+  );
   const [productId, setProductId] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
@@ -151,41 +163,69 @@ export default function FloorPlanCalculatorPage() {
     ? Number(totalAreaSqm) || 0
     : (Number(lengthM) || 0) * (Number(widthM) || 0);
 
-  const [result, setResult] = useState<FloorPlanCalculation | null>(null);
+  const manualPerimeter = useTotalArea || baseboardOptions.manualPerimeter;
+  const baseboardErrorKey = baseboardInputErrorKey(
+    baseboardOptions,
+    manualPerimeter,
+  );
+  const baseboardInputError = baseboardErrorKey ? t(baseboardErrorKey) : null;
+  const calculationRequest = useMemo(
+    () => ({
+      productId: product?.id ?? "",
+      length: useTotalArea ? undefined : Number(lengthM) || undefined,
+      width: useTotalArea ? undefined : Number(widthM) || undefined,
+      totalAreaSqm: useTotalArea
+        ? Number(totalAreaSqm) || undefined
+        : undefined,
+      wastagePercent: Number(wastagePercent) || 0,
+      baseboard: baseboardRequest(baseboardOptions, manualPerimeter),
+    }),
+    [
+      product?.id,
+      useTotalArea,
+      lengthM,
+      widthM,
+      totalAreaSqm,
+      wastagePercent,
+      baseboardOptions,
+      manualPerimeter,
+    ],
+  );
+  const calculationKey = JSON.stringify(calculationRequest);
+  const [calculationState, setCalculationState] = useState<{
+    key: string;
+    result: FloorPlanCalculation | null;
+    error: string | null;
+  } | null>(null);
+  // Only offer quantities computed for the current tile and inputs. A change
+  // while a request is debouncing must never add the previous estimate to cart.
+  const currentCalculation =
+    calculationState?.key === calculationKey && !baseboardInputError
+      ? calculationState
+      : null;
+  const result = currentCalculation?.result ?? null;
+  const calcError = currentCalculation?.error ?? null;
   const [calculating, setCalculating] = useState(false);
-  const [calcError, setCalcError] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   const enteredDimensionsFiredRef = useRef(false);
 
   useEffect(() => {
-    // Nothing to fetch — the render below already keys off `baseArea <= 0`
-    // directly rather than this effect's state, so there's no stale
-    // `result`/`calcError` to clear here (see the "Updating…" badge's own
-    // `baseArea > 0` guard for the one place that could otherwise leak).
-    if (!product || baseArea <= 0) return;
-
+    if (!calculationRequest.productId || baseArea <= 0 || baseboardInputError)
+      return;
     let active = true;
     const timer = window.setTimeout(() => {
       setCalculating(true);
       calculatorApi
-        .floorPlan({
-          productId: product.id,
-          length: useTotalArea ? undefined : Number(lengthM) || undefined,
-          width: useTotalArea ? undefined : Number(widthM) || undefined,
-          totalAreaSqm: useTotalArea
-            ? Number(totalAreaSqm) || undefined
-            : undefined,
-          wastagePercent: Number(wastagePercent) || 0,
-        })
+        .floorPlan(calculationRequest)
         .then((data) => {
           if (!active) return;
-          setResult(data);
-          setCalcError(null);
+          setCalculationState({
+            key: calculationKey,
+            result: data,
+            error: null,
+          });
           if (!enteredDimensionsFiredRef.current) {
             enteredDimensionsFiredRef.current = true;
-            // `areaSqm` lets the journey drill-down show what was actually
-            // entered instead of a generic "Entered room dimensions" — see
-            // `journeyStageActions`'s ENTERED_DIMENSIONS case.
             void eventsApi
               .journey({
                 sessionId: getSessionId(),
@@ -197,31 +237,30 @@ export default function FloorPlanCalculatorPage() {
         })
         .catch((cause) => {
           if (!active) return;
-          setCalcError(
-            cause instanceof ApiError
-              ? cause.message
-              : t("calculator.calcError"),
-          );
+          setCalculationState({
+            key: calculationKey,
+            result: null,
+            error:
+              cause instanceof ApiError
+                ? cause.message
+                : t("calculator.calcError"),
+          });
         })
         .finally(() => {
           if (active) setCalculating(false);
         });
     }, DEBOUNCE_MS);
-
     return () => {
       active = false;
       window.clearTimeout(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    product?.id,
+    calculationRequest,
+    calculationKey,
     baseArea,
-    lengthM,
-    widthM,
-    totalAreaSqm,
-    useTotalArea,
-    wastagePercent,
+    baseboardInputError,
     retryToken,
+    t,
   ]);
 
   const breakdown = result
@@ -236,7 +275,7 @@ export default function FloorPlanCalculatorPage() {
           label: t("calculator.breakdown.withWastage", {
             percent: result.wastagePercent,
           }),
-          value: `${formatNumber(result.requiredAreaSqm)} m²`,
+          value: `${formatNumber(result.floor.requiredAreaSqm)} m²`,
         },
         {
           key: "completeBoxes",
@@ -630,6 +669,12 @@ export default function FloorPlanCalculatorPage() {
                 })}
               </p>
             </Field>
+
+            <BaseboardFields
+              value={baseboardOptions}
+              onChange={setBaseboardOptions}
+              dimensions={useTotalArea ? undefined : { lengthM, widthM }}
+            />
           </section>
 
           <section className="order-3 min-w-0 rounded-2xl bg-white p-6 shadow-sm sm:p-7">
@@ -657,6 +702,13 @@ export default function FloorPlanCalculatorPage() {
                     : t("calculator.enterToSee_dimensions"),
                 })}
               </p>
+            ) : baseboardInputError ? (
+              <p
+                role="status"
+                className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800"
+              >
+                {baseboardInputError}
+              </p>
             ) : calcError ? (
               <ApiErrorState
                 message={calcError}
@@ -671,7 +723,26 @@ export default function FloorPlanCalculatorPage() {
             ) : (
               <>
                 <dl className="space-y-3 text-sm">
-                  {breakdown.map((row) => (
+                  {breakdown.slice(0, 2).map((row) => (
+                    <div
+                      key={row.key}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <dt className="text-muted">{row.label}</dt>
+                      <dd className="font-data font-semibold text-ink">
+                        {row.value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                <BaseboardBreakdown calculation={result} />
+                {result.baseboard && (
+                  <h3 className="mb-3 text-sm font-bold text-ink">
+                    {t("calculator.baseboard.combined")}
+                  </h3>
+                )}
+                <dl className="space-y-3 text-sm">
+                  {breakdown.slice(2).map((row) => (
                     <div
                       key={row.key}
                       className="flex items-center justify-between gap-3"

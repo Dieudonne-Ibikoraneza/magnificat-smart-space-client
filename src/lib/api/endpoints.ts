@@ -371,6 +371,13 @@ export const calculatorApi = {
     width?: number;
     totalAreaSqm?: number;
     wastagePercent?: number;
+    baseboard?: {
+      wastagePercent?: number;
+      heightCm: number;
+      perimeterM?: number;
+      openingsWidthM?: number;
+      cutWidthMm?: number;
+    };
   }) => api.post<FloorPlanCalculation>("/calculator/floor-plan", body),
 };
 

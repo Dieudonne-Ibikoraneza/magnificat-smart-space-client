@@ -22,10 +22,18 @@ export const calculateTileQuantity = (
   packaging: TilePackaging,
 ): TileQuantity => {
   const area = Math.max(0, Number.isFinite(requiredArea) ? requiredArea : 0);
-  const completeBoxes = Math.floor(area / packaging.boxCoverage);
+  // Use integer area units so an exact tile/box boundary cannot round up
+  // or down due to floating-point division. Mirrors the server calculator.
+  const completeBoxes = Math.floor(
+    Math.round(area * 1_000_000) /
+      Math.round(packaging.boxCoverage * 1_000_000),
+  );
   const boxArea = roundArea(completeBoxes * packaging.boxCoverage);
   const remainingArea = roundArea(Math.max(0, area - boxArea));
-  const remainingPieces = Math.ceil(remainingArea / packaging.tileArea);
+  const remainingPieces = Math.ceil(
+    Math.round(remainingArea * 1_000_000) /
+      Math.round(packaging.tileArea * 1_000_000),
+  );
 
   return {
     ...packaging,
