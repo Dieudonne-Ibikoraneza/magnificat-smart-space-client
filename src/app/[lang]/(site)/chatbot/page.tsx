@@ -17,7 +17,6 @@ import {
   ChefHat,
   Check,
   ChevronDown,
-  CornerDownRight,
   History,
   Maximize2,
   Paperclip,
@@ -51,7 +50,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { ChatProductCard } from "@/components/chat-product-card";
-import { chatbotFollowUps } from "@/lib/chatbot-follow-ups";
+import { ChatbotFollowUpSuggestions } from "@/components/chatbot-follow-up-suggestions";
 import {
   chatbotApi,
   eventsApi,
@@ -1355,13 +1354,6 @@ export default function ChatbotPage() {
       textarea.scrollHeight > maxHeight ? "auto" : "hidden";
   };
 
-  const selectFollowUp = (followUpId: string) => {
-    if (isTyping) return;
-    const followUp = chatbotFollowUps.find((item) => item.id === followUpId);
-    if (!followUp) return;
-    void sendToAssistant(t(followUp.textKey));
-  };
-
   const showFollowUps = messages.some((message) => message.products?.length);
   const showCharacterCount = input.length > MESSAGE_COUNT_THRESHOLD;
 
@@ -2076,26 +2068,10 @@ export default function ChatbotPage() {
               )}
 
               {showFollowUps && (
-                <section className="mt-8 border-t border-slate-200/70 pt-8">
-                  <h2 className="text-base font-bold text-ink">
-                    {t("chatbot.followUpsTitle")}
-                  </h2>
-                  <div className="mt-3 divide-y divide-slate-200/70">
-                    {chatbotFollowUps.map((followUp) => (
-                      <Button
-                        key={followUp.id}
-                        type="button"
-                        variant="ghost"
-                        disabled={isTyping}
-                        onClick={() => selectFollowUp(followUp.id)}
-                        className="h-auto min-h-10 w-full justify-start gap-3 rounded-none px-2 py-2.5 text-left text-xs font-medium text-muted hover:text-ink sm:text-sm"
-                      >
-                        <CornerDownRight className="size-4 shrink-0 text-slate-400" />
-                        {t(followUp.textKey)}
-                      </Button>
-                    ))}
-                  </div>
-                </section>
+                <ChatbotFollowUpSuggestions
+                  disabled={isTyping}
+                  onSelect={(text) => void sendToAssistant(text)}
+                />
               )}
 
               <div ref={endRef} className="h-4 shrink-0" aria-hidden="true" />

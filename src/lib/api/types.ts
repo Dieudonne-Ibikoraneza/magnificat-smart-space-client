@@ -697,6 +697,16 @@ export type PlatformSettings = PublicPlatformSettings & {
   "payment.bankSwift": string;
 };
 
+export type ChatbotFollowUp = {
+  id: string;
+  text: string;
+  position: number;
+};
+
+export type AdminChatbotFollowUp = ChatbotFollowUp & {
+  isActive: boolean;
+};
+
 export type ProfilingQuestion = {
   id: string;
   text: string;

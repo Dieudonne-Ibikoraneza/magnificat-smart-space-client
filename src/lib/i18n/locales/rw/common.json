@@ -498,12 +498,6 @@
       "addFailed": "Ntibyashobotse kongera ikaro ku itumizo."
     },
     "charCount": "inyuguti {{current}} kuri {{max}}",
-    "followUps": {
-      "livingRoom": "Nkeneye amabuye manini y'icyiciro cyo hejuru ku cyumba kinini cyo kwakiriramo.",
-      "bathroom": "Ni amakaro ki akwiriye ubwiherero — ku butaka no ku nkuta?",
-      "kitchen": "Ni amakaro ki meza ku gikoni cya kijyambere?",
-      "durable": "Nyereka amakaro y'ubutaka arambye cyane."
-    },
     "toast": {
       "reachFailedTitle": "Ntitwashoboye kugera ku mufasha",
       "connectionBody": "Reba umurongo wawe hanyuma wongere ugerageze.",
@@ -2477,6 +2471,29 @@
       "management": "Imicungire ya Konti"
     },
     "systemSettings": {
+      "followUps": {
+        "title": "Ibibazo bikurikira mu kiganiro",
+        "description": "Hindura ibibazo abakiriya bashobora guhitamo nyuma yo kwerekwa amakaro.",
+        "add": "Ongeraho ikibazo",
+        "edit": "Hindura ikibazo",
+        "dialogDescription": "Hindura ikibazo hanyuma uhitemo niba abakiriya bashobora kukibona.",
+        "textHint": "Andika ikibazo, inyuguti zitarenze 300.",
+        "enabled": "Kirakoreshwa",
+        "enabledHint": "Gihagarike kugira ngo kitagaragarira abakiriya. Ushobora kongera kugikoresha nyuma.",
+        "active": "Kirakoreshwa",
+        "inactive": "Ntigikoreshwa",
+        "empty": "Nta bibazo birimo. Ongeraho ikibazo kugira ngo kigaragare mu kiganiro.",
+        "saved": "Ikibazo cyabitswe",
+        "saveFailed": "Ntibyashobotse kubika ikibazo",
+        "status": "Uko gihagaze",
+        "question": "Ikibazo",
+        "placeholder": "Urugero: Ni amakaro ki meza ku gikoni cya kijyambere?",
+        "delete": "Siba ikibazo",
+        "deleteTitle": "Gusiba iki kibazo?",
+        "deleteDescription": "Iki kibazo kirava ku rutonde kandi ntikizongera kugaragarira abakiriya.",
+        "deleted": "Ikibazo cyasibwe",
+        "deleteFailed": "Ntibyashobotse gusiba ikibazo"
+      },
       "support": {
         "title": "Uburyo bwo guhamagara ubufasha",
         "subtitle": "Bugaragara ku bakiriya iyo bakeneye ubufasha ku itumizo ryabo. Reka umwanya usigare ubusa kugira ngo ubwo buryo bwihishwe.",
@@ -3193,6 +3210,8 @@
     "settings.invalidWhatsapp": "Igenamiterere \"{{key}}\" rigomba kuba nimero mpuzamahanga itangirana na +, urugero +250 788 300 400.",
     "settings.invalidSwift": "Igenamiterere \"{{key}}\" rigomba kuba kode ya SWIFT/BIC y'inyuguti 8 cyangwa 11.",
     "settings.unknownSettings": "Igenamiterere ritazwi: {{keys}}.",
+    "settings.followUpNotFound": "Ikibazo nticyabonetse.",
+    "settings.followUpOrderChanged": "Urutonde rw’ibibazo rwahindutse. Ruvugurure hanyuma wongere ugerageze.",
     "settings.questionNotFound": "Ikibazo cy'imyirondoro ntikibonetse.",
     "cartNegotiations.notFound": "Imishyikirano ntiyabonetse.",
     "cartNegotiations.noAccess": "Nta burenganzira ufite kuri iyi mishyikirano.",

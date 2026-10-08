@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { DashboardPageHeader as AdminPageHeader } from "@/components/dashboard-page-headers";
 import { ApiErrorState } from "@/components/api-state";
+import { AdminChatbotFollowUps } from "@/components/admin-chatbot-follow-ups";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -77,13 +78,11 @@ const QuestionDialog = ({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState(question?.text ?? "");
-  const [isRequired, setIsRequired] = useState(question?.isRequired ?? true);
   const [roomTypes, setRoomTypes] = useState<RoomType[]>(question?.roomTypes ?? []);
   const [submitting, setSubmitting] = useState(false);
 
   const reset = () => {
     setText(question?.text ?? "");
-    setIsRequired(question?.isRequired ?? true);
     setRoomTypes(question?.roomTypes ?? []);
   };
 
@@ -102,14 +101,14 @@ const QuestionDialog = ({
       if (question) {
         await settingsApi.updateProfilingQuestion(question.id, {
           text: text.trim(),
-          isRequired,
+          isRequired: true,
           roomTypes,
         });
         toast.success(t("admin.systemSettings.toastQuestionUpdated"), { description: t("admin.systemSettings.toastQuestionUpdatedDesc") });
       } else {
         await settingsApi.createProfilingQuestion({
           text: text.trim(),
-          isRequired,
+          isRequired: true,
           roomTypes,
         });
         toast.success(t("admin.systemSettings.toastQuestionAdded"));
@@ -160,7 +159,7 @@ const QuestionDialog = ({
               <p className="text-sm font-semibold text-ink">{t("admin.systemSettings.dialogRequired")}</p>
               <p className="text-xs text-muted-foreground">{t("admin.systemSettings.dialogRequiredSub")}</p>
             </div>
-            <Switch checked={isRequired} onCheckedChange={setIsRequired} aria-label={t("admin.systemSettings.dialogToggleRequired")} />
+            <Switch checked disabled aria-label={t("admin.systemSettings.dialogRequired")} />
           </div>
 
           <div>
@@ -795,6 +794,8 @@ const AdminSettingsPage = () => {
           onRetry={reloadQuestions}
           onChanged={reloadQuestions}
         />
+
+        <AdminChatbotFollowUps />
 
         <div className="grid gap-5 sm:gap-6 xl:grid-cols-2">
           <section className="rounded-2xl bg-card p-5 sm:p-6">

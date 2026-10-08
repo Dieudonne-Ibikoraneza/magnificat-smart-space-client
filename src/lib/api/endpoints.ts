@@ -47,6 +47,8 @@ import type {
   PlatformSettings,
   PublicPlatformSettings,
   ProfilingQuestion,
+  ChatbotFollowUp,
+  AdminChatbotFollowUp,
   QuantityCalculation,
   QuotationStatus,
   RecommendationDecision,
@@ -819,6 +821,20 @@ export const eventsApi = {
 // --- Settings ---------------------------------------------------------------
 
 export const settingsApi = {
+  followUpQuestions: () =>
+    api.get<ChatbotFollowUp[]>("/settings/follow-up-questions", {
+      anonymous: true,
+    }),
+  adminFollowUpQuestions: () =>
+    api.get<AdminChatbotFollowUp[]>("/settings/follow-up-questions/admin"),
+  createFollowUpQuestion: (body: { text: string; isActive?: boolean }) =>
+    api.post<AdminChatbotFollowUp>("/settings/follow-up-questions", body),
+  updateFollowUpQuestion: (id: string, body: Partial<{ text: string; isActive: boolean }>) =>
+    api.patch<AdminChatbotFollowUp>(`/settings/follow-up-questions/${id}`, body),
+  reorderFollowUpQuestions: (ids: string[]) =>
+    api.patch<AdminChatbotFollowUp[]>("/settings/follow-up-questions/reorder", { ids }),
+  deleteFollowUpQuestion: (id: string) =>
+    api.delete<void>(`/settings/follow-up-questions/${id}`),
   get: () => api.get<PublicPlatformSettings>("/settings", { anonymous: true }),
   getAdmin: () => api.get<PlatformSettings>("/settings/admin"),
   update: (settings: Record<string, unknown>) =>

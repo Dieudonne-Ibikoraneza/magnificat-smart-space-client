@@ -499,12 +499,6 @@
       "addFailed": "Could not add tile to cart."
     },
     "charCount": "{{current}} / {{max}} characters",
-    "followUps": {
-      "livingRoom": "I need premium large-format slabs for a grand living room.",
-      "bathroom": "What tiles work best for a bathroom — floor and walls?",
-      "kitchen": "What tiles are best for a modern kitchen?",
-      "durable": "Show me the most durable floor tiles."
-    },
     "toast": {
       "reachFailedTitle": "Couldn't reach the assistant",
       "connectionBody": "Please check your connection and try again.",
@@ -2480,6 +2474,29 @@
       "management": "Account Management"
     },
     "systemSettings": {
+      "followUps": {
+        "title": "Chatbot follow-up questions",
+        "description": "Manage the suggested questions customers can select after tile recommendations.",
+        "add": "Add follow-up",
+        "edit": "Edit follow-up",
+        "dialogDescription": "Edit the suggested question and choose whether customers can see it.",
+        "textHint": "Enter a question, up to 300 characters.",
+        "enabled": "Enabled",
+        "enabledHint": "Disable to hide this suggestion. You can enable it again later.",
+        "active": "Active",
+        "inactive": "Inactive",
+        "empty": "No follow-up questions yet. Add one to show suggestions in the chatbot.",
+        "saved": "Follow-up question saved",
+        "saveFailed": "Could not save the follow-up question",
+        "status": "Status",
+        "question": "Question",
+        "placeholder": "e.g. Which tiles work best for a modern kitchen?",
+        "delete": "Delete question",
+        "deleteTitle": "Delete this follow-up question?",
+        "deleteDescription": "This question will be removed from the list and will no longer be suggested to customers.",
+        "deleted": "Follow-up question deleted",
+        "deleteFailed": "Could not delete the follow-up question"
+      },
       "support": {
         "title": "Customer support contacts",
         "subtitle": "Shown to customers when they need help with an order. Leave a field empty to hide that channel.",
@@ -3196,6 +3213,8 @@
     "settings.invalidWhatsapp": "Setting \"{{key}}\" must be an international number starting with +, e.g. +250 788 300 400.",
     "settings.invalidSwift": "Setting \"{{key}}\" must be an 8 or 11 character SWIFT/BIC code.",
     "settings.unknownSettings": "Unknown setting(s): {{keys}}.",
+    "settings.followUpNotFound": "Follow-up question not found.",
+    "settings.followUpOrderChanged": "The follow-up list has changed. Refresh it and try again.",
     "settings.questionNotFound": "Profiling question not found.",
     "cartNegotiations.notFound": "Negotiation not found.",
     "cartNegotiations.noAccess": "You do not have access to this negotiation.",
