@@ -31,6 +31,7 @@ import {
   ApiLoading,
 } from "@/components/api-state";
 import { SelectableProductCard } from "@/components/selectable-product-card";
+import { CustomerSpendRow } from "@/components/customer-spend-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,7 +77,7 @@ import {
   readOrderDraft,
   writeOrderDraft,
 } from "@/lib/order-draft-storage";
-import { formatCompactCurrency, formatRelativeTime, cn } from "@/lib/utils";
+import { formatRelativeTime, cn } from "@/lib/utils";
 
 const PRODUCT_PAGE_SIZE = 6;
 
@@ -503,14 +504,10 @@ const CustomerStep = ({
                           : t("sales.newOrder.customerStep.noOrdersYet")}
                       </dd>
                     </div>
-                    <div className="flex items-center justify-between gap-3 border-t border-[#E5E7EB] pt-3">
-                      <dt className="text-muted-foreground">
-                        {t("sales.newOrder.customerStep.totalSpend")}
-                      </dt>
-                      <dd className="text-xl font-semibold whitespace-nowrap text-ink">
-                        {formatCompactCurrency(customer.lifetimeSpend)}
-                      </dd>
-                    </div>
+                    <CustomerSpendRow
+                      spend={customer.lifetimeSpend}
+                      label={t("sales.newOrder.customerStep.totalSpend")}
+                    />
                   </dl>
                 </button>
               </li>

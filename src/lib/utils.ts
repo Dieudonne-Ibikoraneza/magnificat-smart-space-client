@@ -40,8 +40,12 @@ export const formatRelativeTime = (isoDate: string, t?: RelativeTimeT) => {
   return `${days} days ago`;
 };
 
-/** 128_500_000 -> "RWF 128.5M" — the compact currency format used on every KPI card. */
-export const formatCompactCurrency = (amount: number, currency = "RWF") => {
+export const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+
+/** Missing or withheld amounts stay unknown; a genuine zero is formatted as zero. */
+export const formatCompactCurrency = (amount: number | null | undefined, currency = "RWF") => {
+  if (!isFiniteNumber(amount)) return "—";
   const sign = amount < 0 ? "-" : "";
   const value = Math.abs(amount);
   if (value >= 1_000_000_000) return `${sign}${currency} ${(value / 1_000_000_000).toFixed(1)}B`;

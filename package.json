@@ -11,6 +11,7 @@
     "test:product-validation": "node tests/product-validation.test.mjs",
     "test:tile-calculator": "node tests/tile-calculator.test.mjs",
     "test:baseboard-options": "node tests/baseboard-options.test.mjs",
+    "test:customer-spend": "node tests/customer-spend.test.mjs",
     "test:invoice-print": "node tests/invoice-print.test.mjs",
     "test:tile-analytics": "node tests/tile-analytics.test.mjs",
     "test:visualizer-preview": "node tests/visualizer-preview.test.mjs",

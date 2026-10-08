@@ -183,7 +183,7 @@ const SalesOverviewPage = () => {
   const topCustomers = useMemo(
     () =>
       [...(customersData?.items ?? [])]
-        .sort((a, b) => b.lifetimeSpend - a.lifetimeSpend)
+        .sort((a, b) => b.orderCount - a.orderCount)
         .slice(0, 5),
     [customersData],
   );

@@ -28,7 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { analyticsApi, usersApi } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
 import type { HearAboutUs, RoomType, UserStatus } from "@/lib/api/types";
-import { formatCompactCurrency, getInitials } from "@/lib/utils";
+import { formatCompactCurrency, getInitials, isFiniteNumber } from "@/lib/utils";
 
 const ROOM_TYPE_KEYS: Record<RoomType, string> = {
   LIVING_ROOM: "catalog.roomTypes.livingRoom",
@@ -170,7 +170,9 @@ const AdminAnalyticsCustomersPage = () => {
     );
     return sort === "name"
       ? [...filtered].sort((a, b) => a.fullName.localeCompare(b.fullName))
-      : [...filtered].sort((a, b) => b.lifetimeSpend - a.lifetimeSpend);
+      : [...filtered].sort((a, b) =>
+          (isFiniteNumber(b.lifetimeSpend) ? b.lifetimeSpend : 0) -
+          (isFiniteNumber(a.lifetimeSpend) ? a.lifetimeSpend : 0));
   }, [customersData, query, sort, status]);
 
   const kpis: KpiCardData[] = customerAnalytics

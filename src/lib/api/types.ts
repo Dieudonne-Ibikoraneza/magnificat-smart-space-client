@@ -106,7 +106,8 @@ export type OtpSendResult = { message: string; expiresInSeconds: number };
 
 export type CustomerSummary = ApiUser & {
   orderCount: number;
-  lifetimeSpend: number;
+  /** Omitted by the API for sales staff. */
+  lifetimeSpend?: number;
   firstOrderAt: string | null;
   lastOrderAt: string | null;
 };
