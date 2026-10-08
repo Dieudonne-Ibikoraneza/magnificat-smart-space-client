@@ -46,6 +46,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn, formatCompactCurrency } from "@/lib/utils";
+import { JourneyQuotationActivity } from "@/components/journey-quotation-activity";
 import { analyticsApi } from "@/lib/api";
 import { useApi } from "@/lib/api/use-api";
 import type { JourneyAnalytics, JourneyStage, JourneyStageAction } from "@/lib/api/types";
@@ -154,6 +155,7 @@ const METRIC_META: Record<string, { labelKey: string; icon: LucideIcon; format: 
   avgTilesPerDesign: { labelKey: "analytics.journey.metrics.avgTilesPerDesign", icon: LayoutGrid, format: "number" },
   totalQuotes: { labelKey: "analytics.journey.metrics.totalQuotes", icon: ListChecks, format: "number" },
   pendingQuotes: { labelKey: "analytics.journey.metrics.pendingQuotes", icon: Clock, format: "number" },
+  resolvedQuotes: { labelKey: "analytics.journey.metrics.resolvedQuotes", icon: ListChecks, format: "number" },
   avgItemsPerQuote: { labelKey: "analytics.journey.metrics.avgItemsPerQuote", icon: ListChecks, format: "number" },
   totalNegotiations: { labelKey: "analytics.journey.metrics.totalNegotiations", icon: MessageSquare, format: "number" },
   quoteThreads: { labelKey: "analytics.journey.metrics.quoteThreads", icon: ListChecks, format: "number" },
@@ -283,6 +285,10 @@ const TileThumb = ({ image }: { image: string | null }) => (
  * Falls back to the plain `summary` for stages with nothing richer to show.
  */
 const ActivityCell = ({ action, t }: { action: JourneyStageAction; t: (key: string, opts?: Record<string, unknown>) => string }) => {
+  if (action.type === "QUOTE_REQUESTED") {
+    return <JourneyQuotationActivity detail={action.detail} />;
+  }
+
   if (isSavedDesignDetail(action.detail)) {
     const design = action.detail;
     return (
@@ -458,7 +464,7 @@ const StepDrillDown = ({
     <>
       <section>
         <h2 className="text-lg font-bold text-ink">{t("analytics.journey.drillDown", { stage: t(JOURNEY_STAGE_TITLE_KEYS[stage]) })}</h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className={`mt-4 grid gap-4 sm:grid-cols-2 ${stage === "REQUESTED_QUOTATION" ? "xl:grid-cols-5" : "xl:grid-cols-4"}`}>
           {loading && !detail
             ? Array.from({ length: 4 }).map((_, index) => (
                 <article key={index} className="rounded-2xl bg-card p-5 sm:p-6">
