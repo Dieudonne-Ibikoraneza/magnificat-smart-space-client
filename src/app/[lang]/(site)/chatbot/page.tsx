@@ -1965,6 +1965,9 @@ export default function ChatbotPage() {
                                 </div>
                               </div>
                             )}
+                            <p className="mt-4 text-sm leading-6 text-ink">
+                              {t("chatbot.postRecommendationInvitation")}
+                            </p>
                           </>
                         )}
                       </div>
