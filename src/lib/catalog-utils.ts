@@ -30,7 +30,7 @@ const AVAILABILITY_OPTIONS = [
  * the one size it has, instead of a list of sizes that don't apply to it.
  */
 export const buildFilterGroups = (
-  products: Product[],
+  products: Pick<Product, "size">[],
   sizeOptions?: string[],
 ): FilterGroup[] => [
   { title: "Room type", options: Object.values(roomTypeLabels) },
@@ -93,7 +93,10 @@ export const catalogFilterQuery = (filters: CatalogFilters) => {
   };
 };
 
-const matchesSuitableForFilter = (product: Product, selected: string[]) =>
+const matchesSuitableForFilter = (
+  product: Pick<Product, "suitableFor">,
+  selected: string[],
+) =>
   selected.some((option) => {
     if (option === "Floor") {
       return product.suitableFor === "floor" || product.suitableFor === "both";
@@ -129,10 +132,12 @@ export const toggleFilterOption = (
 export const hasActiveFilters = (filters: CatalogFilters) =>
   Object.values(filters).some((group) => group.length > 0);
 
-export const filterProducts = (
-  products: Product[],
+export const filterProducts = <
+  T extends Pick<Product, "roomTypes" | "size" | "stockStatus" | "suitableFor">,
+>(
+  products: T[],
   filters: CatalogFilters,
-): Product[] =>
+): T[] =>
   products.filter((product) => {
     if (
       filters["Room type"].length > 0 &&
@@ -143,7 +148,9 @@ export const filterProducts = (
 
     if (
       filters.Size.length > 0 &&
-      !filters.Size.some((size) => normalizeSize(size) === normalizeSize(product.size))
+      !filters.Size.some(
+        (size) => normalizeSize(size) === normalizeSize(product.size),
+      )
     ) {
       return false;
     }

@@ -757,6 +757,52 @@ export type StockSummary = {
   byType: { type: StockMovementType; movements: number; areaSqm: number }[];
 };
 
+export type StockExportTile = {
+  id: string;
+  name: string;
+  sku: string;
+  size: string;
+  isActive: boolean;
+};
+
+export type StockExportCollection = {
+  id: string;
+  title: string;
+  size: string;
+  isActive: boolean;
+  productCount: number;
+};
+
+export type StockExportTileOption = StockExportTile & {
+  image: string | null;
+  roomTypes: RoomType[];
+  suitableFor: SuitableFor;
+  stockStatus: StockStatus;
+  quantityOnHandSqm: number;
+  collection: Omit<StockExportCollection, "productCount">;
+};
+
+export type StockExportQuery = {
+  period?: AnalyticsPeriod;
+  type?: StockMovementType;
+  productId?: string;
+  collectionId?: string;
+  /** Inclusive UTC calendar dates for a custom movement window. */
+  startDate?: string;
+  endDate?: string;
+};
+
+export type StockValuationRow = {
+  productId: string;
+  name: string;
+  sku: string;
+  size: string;
+  isActive: boolean;
+  quantityOnHandSqm: number;
+  averageCostPrice: number;
+  inventoryValue: number;
+};
+
 export type StockExportMetadata = {
   generatedAt: string;
   period: AnalyticsPeriod;
@@ -764,6 +810,10 @@ export type StockExportMetadata = {
   /** Exclusive end of the reporting window, in UTC. */
   to: string;
   movementType: StockMovementType | "ALL";
+  tile: StockExportTile | null;
+  collection?: StockExportCollection | null;
+  /** Current physical stock valued at average purchase cost, regardless of the movement period. */
+  valuation: StockValuationRow[];
 };
 
 export type StockMovementsExport = StockExportMetadata & { items: StockMovement[] };

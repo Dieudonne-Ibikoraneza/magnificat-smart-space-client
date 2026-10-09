@@ -7,12 +7,19 @@ import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
 import { createInstance } from "i18next";
 import { csvCell, stockMovementDocument, stockReportDocument, stockDocumentCsv } from "../src/lib/stock-report-export.ts";
+import { matchesExportTile } from "../src/lib/stock-export-filters.ts";
 
 const resources = Object.fromEntries(["en", "rw"].map(locale => [locale, { translation: JSON.parse(readFileSync(new URL(`../src/lib/i18n/locales/${locale}/common.json`, import.meta.url), "utf8")) }]));
 const i18n = createInstance();
 await i18n.init({ lng: "en", fallbackLng: false, resources, interpolation: { escapeValue: false } });
 const t = i18n.getFixedT("en");
-const meta = { generatedAt: "2026-10-08T12:00:00Z", from: "2026-09-09T00:00:00Z", to: "2026-10-09T00:00:00Z", period: "MONTHLY", movementType: "OUTBOUND" };
+
+test("tile search matches names, SKUs and sizes with case-insensitive words and x/× formats", () => {
+  const tile = { name: "Slate Blue Granite", sku: "TILE-055", size: "30×30cm" };
+  for (const term of ["", "  ", "slate", "TILE-055", "blue 055", "30x30", "30 × 30"]) assert.equal(matchesExportTile(tile, term), true, term);
+  for (const term of ["marble", "40x40", "blue missing"]) assert.equal(matchesExportTile(tile, term), false, term);
+});
+const meta = { generatedAt: "2026-10-08T12:00:00Z", from: "2026-09-09T00:00:00Z", to: "2026-10-09T00:00:00Z", period: "MONTHLY", movementType: "OUTBOUND", tile: null, valuation: [] };
 const items = Array.from({ length: 125 }, (_, index) => ({
   id: `movement-${index}`, createdAt: "2026-10-05T12:00:00Z", type: "OUTBOUND", changeAreaSqm: "-2.5",
   product: { id: "tile", name: index === 0 ? 'Tile, "Ceramic" <script>' : `Tile ${index}`, sku: `SKU-${index}` },
@@ -81,7 +88,7 @@ test("text formulas are neutralized while numeric outbound quantities remain num
 
 test("a stock report includes summary, trend, movements, low stock and fulfilment", () => {
   const report = stockReportDocument(snapshot, t);
-  assert.deepEqual(report.tables.map(table => table.kind), ["summary", "trend", "movements", "lowStock", "fulfillment"]);
+  assert.deepEqual(report.tables.map(table => table.kind), ["summary", "valuation", "trend", "movements", "lowStock", "fulfillment"]);
   const csv = stockDocumentCsv(report, t);
   assert.match(csv, /50000/);
   assert.match(csv, /LOW/);
@@ -107,5 +114,50 @@ test("empty report sections and both locales have readable output", () => {
     const csv = stockDocumentCsv(report, translate);
     assert.doesNotMatch(csv, /stock\.reports\.|stock\.overview\.|staff\./);
     assert.match(render(report), /No records/);
+  }
+});
+
+
+test("single-tile exports identify their scope and include current stock valuation in print and CSV", () => {
+  const tile = { id: "tile-uuid", name: 'Tile, "Ceramic"', sku: "SINGLE", size: "30×30cm", isActive: true };
+  const valuation = [{ productId: tile.id, name: tile.name, sku: tile.sku, size: tile.size, isActive: true,
+    quantityOnHandSqm: "12.3456", averageCostPrice: "2500.5", inventoryValue: 30870.1728 }];
+  for (const report of [stockReportDocument({ ...snapshot, tile, valuation }, t), stockMovementDocument({ ...meta, tile, valuation, items: [] }, t)]) {
+    assert.match(report.filename, /tile-tile-uuid/);
+    assert.ok(report.metadata.some(([, value]) => value === `${tile.name} · SINGLE`));
+    const table = report.tables.find((row) => row.kind === "valuation");
+    assert.equal(table.rows.length, 1);
+    assert.deepEqual(table.rows[0].slice(4), [12.3456, 2500.5, 30870.1728]);
+    const html = render(report);
+    assert.match(html, /Current Stock Valuation/);
+    assert.match(html, /12.3456/);
+    const csv = parseCsv(stockDocumentCsv(report, t));
+    assert.ok(csv.every(row => row.length === 12));
+    const stock = csv.filter(row => row[0] === "Current Stock Valuation" && row[2] === "SINGLE");
+    assert.equal(stock.length, 3);
+    assert.deepEqual(stock.map(row => [row[6], row[7]]), [["12.3456", "m²"], ["2500.5", "RWF/m²"], ["30870.1728", "RWF"]]);
+  }
+});
+
+test("empty movement periods still show zero stock and valuation with localized labels", () => {
+  for (const lang of ["en", "rw"]) {
+    const translate = i18n.getFixedT(lang);
+    const report = stockMovementDocument({ ...meta, items: [], valuation: [{ productId: "tile", name: "Tile", sku: "ZERO", size: "30×30cm", isActive: false, quantityOnHandSqm: 0, averageCostPrice: 0, inventoryValue: 0 }] }, translate);
+    assert.deepEqual(report.tables.find(row => row.kind === "valuation").rows[0].slice(4), [0, 0, 0]);
+    assert.doesNotMatch(stockDocumentCsv(report, translate), /stock\.reports\.output\.|staff\.inventory/);
+  }
+});
+
+
+test("collection export metadata, filenames and valuation tables retain the whole collection scope", () => {
+  const collection = { id: "collection-uuid", title: "Floor Tiles", size: "30×30cm", isActive: true, productCount: 2 };
+  const valuation = [0, 1].map(index => ({ productId: `tile-${index}`, name: `Tile ${index}`, sku: `COL-${index}`, size: "30×30cm", isActive: index === 0, quantityOnHandSqm: 5, averageCostPrice: 4, inventoryValue: 20 }));
+  for (const report of [stockReportDocument({ ...snapshot, tile: null, collection, valuation }, t), stockMovementDocument({ ...meta, tile: null, collection, valuation, items: [] }, t)]) {
+    assert.match(report.filename, /collection-collection-uuid/);
+    assert.ok(report.metadata.some(([, value]) => value === "Collection: Floor Tiles · 30×30cm"));
+    assert.equal(report.tables.find(table => table.kind === "valuation").rows.length, 2);
+    const rows = parseCsv(stockDocumentCsv(report, t));
+    assert.equal(rows.filter(row => row[0] === "Current Stock Valuation" && row[2].startsWith("COL-")).length, 6);
+    assert.match(render(report), /Floor Tiles/);
   }
 });

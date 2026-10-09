@@ -3,11 +3,18 @@ import type {
   StockMovement,
   StockMovementsExport,
   StockReportExport,
+  StockValuationRow,
 } from "@/lib/api/types";
 
 export type ExportCell = string | number;
 export type ExportTable = {
-  kind: "summary" | "trend" | "movements" | "lowStock" | "fulfillment";
+  kind:
+    | "summary"
+    | "trend"
+    | "movements"
+    | "lowStock"
+    | "fulfillment"
+    | "valuation";
   title: string;
   headers: string[];
   rows: ExportCell[][];
@@ -58,6 +65,31 @@ function movementTable(items: StockMovement[], t: Translate): ExportTable {
   };
 }
 
+function valuationTable(items: StockValuationRow[], t: Translate): ExportTable {
+  return {
+    kind: "valuation",
+    title: t(key("valuation")),
+    headers: [
+      t("stock.reports.colItem"),
+      t(key("sku")),
+      t(key("size")),
+      t(key("status")),
+      t(key("currentStock")),
+      t(key("averageCost")),
+      t(key("stockValue")),
+    ],
+    rows: items.map((row) => [
+      row.name,
+      row.sku,
+      row.size,
+      t(key(row.isActive ? "tileActive" : "tileInactive")),
+      numeric(row.quantityOnHandSqm),
+      numeric(row.averageCostPrice),
+      numeric(row.inventoryValue),
+    ]),
+  };
+}
+
 function metadata(
   snapshot: StockExportMetadata,
   count: number,
@@ -71,6 +103,14 @@ function metadata(
   };
   return [
     [t(key("generated")), isoDate(snapshot.generatedAt)],
+    [
+      t(key("exportScope")),
+      snapshot.tile
+        ? `${snapshot.tile.name} · ${snapshot.tile.sku}`
+        : snapshot.collection
+          ? `${t(key("collection"))}: ${snapshot.collection.title} · ${snapshot.collection.size}`
+          : t(key("allTiles")),
+    ],
     [t(key("from")), isoDate(snapshot.from)],
     [t(key("to")), isoDate(snapshot.to)],
     [t(key("filter")), t(`stock.reports.${filters[snapshot.movementType]}`)],
@@ -85,7 +125,13 @@ function filename(
   const lastDay = new Date(new Date(snapshot.to).getTime() - 1)
     .toISOString()
     .slice(0, 10);
-  return `stock-${scope}-${snapshot.from.slice(0, 10)}-${lastDay}-${snapshot.movementType.toLowerCase()}.csv`;
+  const tile = snapshot.tile
+    ? `-tile-${snapshot.tile.id.replace(/[^a-zA-Z0-9-]/g, "")}`
+    : "";
+  const collection = snapshot.collection
+    ? `-collection-${snapshot.collection.id.replace(/[^a-zA-Z0-9-]/g, "")}`
+    : "";
+  return `stock-${scope}${tile}${collection}-${snapshot.from.slice(0, 10)}-${lastDay}-${snapshot.movementType.toLowerCase()}.csv`;
 }
 
 export function stockMovementDocument(
@@ -96,8 +142,11 @@ export function stockMovementDocument(
     title: t("stock.reports.stockMovements"),
     filename: filename(snapshot, "movements"),
     metadata: metadata(snapshot, snapshot.items.length, t),
-    notes: [t(key("completeMovements"))],
-    tables: [movementTable(snapshot.items, t)],
+    notes: [t(key("completeMovements")), t(key("valuationNote"))],
+    tables: [
+      movementTable(snapshot.items, t),
+      valuationTable(snapshot.valuation, t),
+    ],
   };
 }
 
@@ -152,9 +201,11 @@ export function stockReportDocument(
       t(key("scopeNote")),
       t(key("summaryScope")),
       t(key("completeMovements")),
+      t(key("valuationNote")),
     ],
     tables: [
       table,
+      valuationTable(snapshot.valuation, t),
       {
         kind: "trend",
         title: t("stock.reports.trendTitle"),
@@ -253,6 +304,28 @@ export function stockDocumentCsv(document: StockExportDocument, t: Translate) {
   for (const table of document.tables)
     for (const row of table.rows) {
       switch (table.kind) {
+        case "valuation":
+          for (const [metric, value, unit] of [
+            [t(key("currentStock")), row[4], "m²"],
+            [t(key("averageCost")), row[5], "RWF/m²"],
+            [t(key("stockValue")), row[6], "RWF"],
+          ] as ExportCell[][]) {
+            rows.push([
+              table.title,
+              "",
+              row[1],
+              "",
+              `${row[0]} — ${metric}`,
+              row[3],
+              value,
+              unit,
+              "",
+              row[2],
+              "",
+              "",
+            ]);
+          }
+          break;
         case "summary":
           rows.push([
             table.title,
